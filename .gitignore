@@ -1,0 +1,4 @@
+/TouchGFX/generated/*
+/TouchGFX/build/*
+/STM32CubeIDE/Debug/*
+

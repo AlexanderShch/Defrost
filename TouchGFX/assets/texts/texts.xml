@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextDatabase xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="texts.xsd" Version="4.22.0">
+  <Languages>
+    <Language Id="GB" />
+  </Languages>
+  <Texts>
+    <TextGroup Id="State">
+      <Text Id="StateFan1" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">1</Translation>
+      </Text>
+      <Text Id="StateFan2" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">2</Translation>
+      </Text>
+      <Text Id="StateFan3" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">3</Translation>
+      </Text>
+      <Text Id="StateFan4" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">4</Translation>
+      </Text>
+      <Text Id="StateHeat1" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">1</Translation>
+      </Text>
+      <Text Id="StateHeat2" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">2</Translation>
+      </Text>
+      <Text Id="StateHeat3" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">3</Translation>
+      </Text>
+      <Text Id="StateHeat4" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">4</Translation>
+      </Text>
+      <Text Id="StateHeat5" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">5</Translation>
+      </Text>
+      <Text Id="StateHeat6" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">6</Translation>
+      </Text>
+    </TextGroup>
+    <TextGroup Id="Wildcart_labels">
+      <Text Id="ValueCoreTSet" Alignment="Center" TypographyId="WildcardLarge">
+        <Translation Language="GB">&lt;value&gt;°</Translation>
+      </Text>
+      <Text Id="ValueDefrosterH" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">&lt;value&gt;%</Translation>
+      </Text>
+      <Text Id="ValueCoreT1Small" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">&lt;value&gt;°</Translation>
+      </Text>
+      <Text Id="ValueCoreT2Small" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">&lt;value&gt;°</Translation>
+      </Text>
+      <Text Id="ValueDefrosterT1" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">&lt;value&gt;°</Translation>
+      </Text>
+      <Text Id="ValueDefrosterT2" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">&lt;value&gt;°</Translation>
+      </Text>
+      <Text Id="ValuePRGTimeLeft" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="ValueCoreT2" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;°</Translation>
+      </Text>
+      <Text Id="ValueCoreT1" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;°</Translation>
+      </Text>
+    </TextGroup>
+    <TextGroup Id="Wildcarts">
+      <Text Id="ValueCoreTSet_W" Alignment="Left" TypographyId="Large">
+        <Translation Language="GB">9</Translation>
+      </Text>
+      <Text Id="ValueDefrosterH_W" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">99</Translation>
+      </Text>
+      <Text Id="ValueDefrosterT1_W" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">99</Translation>
+      </Text>
+      <Text Id="ValueDefrosterT2_W" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">98</Translation>
+      </Text>
+      <Text Id="ValuePRGTimeLeft_W" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">999</Translation>
+      </Text>
+      <Text Id="ValueCoreT2_W" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB" Alignment="Center">-98</Translation>
+      </Text>
+      <Text Id="ValueCoreT1_W" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">-99</Translation>
+      </Text>
+    </TextGroup>
+    <TextGroup Id="Labels">
+      <Text Id="LabelSettingsMenu" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Ручное управление&#10;и настройки</Translation>
+      </Text>
+      <Text Id="LabelGateControlManual" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">Ручн. управление</Translation>
+      </Text>
+      <Text Id="LabelGateControls" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Управление воротами</Translation>
+      </Text>
+      <Text Id="LabelCloseGate" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">Закрыть</Translation>
+      </Text>
+      <Text Id="LabelOpenGate" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">Открыть</Translation>
+      </Text>
+      <Text Id="LabelSprayManual" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">Ручн. управление</Translation>
+      </Text>
+      <Text Id="LabelSprayOff" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">Закрыть</Translation>
+      </Text>
+      <Text Id="LabelSprayOn" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">Открыть</Translation>
+      </Text>
+      <Text Id="LabelSpray" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Форсунки</Translation>
+      </Text>
+      <Text Id="LabelCoreTSet" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Задать Т° в теле</Translation>
+      </Text>
+      <Text Id="LabelCoreTSensors" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Датчики Т° в теле</Translation>
+      </Text>
+      <Text Id="LabelPRGTimeLeft" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Ост. программы, мин</Translation>
+      </Text>
+      <Text Id="LabelCoreT" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Т° ядра 1/2</Translation>
+      </Text>
+    </TextGroup>
+    <TextGroup Id="Buttons">
+      <Text Id="BTNSettings1" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Управление температурой в теле</Translation>
+      </Text>
+      <Text Id="BTNSettings2" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Ворота и форсунки</Translation>
+      </Text>
+      <Text Id="BTNSettings3" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Вентиляторы и нагрев 1-2</Translation>
+      </Text>
+      <Text Id="BTNSettings4" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Вентиляторы и нагрев 3-4</Translation>
+      </Text>
+      <Text Id="GoToVisualisation" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Просмотр состояния</Translation>
+      </Text>
+      <Text Id="Stop" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Стоп</Translation>
+      </Text>
+      <Text Id="Start" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Старт</Translation>
+      </Text>
+    </TextGroup>
+    <TextGroup Id="Unsorted">
+      <Text Id="LabelHeater34" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Тэны 3-4</Translation>
+      </Text>
+      <Text Id="LabelFan34" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Вентиляторы 3-4</Translation>
+      </Text>
+      <Text Id="LabelGroup4" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Группа 4</Translation>
+      </Text>
+      <Text Id="LabelGroup3" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Группа 3</Translation>
+      </Text>
+      <Text Id="__SingleUse_1KOJ" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB"></Translation>
+      </Text>
+      <Text Id="__SingleUse_P4SQ" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB"></Translation>
+      </Text>
+      <Text Id="LabelOffOn" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Выкл/вкл</Translation>
+      </Text>
+      <Text Id="LabelHeater12" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Тэны 1-2</Translation>
+      </Text>
+      <Text Id="LabelGroup2" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Группа 2</Translation>
+      </Text>
+      <Text Id="LabelGroup1" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Группа 1</Translation>
+      </Text>
+      <Text Id="LabelManualControl" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Ручное управление</Translation>
+      </Text>
+      <Text Id="LabelFan12" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Вентиляторы 1-2</Translation>
+      </Text>
+    </TextGroup>
+  </Texts>
+  <Typographies>
+    <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" />
+    <Typography Id="Large" Font="verdana.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" />
+    <Typography Id="Small" Font="verdana.ttf" Size="10" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="." WildcardCharacterRanges="0-9" />
+    <Typography Id="WildcardLarge" Font="verdana.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="-0123456789" />
+  </Typographies>
+</TextDatabase>
