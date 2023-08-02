@@ -73,6 +73,10 @@ LTDC_HandleTypeDef hltdc;
 
 SPI_HandleTypeDef hspi5;
 
+UART_HandleTypeDef huart5;
+DMA_HandleTypeDef hdma_uart5_rx;
+DMA_HandleTypeDef hdma_uart5_tx;
+
 SDRAM_HandleTypeDef hsdram1;
 
 /* Definitions for defaultTask */
@@ -103,6 +107,18 @@ const osThreadAttr_t ReadData_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for MB_Master */
+osThreadId_t MB_MasterHandle;
+const osThreadAttr_t MB_Master_attributes = {
+  .name = "MB_Master",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for MB_MasterQ */
+osMessageQueueId_t MB_MasterQHandle;
+const osMessageQueueAttr_t MB_MasterQ_attributes = {
+  .name = "MB_MasterQ"
+};
 /* Definitions for DataTimer */
 osTimerId_t DataTimerHandle;
 const osTimerAttr_t DataTimer_attributes = {
@@ -120,16 +136,19 @@ const osEventFlagsAttr_t ReadDataEvent_attributes = {
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_CRC_Init(void);
 static void MX_I2C3_Init(void);
 static void MX_SPI5_Init(void);
 static void MX_FMC_Init(void);
 static void MX_LTDC_Init(void);
 static void MX_DMA2D_Init(void);
+static void MX_UART5_Init(void);
 void StartDefaultTask(void *argument);
 extern void TouchGFX_Task(void *argument);
 void HandleDataProcessing(void *argument);
 void ReadDataFunction(void *argument);
+void MB_Master_Task(void *argument);
 void Callback01(void *argument);
 
 /* USER CODE BEGIN PFP */
@@ -199,12 +218,14 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_CRC_Init();
   MX_I2C3_Init();
   MX_SPI5_Init();
   MX_FMC_Init();
   MX_LTDC_Init();
   MX_DMA2D_Init();
+  MX_UART5_Init();
   MX_TouchGFX_Init();
   /* Call PreOsInit function */
   MX_TouchGFX_PreOSInit();
@@ -232,6 +253,10 @@ int main(void)
   osTimerStart(DataTimerHandle, 1000);
   /* USER CODE END RTOS_TIMERS */
 
+  /* Create the queue(s) */
+  /* creation of MB_MasterQ */
+  MB_MasterQHandle = osMessageQueueNew (16, sizeof(uint16_t), &MB_MasterQ_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
@@ -248,6 +273,9 @@ int main(void)
 
   /* creation of ReadData */
   ReadDataHandle = osThreadNew(ReadDataFunction, NULL, &ReadData_attributes);
+
+  /* creation of MB_Master */
+  MB_MasterHandle = osThreadNew(MB_Master_Task, NULL, &MB_Master_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -533,9 +561,59 @@ static void MX_SPI5_Init(void)
   }
   /* USER CODE BEGIN SPI5_Init 2 */
 
-
-
   /* USER CODE END SPI5_Init 2 */
+
+}
+
+/**
+  * @brief UART5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_UART5_Init(void)
+{
+
+  /* USER CODE BEGIN UART5_Init 0 */
+
+  /* USER CODE END UART5_Init 0 */
+
+  /* USER CODE BEGIN UART5_Init 1 */
+
+  /* USER CODE END UART5_Init 1 */
+  huart5.Instance = UART5;
+  huart5.Init.BaudRate = 115200;
+  huart5.Init.WordLength = UART_WORDLENGTH_8B;
+  huart5.Init.StopBits = UART_STOPBITS_1;
+  huart5.Init.Parity = UART_PARITY_NONE;
+  huart5.Init.Mode = UART_MODE_TX_RX;
+  huart5.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart5.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN UART5_Init 2 */
+
+  /* USER CODE END UART5_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream0_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+  /* DMA1_Stream7_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream7_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream7_IRQn);
 
 }
 
@@ -850,6 +928,7 @@ static uint8_t I2C3_ReadBuffer(uint8_t Addr, uint8_t Reg, uint8_t *pBuffer, uint
   }
 }
 
+
 /**
   * @brief  Reads 4 bytes from device.
   * @param  ReadSize: Number of bytes to read (max 4 bytes)
@@ -1033,6 +1112,21 @@ void ReadDataFunction(void *argument)
 	ReadDataFunc_C();
   }
   /* USER CODE END ReadDataFunction */
+}
+
+/* USER CODE BEGIN Header_MB_Master_Task */
+/**
+* @brief Function implementing the MB_Master thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_MB_Master_Task */
+void MB_Master_Task(void *argument)
+{
+  /* USER CODE BEGIN MB_Master_Task */
+	MB_Master_Task_С();
+
+  /* USER CODE END MB_Master_Task */
 }
 
 /* Callback01 function */

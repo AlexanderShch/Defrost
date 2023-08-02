@@ -29,6 +29,7 @@ void Settings1View::BTNCoreTSetIncreaseClicked()
         CoreTSet++;
         Unicode::snprintf(ValueCoreTSetBuffer, VALUECORETSET_SIZE, "%d", CoreTSet);
         ValueCoreTSet.invalidate();
+        presenter->DefrosterOperatingTemperaturePresenter(CoreTSet);
     }
 }
 
@@ -40,5 +41,7 @@ void Settings1View::BTNCoreTSetDecreaseClicked()
         CoreTSet--;
         Unicode::snprintf(ValueCoreTSetBuffer, VALUECORETSET_SIZE, "%d", CoreTSet);
         ValueCoreTSet.invalidate();
+        presenter->DefrosterOperatingTemperaturePresenter(CoreTSet);
     }
 }
+

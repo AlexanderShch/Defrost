@@ -2,6 +2,7 @@
 #define SETTINGS1PRESENTER_HPP
 
 #include <gui/model/ModelListener.hpp>
+#include <gui/model/Model.hpp>
 #include <mvp/Presenter.hpp>
 
 using namespace touchgfx;
@@ -26,6 +27,8 @@ public:
     virtual void deactivate();
 
     virtual ~Settings1Presenter() {};
+
+    virtual void DefrosterOperatingTemperaturePresenter(float Val);
 
 private:
     Settings1Presenter();

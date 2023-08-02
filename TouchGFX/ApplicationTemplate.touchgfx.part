@@ -25,7 +25,7 @@
     ],
     "AdditionalFeatures": [
       "Vector"
-    ],
+    ]
   },
-  "Version": "4.21.4"
+  "Version": "4.22.0"
 }

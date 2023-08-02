@@ -86,10 +86,13 @@ void Sensor::PutData(uint32_t TimeFromStart, int8_t SensNum, int8_t Param, float
 //	 Return integer value from measure array
 //	 TimeFromStart - value of measure counter give correct data only for last TQ measures
 //	 SensNum - number of interesting sensor
-//	 Param - 1 for time, 2 for temperature, 3 for humidity
+//	 Param - 0 for active, 1 for time, 2 for temperature, 3 for humidity
 float Sensor::GetData(uint32_t TimeFromStart, int8_t SensNum, int8_t Param) {
 	uint32_t i = TimeFromStart % TQ;
 	switch (Param) {
+	case 0:
+		return Active[SensNum];
+		break;
 	case 1:
 		return Time[i][SensNum];
 		break;
@@ -121,11 +124,13 @@ void DataTimerFunc()
 }
 
 /* 2. The task ReadData reading data from sensors
-* 	0 - defroster left
-* 	1 - defroster right
-* 	2 - defroster center
-*	3 - fish left
-*	4 - fish right
+ * 	0 - defroster T, H left
+ * 	1 - defroster T, H right
+ * 	2 - defroster T, H center
+ *	3 - fish T left
+ *	4 - fish T right
+ * 	5 - defroster operating T
+ * 	6 - product final T
 */
 void ReadDataFunc() {
 	//Здесь ожидание флага, чтобы запустить задачу ReadData
@@ -137,6 +142,7 @@ void ReadDataFunc() {
 	for (int SensorNumber = 0; SensorNumber < SQ; ++SensorNumber) {
 		float Temp = T+SensorNumber;
 		// Считывание с последовательной шины
+		MB_Master_Task_СPP();
 		H = 50.78;
 		// запись в массив данных
 		Sensor::PutData(CurrentTime, SensorNumber, 1, CurrentTime);

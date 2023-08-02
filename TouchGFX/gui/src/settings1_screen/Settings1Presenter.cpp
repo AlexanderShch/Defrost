@@ -16,3 +16,8 @@ void Settings1Presenter::deactivate()
 {
 
 }
+
+void Settings1Presenter::DefrosterOperatingTemperaturePresenter(float Val)
+{
+	Model::setCurrentVal(SensNum_DefrOperTemp, Val);
+}

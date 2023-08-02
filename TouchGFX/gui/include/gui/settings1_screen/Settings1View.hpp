@@ -14,7 +14,7 @@ public:
     virtual void BTNCoreTSetIncreaseClicked();
     virtual void BTNCoreTSetDecreaseClicked();
 protected:
-    int CoreTSet = 6;
+    char  CoreTSet = 6;
 };
 
 #endif // SETTINGS1VIEW_HPP

@@ -55,4 +55,3 @@ void VisualizationPresenter::ValUpdatePresenter()
 		}
 	}
 }
-
