@@ -7,11 +7,15 @@
 #include <Data.hpp>
 #include "main.h"
 #include "cmsis_os.h"
+#include "ModBus.hpp"
+
 
 #include <gui\model\model.hpp>
 
 // ReadDataEventHandle was defined in main.c
 extern osEventFlagsId_t ReadDataEventHandle;
+// MB_Master_Task_CPP() was defined in ModBus.cpp
+//extern void MB_Master_Task_CPP();
 
 uint32_t CurrentTime = 0;	// current number of measure
 uint32_t flags;				// flags for waiting event
@@ -90,9 +94,6 @@ void Sensor::PutData(uint32_t TimeFromStart, int8_t SensNum, int8_t Param, float
 float Sensor::GetData(uint32_t TimeFromStart, int8_t SensNum, int8_t Param) {
 	uint32_t i = TimeFromStart % TQ;
 	switch (Param) {
-	case 0:
-		return Active[SensNum];
-		break;
 	case 1:
 		return Time[i][SensNum];
 		break;
@@ -142,7 +143,7 @@ void ReadDataFunc() {
 	for (int SensorNumber = 0; SensorNumber < SQ; ++SensorNumber) {
 		float Temp = T+SensorNumber;
 		// Считывание с последовательной шины
-		MB_Master_Task_СPP();
+		Start_MB_Master_Task();
 		H = 50.78;
 		// запись в массив данных
 		Sensor::PutData(CurrentTime, SensorNumber, 1, CurrentTime);

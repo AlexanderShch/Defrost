@@ -17,7 +17,7 @@
 
 #include "main.h"
 #include "cmsis_os.h"
-//#include "usb_host.h"
+#include "Data.hpp"
 
 #define MB_SLAVE_ADDRESS	200
 
@@ -37,7 +37,8 @@ uint16_t ErrorCnt;			// ошибки данных, CRC
 
 /* РЕГИСТРЫ ОПИСЫВАЮЩИЕ СОСТОЯНИЕ ДЕФРОСТЕРА */
 #define MB_SLAVE_REG_COUNT	11
-typedef struct {
+typedef struct
+{
 //	int16_t		DFR_Hum_In;			// Влажность входная				1
 //	int16_t		DFR_Temp_In;		// Температура входная				2
 //	int16_t		DFR_Hum_Out_Left;	// Влажность выходная левая			3
@@ -65,14 +66,6 @@ typedef struct {
 
 } DFR_REGISTERS_t;
 
-SENSOR_typedef_t Sensor_array[SQ] = {
-		{101,0,1,"Ldfr", 0,0,0},	// 0 - defroster left
-		{102,0,1,"Rdfr",0,0,0},		// 1 - defroster right
-		{103,0,1,"IN",0,0,0},		// 2 - defroster center
-		{104,0,0,"Lpr",0,0,0},		// 3 - fish left
-		{105,0,0,"Rpr",0,0,0},		// 4 - fish right
-};
-
 // Modbus request frame
 typedef struct {
 	uint8_t Address;
@@ -99,7 +92,6 @@ typedef enum
 
 //osThreadId MB_Slave_TaskHandle;
 extern osThreadId MB_Master_TaskHandle;
-//osMessageQId MB_SlaveQHandle;
 extern osMessageQId MB_MasterQHandle;
 
 #ifdef __cplusplus
@@ -110,8 +102,8 @@ extern "C" {
 }
 #endif
 
-void Start_MB_Master_Task();
-
+void Start_MB_Master_Task(void);
+MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum);
 
 #endif /* MODBUS_HPP_ */
 
