@@ -136,7 +136,9 @@ MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum
 			// Инициируем приём с использованием DMA
 			if (HAL_UARTEx_ReceiveToIdle_DMA(&huart5, MB_Master_Buffer, MAX_MB_BUFSIZE) == HAL_OK)
 				// Инициируем приём из очереди
-				// ответ должен нормально уложиться в 10 ms (19200 -> 500 us на байт
+				// ответ должен нормально уложиться в 10 ms (19200 -> 500 us на байт),
+				// на это время функция в блокировке ожидает появления данных в очереди
+				// последнее значение в очереди = 0, прерывание по IDLE
 				if  (xQueueReceive((QueueHandle_t) MB_MasterQHandle, &MB_QueueData, 10/portTICK_RATE_MS) == pdPASS && MB_QueueData == MB_ERROR_NO)
 						return MB_ERROR_NO;
 		}
