@@ -25,7 +25,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Components/ili9341/ili9341.h"
-#include "Data.hpp"
+#include "C2CPP.hpp"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -107,13 +107,6 @@ const osThreadAttr_t ReadData_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for MB_Master */
-osThreadId_t MB_MasterHandle;
-const osThreadAttr_t MB_Master_attributes = {
-  .name = "MB_Master",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
-};
 /* Definitions for MB_MasterQ */
 osMessageQueueId_t MB_MasterQHandle;
 const osMessageQueueAttr_t MB_MasterQ_attributes = {
@@ -148,7 +141,6 @@ void StartDefaultTask(void *argument);
 extern void TouchGFX_Task(void *argument);
 void HandleDataProcessing(void *argument);
 void ReadDataFunction(void *argument);
-void MB_Master_Task(void *argument);
 void Callback01(void *argument);
 
 /* USER CODE BEGIN PFP */
@@ -273,9 +265,6 @@ int main(void)
 
   /* creation of ReadData */
   ReadDataHandle = osThreadNew(ReadDataFunction, NULL, &ReadData_attributes);
-
-  /* creation of MB_Master */
-  MB_MasterHandle = osThreadNew(MB_Master_Task, NULL, &MB_Master_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -1119,21 +1108,6 @@ void ReadDataFunction(void *argument)
 	ReadDataFunc_C();
   }
   /* USER CODE END ReadDataFunction */
-}
-
-/* USER CODE BEGIN Header_MB_Master_Task */
-/**
-* @brief Function implementing the MB_Master thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_MB_Master_Task */
-void MB_Master_Task(void *argument)
-{
-  /* USER CODE BEGIN MB_Master_Task */
-	MB_Master_Task_С();
-
-  /* USER CODE END MB_Master_Task */
 }
 
 /* Callback01 function */

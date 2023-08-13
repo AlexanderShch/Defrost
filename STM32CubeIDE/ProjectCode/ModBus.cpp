@@ -1,6 +1,7 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "ModBus.hpp"
+//#include "Data.hpp"
 #include "stdio.h"
 #include "task.h"
 #include "string.h"
@@ -52,14 +53,14 @@ const static uint16_t crc16_table[] =
   };
 
 // start C++ function from C program
-extern "C"
-{
-	void MB_Master_Task_С()	// start from main.c MB_Master_Task
-	{
-		Start_MB_Master_Task();
-	}
-
-}
+//extern "C"
+//{
+//	void MB_Master_Task_C()	// start from main.c MB_Master_Task
+//	{
+//		Start_MB_Master_Task();
+//	}
+//
+//}
 
 SENSOR_typedef_t Sensor_array[SQ] =
 {
@@ -73,37 +74,41 @@ SENSOR_typedef_t Sensor_array[SQ] =
 
 /************** ДАТЧИКИ ****************************/
 /***************************************************/
-// Задача MB_Master_Task опрашивает все активные датчики по запросу
-void Start_MB_Master_Task(void)
-{
-//	const uint16_t START_REG = 0, REG_COUNT = 2;
 // при запуске сначала проверим все сенсоры на активность
-	for (int i=0; i<SQ; i++)
+void MB_Master_Init(void) {
+for (int i=0; i<SQ; i++)
 	{
 			Sensor_array[i].Active = (MB_Master_Request(Sensor_array[i].Address, 0u, 1u) == MB_ERROR_NO);
 	}
+}
 
-//начало основного цикла задачи - опрос активных датчиков
-//	while (1) {
-//		osDelay(1000u); // для отладки, заменить на таймер
-//		for (int i = 0; i < SQ; i++) {
-//			if (Sensor_array[i].Active == 0) continue; // посылаем запрос только если датчик числится активным,
-//			if (MB_Master_Request(Sensor_array[i].Address, START_REG, REG_COUNT) == MB_ERROR_NO) {
-//				// данные приняты - проверяем достоверность
-//				if (Sensor_array[i].Address == MB_Master_Buffer[0]
-//						&& MB_Master_Buffer[1] == MB_CMD_READ_REGS
-//						//(считаем CRC, вместе с принятым CRC, должно быть == 0
-//						&& MB_GetCRC(MB_Master_Buffer, MB_Master_Buffer[2] + 5) == 0) {
-//					// все проверки ОК, пишем в регистры
-//					for (int cnt = 0;  cnt < REG_COUNT; cnt++)
-//						((uint16_t*) &DFR_Reg)[START_REG + cnt] = SwapBytes( *(uint16_t*) &MB_Master_Buffer[cnt * 2 +3] );
-//					Sensor_array[i].OkCnt++;
-//				}
-//				else Sensor_array[i].ErrorCnt++;
-//			}
-//			else	Sensor_array[i].TimeoutCnt++;
-//		}
-//	}
+// Функция считывает данные с датчика
+void MB_Master_Read(int i)
+{
+	// параметры для датчика совмещенного типа
+	const uint16_t START_REG = 0, REG_COUNT = 2;
+	float T, H;
+
+			if (MB_Master_Request(Sensor_array[i].Address, START_REG, REG_COUNT) == MB_ERROR_NO)
+			{
+				// данные приняты - проверяем достоверность
+				if (Sensor_array[i].Address == MB_Master_Buffer[0]
+						&& MB_Master_Buffer[1] == MB_CMD_READ_REGS
+						//(считаем CRC, вместе с принятым CRC, должно быть == 0
+						&& MB_GetCRC(MB_Master_Buffer, MB_Master_Buffer[2] + 5) == 0) {
+					// все проверки ОК, пишем значения с датчика совмещённого типа
+					H = SwapBytes( *(uint16_t*) &MB_Master_Buffer[3]);
+					T = SwapBytes( *(uint16_t*) &MB_Master_Buffer[5]);
+					// запись в массив данных
+					Sensor::PutData(CurrentTime, i, 1, CurrentTime);
+					Sensor::PutData(CurrentTime, i, 2, T);
+					Sensor::PutData(CurrentTime, i, 3, H);
+
+					Sensor_array[i].OkCnt++;
+				}
+				else Sensor_array[i].ErrorCnt++;
+			}
+			else	Sensor_array[i].TimeoutCnt++;
 }
 
 
