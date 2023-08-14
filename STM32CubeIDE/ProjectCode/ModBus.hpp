@@ -25,12 +25,12 @@
 typedef struct {
 uint8_t Address;			// ModBus address
 uint8_t Active;				// флаг активности датчика
-uint8_t Humidity;			// совмещённый датчик температуры и влажности
+uint8_t TypeOfSensor;			// тип датчика: 1 - совмещённый датчик температуры и влажности
 uint8_t PositionName[4];	// наименование позиции датчика
 // статистика полученных ответов от датчика
-uint16_t OkCnt;				// Ок
-uint16_t TimeoutCnt;		// неответ
-uint16_t ErrorCnt;			// ошибки данных, CRC
+uint16_t OkCnt;				// счётчик ответов
+uint16_t TimeoutCnt;		// счётчик неответов
+uint16_t ErrorCnt;			// счётчик ошибкок данных, CRC
 } SENSOR_typedef_t;
 
 #define SwapBytes(data) ( (((data) >> 8) & 0x00FF) | (((data) << 8) & 0xFF00) )
@@ -94,15 +94,16 @@ typedef enum
 extern osThreadId MB_Master_TaskHandle;
 extern osMessageQId MB_MasterQHandle;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-	void MB_Master_Task_С();
-#ifdef __cplusplus
-}
-#endif
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
+//	void MB_Master_Task_С();
+//#ifdef __cplusplus
+//}
+//#endif
 
-void Start_MB_Master_Task(void);
+void MB_Master_Read(int SensorNumber);
+void MB_Master_Init(void);
 MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum);
 
 #endif /* MODBUS_HPP_ */

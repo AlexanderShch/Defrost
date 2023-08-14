@@ -6,58 +6,21 @@
  */
 #include <Data.hpp>
 #include "main.h"
-#include "cmsis_os.h"
-#include "ModBus.hpp"
 
 
 #include <gui\model\model.hpp>
 
 // ReadDataEventHandle was defined in main.c
 extern osEventFlagsId_t ReadDataEventHandle;
+extern SENSOR_typedef_t Sensor_array[SQ];
 // MB_Master_Task_CPP() was defined in ModBus.cpp
 //extern void MB_Master_Task_CPP();
 
-uint32_t CurrentTime = 0;	// current number of measure
 uint32_t flags;				// flags for waiting event
 int8_t SensorNumber;
-static float T=0, H=0;
-
-extern "C"
-{
-	void DataTimerFunc_C()	// start from osTimer 1 sec
-	{
-		DataTimerFunc();
-	}
-	void ReadDataFunc_C()	// start ReadData after timer
-	{
-		ReadDataFunc();
-	}
-	void DataFunc_C()		// start DataAnalysis
-	{
-		DataFunc();
-	}
-	void InitDataVariables_C()
-	{
-		InitData();
-	}
-}
-
-class Sensor
-{
-public:
-	Sensor(){};										// declare default constructor
-	Sensor(uint32_t Time, float T, float H){};		// declare constructor
-	static void PutData(uint32_t TimeFromStart, int8_t SensNum, int8_t Param, float Val);
-	static float GetData(uint32_t TimeFromStart, int8_t SensNum, int8_t Param);
-protected:
-	static uint32_t Time[TQ][SQ];	// number of time quantum measuring
-	static float T[TQ][SQ];			// temperature
-	static float H[TQ][SQ];			// humidity
-};
-
 
 // definition of static variable. Member function definitions belong in the scope where the class is defined.
-uint32_t Sensor::Time[TQ][SQ] = {{0}};	// number of time quantum measuring
+unsigned int Sensor::Time[TQ][SQ] = {{0}};	// number of time quantum measuring
 float Sensor::T[TQ][SQ] = {{0}};		// temperature
 float Sensor::H[TQ][SQ] = {{0}};		// humidity
 
@@ -67,7 +30,7 @@ float Sensor::H[TQ][SQ] = {{0}};		// humidity
 // SensNum - number of interesting sensor
 // Param - 1 for time, 2 for temperature, 3 for humidity
 // Val - value of data
-void Sensor::PutData(uint32_t TimeFromStart, int8_t SensNum, int8_t Param, float Val) {
+void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, float Val) {
 	int i = TimeFromStart % TQ;
 
 	switch (Param)
@@ -91,7 +54,7 @@ void Sensor::PutData(uint32_t TimeFromStart, int8_t SensNum, int8_t Param, float
 //	 TimeFromStart - value of measure counter give correct data only for last TQ measures
 //	 SensNum - number of interesting sensor
 //	 Param - 0 for active, 1 for time, 2 for temperature, 3 for humidity
-float Sensor::GetData(uint32_t TimeFromStart, int8_t SensNum, int8_t Param) {
+float Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param) {
 	uint32_t i = TimeFromStart % TQ;
 	switch (Param) {
 	case 1:
@@ -112,13 +75,11 @@ float Sensor::GetData(uint32_t TimeFromStart, int8_t SensNum, int8_t Param) {
 // 1. Operating system timer 1 sec will start this function
 void DataTimerFunc()
 {
-	// Здесь тест на изменение температуры
-	// Температура изменилась для всех датчиков
-	T += 0.01;
-
-	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
 	// Здесь установка флага события для запуска задачи по считыванию данных
 	osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
+
+	// моргнём светодиодом
+	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
 	osDelay(100);
 	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
 
@@ -134,27 +95,28 @@ void DataTimerFunc()
  * 	6 - product final T
 */
 void ReadDataFunc() {
-	//Здесь ожидание флага, чтобы запустить задачу ReadData
-	flags = osEventFlagsWait(ReadDataEventHandle, FLAG_ReadData, osFlagsWaitAny, osWaitForever);
-	// Новое значение счётчика времени
-	CurrentTime ++;
+	// Инициализация датчиков при запуске задачи
+	void MB_Master_Init(void);
+	// Бесконечный цикл задачи ReadData
+	while (1)
+	{
+		//Здесь ожидание флага, чтобы запустить задачу ReadData
+		flags = osEventFlagsWait(ReadDataEventHandle, FLAG_ReadData, osFlagsWaitAny, osWaitForever);
+		// Новое значение счётчика времени
+		CurrentTime ++;
 
-	//Здесь код для считывания данных с датчиков:
-	for (int SensorNumber = 0; SensorNumber < SQ; ++SensorNumber) {
-		float Temp = T+SensorNumber;
-		// Считывание с последовательной шины
-		Start_MB_Master_Task();
-		H = 50.78;
-		// запись в массив данных
-		Sensor::PutData(CurrentTime, SensorNumber, 1, CurrentTime);
-		Sensor::PutData(CurrentTime, SensorNumber, 2, Temp);
-		Sensor::PutData(CurrentTime, SensorNumber, 3, H);
-		// запись в очередь передачи данных в удалённый компьютер
+		for (int SensorNumber = 0; SensorNumber < SQ; ++SensorNumber) {
+			// Считывание с последовательной шины
+			if (Sensor_array[SensorNumber].Active == 0) continue; // посылаем запрос только если датчик числится активным,
+			MB_Master_Read(SensorNumber);
+			// запись в очередь передачи данных в удалённый компьютер
 
-		// запись в переменные экрана, если есть изменения
-		Model::setCurrentVal(SensorNumber, Temp);
+			// запись в переменные экрана, если есть изменения
+//			Model::setCurrentVal(SensorNumber, Temp);
+		}
+		// установка флага FLAG_DataAnalysis для запуска задачи DataAnalysis
+
 	}
-	// установка флага FLAG_DataAnalysis для запуска задачи DataAnalysis
 }
 
 // 3. The task DataAnalysis processing data from sensors
