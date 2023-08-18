@@ -13,6 +13,7 @@
 // ReadDataEventHandle was defined in main.c
 extern osEventFlagsId_t ReadDataEventHandle;
 extern SENSOR_typedef_t Sensor_array[SQ];
+extern osThreadId_t TouchGFX_Task;
 // MB_Master_Task_CPP() was defined in ModBus.cpp
 //extern void MB_Master_Task_CPP();
 
@@ -76,7 +77,7 @@ float Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigne
 void DataTimerFunc()
 {
 	// Здесь установка флага события для запуска задачи по считыванию данных
-	osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
+//	osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
 
 	// моргнём светодиодом
 	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
@@ -95,8 +96,11 @@ void DataTimerFunc()
  * 	6 - product final T
 */
 void ReadDataFunc() {
+	float TempOld = 0;
+	float TempNew = 0;
+
 	// Инициализация датчиков при запуске задачи
-	void MB_Master_Init(void);
+	MB_Master_Init();
 	// Бесконечный цикл задачи ReadData
 	while (1)
 	{
@@ -105,17 +109,23 @@ void ReadDataFunc() {
 		// Новое значение счётчика времени
 		CurrentTime ++;
 
-		for (int SensorNumber = 0; SensorNumber < SQ; ++SensorNumber) {
+		for (int SensorNumber = 0; SensorNumber < SQ; SensorNumber++)
+		{
 			// Считывание с последовательной шины
 			if (Sensor_array[SensorNumber].Active == 0) continue; // посылаем запрос только если датчик числится активным,
 			MB_Master_Read(SensorNumber);
 			// запись в очередь передачи данных в удалённый компьютер
 
 			// запись в переменные экрана, если есть изменения
-//			Model::setCurrentVal(SensorNumber, Temp);
-		}
+			TempOld = Model::getCurrentVal(SensorNumber);
+			TempNew = Sensor::GetData(CurrentTime, SensorNumber, 2);
+			if (TempOld != TempNew)
+			{
+				Model::setCurrentVal(SensorNumber, TempNew);
+			}
 		// установка флага FLAG_DataAnalysis для запуска задачи DataAnalysis
 
+		}
 	}
 }
 

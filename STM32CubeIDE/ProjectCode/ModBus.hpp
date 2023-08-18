@@ -18,6 +18,7 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "Data.hpp"
+#include "stm32f4xx_hal.h"
 
 #define MB_SLAVE_ADDRESS	200
 
@@ -25,12 +26,13 @@
 typedef struct {
 uint8_t Address;			// ModBus address
 uint8_t Active;				// флаг активности датчика
-uint8_t TypeOfSensor;			// тип датчика: 1 - совмещённый датчик температуры и влажности
+uint8_t TypeOfSensor;		// тип датчика: 1 - совмещённый датчик температуры и влажности
 uint8_t PositionName[4];	// наименование позиции датчика
 // статистика полученных ответов от датчика
 uint16_t OkCnt;				// счётчик ответов
-uint16_t TimeoutCnt;		// счётчик неответов
-uint16_t ErrorCnt;			// счётчик ошибкок данных, CRC
+uint16_t ErrCnt;			// счётчик неответов
+uint16_t TxErrorCnt;		// счётчик ошибок передачи данных, CRC
+uint16_t RxErrorCnt;		// счётчик ошибок приёма данных, CRC
 } SENSOR_typedef_t;
 
 #define SwapBytes(data) ( (((data) >> 8) & 0x00FF) | (((data) << 8) & 0xFF00) )
@@ -84,25 +86,20 @@ typedef enum
 
 typedef enum
 {
-    MB_ERROR_NO = 0x00,
-    MB_ERROR_COMMAND = 0x01,
-    MB_ERROR_WRONG_ADDRESS = 0x02,
-    MB_ERROR_WRONG_VALUE = 0x03
+	MB_ERROR_NO = 0x00,
+	MB_ERROR_COMMAND = 0x01,
+	MB_ERROR_WRONG_ADDRESS = 0x02,
+	MB_ERROR_WRONG_VALUE = 0x03,
+	MB_ERROR_DMA_SEND = 0x04,
+	MB_ERROR_UART_SEND = 0x05,
+	MB_ERROR_UART_RECIEVE = 0x06,
+	MB_ERROR_DMA_RECIEVE = 0x07
 }MB_Error_t;
 
 //osThreadId MB_Slave_TaskHandle;
 extern osThreadId MB_Master_TaskHandle;
 extern osMessageQId MB_MasterQHandle;
-
-//#ifdef __cplusplus
-//extern "C" {
-//#endif
-//	void MB_Master_Task_С();
-//#ifdef __cplusplus
-//}
-//#endif
-
-void MB_Master_Read(int SensorNumber);
+MB_Error_t MB_Master_Read(int SensorNumber);
 void MB_Master_Init(void);
 MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum);
 

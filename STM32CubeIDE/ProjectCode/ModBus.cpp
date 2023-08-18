@@ -6,21 +6,29 @@
 #include "task.h"
 #include "string.h"
 #include "queue.h"
+#include <gui\model\model.hpp>
+
 //#include "usb_host.h"
 
-#define  MAX_MB_BUFSIZE 50
+#define  MAX_MB_BUFSIZE 20
 
 extern UART_HandleTypeDef huart5;
 extern DMA_HandleTypeDef hdma_uart5_rx;
 extern DMA_HandleTypeDef hdma_uart5_tx;
+extern osSemaphoreId_t TX_Compl_SemHandle;
+extern osSemaphoreId_t RX_Compl_SemHandle;
+
 //osMessageQId MB_SlaveQHandle;
 //extern UART_HandleTypeDef huart7;
 //extern DMA_HandleTypeDef hdma_uart7_rx;
 //extern DMA_HandleTypeDef hdma_uart7_tx;
 
 volatile DFR_REGISTERS_t DFR_Reg;
-uint8_t MB_Master_Buffer[MAX_MB_BUFSIZE] = {0};
+uint8_t MB_MasterTx_Buffer[MAX_MB_BUFSIZE] = {0};
+uint8_t MB_MasterRx_Buffer[MAX_MB_BUFSIZE] = {0};
 uint16_t master_rec_byte_count = 0;
+uint16_t CountRX = 0;
+uint16_t CountRxIDLE = 0;
 
 //volatile uint8_t MB_Slave_Buffer[MAX_MB_BUFSIZE] = {0};
 //volatile uint8_t MB_Master_Buffer[MAX_MB_BUFSIZE] = {0};
@@ -31,6 +39,11 @@ uint16_t master_rec_byte_count = 0;
 
 uint16_t MB_TransactionHandler();
 uint16_t MB_GetCRC(volatile uint8_t* buf, uint16_t len);
+osStatus_t resultSem;			/* status семафора:  	osOK: токен получен, и количество токенов уменьшено.
+														osErrorTimeout: не удалось получить токен в заданное время.
+														osErrorResource: не удалось получить токен, если не был указан тайм-аут.
+														osErrorParameter: параметр semaphore_id имеет значение NULL или недопустим */
+
 /*CRC16-CITT tables*/
 const static uint16_t crc16_table[] =
   {
@@ -52,16 +65,6 @@ const static uint16_t crc16_table[] =
     0x4400, 0x84c1, 0x8581, 0x4540, 0x8701, 0x47c0, 0x4680, 0x8641,0x8201, 0x42c0, 0x4380, 0x8341, 0x4100, 0x81c1, 0x8081, 0x4040,
   };
 
-// start C++ function from C program
-//extern "C"
-//{
-//	void MB_Master_Task_C()	// start from main.c MB_Master_Task
-//	{
-//		Start_MB_Master_Task();
-//	}
-//
-//}
-
 SENSOR_typedef_t Sensor_array[SQ] =
 {
 		{101,0,1,"Ldf", 0,0,0},		// 0 - defroster left
@@ -76,85 +79,235 @@ SENSOR_typedef_t Sensor_array[SQ] =
 /***************************************************/
 // при запуске сначала проверим все сенсоры на активность
 void MB_Master_Init(void) {
-for (int i=0; i<SQ; i++)
+	MB_Error_t result;
+	// параметры для датчика совмещенного типа
+	resultSem = osSemaphoreAcquire(TX_Compl_SemHandle, 100/portTICK_RATE_MS);
+	resultSem = osSemaphoreAcquire(RX_Compl_SemHandle, 100/portTICK_RATE_MS);
+
+	while (1)
 	{
-			Sensor_array[i].Active = (MB_Master_Request(Sensor_array[i].Address, 0u, 1u) == MB_ERROR_NO);
+		// Запросим каждый датчик, если ответит - пометим как активный
+		for (int i=0; i<2; i++)
+		{
+			result = MB_Master_Read(i);
+			if (result == MB_ERROR_NO)
+			{
+				Sensor_array[i].Active = 1;
+				// Инициируем значения в модели для отображения на экране
+				Model::setCurrentVal(i, Sensor::GetData(CurrentTime, i, 2));
+			}
+//			osDelay(10);
+
+		}
 	}
 }
 
 // Функция считывает данные с датчика
-void MB_Master_Read(int i)
+MB_Error_t MB_Master_Read(int i)
 {
 	// параметры для датчика совмещенного типа
 	const uint16_t START_REG = 0, REG_COUNT = 2;
 	float T, H;
+	MB_Error_t result;
 
-			if (MB_Master_Request(Sensor_array[i].Address, START_REG, REG_COUNT) == MB_ERROR_NO)
-			{
-				// данные приняты - проверяем достоверность
-				if (Sensor_array[i].Address == MB_Master_Buffer[0]
-						&& MB_Master_Buffer[1] == MB_CMD_READ_REGS
-						//(считаем CRC, вместе с принятым CRC, должно быть == 0
-						&& MB_GetCRC(MB_Master_Buffer, MB_Master_Buffer[2] + 5) == 0) {
-					// все проверки ОК, пишем значения с датчика совмещённого типа
-					H = SwapBytes( *(uint16_t*) &MB_Master_Buffer[3]);
-					T = SwapBytes( *(uint16_t*) &MB_Master_Buffer[5]);
-					// запись в массив данных
-					Sensor::PutData(CurrentTime, i, 1, CurrentTime);
-					Sensor::PutData(CurrentTime, i, 2, T);
-					Sensor::PutData(CurrentTime, i, 3, H);
+	result = MB_Master_Request(Sensor_array[i].Address, START_REG, REG_COUNT);
+			switch (result) {
+				case MB_ERROR_NO:
+					// данные приняты - проверяем достоверность
+					if (Sensor_array[i].Address == MB_MasterRx_Buffer[0]
+							&& MB_MasterRx_Buffer[1] == MB_CMD_READ_REGS
+							//(считаем CRC, вместе с принятым CRC, должно быть == 0
+							&& MB_GetCRC(MB_MasterRx_Buffer, MB_MasterRx_Buffer[2] + 5) == 0)
+					{
+						// все проверки ОК, пишем значения с датчика совмещённого типа
+						H = SwapBytes( *(uint16_t*) &MB_MasterRx_Buffer[3]);
+						T = SwapBytes( *(uint16_t*) &MB_MasterRx_Buffer[5]);
+						// запись в массив данных
+						Sensor::PutData(CurrentTime, i, 1, CurrentTime);
+						Sensor::PutData(CurrentTime, i, 2, T/10);
+						Sensor::PutData(CurrentTime, i, 3, H/10);
 
-					Sensor_array[i].OkCnt++;
-				}
-				else Sensor_array[i].ErrorCnt++;
+						Sensor_array[i].OkCnt++;
+					}
+					else
+						Sensor_array[i].ErrCnt++;
+					break;
+				case MB_ERROR_DMA_SEND:
+					Sensor_array[i].TxErrorCnt++;
+					break;
+				case MB_ERROR_UART_SEND:
+					Sensor_array[i].TxErrorCnt++;
+					break;
+				case MB_ERROR_UART_RECIEVE:
+					Sensor_array[i].RxErrorCnt++;
+					break;
+				case MB_ERROR_DMA_RECIEVE:
+					Sensor_array[i].RxErrorCnt++;
+					break;
+				default:
+					break;
 			}
-			else	Sensor_array[i].TimeoutCnt++;
+			return result;
 }
 
 
 // запрос датчикам на шине ModBus
+/*
+MB_ERROR_NO = 0x00,
+MB_ERROR_COMMAND = 0x01,
+MB_ERROR_WRONG_ADDRESS = 0x02,
+MB_ERROR_WRONG_VALUE = 0x03,
+MB_ERROR_DMA_SEND = 0x04,
+MB_ERROR_UART_SEND = 0x05,
+MB_ERROR_UART_RECIEVE = 0x06,
+MB_ERROR_DMA_RECIEVE = 0x07
+*/
 MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum)
 {
-	MB_Error_t MB_QueueData;	// ответ из очереди
-//	HAL_StatusTypeDef res;		// status HAL: HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT
+	MB_Error_t MB_ERR = MB_ERROR_NO;
+	HAL_StatusTypeDef result;		// status HAL: HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT
+	// Выполним приведение типа: указателю Command присвоим указатель буфера, буфер примет тип MB_Frame_t
+	MB_Frame_t *Command = (MB_Frame_t*) MB_MasterTx_Buffer;
 
-	for (int i=3; i--;)
-	{ // делаем 3 попытки отправки запроса
-		// Выполним приведение типа: указателю Command присвоим указатель буфера, буфер примет тип MB_Frame_t
-		MB_Frame_t *Command = (MB_Frame_t*) MB_Master_Buffer;
-		// Заполним начало буфера структурой для отправки команды датчику
-		Command->Address = address;
-		Command->Command = MB_CMD_READ_REGS;
-		Command->StartReg = SwapBytes(StartReg);
-		Command->RegNum = SwapBytes(RegNum);
-		Command->CRC_Sum = MB_GetCRC(MB_Master_Buffer, 6);
-		// Включим направление - передача
-		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_SET);
-		// Начинаем передачу отправкой буфера с записанной структурой в порт UART через DMA
-		if (HAL_UART_Transmit_DMA(&huart5, MB_Master_Buffer, 8) == HAL_OK)
-		{
-			// Ждём, пока UART всё передаст в шину
-			while (HAL_UART_GetState(&huart5) == HAL_UART_STATE_BUSY_TX)
-			{
-				osDelay(1);
-			}
-			// Инициируем приём с использованием DMA
-			if (HAL_UARTEx_ReceiveToIdle_DMA(&huart5, MB_Master_Buffer, MAX_MB_BUFSIZE) == HAL_OK)
-				// Инициируем приём из очереди
-				// ответ должен нормально уложиться в 10 ms (19200 -> 500 us на байт),
-				// на это время функция в блокировке ожидает появления данных в очереди
-				// последнее значение в очереди = 0, прерывание по IDLE
-				if  (xQueueReceive((QueueHandle_t) MB_MasterQHandle, &MB_QueueData, 10/portTICK_RATE_MS) == pdPASS && MB_QueueData == MB_ERROR_NO)
-						return MB_ERROR_NO;
+	memset(MB_MasterTx_Buffer, 0, MAX_MB_BUFSIZE);
+	memset(MB_MasterRx_Buffer, 0, MAX_MB_BUFSIZE);
+	// Заполним начало буфера структурой для отправки команды датчику
+	Command->Address = address;
+	Command->Command = MB_CMD_READ_REGS;
+	Command->StartReg = SwapBytes(StartReg);
+	Command->RegNum = SwapBytes(RegNum);
+	Command->CRC_Sum = MB_GetCRC(MB_MasterTx_Buffer, 6);
+
+	// ПЕРЕДАЧА DMA ********************************
+	// Включим направление - передача
+	HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_SET);
+	// Начинаем передачу отправкой буфера с записанной структурой в порт UART через DMA
+	result = HAL_UART_Transmit_DMA(&huart5, MB_MasterTx_Buffer, 8);
+	if (result == HAL_OK)
+	{
+		// ПЕРЕДАЧА UART ***************************
+		// Ждём, пока UART всё передаст в шину и обработчик прерывания HAL_UART_TxCpltCallback выдаст токен семафора
+		resultSem = osSemaphoreAcquire(TX_Compl_SemHandle, 100/portTICK_RATE_MS);
+		if (resultSem != osOK)
+		{	// обработка ошибка передачи по UART
+			MB_ERR = MB_ERROR_UART_SEND;
+			return MB_ERR;
 		}
-		// нет ответа - пробуем еще раз
-		HAL_UART_Abort_IT(&huart5);
+		// Направление на приём включается в обработчике прерывания HAL_UART_TxCpltCallback
+
+		// ПРИЁМ DMA *******************************
+		// Инициируем приём с использованием DMA
+		osDelay(1);	// BUSY RX
+		CountRxIDLE++;
+		result = HAL_UARTEx_ReceiveToIdle_DMA(&huart5, MB_MasterRx_Buffer, 100/portTICK_RATE_MS);
+		if (result == HAL_OK)
+		{	//
+			// последнее значение в очереди = 0, прерывание приёма по IDLE
+			// Ждём, когда приём закончится и прерывание выдаст токен семафора
+			//ответ должен нормально уложиться в 10 ms (19200 -> 500 us на байт), на это время функция ждёт токен семафора в блокировке
+			resultSem = osSemaphoreAcquire(RX_Compl_SemHandle, 100/portTICK_RATE_MS);
+			osDelay(1);
+			if (resultSem != osOK) {
+				MB_ERR = MB_ERROR_UART_RECIEVE;
+				HAL_UART_AbortReceive_IT(&huart5);
+				// Включим направление - приём
+				return MB_ERR;
+			}
+//		}
+//		else
+//		{  // обработка ошибки приёма
+//			MB_ERR = MB_ERROR_UART_RECIEVE;
+		}
 	}
-	return MB_ERROR_WRONG_ADDRESS; // не достучались
+	else
+	{  // обработка ошибки передачи по DMA
+		MB_ERR = MB_ERROR_DMA_SEND;
+	}
+	// Включим направление - приём
+//	HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
+	return MB_ERR;
 }
 
+/**************** ОБРАБОТКА ПРЕРЫВАНИЙ ***************************/
+/*****************************************************************/
 
-/************************** РАБОТА С СЕРВЕРОМ ********************************/
+// обработка прерывания "завершён полный приём", сюда может попасть только если выполнен полный заданный приём
+// однако обычно размер пакета неопределён и указывается для приёма большой буфер, который никогда не будет заполнен
+// нормальное завершение приёма - это событие, например IDLE, остановка принимаемой информации
+// это событие обрабатывается прерыванием HAL_UARTEx_RxEventCallback
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *Uart) {
+//	MB_Error_t res = MB_ERROR_NO; // no err
+//	BaseType_t xCoRoutinePreviouslyWoken = pdFALSE;
+
+	if (Uart == &huart5) 		// запрос компьютера
+	{	/*}
+	else if (Uart == &huart7) 	// ответ датчика
+	{*/
+	}
+}
+
+// обработка прерывания ошибки
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *Uart) {
+//	MB_Error_t res = MB_ERROR_COMMAND;
+//	BaseType_t xCoRoutinePreviouslyWoken = pdFALSE;
+	/*if (Uart == &huart7)		// ошибка от компьютера
+	{
+		HAL_GPIO_WritePin(MB_SLAVE_DE_GPIO_Port, MB_SLAVE_DE_Pin, GPIO_PIN_RESET); // сброс бита DE RS-485
+		xQueueSendFromISR(MB_SlaveQHandle, &res, &xCoRoutinePreviouslyWoken);
+	}
+	else*/
+	if (Uart == &huart5)	// ошибка датчика
+	{
+		// чтение регистра состояния
+//		uint16_t stat = Uart->Instance->SR;
+		// очистка регистра данных
+//		Uart->Instance->DR = 0;
+	}
+}
+
+// обработка прерывания приём завершён по событию RX Event callback
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
+//	MB_Error_t res = MB_ERROR_NO; // no err
+//	BaseType_t xCoRoutinePreviouslyWoken = pdFALSE;
+
+/* 	if (huart == &huart7)		//	приём от компьютера
+ 	{
+//		slave_rec_byte_count = MAX_MB_BUFSIZE - hdma_uart5_rx.Instance->NDTR;
+//		xQueueSendFromISR(MB_SlaveQHandle, &res, &xCoRoutinePreviouslyWoken);
+	}
+ 	else*/
+	if (huart == &huart5)	// приём от датчика
+ 	{
+
+		HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);// Установим семафор окончания приёма, продолжится задача ReadData
+		HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+		osSemaphoreRelease(RX_Compl_SemHandle);
+		CountRX++;
+		// Reset TC flag
+//		uint16_t stat = huart->Instance->SR;
+//		if (stat);
+//		huart->Instance->DR = 0;
+//		xQueueSendFromISR((QueueHandle_t) MB_MasterQHandle, &res, &xCoRoutinePreviouslyWoken);
+	}
+}
+
+// обработка прерывания - передача завершена
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *Uart) {
+	if (Uart == &huart5)
+	{
+		// Включим направление - приём
+		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
+	    // Прерывание вызвано флагом ТС регистра состояния, который устанавливается аппаратно. Сбросить его нужно программно.
+		/* Clear the TC flag in the SR register by writing 0 to it */
+	    __HAL_UART_CLEAR_FLAG(Uart, UART_FLAG_TC);
+		// Установим семафор окончания передачи, продолжится задача ModBus
+		osSemaphoreRelease(TX_Compl_SemHandle);
+//	} else if (Uart == &huart7) {
+//		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET); // сброс бита DE RS-485}
+	}
+}
+
+//************************** РАБОТА С СЕРВЕРОМ ********************************/
 /*****************************************************************************/
 
 
@@ -256,74 +409,6 @@ uint16_t MB_ReadRegsHandler(uint16_t StartReg, uint16_t RegNum) {
 //		txLen = MB_ErrorHandler(MB_Slave_Buffer, error);
 //	}
 	return txLen;
-}
-
-/**************** ОБРАБОТКА ПРЕРЫВАНИЙ ***************************/
-/*****************************************************************/
-
-// обработка прерывания "завершён полный приём", сюда может попасть только если выполнен полный заданный приём
-// однако обычно размер пакета неопределён и указывается для приёма большой буфер, который никогда не будет заполнен
-// нормальное завершение приёма - это событие, например IDLE, остановка принимаемой информации
-// это событие обрабатывается прерыванием HAL_UARTEx_RxEventCallback
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *Uart) {
-	MB_Error_t res = MB_ERROR_NO; // no err
-	BaseType_t xCoRoutinePreviouslyWoken = pdFALSE;
-
-	if (Uart == &huart5) 		// запрос компьютера
-	{	/*}
-	else if (Uart == &huart7) 	// ответ датчика
-	{*/
-		xQueueSendFromISR((QueueHandle_t) MB_MasterQHandle, &res, &xCoRoutinePreviouslyWoken);
-	}
-}
-
-// обработка прерывания ошибки
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *Uart) {
-	MB_Error_t res = MB_ERROR_COMMAND;
-	BaseType_t xCoRoutinePreviouslyWoken = pdFALSE;
-	/*if (Uart == &huart7)		// ошибка от компьютера
-	{
-		HAL_GPIO_WritePin(MB_SLAVE_DE_GPIO_Port, MB_SLAVE_DE_Pin, GPIO_PIN_RESET); // сброс бита DE RS-485
-		xQueueSendFromISR(MB_SlaveQHandle, &res, &xCoRoutinePreviouslyWoken);
-	}
-	else*/
-	if (Uart == &huart5)	// ошибка датчика
-	{
-		// чтение регистра состояния
-//		uint16_t stat = Uart->Instance->SR;
-		// очистка регистра данных
-		Uart->Instance->DR = 0;
-		xQueueSendFromISR((QueueHandle_t) MB_MasterQHandle, &res, &xCoRoutinePreviouslyWoken);
-	}
-}
-
-// обработка прерывания приём завершён по событию RX Event callback
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
-	MB_Error_t res = MB_ERROR_NO; // no err
-	BaseType_t xCoRoutinePreviouslyWoken = pdFALSE;
-
-/* 	if (huart == &huart7)		//	приём от компьютера
- 	{
-//		slave_rec_byte_count = MAX_MB_BUFSIZE - hdma_uart5_rx.Instance->NDTR;
-//		xQueueSendFromISR(MB_SlaveQHandle, &res, &xCoRoutinePreviouslyWoken);
-	}
- 	else*/
-	if (huart == &huart5)	// приём от датчика
- 	{
-	// Reset TC flag
-//		uint16_t stat = huart->Instance->SR; if (stat);
-//		huart->Instance->DR = 0;
-		xQueueSendFromISR((QueueHandle_t) MB_MasterQHandle, &res, &xCoRoutinePreviouslyWoken);
-	}
-}
-
-// обработка прерывания передача завершена
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *Uart) {
-//	if (Uart == &huart5) {
-//		HAL_GPIO_WritePin(MB_SLAVE_DE_GPIO_Port, MB_SLAVE_DE_Pin, GPIO_PIN_RESET); // сброс бита DE RS-485
-//	} else if (Uart == &huart7) {
-//		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET); // сброс бита DE RS-485}
-//	}
 }
 
 /********************** ВСПОМОГАТЕЛЬНЫЕ ******************************/

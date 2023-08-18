@@ -104,18 +104,23 @@ const osThreadAttr_t DataProcessing_attributes = {
 osThreadId_t ReadDataHandle;
 const osThreadAttr_t ReadData_attributes = {
   .name = "ReadData",
-  .stack_size = 128 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
-};
-/* Definitions for MB_MasterQ */
-osMessageQueueId_t MB_MasterQHandle;
-const osMessageQueueAttr_t MB_MasterQ_attributes = {
-  .name = "MB_MasterQ"
 };
 /* Definitions for DataTimer */
 osTimerId_t DataTimerHandle;
 const osTimerAttr_t DataTimer_attributes = {
   .name = "DataTimer"
+};
+/* Definitions for TX_Compl_Sem */
+osSemaphoreId_t TX_Compl_SemHandle;
+const osSemaphoreAttr_t TX_Compl_Sem_attributes = {
+  .name = "TX_Compl_Sem"
+};
+/* Definitions for RX_Compl_Sem */
+osSemaphoreId_t RX_Compl_SemHandle;
+const osSemaphoreAttr_t RX_Compl_Sem_attributes = {
+  .name = "RX_Compl_Sem"
 };
 /* Definitions for ReadDataEvent */
 osEventFlagsId_t ReadDataEventHandle;
@@ -232,6 +237,13 @@ int main(void)
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* creation of TX_Compl_Sem */
+  TX_Compl_SemHandle = osSemaphoreNew(1, 1, &TX_Compl_Sem_attributes);
+
+  /* creation of RX_Compl_Sem */
+  RX_Compl_SemHandle = osSemaphoreNew(1, 1, &RX_Compl_Sem_attributes);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -244,10 +256,6 @@ int main(void)
   /* start timers, add new ones, ... */
   osTimerStart(DataTimerHandle, 1000);
   /* USER CODE END RTOS_TIMERS */
-
-  /* Create the queue(s) */
-  /* creation of MB_MasterQ */
-  MB_MasterQHandle = osMessageQueueNew (16, sizeof(uint16_t), &MB_MasterQ_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -570,7 +578,7 @@ static void MX_UART5_Init(void)
 
   /* USER CODE END UART5_Init 1 */
   huart5.Instance = UART5;
-  huart5.Init.BaudRate = 115200;
+  huart5.Init.BaudRate = 19200;
   huart5.Init.WordLength = UART_WORDLENGTH_8B;
   huart5.Init.StopBits = UART_STOPBITS_1;
   huart5.Init.Parity = UART_PARITY_NONE;
