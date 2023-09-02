@@ -28,9 +28,5 @@ protected:
 	static float H[TQ][SQ];			// humidity
 };
 
-// current number of measure
-static unsigned int CurrentTime = 0;
-
-
 #endif /* DATA_HPP_ */
 

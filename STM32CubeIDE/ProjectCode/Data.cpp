@@ -21,6 +21,8 @@ uint32_t flags;				// flags for waiting event
 int8_t SensorNumber;
 
 // definition of static variable. Member function definitions belong in the scope where the class is defined.
+// current number of measure
+unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// number of time quantum measuring
 float Sensor::T[TQ][SQ] = {{0}};		// temperature
 float Sensor::H[TQ][SQ] = {{0}};		// humidity
@@ -107,7 +109,7 @@ void ReadDataFunc() {
 		//Здесь ожидание флага, чтобы запустить задачу ReadData
 		flags = osEventFlagsWait(ReadDataEventHandle, FLAG_ReadData, osFlagsWaitAny, osWaitForever);
 		// Новое значение счётчика времени
-		CurrentTime ++;
+		TimeFromStart ++;
 
 		for (int SensorNumber = 0; SensorNumber < SQ; SensorNumber++)
 		{
@@ -118,7 +120,7 @@ void ReadDataFunc() {
 
 			// запись в переменные экрана, если есть изменения
 			TempOld = Model::getCurrentVal(SensorNumber);
-			TempNew = Sensor::GetData(CurrentTime, SensorNumber, 2);
+			TempNew = Sensor::GetData(TimeFromStart, SensorNumber, 2);
 			if (TempOld != TempNew)
 			{
 				Model::setCurrentVal(SensorNumber, TempNew);

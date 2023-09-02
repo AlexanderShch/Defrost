@@ -13,10 +13,13 @@
 #define  MAX_MB_BUFSIZE 20
 
 extern UART_HandleTypeDef huart5;
-extern DMA_HandleTypeDef hdma_uart5_rx;
-extern DMA_HandleTypeDef hdma_uart5_tx;
+//extern DMA_HandleTypeDef hdma_uart5_rx;
+//extern DMA_HandleTypeDef hdma_uart5_tx;
 extern osSemaphoreId_t TX_Compl_SemHandle;
 extern osSemaphoreId_t RX_Compl_SemHandle;
+// current number of measure
+extern unsigned int TimeFromStart;
+
 
 //osMessageQId MB_SlaveQHandle;
 //extern UART_HandleTypeDef huart7;
@@ -94,7 +97,7 @@ void MB_Master_Init(void) {
 			{
 				Sensor_array[i].Active = 1;
 				// Инициируем значения в модели для отображения на экране
-				Model::setCurrentVal(i, Sensor::GetData(CurrentTime, i, 2));
+				Model::setCurrentVal(i, Sensor::GetData(TimeFromStart, i, 2));
 			}
 //			osDelay(10);
 
@@ -123,9 +126,9 @@ MB_Error_t MB_Master_Read(int i)
 						H = SwapBytes( *(uint16_t*) &MB_MasterRx_Buffer[3]);
 						T = SwapBytes( *(uint16_t*) &MB_MasterRx_Buffer[5]);
 						// запись в массив данных
-						Sensor::PutData(CurrentTime, i, 1, CurrentTime);
-						Sensor::PutData(CurrentTime, i, 2, T/10);
-						Sensor::PutData(CurrentTime, i, 3, H/10);
+						Sensor::PutData(TimeFromStart, i, 1, TimeFromStart);
+						Sensor::PutData(TimeFromStart, i, 2, T/10);
+						Sensor::PutData(TimeFromStart, i, 3, H/10);
 
 						Sensor_array[i].OkCnt++;
 					}
