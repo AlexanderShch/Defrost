@@ -186,6 +186,9 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Unsorted">
+      <Text Id="LabelProgramming" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Программирование</Translation>
+      </Text>
       <Text Id="__SingleUse_7H2N" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">&lt;value&gt;%</Translation>
       </Text>

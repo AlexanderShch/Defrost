@@ -360,6 +360,16 @@
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/settings4_screen/Settings4View.cpp</locationURI>
 		</link>
 		<link>
+			<name>Application/User/gui/Settings5Presenter.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/settings5_screen/Settings5Presenter.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/gui/Settings5View.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/settings5_screen/Settings5View.cpp</locationURI>
+		</link>
+		<link>
 			<name>Application/User/gui/SettingsMenuPresenter.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/settingsmenu_screen/SettingsMenuPresenter.cpp</locationURI>
@@ -478,6 +488,11 @@
 			<name>Application/User/generated/Settings4ViewBase.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/settings4_screen/Settings4ViewBase.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/generated/Settings5ViewBase.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/settings5_screen/Settings5ViewBase.cpp</locationURI>
 		</link>
 		<link>
 			<name>Application/User/generated/SettingsMenuViewBase.cpp</name>

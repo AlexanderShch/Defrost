@@ -73,7 +73,10 @@ LTDC_HandleTypeDef hltdc;
 
 SPI_HandleTypeDef hspi5;
 
+UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart5;
+DMA_HandleTypeDef hdma_uart4_rx;
+DMA_HandleTypeDef hdma_uart4_tx;
 DMA_HandleTypeDef hdma_uart5_rx;
 DMA_HandleTypeDef hdma_uart5_tx;
 
@@ -122,6 +125,16 @@ osSemaphoreId_t RX_Compl_SemHandle;
 const osSemaphoreAttr_t RX_Compl_Sem_attributes = {
   .name = "RX_Compl_Sem"
 };
+/* Definitions for PR_TX_Compl_Sem */
+osSemaphoreId_t PR_TX_Compl_SemHandle;
+const osSemaphoreAttr_t PR_TX_Compl_Sem_attributes = {
+  .name = "PR_TX_Compl_Sem"
+};
+/* Definitions for PR_RX_Compl_Sem */
+osSemaphoreId_t PR_RX_Compl_SemHandle;
+const osSemaphoreAttr_t PR_RX_Compl_Sem_attributes = {
+  .name = "PR_RX_Compl_Sem"
+};
 /* Definitions for ReadDataEvent */
 osEventFlagsId_t ReadDataEventHandle;
 const osEventFlagsAttr_t ReadDataEvent_attributes = {
@@ -142,6 +155,7 @@ static void MX_FMC_Init(void);
 static void MX_LTDC_Init(void);
 static void MX_DMA2D_Init(void);
 static void MX_UART5_Init(void);
+static void MX_UART4_Init(void);
 void StartDefaultTask(void *argument);
 extern void TouchGFX_Task(void *argument);
 void HandleDataProcessing(void *argument);
@@ -223,6 +237,7 @@ int main(void)
   MX_LTDC_Init();
   MX_DMA2D_Init();
   MX_UART5_Init();
+  MX_UART4_Init();
   MX_TouchGFX_Init();
   /* Call PreOsInit function */
   MX_TouchGFX_PreOSInit();
@@ -243,6 +258,12 @@ int main(void)
 
   /* creation of RX_Compl_Sem */
   RX_Compl_SemHandle = osSemaphoreNew(1, 1, &RX_Compl_Sem_attributes);
+
+  /* creation of PR_TX_Compl_Sem */
+  PR_TX_Compl_SemHandle = osSemaphoreNew(1, 1, &PR_TX_Compl_Sem_attributes);
+
+  /* creation of PR_RX_Compl_Sem */
+  PR_RX_Compl_SemHandle = osSemaphoreNew(1, 1, &PR_RX_Compl_Sem_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -563,6 +584,39 @@ static void MX_SPI5_Init(void)
 }
 
 /**
+  * @brief UART4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_UART4_Init(void)
+{
+
+  /* USER CODE BEGIN UART4_Init 0 */
+
+  /* USER CODE END UART4_Init 0 */
+
+  /* USER CODE BEGIN UART4_Init 1 */
+
+  /* USER CODE END UART4_Init 1 */
+  huart4.Instance = UART4;
+  huart4.Init.BaudRate = 19200;
+  huart4.Init.WordLength = UART_WORDLENGTH_8B;
+  huart4.Init.StopBits = UART_STOPBITS_1;
+  huart4.Init.Parity = UART_PARITY_NONE;
+  huart4.Init.Mode = UART_MODE_TX_RX;
+  huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart4.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN UART4_Init 2 */
+
+  /* USER CODE END UART4_Init 2 */
+
+}
+
+/**
   * @brief UART5 Initialization Function
   * @param None
   * @retval None
@@ -608,6 +662,12 @@ static void MX_DMA_Init(void)
   /* DMA1_Stream0_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
+  /* DMA1_Stream2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream2_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream2_IRQn);
+  /* DMA1_Stream4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 5, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
   /* DMA1_Stream7_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream7_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream7_IRQn);
@@ -693,6 +753,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2|MB_MASTER_DE_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12|GPIO_PIN_13, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -711,6 +774,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PROG_MASTER_DE_Pin */
+  GPIO_InitStruct.Pin = PROG_MASTER_DE_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(PROG_MASTER_DE_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PD12 PD13 */
   GPIO_InitStruct.Pin = GPIO_PIN_12|GPIO_PIN_13;

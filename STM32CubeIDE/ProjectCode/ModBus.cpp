@@ -12,11 +12,12 @@
 
 #define  MAX_MB_BUFSIZE 20
 
-extern UART_HandleTypeDef huart5;
-//extern DMA_HandleTypeDef hdma_uart5_rx;
-//extern DMA_HandleTypeDef hdma_uart5_tx;
-extern osSemaphoreId_t TX_Compl_SemHandle;
-extern osSemaphoreId_t RX_Compl_SemHandle;
+extern UART_HandleTypeDef huart4;				// для программирования датчиков
+extern UART_HandleTypeDef huart5;				// для считывания данных с датчиков
+extern osSemaphoreId_t TX_Compl_SemHandle;		// семафор окончания передачи датчикам
+extern osSemaphoreId_t RX_Compl_SemHandle;		// семафор окончания приёма от датчиков
+extern osSemaphoreId_t PR_TX_Compl_SemHandle;	// семафор окончания приёма при программировании
+extern osSemaphoreId_t PR_RX_Compl_SemHandle;	// семафор окончания передачи при программировании
 // current number of measure
 extern unsigned int TimeFromStart;
 
@@ -29,16 +30,10 @@ extern unsigned int TimeFromStart;
 volatile DFR_REGISTERS_t DFR_Reg;
 uint8_t MB_MasterTx_Buffer[MAX_MB_BUFSIZE] = {0};
 uint8_t MB_MasterRx_Buffer[MAX_MB_BUFSIZE] = {0};
+uint8_t PR_MasterTx_Buffer[MAX_MB_BUFSIZE] = {0};
+uint8_t PR_MasterRx_Buffer[MAX_MB_BUFSIZE] = {0};
 uint16_t master_rec_byte_count = 0;
 uint16_t CountRX = 0;
-//uint16_t CountRxIDLE = 0;
-
-//volatile uint8_t MB_Slave_Buffer[MAX_MB_BUFSIZE] = {0};
-//volatile uint8_t MB_Master_Buffer[MAX_MB_BUFSIZE] = {0};
-//uint8_t MB_Slave_Buffer[MAX_MB_BUFSIZE] = {0};
-//volatile uint16_t master_rec_byte_count = 0;
-//volatile uint16_t slave_rec_byte_count = 0;
-//uint16_t slave_rec_byte_count = 0;
 
 uint16_t MB_TransactionHandler();
 uint16_t MB_GetCRC(volatile uint8_t* buf, uint16_t len);

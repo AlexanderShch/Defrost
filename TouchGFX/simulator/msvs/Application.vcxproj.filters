@@ -256,6 +256,18 @@
     <Filter Include="Header Files\generated\gui_generated\visualization_screen">
       <UniqueIdentifier>6DE85574-1C37-A269-0F99-73722875ED21</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\gui\settings5_screen">
+      <UniqueIdentifier>E800FEF4-BFDE-BCC7-087C-EE4038143F63</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\gui\settings5_screen">
+      <UniqueIdentifier>706EE7B3-171C-87B8-C9FB-23E8DE817331</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\generated\gui_generated\settings5_screen">
+      <UniqueIdentifier>2CA64D29-E69A-01C3-1909-DF28E8F54FA5</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\generated\gui_generated\settings5_screen">
+      <UniqueIdentifier>D7EAD784-F3EB-BB87-D126-0B714BE2961C</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(TouchGFXReleasePath)\framework\source\platform\driver\touch\SDL2TouchController.cpp">
@@ -350,6 +362,15 @@
     </ClCompile>
     <ClCompile Include="..\..\generated\gui_generated\src\visualization_screen\VisualizationViewBase.cpp">
       <Filter>Source Files\generated\gui_generated\visualization_screen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gui\src\settings5_screen\Settings5Presenter.cpp">
+      <Filter>Source Files\gui\settings5_screen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gui\src\settings5_screen\Settings5View.cpp">
+      <Filter>Source Files\gui\settings5_screen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\generated\gui_generated\src\settings5_screen\Settings5ViewBase.cpp">
+      <Filter>Source Files\generated\gui_generated\settings5_screen</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -855,6 +876,15 @@
     </ClInclude>
     <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\visualization_screen\VisualizationViewBase.hpp">
       <Filter>Header Files\generated\gui_generated\visualization_screen</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\settings5_screen\Settings5Presenter.hpp">
+      <Filter>Header Files\gui\settings5_screen</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\settings5_screen\Settings5View.hpp">
+      <Filter>Header Files\gui\settings5_screen</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\settings5_screen\Settings5ViewBase.hpp">
+      <Filter>Header Files\generated\gui_generated\settings5_screen</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
