@@ -19,13 +19,13 @@ class Sensor
 {
 public:
 	Sensor(){};										// declare default constructor
-	Sensor(unsigned int Time, float T, float H){};		// declare constructor
-	static void PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, float Val);
-	static float GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param);
+	Sensor(unsigned int Time, int T, int H){};		// declare constructor
+	static void PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val);
+	static int GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param);
 protected:
 	static unsigned int Time[TQ][SQ];	// number of time quantum measuring
-	static float T[TQ][SQ];			// temperature
-	static float H[TQ][SQ];			// humidity
+	static int T[TQ][SQ];			// temperature
+	static int H[TQ][SQ];			// humidity
 };
 
 #endif /* DATA_HPP_ */

@@ -29,36 +29,36 @@ void VisualizationView::tearDownScreen()
 }
 
 // 0 - defroster left temperature
-void VisualizationView::Val0UpdateView(float Val)
+void VisualizationView::Val0UpdateView(int Val)
 {
-	Unicode::snprintfFloat(ValueDefrosterT1Buffer, sizeof(ValueDefrosterT1Buffer), "%.2f", Val);
+	Unicode::snprintfFloat(ValueDefrosterT1Buffer, sizeof(ValueDefrosterT1Buffer), "%.1f", Val/10);
 	ValueDefrosterT1.invalidate();
 }
 
 // 1 - defroster right temperature
-void VisualizationView::Val1UpdateView(float Val)
+void VisualizationView::Val1UpdateView(int Val)
 {
-	Unicode::snprintfFloat(ValueDefrosterT2Buffer, sizeof(ValueDefrosterT2Buffer), "%.2f", Val);
+	Unicode::snprintfFloat(ValueDefrosterT2Buffer, sizeof(ValueDefrosterT2Buffer), "%.1f", Val/10);
 	ValueDefrosterT2.invalidate();
 }
 
 // 2 - defroster center temperature
-void VisualizationView::Val2UpdateView(float Val)
+void VisualizationView::Val2UpdateView(int Val)
 {
-//	Unicode::snprintfFloat(ValueDefrosterT3Buffer, sizeof(ValueDefrosterT3Buffer), "%.2f", Val);
+//	Unicode::snprintfFloat(ValueDefrosterT3Buffer, sizeof(ValueDefrosterT3Buffer), "%.1f", Val/10);
 //	ValueDefrosterT3.invalidate();
 }
 
 // 3 - fish left temperature
-void VisualizationView::Val3UpdateView(float Val)
+void VisualizationView::Val3UpdateView(int Val)
 {
-	Unicode::snprintfFloat(ValueCoreT1SmallBuffer, sizeof(ValueCoreT1SmallBuffer), "%.2f", Val);
+	Unicode::snprintfFloat(ValueCoreT1SmallBuffer, sizeof(ValueCoreT1SmallBuffer), "%.1f", Val/10);
 	ValueCoreT1Small.invalidate();
 }
 
 // 4 - fish right temperature
-void VisualizationView::Val4UpdateView(float Val)
+void VisualizationView::Val4UpdateView(int Val)
 {
-	Unicode::snprintfFloat(ValueCoreT2SmallBuffer, sizeof(ValueCoreT2SmallBuffer), "%.2f", Val);
+	Unicode::snprintfFloat(ValueCoreT2SmallBuffer, sizeof(ValueCoreT2SmallBuffer), "%.1f", Val/10);
 	ValueCoreT2Small.invalidate();
 }

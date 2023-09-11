@@ -1,7 +1,7 @@
 #include "main.h"
 #include "cmsis_os.h"
 #include "ModBus.hpp"
-//#include "Data.hpp"
+#include "Data.hpp"
 #include "stdio.h"
 #include "task.h"
 #include "string.h"
@@ -31,7 +31,7 @@ uint8_t MB_MasterTx_Buffer[MAX_MB_BUFSIZE] = {0};
 uint8_t MB_MasterRx_Buffer[MAX_MB_BUFSIZE] = {0};
 uint16_t master_rec_byte_count = 0;
 uint16_t CountRX = 0;
-uint16_t CountRxIDLE = 0;
+//uint16_t CountRxIDLE = 0;
 
 //volatile uint8_t MB_Slave_Buffer[MAX_MB_BUFSIZE] = {0};
 //volatile uint8_t MB_Master_Buffer[MAX_MB_BUFSIZE] = {0};
@@ -84,13 +84,16 @@ SENSOR_typedef_t Sensor_array[SQ] =
 void MB_Master_Init(void) {
 	MB_Error_t result;
 	// параметры для датчика совмещенного типа
+	// после инициализации семафоры установлены, надо их сбросить
 	resultSem = osSemaphoreAcquire(TX_Compl_SemHandle, 100/portTICK_RATE_MS);
 	resultSem = osSemaphoreAcquire(RX_Compl_SemHandle, 100/portTICK_RATE_MS);
+	//*****************************************
 
-	while (1)
-	{
+
+	//*****************************************
+
 		// Запросим каждый датчик, если ответит - пометим как активный
-		for (int i=0; i<2; i++)
+		for (int i=0; i<SQ; i++)
 		{
 			result = MB_Master_Read(i);
 			if (result == MB_ERROR_NO)
@@ -99,10 +102,34 @@ void MB_Master_Init(void) {
 				// Инициируем значения в модели для отображения на экране
 				Model::setCurrentVal(i, Sensor::GetData(TimeFromStart, i, 2));
 			}
-//			osDelay(10);
+			else
+			{
+				// Повторим чтение из датчика ещё три раза
+				CountRX = 0;
+				for (int var = 0; var < 3; ++var)
+				{
+					result = MB_Master_Read(i);
+					if (result == MB_ERROR_NO)
+					{
+						CountRX++;
+					}
+				}
+				switch (CountRX)
+				{
+					case 3:		// всё хорошо, датчик отвечает стабильно
+						Sensor_array[i].Active = 1;
+						// Инициируем значения в модели для отображения на экране
+						Model::setCurrentVal(i, Sensor::GetData(CurrentTime, i, 2));
+						break;
+					default:	// датчик нестабилен
+						Sensor_array[i].Active = 0;
+						// Изменим цвет поля датчика в модели для отображения на экране
 
+						break;
+				}
+
+			}
 		}
-	}
 }
 
 // Функция считывает данные с датчика
@@ -110,7 +137,7 @@ MB_Error_t MB_Master_Read(int i)
 {
 	// параметры для датчика совмещенного типа
 	const uint16_t START_REG = 0, REG_COUNT = 2;
-	float T, H;
+	int T, H;
 	MB_Error_t result;
 
 	result = MB_Master_Request(Sensor_array[i].Address, START_REG, REG_COUNT);
@@ -123,12 +150,20 @@ MB_Error_t MB_Master_Read(int i)
 							&& MB_GetCRC(MB_MasterRx_Buffer, MB_MasterRx_Buffer[2] + 5) == 0)
 					{
 						// все проверки ОК, пишем значения с датчика совмещённого типа
+						T =  CurrentTime;
+
 						H = SwapBytes( *(uint16_t*) &MB_MasterRx_Buffer[3]);
 						T = SwapBytes( *(uint16_t*) &MB_MasterRx_Buffer[5]);
 						// запись в массив данных
+<<<<<<< Updated upstream
 						Sensor::PutData(TimeFromStart, i, 1, TimeFromStart);
 						Sensor::PutData(TimeFromStart, i, 2, T/10);
 						Sensor::PutData(TimeFromStart, i, 3, H/10);
+=======
+						Sensor::PutData(CurrentTime, i, 1, CurrentTime);
+						Sensor::PutData(CurrentTime, i, 2, T);
+						Sensor::PutData(CurrentTime, i, 3, H);
+>>>>>>> Stashed changes
 
 						Sensor_array[i].OkCnt++;
 					}
@@ -201,25 +236,26 @@ MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum
 		// ПРИЁМ DMA *******************************
 		// Инициируем приём с использованием DMA
 		osDelay(1);	// BUSY RX
-		CountRxIDLE++;
+//		CountRxIDLE++;
 		result = HAL_UARTEx_ReceiveToIdle_DMA(&huart5, MB_MasterRx_Buffer, 100/portTICK_RATE_MS);
 		if (result == HAL_OK)
-		{	//
-			// последнее значение в очереди = 0, прерывание приёма по IDLE
+		{	// ReceiveToIdle_DMA отработал и вышел по тайм-ауту
+			// последнее значение в очереди = 0, ждём прерывание приёма по IDLE
 			// Ждём, когда приём закончится и прерывание выдаст токен семафора
-			//ответ должен нормально уложиться в 10 ms (19200 -> 500 us на байт), на это время функция ждёт токен семафора в блокировке
+			//ответ должен нормально уложиться в 10 ms (19200 -> 500 us на байт), это время функция ждёт токен семафора в состоянии блокировки
 			resultSem = osSemaphoreAcquire(RX_Compl_SemHandle, 100/portTICK_RATE_MS);
 			osDelay(1);
-			if (resultSem != osOK) {
+			if (resultSem != osOK)
+			{	// прерывания не случилось, семафора не дождались, вышли по тайм-ауту
 				MB_ERR = MB_ERROR_UART_RECIEVE;
+				// датчик не ответил, прекращаем ReceiveToIdle_DMA
 				HAL_UART_AbortReceive_IT(&huart5);
-				// Включим направление - приём
 				return MB_ERR;
 			}
-//		}
-//		else
-//		{  // обработка ошибки приёма
-//			MB_ERR = MB_ERROR_UART_RECIEVE;
+		}
+		else
+		{  // обработка ошибки приёма
+			MB_ERR = MB_ERROR_DMA_RECIEVE;
 		}
 	}
 	else
@@ -281,16 +317,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
  	else*/
 	if (huart == &huart5)	// приём от датчика
  	{
-
-		HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);// Установим семафор окончания приёма, продолжится задача ReadData
-		HAL_GPIO_TogglePin(LD3_GPIO_Port, LD3_Pin);
+		// Установим семафор окончания приёма, продолжится задача ReadData
 		osSemaphoreRelease(RX_Compl_SemHandle);
-		CountRX++;
-		// Reset TC flag
-//		uint16_t stat = huart->Instance->SR;
-//		if (stat);
-//		huart->Instance->DR = 0;
-//		xQueueSendFromISR((QueueHandle_t) MB_MasterQHandle, &res, &xCoRoutinePreviouslyWoken);
 	}
 }
 
@@ -302,7 +330,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *Uart) {
 		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
 	    // Прерывание вызвано флагом ТС регистра состояния, который устанавливается аппаратно. Сбросить его нужно программно.
 		/* Clear the TC flag in the SR register by writing 0 to it */
-	    __HAL_UART_CLEAR_FLAG(Uart, UART_FLAG_TC);
+//	    __HAL_UART_CLEAR_FLAG(Uart, UART_FLAG_TC);
 		// Установим семафор окончания передачи, продолжится задача ModBus
 		osSemaphoreRelease(TX_Compl_SemHandle);
 //	} else if (Uart == &huart7) {

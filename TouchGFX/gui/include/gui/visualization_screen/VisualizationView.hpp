@@ -12,11 +12,11 @@ public:
     virtual void setupScreen();
     virtual void tearDownScreen();
 
-    virtual void Val0UpdateView(float val);
-    virtual void Val1UpdateView(float val);
-    virtual void Val2UpdateView(float val);
-    virtual void Val3UpdateView(float val);
-    virtual void Val4UpdateView(float val);
+    virtual void Val0UpdateView(int val);
+    virtual void Val1UpdateView(int val);
+    virtual void Val2UpdateView(int val);
+    virtual void Val3UpdateView(int val);
+    virtual void Val4UpdateView(int val);
 protected:
 
 };

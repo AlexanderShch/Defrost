@@ -32,15 +32,15 @@ public:
     void tick();
     void ValUpdateModel();
 
-    static void setCurrentVal(int8_t SensNumber, float Val);
-    static float getCurrentVal(int8_t SensNumber);
+    static void setCurrentVal(int8_t SensNumber, int Val);
+    static int getCurrentVal(int8_t SensNumber);
 
     static void clearFlagCurrentValChng(int8_t SensNumber);
     static int8_t getFlagCurrentValChng(int8_t SensNumber);
 
 protected:
     ModelListener* modelListener;
-    static float CurrentValue[SQ];
+    static int CurrentValue[SQ];
     static int8_t FlagCurrentValueChanged[SQ];
 };
 

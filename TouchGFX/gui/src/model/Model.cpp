@@ -13,13 +13,13 @@ void Model::tick()
 
 }
 
-void Model::setCurrentVal(int8_t SensNumber, float Val)
+void Model::setCurrentVal(int8_t SensNumber, int Val)
 {
 	CurrentValue[SensNumber] = Val;
 	FlagCurrentValueChanged[SensNumber] = 1;
 }
 
-float Model::getCurrentVal(int8_t SensNumber)
+int Model::getCurrentVal(int8_t SensNumber)
 {
 	return CurrentValue[SensNumber];
 }
@@ -40,5 +40,5 @@ void Model::ValUpdateModel()
 }
 
 // definition of static variable. Member function definitions belong in the scope where the class is defined.
-float Model::CurrentValue[SQ] = {0};
+int Model::CurrentValue[SQ] = {0};
 int8_t Model::FlagCurrentValueChanged[SQ] = {0};

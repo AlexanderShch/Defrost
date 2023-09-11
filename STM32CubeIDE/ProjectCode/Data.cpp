@@ -24,8 +24,8 @@ int8_t SensorNumber;
 // current number of measure
 unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// number of time quantum measuring
-float Sensor::T[TQ][SQ] = {{0}};		// temperature
-float Sensor::H[TQ][SQ] = {{0}};		// humidity
+int Sensor::T[TQ][SQ] = {{0}};		// temperature
+int Sensor::H[TQ][SQ] = {{0}};		// humidity
 
 
 // Return integer value from measure array
@@ -33,7 +33,7 @@ float Sensor::H[TQ][SQ] = {{0}};		// humidity
 // SensNum - number of interesting sensor
 // Param - 1 for time, 2 for temperature, 3 for humidity
 // Val - value of data
-void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, float Val) {
+void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val) {
 	int i = TimeFromStart % TQ;
 
 	switch (Param)
@@ -57,7 +57,7 @@ void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned
 //	 TimeFromStart - value of measure counter give correct data only for last TQ measures
 //	 SensNum - number of interesting sensor
 //	 Param - 0 for active, 1 for time, 2 for temperature, 3 for humidity
-float Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param) {
+int Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param) {
 	uint32_t i = TimeFromStart % TQ;
 	switch (Param) {
 	case 1:
@@ -79,7 +79,7 @@ float Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigne
 void DataTimerFunc()
 {
 	// Здесь установка флага события для запуска задачи по считыванию данных
-//	osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
+	osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
 
 	// моргнём светодиодом
 	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
@@ -98,8 +98,8 @@ void DataTimerFunc()
  * 	6 - product final T
 */
 void ReadDataFunc() {
-	float TempOld = 0;
-	float TempNew = 0;
+	int TempOld = 0;
+	int TempNew = 0;
 
 	// Инициализация датчиков при запуске задачи
 	MB_Master_Init();

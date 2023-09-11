@@ -27,7 +27,7 @@ void VisualizationPresenter::ValUpdatePresenter()
 	for (int sensNum = 0; sensNum < SQ; ++sensNum)
 	{
 		if (Model::getFlagCurrentValChng(sensNum) == 1) {
-			float Val = Model::getCurrentVal(sensNum);
+			int Val = Model::getCurrentVal(sensNum);
 			switch (sensNum) {
 				case 0:								//	 	0 - defroster left temperature check
 					view.Val0UpdateView(Val);
