@@ -40,7 +40,7 @@
       <Text Id="ValueCoreTSet" Alignment="Center" TypographyId="WildcardLarge">
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
-      <Text Id="ValueDefrosterH" Alignment="Left" TypographyId="Small">
+      <Text Id="ValueDefrosterH1" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">&lt;value&gt;%</Translation>
       </Text>
       <Text Id="ValueCoreT1Small" Alignment="Center" TypographyId="Small">
@@ -49,11 +49,20 @@
       <Text Id="ValueCoreT2Small" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
+      <Text Id="ValueDefrosterT" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">&lt;value&gt;°</Translation>
+      </Text>
       <Text Id="ValueDefrosterT1" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
       <Text Id="ValueDefrosterT2" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">&lt;value&gt;°</Translation>
+      </Text>
+      <Text Id="ValueDefrosterH2" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">&lt;value&gt;%</Translation>
+      </Text>
+      <Text Id="ValueDefrosterH" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">%</Translation>
       </Text>
       <Text Id="ValuePRGTimeLeft" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;</Translation>
@@ -66,10 +75,16 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Wildcarts">
-      <Text Id="ValueCoreTSet_W" Alignment="Left" TypographyId="Large">
-        <Translation Language="GB">9</Translation>
-      </Text>
       <Text Id="ValueDefrosterH_W" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">99</Translation>
+      </Text>
+      <Text Id="ValueDefrosterH1_W" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">99</Translation>
+      </Text>
+      <Text Id="ValueDefrosterH2_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">99</Translation>
+      </Text>
+      <Text Id="ValueDefrosterT_W" Alignment="Left" TypographyId="Small">
         <Translation Language="GB">99</Translation>
       </Text>
       <Text Id="ValueDefrosterT1_W" Alignment="Center" TypographyId="Small">
@@ -77,6 +92,9 @@
       </Text>
       <Text Id="ValueDefrosterT2_W" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">98</Translation>
+      </Text>
+      <Text Id="ValueCoreTSet_W" Alignment="Left" TypographyId="Large">
+        <Translation Language="GB">9</Translation>
       </Text>
       <Text Id="ValuePRGTimeLeft_W" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">999</Translation>
@@ -89,6 +107,21 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Labels">
+      <Text Id="LabelHeater12" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Тэны 1-2</Translation>
+      </Text>
+      <Text Id="LabelGroup2" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Группа 2</Translation>
+      </Text>
+      <Text Id="LabelGroup4" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Группа 4</Translation>
+      </Text>
+      <Text Id="LabelFan34" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Вентиляторы 3-4</Translation>
+      </Text>
+      <Text Id="LabelHeater34" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Тэны 3-4</Translation>
+      </Text>
       <Text Id="LabelSettingsMenu" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">Ручное управление&#10;и настройки</Translation>
       </Text>
@@ -153,14 +186,8 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Unsorted">
-      <Text Id="LabelHeater34" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">Тэны 3-4</Translation>
-      </Text>
-      <Text Id="LabelFan34" Alignment="Center" TypographyId="Default">
-        <Translation Language="GB">Вентиляторы 3-4</Translation>
-      </Text>
-      <Text Id="LabelGroup4" Alignment="Center" TypographyId="Small">
-        <Translation Language="GB">Группа 4</Translation>
+      <Text Id="__SingleUse_7H2N" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">&lt;value&gt;%</Translation>
       </Text>
       <Text Id="LabelGroup3" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Группа 3</Translation>
@@ -173,12 +200,6 @@
       </Text>
       <Text Id="LabelOffOn" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Выкл/вкл</Translation>
-      </Text>
-      <Text Id="LabelHeater12" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">Тэны 1-2</Translation>
-      </Text>
-      <Text Id="LabelGroup2" Alignment="Center" TypographyId="Small">
-        <Translation Language="GB">Группа 2</Translation>
       </Text>
       <Text Id="LabelGroup1" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Группа 1</Translation>

@@ -470,26 +470,6 @@
           },
           {
             "Type": "TextArea",
-            "Name": "ValueDefrosterT1",
-            "X": 28,
-            "Y": 226,
-            "Width": 35,
-            "Height": 15,
-            "TextId": "ValueDefrosterT1",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "Wildcard1": {
-              "TextId": "ValueDefrosterT1_W",
-              "UseBuffer": true,
-              "BufferSize": 10
-            }
-          },
-          {
-            "Type": "TextArea",
             "Name": "ValueDefrosterT2",
             "X": 178,
             "Y": 226,
@@ -510,10 +490,50 @@
           },
           {
             "Type": "TextArea",
-            "Name": "ValueCoreT1Small",
-            "X": 75,
+            "Name": "ValueDefrosterT1",
+            "X": 28,
             "Y": 226,
-            "Width": 32,
+            "Width": 35,
+            "Height": 15,
+            "TextId": "ValueDefrosterT1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "ValueDefrosterT1_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ValueDefrosterT",
+            "X": 103,
+            "Y": 154,
+            "Width": 35,
+            "Height": 12,
+            "TextId": "ValueDefrosterT",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "ValueDefrosterH_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ValueCoreT1Small",
+            "X": 73,
+            "Y": 226,
+            "Width": 35,
             "Height": 15,
             "TextId": "ValueCoreT1Small",
             "TextRotation": "0",
@@ -531,7 +551,7 @@
           {
             "Type": "TextArea",
             "Name": "ValueCoreT2Small",
-            "X": 130,
+            "X": 133,
             "Y": 226,
             "Width": 35,
             "Height": 15,
@@ -550,21 +570,42 @@
           },
           {
             "Type": "TextArea",
-            "Name": "ValueDefrosterH",
-            "X": 113,
-            "Y": 165,
-            "Width": 23,
+            "Name": "ValueDefrosterH2",
+            "X": 178,
+            "Y": 251,
+            "Width": 35,
             "Height": 12,
-            "TextId": "ValueDefrosterH",
+            "TextId": "ValueDefrosterH2",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true,
             "Wildcard1": {
-              "TextId": "ValueDefrosterH_W"
+              "TextId": "ValueDefrosterH2_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ValueDefrosterH1",
+            "X": 31,
+            "Y": 251,
+            "Width": 35,
+            "Height": 12,
+            "TextId": "ValueDefrosterH1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "ValueDefrosterH1_W",
+              "UseBuffer": true,
+              "BufferSize": 10
             }
           },
           {
@@ -641,6 +682,26 @@
             "UpdateTicksInterval": 80,
             "StartOnLoad": true,
             "LoopEnabled": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ValueDefrosterH",
+            "X": 103,
+            "Y": 171,
+            "Width": 35,
+            "Height": 12,
+            "TextId": "__SingleUse_7H2N",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "ValueDefrosterH_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
           }
         ],
         "Interactions": [
@@ -2182,8 +2243,8 @@
             "Name": "LabelFan34",
             "X": 36,
             "Y": 161,
-            "Width": 177,
-            "Height": 25,
+            "Width": 178,
+            "Height": 24,
             "TextId": "LabelFan34",
             "TextRotation": "0",
             "Color": {
@@ -2301,7 +2362,7 @@
             "Name": "textArea3",
             "X": 97,
             "Y": 116,
-            "Height": 13,
+            "Height": 12,
             "TextId": "__SingleUse_1KOJ",
             "TextRotation": "0",
             "AutoSize": true
@@ -2311,8 +2372,8 @@
             "Name": "LabelHeater34",
             "X": 75,
             "Y": 246,
-            "Width": 93,
-            "Height": 25,
+            "Width": 94,
+            "Height": 24,
             "TextId": "LabelHeater34",
             "TextRotation": "0",
             "Color": {

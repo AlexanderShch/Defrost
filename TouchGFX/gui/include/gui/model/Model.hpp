@@ -32,16 +32,22 @@ public:
     void tick();
     void ValUpdateModel();
 
-    static void setCurrentVal(int8_t SensNumber, int Val);
-    static int getCurrentVal(int8_t SensNumber);
+    static void setCurrentVal_T(int8_t SensNumber, int Val);
+    static int getCurrentVal_T(int8_t SensNumber);
+    static void setCurrentVal_H(int8_t SensNumber, int Val);
+    static int getCurrentVal_H(int8_t SensNumber);
 
-    static void clearFlagCurrentValChng(int8_t SensNumber);
-    static int8_t getFlagCurrentValChng(int8_t SensNumber);
+    static void clearFlagCurrentVal_T_Chng(int8_t SensNumber);
+    static int8_t getFlagCurrentVal_T_Chng(int8_t SensNumber);
+    static void clearFlagCurrentVal_H_Chng(int8_t SensNumber);
+    static int8_t getFlagCurrentVal_H_Chng(int8_t SensNumber);
 
 protected:
     ModelListener* modelListener;
-    static int CurrentValue[SQ];
-    static int8_t FlagCurrentValueChanged[SQ];
+    static int CurrentValueT[SQ];
+    static int8_t FlagCurrentValueTChanged[SQ];
+    static int CurrentValueH[SQ];
+    static int8_t FlagCurrentValueHChanged[SQ];
 };
 
 #endif // MODEL_HPP

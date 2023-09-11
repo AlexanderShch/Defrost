@@ -98,8 +98,8 @@ void DataTimerFunc()
  * 	6 - product final T
 */
 void ReadDataFunc() {
-	int TempOld = 0;
-	int TempNew = 0;
+	int TempOld, HumOld = 0;
+	int TempNew, HumNew = 0;
 
 	// Инициализация датчиков при запуске задачи
 	MB_Master_Init();
@@ -119,11 +119,19 @@ void ReadDataFunc() {
 			// запись в очередь передачи данных в удалённый компьютер
 
 			// запись в переменные экрана, если есть изменения
-			TempOld = Model::getCurrentVal(SensorNumber);
+			// Temperature
+			TempOld = Model::getCurrentVal_T(SensorNumber);
 			TempNew = Sensor::GetData(TimeFromStart, SensorNumber, 2);
 			if (TempOld != TempNew)
 			{
-				Model::setCurrentVal(SensorNumber, TempNew);
+				Model::setCurrentVal_T(SensorNumber, TempNew);
+			}
+			// Humidity
+			HumOld = Model::getCurrentVal_H(SensorNumber);
+			HumNew = Sensor::GetData(TimeFromStart, SensorNumber, 3);
+			if (HumOld != HumNew)
+			{
+				Model::setCurrentVal_H(SensorNumber, HumNew);
 			}
 		// установка флага FLAG_DataAnalysis для запуска задачи DataAnalysis
 

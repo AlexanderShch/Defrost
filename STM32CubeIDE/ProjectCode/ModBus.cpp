@@ -100,7 +100,7 @@ void MB_Master_Init(void) {
 			{
 				Sensor_array[i].Active = 1;
 				// Инициируем значения в модели для отображения на экране
-				Model::setCurrentVal(i, Sensor::GetData(TimeFromStart, i, 2));
+				Model::setCurrentVal_T(i, Sensor::GetData(TimeFromStart, i, 2));
 			}
 			else
 			{
@@ -119,7 +119,7 @@ void MB_Master_Init(void) {
 					case 3:		// всё хорошо, датчик отвечает стабильно
 						Sensor_array[i].Active = 1;
 						// Инициируем значения в модели для отображения на экране
-						Model::setCurrentVal(i, Sensor::GetData(CurrentTime, i, 2));
+						Model::setCurrentVal_T(i, Sensor::GetData(TimeFromStart, i, 2));
 						break;
 					default:	// датчик нестабилен
 						Sensor_array[i].Active = 0;
@@ -150,20 +150,14 @@ MB_Error_t MB_Master_Read(int i)
 							&& MB_GetCRC(MB_MasterRx_Buffer, MB_MasterRx_Buffer[2] + 5) == 0)
 					{
 						// все проверки ОК, пишем значения с датчика совмещённого типа
-						T =  CurrentTime;
+						T =  TimeFromStart;
 
 						H = SwapBytes( *(uint16_t*) &MB_MasterRx_Buffer[3]);
 						T = SwapBytes( *(uint16_t*) &MB_MasterRx_Buffer[5]);
 						// запись в массив данных
-<<<<<<< Updated upstream
 						Sensor::PutData(TimeFromStart, i, 1, TimeFromStart);
-						Sensor::PutData(TimeFromStart, i, 2, T/10);
-						Sensor::PutData(TimeFromStart, i, 3, H/10);
-=======
-						Sensor::PutData(CurrentTime, i, 1, CurrentTime);
-						Sensor::PutData(CurrentTime, i, 2, T);
-						Sensor::PutData(CurrentTime, i, 3, H);
->>>>>>> Stashed changes
+						Sensor::PutData(TimeFromStart, i, 2, T);
+						Sensor::PutData(TimeFromStart, i, 3, H);
 
 						Sensor_array[i].OkCnt++;
 					}
