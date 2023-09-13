@@ -1052,6 +1052,23 @@
           },
           {
             "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings5",
+            "X": 150,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
             "Name": "BTNGoToSettings2",
             "X": 195,
             "Y": 5,
@@ -1068,30 +1085,13 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
           },
           {
-            "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings4",
-            "X": 150,
-            "Y": 5,
-            "Width": 36,
-            "Height": 36,
-            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
-            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
-            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
-            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
-            "IconX": 4,
-            "IconY": 2,
-            "IconHeight": 30,
-            "IconWidth": 30,
-            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
-          },
-          {
             "Type": "TextArea",
-            "Name": "LabelCoreTSensors",
-            "X": 26,
-            "Y": 54,
-            "Width": 189,
+            "Name": "LabelCoreTSensors_1",
+            "X": 34,
+            "Y": 148,
+            "Width": 171,
             "Height": 24,
-            "TextId": "LabelCoreTSensors",
+            "TextId": "LabelCoreTSet",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -1102,12 +1102,12 @@
           },
           {
             "Type": "TextArea",
-            "Name": "LabelCoreTSensors_1",
-            "X": 34,
-            "Y": 148,
-            "Width": 171,
+            "Name": "LabelCoreTSensors",
+            "X": 26,
+            "Y": 54,
+            "Width": 189,
             "Height": 24,
-            "TextId": "LabelCoreTSet",
+            "TextId": "LabelCoreTSensors",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -1243,15 +1243,15 @@
             }
           },
           {
-            "InteractionName": "GoToSettings4",
+            "InteractionName": "GoToSettings5",
             "Trigger": {
               "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGoToSettings4"
+              "TriggerComponent": "BTNGoToSettings5"
             },
             "Action": {
               "Type": "ActionGotoScreen",
               "ScreenTransitionType": "ScreenTransitionNone",
-              "ActionComponent": "Settings4"
+              "ActionComponent": "Settings5"
             }
           }
         ]

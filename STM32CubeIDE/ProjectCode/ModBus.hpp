@@ -21,10 +21,12 @@
 #include "stm32f4xx_hal.h"
 
 #define MB_SLAVE_ADDRESS	200
+#define BOAD_RATE_NUMBER		8
 
 /* Описание набора датчиков дефростера */
 typedef struct {
 uint8_t Address;			// ModBus address
+uint8_t BaudRate;			// ModBus baud rate
 uint8_t Active;				// флаг активности датчика
 uint8_t TypeOfSensor;		// тип датчика: 1 - совмещённый датчик температуры и влажности
 uint8_t PositionName[4];	// наименование позиции датчика
@@ -100,8 +102,12 @@ typedef enum
 extern osThreadId MB_Master_TaskHandle;
 extern osMessageQId MB_MasterQHandle;
 MB_Error_t MB_Master_Read(int SensorNumber);
-void MB_Master_Init(void);
 MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum);
+MB_Error_t PR_Master_Read(int SensorNumber);
+MB_Error_t PR_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum);
+void MB_Master_Init(void);
+void ProgrammingSensor(void);
+MB_Error_t ScanSensor();
 
 #endif /* MODBUS_HPP_ */
 

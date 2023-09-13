@@ -147,7 +147,10 @@
 									<listOptionValue builtIn="false" value="../Project_Defrost-Anatoly/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
 									<listOptionValue builtIn="false" value="D:/ST/Project_Defrost-Anatoly/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
 									<listOptionValue builtIn="false" value="D:/ST/Defrost/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
+<<<<<<< Updated upstream
 									<listOptionValue builtIn="false" value="D:/OneDrive/Coding/Defrost/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
+=======
+>>>>>>> Stashed changes
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.input.351982862" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
@@ -322,7 +325,10 @@
 									<listOptionValue builtIn="false" value="D:/OneDrive/Coding/Project_Defrost-Anatoly/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
 									<listOptionValue builtIn="false" value="D:/ST/Project_Defrost-Anatoly/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
 									<listOptionValue builtIn="false" value="D:/ST/Defrost/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
+<<<<<<< Updated upstream
 									<listOptionValue builtIn="false" value="D:/OneDrive/Coding/Defrost/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
+=======
+>>>>>>> Stashed changes
 								</option>
 								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.input.1556095232" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
