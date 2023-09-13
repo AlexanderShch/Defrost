@@ -11,6 +11,8 @@ public:
     virtual ~Settings5View() {}
     virtual void setupScreen();
     virtual void tearDownScreen();
+
+    virtual void scrollSensorSpeedNewUpdateItem(ScrollItemContainer& item, int16_t itemIndex);
 protected:
 };
 
