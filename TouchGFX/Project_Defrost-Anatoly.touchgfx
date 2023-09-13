@@ -1133,7 +1133,7 @@
             "X": 97,
             "Y": 195,
             "Width": 47,
-            "Height": 49,
+            "Height": 41,
             "TextId": "ValueCoreTSet",
             "TextRotation": "0",
             "Color": {
@@ -1919,16 +1919,6 @@
           },
           {
             "Type": "TextArea",
-            "Name": "textArea3",
-            "X": 97,
-            "Y": 116,
-            "Height": 12,
-            "TextId": "__SingleUse_P4SQ",
-            "TextRotation": "0",
-            "AutoSize": true
-          },
-          {
-            "Type": "TextArea",
             "Name": "LabelHeater12",
             "X": 75,
             "Y": 246,
@@ -2371,16 +2361,6 @@
           },
           {
             "Type": "TextArea",
-            "Name": "textArea3",
-            "X": 97,
-            "Y": 116,
-            "Height": 12,
-            "TextId": "__SingleUse_1KOJ",
-            "TextRotation": "0",
-            "AutoSize": true
-          },
-          {
-            "Type": "TextArea",
             "Name": "LabelHeater34",
             "X": 75,
             "Y": 246,
@@ -2503,10 +2483,29 @@
             "RelativeFilename": "__generated\\alternate_theme_images_backgrounds_240x320_gradient_light.png"
           },
           {
+            "Type": "BoxWithBorder",
+            "Name": "BoxSensorSelector_2",
+            "Y": 210,
+            "Width": 240,
+            "Height": 68,
+            "Color": {
+              "Red": 78,
+              "Green": 118,
+              "Blue": 147
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 5,
+            "Alpha": 121
+          },
+          {
             "Type": "TextArea",
-            "Name": "LabelManualControl",
+            "Name": "LabelProgramming",
             "X": 21,
-            "Y": 61,
+            "Y": 41,
             "Width": 199,
             "Height": 24,
             "TextId": "LabelProgramming",
@@ -2588,13 +2587,441 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
           },
           {
+            "Type": "BoxWithBorder",
+            "Name": "BoxSensorSelector",
+            "X": -1,
+            "Y": 69,
+            "Width": 240,
+            "Height": 68,
+            "Color": {
+              "Red": 78,
+              "Green": 118,
+              "Blue": 147
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 5,
+            "Alpha": 121
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "BoxSensorSelector_1",
+            "Y": 140,
+            "Width": 240,
+            "Height": 68,
+            "Color": {
+              "Red": 78,
+              "Green": 118,
+              "Blue": 147
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 5,
+            "Alpha": 121
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelSensorTypeSelect",
+            "X": 6,
+            "Y": 89,
+            "Width": 128,
+            "Height": 24,
+            "TextId": "LabelSensorTypeSelect",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelSensorCurrentSpeed",
+            "X": 13,
+            "Y": 147,
+            "Width": 94,
+            "Height": 24,
+            "TextId": "LabelSensorCurrentSpeed",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1
+          },
+          {
+            "Type": "TextArea",
+            "Name": "SensorCurrentSpeed",
+            "X": 21,
+            "Y": 171,
+            "Width": 78,
+            "Height": 24,
+            "TextId": "SensorCurrentSpeed",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1,
+            "Wildcard1": {
+              "TextId": "SensorCurrentSpeed_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "SensorCurrentAddress",
+            "X": 143,
+            "Y": 171,
+            "Width": 78,
+            "Height": 24,
+            "TextId": "SensorCurrentAddress",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1,
+            "Wildcard1": {
+              "TextId": "SensorCurrentAddress_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelSensorCurrentAddress",
+            "X": 152,
+            "Y": 147,
+            "Width": 61,
+            "Height": 24,
+            "TextId": "LabelSensorCurrentAddress",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1
+          },
+          {
+            "Type": "AnimatedImage",
+            "Name": "animatedImage1",
+            "X": 80,
+            "Y": 206,
+            "Width": 80,
+            "Height": 80,
+            "Visible": false,
+            "FileNameFirst": "Refresh_anim_01.png",
+            "FileNameLast": "Refresh_anim_06.png",
+            "UpdateTicksInterval": 80,
+            "StartOnLoad": true,
+            "LoopEnabled": true
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNWrite",
+            "X": 61,
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNWrite",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSetAddress",
+            "X": 133,
+            "Y": 221,
+            "Width": 93,
+            "Height": 47,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 10,
+                "TextId": "BTNSetAddress",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSetAddress_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 93,
+                "Height": 47,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSensorType",
+            "X": 137,
+            "Y": 79,
+            "Width": 93,
+            "Height": 47,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 10,
+                "TextId": "BTNSensorType",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSensorType_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 93,
+                "Height": 47,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSetSpeed",
+            "X": 13,
+            "Y": 221,
+            "Width": 93,
+            "Height": 47,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 10,
+                "TextId": "BTNSetSpeed",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSetSpeed_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 93,
+                "Height": 47,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
             "Type": "ScrollWheel",
-            "Name": "scrollWheel1",
-            "X": 70,
-            "Y": 110,
-            "Width": 100,
-            "Height": 50,
-            "NumberofItems": 10,
+            "Name": "scrollSensorAddressNew",
+            "Y": 71,
+            "Width": 240,
+            "Height": 207,
+            "Visible": false,
+            "SelectedItemOffset": 25,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "ScrollSelectedItem",
+            "IsCircular": true,
+            "ItemTemplateName": "ScrollItem",
+            "NumberofItems": 3,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollSensorSpeedNew",
+            "Y": 71,
+            "Width": 240,
+            "Height": 207,
+            "Visible": false,
+            "SelectedItemOffset": 25,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "ScrollSelectedItem",
+            "IsCircular": true,
+            "ItemTemplateName": "ScrollItem",
+            "NumberofItems": 6,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollSensorType",
+            "Y": 71,
+            "Width": 240,
+            "Height": 207,
+            "Visible": false,
+            "SelectedItemOffset": 61,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "ScrollSelectedItem",
+            "IsCircular": true,
+            "ItemTemplateName": "ScrollItem",
+            "NumberofItems": 3,
             "Easing": "Back",
             "EasingOption": "Out",
             "SwipeAcceleration": 1.0,
@@ -2649,11 +3076,147 @@
               "ScreenTransitionType": "ScreenTransitionNone",
               "ActionComponent": "Settings1"
             }
+          },
+          {
+            "InteractionName": "BTNSensorTypeClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNSensorType"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSensorTypeClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNSetAddressClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNSetAddress"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSetAddressClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNWriteClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNWrite"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNWriteClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNSetSpeedClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNSetSpeed"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSetSpeedClicked"
+            }
           }
         ]
       }
     ],
-    "CustomContainerDefinitions": [],
+    "CustomContainerDefinitions": [
+      {
+        "Name": "ScrollItem",
+        "Width": 240,
+        "Height": 50,
+        "Components": [
+          {
+            "Type": "Image",
+            "Name": "image1",
+            "Width": 240,
+            "Height": 50,
+            "RelativeFilename": "__generated\\alternate_theme_images_bars_240x240_bottom_light.png"
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "BoxScrollItem",
+            "Y": -2,
+            "Width": 240,
+            "Height": 54,
+            "Color": {
+              "Red": 78,
+              "Green": 118,
+              "Blue": 147
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 4,
+            "Alpha": 121
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ScrollItem",
+            "X": 15,
+            "Y": 1,
+            "Width": 150,
+            "Height": 41,
+            "TextId": "ScrollItem",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 52,
+              "Green": 94,
+              "Blue": 116
+            },
+            "AutoSize": true,
+            "Wildcard1": {
+              "TextId": "ScrollItem_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          }
+        ],
+        "Interactions": []
+      },
+      {
+        "Name": "ScrollSelectedItem",
+        "Width": 240,
+        "Height": 50,
+        "Components": [
+          {
+            "Type": "Image",
+            "Name": "image1",
+            "Width": 240,
+            "Height": 50,
+            "RelativeFilename": "__generated\\alternate_theme_images_bars_240x240_bottom_base.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ScrollSelectedItem",
+            "X": 15,
+            "Y": 1,
+            "Width": 168,
+            "Height": 41,
+            "TextId": "ScrollSelectedItem",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "Wildcard1": {
+              "TextId": "ScrollSelectedItem_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          }
+        ],
+        "Interactions": []
+      }
+    ],
     "Name": "Project_Defrost-Anatoly",
     "Resolution": {
       "Width": 240,

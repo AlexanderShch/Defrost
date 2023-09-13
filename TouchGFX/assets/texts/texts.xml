@@ -37,6 +37,21 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Wildcart_labels">
+      <Text Id="SensorCurrentSpeed" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="SensorCurrentAddress" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="BTNSetSpeed" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="BTNSensorType" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="BTNSetAddress" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
       <Text Id="ValueCoreTSet" Alignment="Center" TypographyId="WildcardLarge">
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
@@ -73,8 +88,29 @@
       <Text Id="ValueCoreT1" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
+      <Text Id="ScrollSelectedItem" Alignment="Center" TypographyId="LargeHighlight">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="ScrollItem" Alignment="Center" TypographyId="Large">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
     </TextGroup>
     <TextGroup Id="Wildcarts">
+      <Text Id="BTNSetSpeed_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">012345</Translation>
+      </Text>
+      <Text Id="BTNSensorType_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">012345</Translation>
+      </Text>
+      <Text Id="SensorCurrentAddress_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">012345</Translation>
+      </Text>
+      <Text Id="SensorCurrentSpeed_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">012345</Translation>
+      </Text>
+      <Text Id="BTNSetAddress_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">012345</Translation>
+      </Text>
       <Text Id="ValueDefrosterH_W" Alignment="Left" TypographyId="Small">
         <Translation Language="GB">99</Translation>
       </Text>
@@ -105,8 +141,58 @@
       <Text Id="ValueCoreT1_W" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">-99</Translation>
       </Text>
+      <Text Id="ScrollSelectedItem_W" Alignment="Center" TypographyId="LargeHighlight">
+        <Translation Language="GB">012345</Translation>
+      </Text>
+      <Text Id="ScrollItem_W" Alignment="Center" TypographyId="LargeHighlight">
+        <Translation Language="GB">012345</Translation>
+      </Text>
+      <Text Id="__SingleUse_7H2N" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">&lt;value&gt;%</Translation>
+      </Text>
+    </TextGroup>
+    <TextGroup Id="Buttons">
+      <Text Id="BTNWrite" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Записать</Translation>
+      </Text>
+      <Text Id="BTNSettings1" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Управление температурой в теле</Translation>
+      </Text>
+      <Text Id="BTNSettings2" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Ворота и форсунки</Translation>
+      </Text>
+      <Text Id="BTNSettings3" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Вентиляторы и нагрев 1-2</Translation>
+      </Text>
+      <Text Id="BTNSettings4" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Вентиляторы и нагрев 3-4</Translation>
+      </Text>
+      <Text Id="GoToVisualisation" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Просмотр состояния</Translation>
+      </Text>
+      <Text Id="Stop" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Стоп</Translation>
+      </Text>
+      <Text Id="Start" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Старт</Translation>
+      </Text>
     </TextGroup>
     <TextGroup Id="Labels">
+      <Text Id="LabelSensorCurrentSpeed" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Скорость</Translation>
+      </Text>
+      <Text Id="LabelSensorCurrentAddress" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Адрес</Translation>
+      </Text>
+      <Text Id="LabelFan12" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Вентиляторы 1-2</Translation>
+      </Text>
+      <Text Id="LabelManualControl" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Ручное управление</Translation>
+      </Text>
+      <Text Id="LabelGroup3" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Группа 3</Translation>
+      </Text>
       <Text Id="LabelHeater12" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Тэны 1-2</Translation>
       </Text>
@@ -115,9 +201,6 @@
       </Text>
       <Text Id="LabelGroup4" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Группа 4</Translation>
-      </Text>
-      <Text Id="LabelFan34" Alignment="Center" TypographyId="Default">
-        <Translation Language="GB">Вентиляторы 3-4</Translation>
       </Text>
       <Text Id="LabelHeater34" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Тэны 3-4</Translation>
@@ -149,6 +232,9 @@
       <Text Id="LabelSpray" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Форсунки</Translation>
       </Text>
+      <Text Id="LabelFan34" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Вентиляторы 3-4</Translation>
+      </Text>
       <Text Id="LabelCoreTSet" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">Задать Т° в теле</Translation>
       </Text>
@@ -161,45 +247,11 @@
       <Text Id="LabelCoreT" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Т° ядра 1/2</Translation>
       </Text>
-    </TextGroup>
-    <TextGroup Id="Buttons">
-      <Text Id="BTNSettings1" Alignment="Center" TypographyId="Small">
-        <Translation Language="GB">Управление температурой в теле</Translation>
+      <Text Id="LabelSensorTypeSelect" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Тип датчика</Translation>
       </Text>
-      <Text Id="BTNSettings2" Alignment="Center" TypographyId="Small">
-        <Translation Language="GB">Ворота и форсунки</Translation>
-      </Text>
-      <Text Id="BTNSettings3" Alignment="Center" TypographyId="Small">
-        <Translation Language="GB">Вентиляторы и нагрев 1-2</Translation>
-      </Text>
-      <Text Id="BTNSettings4" Alignment="Center" TypographyId="Small">
-        <Translation Language="GB">Вентиляторы и нагрев 3-4</Translation>
-      </Text>
-      <Text Id="GoToVisualisation" Alignment="Center" TypographyId="Small">
-        <Translation Language="GB">Просмотр состояния</Translation>
-      </Text>
-      <Text Id="Stop" Alignment="Center" TypographyId="Default">
-        <Translation Language="GB">Стоп</Translation>
-      </Text>
-      <Text Id="Start" Alignment="Center" TypographyId="Default">
-        <Translation Language="GB">Старт</Translation>
-      </Text>
-    </TextGroup>
-    <TextGroup Id="Unsorted">
       <Text Id="LabelProgramming" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">Программирование</Translation>
-      </Text>
-      <Text Id="__SingleUse_7H2N" Alignment="Center" TypographyId="Small">
-        <Translation Language="GB">&lt;value&gt;%</Translation>
-      </Text>
-      <Text Id="LabelGroup3" Alignment="Center" TypographyId="Small">
-        <Translation Language="GB">Группа 3</Translation>
-      </Text>
-      <Text Id="__SingleUse_1KOJ" Alignment="Left" TypographyId="Small">
-        <Translation Language="GB"></Translation>
-      </Text>
-      <Text Id="__SingleUse_P4SQ" Alignment="Left" TypographyId="Small">
-        <Translation Language="GB"></Translation>
       </Text>
       <Text Id="LabelOffOn" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Выкл/вкл</Translation>
@@ -207,16 +259,12 @@
       <Text Id="LabelGroup1" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Группа 1</Translation>
       </Text>
-      <Text Id="LabelManualControl" Alignment="Center" TypographyId="Default">
-        <Translation Language="GB">Ручное управление</Translation>
-      </Text>
-      <Text Id="LabelFan12" Alignment="Center" TypographyId="Default">
-        <Translation Language="GB">Вентиляторы 1-2</Translation>
-      </Text>
     </TextGroup>
+    <TextGroup Id="Unsorted" />
   </Texts>
   <Typographies>
     <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" />
+    <Typography Id="LargeHighlight" Font="verdanab.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" />
     <Typography Id="Large" Font="verdana.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" />
     <Typography Id="Small" Font="verdana.ttf" Size="10" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="." WildcardCharacterRanges="0-9" />
     <Typography Id="WildcardLarge" Font="verdana.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="-0123456789" />
