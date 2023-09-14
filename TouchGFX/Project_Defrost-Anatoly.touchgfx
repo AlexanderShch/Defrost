@@ -1069,7 +1069,7 @@
           },
           {
             "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings4",
+            "Name": "BTNGoToSettings5",
             "X": 150,
             "Y": 5,
             "Width": 36,
@@ -1243,15 +1243,15 @@
             }
           },
           {
-            "InteractionName": "GoToSettings4",
+            "InteractionName": "GoToSettings5",
             "Trigger": {
               "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGoToSettings4"
+              "TriggerComponent": "BTNGoToSettings5"
             },
             "Action": {
               "Type": "ActionGotoScreen",
               "ScreenTransitionType": "ScreenTransitionNone",
-              "ActionComponent": "Settings4"
+              "ActionComponent": "Settings5"
             }
           }
         ]

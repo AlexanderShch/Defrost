@@ -1,6 +1,7 @@
 #include <gui/settings5_screen/Settings5View.hpp>
 
 int SetSpeed;
+int Selected;
 
 Settings5View::Settings5View()
 {
@@ -43,7 +44,7 @@ void Settings5View::scrollSensorSpeedNewUpdateItem(ScrollItemContainer& item, in
     }
 }
 
-//Запись значений в ScrollSelectedItem и переменную SetSpeed (почему-то идет сдвиг)
+//Запись значений в ScrollSelectedItem и переменную SetSpeed (почему-то идет сдвиг на -1)
 void Settings5View::scrollSensorSpeedNewUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex)
 {
     switch (itemIndex)
@@ -85,6 +86,7 @@ void Settings5View::BTNWriteClicked()
 void Settings5View::BTNSetSpeedClicked()
 {
 	scrollSensorSpeedNew.setVisible(true);
+	Selected = 2;
 	BTNConfirm.setVisible(true);
 	BTNCancel.setVisible(true);
 	BTNWrite.setVisible(false);
@@ -97,8 +99,13 @@ void Settings5View::BTNSetSpeedClicked()
 //Кнопка подтверждения выбранного значения
 void Settings5View::BTNConfirmClicked()
 {
-	Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", SetSpeed);
-	scrollSensorSpeedNew.setVisible(false);
+	switch (Selected)
+	{
+	case 2:
+		Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", SetSpeed);
+		scrollSensorSpeedNew.setVisible(false);
+		break;
+	}
 	BTNConfirm.setVisible(false);
 	BTNCancel.setVisible(false);
 	BTNWrite.setVisible(true);
