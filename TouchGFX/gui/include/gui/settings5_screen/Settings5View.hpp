@@ -16,7 +16,13 @@ public:
     virtual void tearDownScreen();
 
     virtual void scrollSensorSpeedNewUpdateItem(ScrollItemContainer& item, int16_t itemIndex);
+    virtual void scrollSensorSpeedNewUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex);
+    virtual void BTNWriteClicked();
+    virtual void BTNSetSpeedClicked();
+    virtual void BTNConfirmClicked();
+    virtual void BTNCancelClicked();
 protected:
+
 };
 
 #endif // SETTINGS5VIEW_HPP

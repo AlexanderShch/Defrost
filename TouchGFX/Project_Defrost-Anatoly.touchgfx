@@ -1069,8 +1069,8 @@
           },
           {
             "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings2",
-            "X": 195,
+            "Name": "BTNGoToSettings5",
+            "X": 150,
             "Y": 5,
             "Width": 36,
             "Height": 36,
@@ -2792,6 +2792,119 @@
           },
           {
             "Type": "FlexButton",
+            "Name": "BTNConfirm",
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "Visible": false,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNWrite",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNCancel",
+            "X": 122,
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "Visible": false,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNCancel",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
             "Name": "BTNSetAddress",
             "X": 133,
             "Y": 221,
@@ -2997,6 +3110,7 @@
             "Y": 71,
             "Width": 240,
             "Height": 207,
+            "Visible": false,
             "SelectedItemOffset": 78,
             "UseSelectedStyle": true,
             "SelectedItemTemplateName": "ScrollSelectedItemContainer",
@@ -3119,6 +3233,28 @@
               "Type": "ActionCustom",
               "FunctionName": "BTNSetSpeedClicked"
             }
+          },
+          {
+            "InteractionName": "BTNConfirmClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNConfirm"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNConfirmClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNCancelClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNCancel"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNCancelClicked"
+            }
           }
         ]
       }
@@ -3197,7 +3333,7 @@
             "X": 15,
             "Y": 1,
             "Width": 168,
-            "Height": 49,
+            "Height": 41,
             "TextId": "ScrollSelectedItem",
             "TextRotation": "0",
             "Color": {
