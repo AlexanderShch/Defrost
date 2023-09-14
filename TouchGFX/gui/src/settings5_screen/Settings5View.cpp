@@ -2,6 +2,16 @@
 
 int SetSpeed;
 int Selected;
+/* Definitions for ProgrammingSens */
+osThreadId_t ProgrammingSensHandle;
+const osThreadAttr_t ProgrammingSens_attributes = {
+  .name = "ProgrammingSens",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+
+void StartProgrammingSensor(void *argument);
+extern void ProgrammingSensor(void);
 
 Settings5View::Settings5View()
 {
@@ -11,11 +21,21 @@ Settings5View::Settings5View()
 void Settings5View::setupScreen()
 {
     Settings5ViewBase::setupScreen();
+    /* creation of ProgrammingSens task */
+    ProgrammingSensHandle = osThreadNew(StartProgrammingSensor, NULL, &ProgrammingSens_attributes);
+
 }
 
 void Settings5View::tearDownScreen()
 {
     Settings5ViewBase::tearDownScreen();
+    /* delete ProgrammingSens task */
+    osThreadTerminate(ProgrammingSensHandle);
+}
+
+void StartProgrammingSensor(void *argument)
+{
+	ProgrammingSensor();
 }
 
 //Запись значений в ScrollItemContainer и обновление на кнопке BTNSetSpeed
