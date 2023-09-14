@@ -10,6 +10,7 @@ public:
     virtual ~ScrollSelectedItemContainer() {}
 
     virtual void initialize();
+    void updateScrollSelectedItem(int16_t value);
 protected:
 };
 

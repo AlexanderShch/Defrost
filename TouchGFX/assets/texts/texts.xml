@@ -88,16 +88,16 @@
       <Text Id="ValueCoreT1" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
-      <Text Id="ScrollSelectedItem" Alignment="Center" TypographyId="LargeHighlight">
+      <Text Id="ScrollSelectedItem" Alignment="Left" TypographyId="LargeHighlight">
         <Translation Language="GB">&lt;value&gt;</Translation>
       </Text>
-      <Text Id="ScrollItem" Alignment="Center" TypographyId="Large">
+      <Text Id="ScrollItem" Alignment="Left" TypographyId="Large">
         <Translation Language="GB">&lt;value&gt;</Translation>
       </Text>
     </TextGroup>
     <TextGroup Id="Wildcarts">
       <Text Id="BTNSetSpeed_W" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">012345</Translation>
+        <Translation Language="GB">000000</Translation>
       </Text>
       <Text Id="BTNSensorType_W" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">012345</Translation>
@@ -109,7 +109,7 @@
         <Translation Language="GB">012345</Translation>
       </Text>
       <Text Id="BTNSetAddress_W" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">012345</Translation>
+        <Translation Language="GB">000000</Translation>
       </Text>
       <Text Id="ValueDefrosterH_W" Alignment="Left" TypographyId="Small">
         <Translation Language="GB">99</Translation>
@@ -152,6 +152,9 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Buttons">
+      <Text Id="BTNCancel" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Отмена</Translation>
+      </Text>
       <Text Id="BTNWrite" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">Записать</Translation>
       </Text>
