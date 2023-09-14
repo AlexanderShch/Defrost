@@ -1052,24 +1052,7 @@
           },
           {
             "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings2",
-            "X": 195,
-            "Y": 5,
-            "Width": 36,
-            "Height": 36,
-            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
-            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
-            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
-            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
-            "IconX": 4,
-            "IconY": 2,
-            "IconHeight": 30,
-            "IconWidth": 30,
-            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
-          },
-          {
-            "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings4",
+            "Name": "BTNGoToSettings5",
             "X": 150,
             "Y": 5,
             "Width": 36,
@@ -1085,13 +1068,30 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
           },
           {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings5",
+            "X": 150,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
             "Type": "TextArea",
-            "Name": "LabelCoreTSensors",
-            "X": 26,
-            "Y": 54,
-            "Width": 189,
+            "Name": "LabelCoreTSensors_1",
+            "X": 34,
+            "Y": 148,
+            "Width": 171,
             "Height": 24,
-            "TextId": "LabelCoreTSensors",
+            "TextId": "LabelCoreTSet",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -1102,12 +1102,12 @@
           },
           {
             "Type": "TextArea",
-            "Name": "LabelCoreTSensors_1",
-            "X": 34,
-            "Y": 148,
-            "Width": 171,
+            "Name": "LabelCoreTSensors",
+            "X": 26,
+            "Y": 54,
+            "Width": 189,
             "Height": 24,
-            "TextId": "LabelCoreTSet",
+            "TextId": "LabelCoreTSensors",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -1243,15 +1243,15 @@
             }
           },
           {
-            "InteractionName": "GoToSettings4",
+            "InteractionName": "GoToSettings5",
             "Trigger": {
               "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGoToSettings4"
+              "TriggerComponent": "BTNGoToSettings5"
             },
             "Action": {
               "Type": "ActionGotoScreen",
               "ScreenTransitionType": "ScreenTransitionNone",
-              "ActionComponent": "Settings4"
+              "ActionComponent": "Settings5"
             }
           }
         ]
@@ -2792,6 +2792,119 @@
           },
           {
             "Type": "FlexButton",
+            "Name": "BTNConfirm",
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "Visible": false,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNWrite",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNCancel",
+            "X": 122,
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "Visible": false,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNCancel",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
             "Name": "BTNSetAddress",
             "X": 133,
             "Y": 221,
@@ -2982,9 +3095,9 @@
             "Visible": false,
             "SelectedItemOffset": 25,
             "UseSelectedStyle": true,
-            "SelectedItemTemplateName": "ScrollSelectedItem",
+            "SelectedItemTemplateName": "ScrollSelectedItemContainer",
             "IsCircular": true,
-            "ItemTemplateName": "ScrollItem",
+            "ItemTemplateName": "ScrollItemContainer",
             "NumberofItems": 3,
             "Easing": "Back",
             "EasingOption": "Out",
@@ -2998,11 +3111,11 @@
             "Width": 240,
             "Height": 207,
             "Visible": false,
-            "SelectedItemOffset": 25,
+            "SelectedItemOffset": 78,
             "UseSelectedStyle": true,
-            "SelectedItemTemplateName": "ScrollSelectedItem",
+            "SelectedItemTemplateName": "ScrollSelectedItemContainer",
             "IsCircular": true,
-            "ItemTemplateName": "ScrollItem",
+            "ItemTemplateName": "ScrollItemContainer",
             "NumberofItems": 6,
             "Easing": "Back",
             "EasingOption": "Out",
@@ -3018,9 +3131,9 @@
             "Visible": false,
             "SelectedItemOffset": 61,
             "UseSelectedStyle": true,
-            "SelectedItemTemplateName": "ScrollSelectedItem",
+            "SelectedItemTemplateName": "ScrollSelectedItemContainer",
             "IsCircular": true,
-            "ItemTemplateName": "ScrollItem",
+            "ItemTemplateName": "ScrollItemContainer",
             "NumberofItems": 3,
             "Easing": "Back",
             "EasingOption": "Out",
@@ -3120,13 +3233,35 @@
               "Type": "ActionCustom",
               "FunctionName": "BTNSetSpeedClicked"
             }
+          },
+          {
+            "InteractionName": "BTNConfirmClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNConfirm"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNConfirmClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNCancelClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNCancel"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNCancelClicked"
+            }
           }
         ]
       }
     ],
     "CustomContainerDefinitions": [
       {
-        "Name": "ScrollItem",
+        "Name": "ScrollItemContainer",
         "Width": 240,
         "Height": 50,
         "Components": [
@@ -3161,7 +3296,7 @@
             "Name": "ScrollItem",
             "X": 15,
             "Y": 1,
-            "Width": 150,
+            "Width": 125,
             "Height": 41,
             "TextId": "ScrollItem",
             "TextRotation": "0",
@@ -3181,7 +3316,7 @@
         "Interactions": []
       },
       {
-        "Name": "ScrollSelectedItem",
+        "Name": "ScrollSelectedItemContainer",
         "Width": 240,
         "Height": 50,
         "Components": [

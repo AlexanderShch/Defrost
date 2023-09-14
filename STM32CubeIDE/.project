@@ -305,14 +305,14 @@
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/common/FrontendApplication.cpp</locationURI>
 		</link>
 		<link>
-			<name>Application/User/gui/ScrollItem.cpp</name>
+			<name>Application/User/gui/ScrollItemContainer.cpp</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/containers/ScrollItem.cpp</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/containers/ScrollItemContainer.cpp</locationURI>
 		</link>
 		<link>
-			<name>Application/User/gui/ScrollSelectedItem.cpp</name>
+			<name>Application/User/gui/ScrollSelectedItemContainer.cpp</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/containers/ScrollSelectedItem.cpp</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/containers/ScrollSelectedItemContainer.cpp</locationURI>
 		</link>
 		<link>
 			<name>Application/User/gui/HomePresenter.cpp</name>
@@ -490,14 +490,14 @@
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/common/FrontendApplicationBase.cpp</locationURI>
 		</link>
 		<link>
-			<name>Application/User/generated/ScrollItemBase.cpp</name>
+			<name>Application/User/generated/ScrollItemContainerBase.cpp</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/containers/ScrollItemBase.cpp</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/containers/ScrollItemContainerBase.cpp</locationURI>
 		</link>
 		<link>
-			<name>Application/User/generated/ScrollSelectedItemBase.cpp</name>
+			<name>Application/User/generated/ScrollSelectedItemContainerBase.cpp</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/containers/ScrollSelectedItemBase.cpp</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/containers/ScrollSelectedItemContainerBase.cpp</locationURI>
 		</link>
 		<link>
 			<name>Application/User/generated/HomeViewBase.cpp</name>

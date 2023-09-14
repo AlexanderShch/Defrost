@@ -384,16 +384,16 @@
     <ClCompile Include="..\..\generated\gui_generated\src\settings5_screen\Settings5ViewBase.cpp">
       <Filter>Source Files\generated\gui_generated\settings5_screen</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\gui\src\containers\ScrollItem.cpp">
+    <ClCompile Include="..\..\gui\src\containers\ScrollItemContainer.cpp">
       <Filter>Source Files\gui\containers</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\generated\gui_generated\src\containers\ScrollItemBase.cpp">
+    <ClCompile Include="..\..\generated\gui_generated\src\containers\ScrollItemContainerBase.cpp">
       <Filter>Source Files\generated\gui_generated\containers</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\gui\src\containers\ScrollSelectedItem.cpp">
+    <ClCompile Include="..\..\gui\src\containers\ScrollSelectedItemContainer.cpp">
       <Filter>Source Files\gui\containers</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\generated\gui_generated\src\containers\ScrollSelectedItemBase.cpp">
+    <ClCompile Include="..\..\generated\gui_generated\src\containers\ScrollSelectedItemContainerBase.cpp">
       <Filter>Source Files\generated\gui_generated\containers</Filter>
     </ClCompile>
   </ItemGroup>
@@ -910,16 +910,16 @@
     <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\settings5_screen\Settings5ViewBase.hpp">
       <Filter>Header Files\generated\gui_generated\settings5_screen</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\gui\include\gui\containers\ScrollItem.hpp">
+    <ClInclude Include="..\..\gui\include\gui\containers\ScrollItemContainer.hpp">
       <Filter>Header Files\gui\containers</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\ScrollItemBase.hpp">
+    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\ScrollItemContainerBase.hpp">
       <Filter>Header Files\generated\gui_generated\containers</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\gui\include\gui\containers\ScrollSelectedItem.hpp">
+    <ClInclude Include="..\..\gui\include\gui\containers\ScrollSelectedItemContainer.hpp">
       <Filter>Header Files\gui\containers</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\ScrollSelectedItemBase.hpp">
+    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\ScrollSelectedItemContainerBase.hpp">
       <Filter>Header Files\generated\gui_generated\containers</Filter>
     </ClInclude>
   </ItemGroup>
