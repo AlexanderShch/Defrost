@@ -88,10 +88,10 @@
       <Text Id="ValueCoreT1" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
-      <Text Id="ScrollSelectedItem" Alignment="Left" TypographyId="LargeHighlight">
+      <Text Id="ScrollSelectedItem" Alignment="Right" TypographyId="LargeHighlight">
         <Translation Language="GB">&lt;value&gt;</Translation>
       </Text>
-      <Text Id="ScrollItem" Alignment="Left" TypographyId="Large">
+      <Text Id="ScrollItem" Alignment="Right" TypographyId="Large">
         <Translation Language="GB">&lt;value&gt;</Translation>
       </Text>
     </TextGroup>
@@ -100,7 +100,7 @@
         <Translation Language="GB">000000</Translation>
       </Text>
       <Text Id="BTNSensorType_W" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">012345</Translation>
+        <Translation Language="GB">0</Translation>
       </Text>
       <Text Id="SensorCurrentAddress_W" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">012345</Translation>
@@ -266,8 +266,8 @@
     <TextGroup Id="Unsorted" />
   </Texts>
   <Typographies>
-    <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" />
-    <Typography Id="LargeHighlight" Font="verdanab.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" />
+    <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacterRanges="0-9" />
+    <Typography Id="LargeHighlight" Font="verdanab.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacterRanges="0-9" />
     <Typography Id="Large" Font="verdana.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" />
     <Typography Id="Small" Font="verdana.ttf" Size="10" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="." WildcardCharacterRanges="0-9" />
     <Typography Id="WildcardLarge" Font="verdana.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="-0123456789" />
