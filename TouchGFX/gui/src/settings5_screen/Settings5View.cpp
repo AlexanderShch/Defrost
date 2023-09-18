@@ -3,8 +3,20 @@
 uint8_t Selected;
 int16_t SetSensor;
 int SetSpeed;
+int Selected;
+/* Definitions for ProgrammingSens */
+osThreadId_t ProgrammingSensHandle;
+const osThreadAttr_t ProgrammingSens_attributes = {
+  .name = "ProgrammingSens",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 int16_t SetAddress;
 
+void StartProgrammingSensor(void *argument);
+extern void ProgrammingSensor(void);
+
+Settings5View::Settings5View()
 extern SENSOR_typedef_t Sensor_array[SQ];
 
 Settings5View::Settings5View():
@@ -20,6 +32,9 @@ Settings5View::Settings5View():
 void Settings5View::setupScreen()
 {
     Settings5ViewBase::setupScreen();
+    /* creation of ProgrammingSens task */
+    ProgrammingSensHandle = osThreadNew(StartProgrammingSensor, NULL, &ProgrammingSens_attributes);
+
     //Callback для передачи ItemSelected значения при окончании анимации скролла
     scrollSensorType.setItemSelectedCallback(scrollSensorTypeItemSelectedCallback);
     scrollSensorSpeedNew.setItemSelectedCallback(scrollSensorSpeedNewItemSelectedCallback);
@@ -29,8 +44,16 @@ void Settings5View::setupScreen()
 void Settings5View::tearDownScreen()
 {
     Settings5ViewBase::tearDownScreen();
+    /* delete ProgrammingSens task */
+    osThreadTerminate(ProgrammingSensHandle);
 }
 
+void StartProgrammingSensor(void *argument)
+{
+	ProgrammingSensor();
+}
+
+//Запись значений в ScrollItemContainer и обновление на кнопке BTNSetSpeed
 //Запись значений в Scroll SensorType
 void Settings5View::scrollSensorTypeUpdateItem(ScrollItemContainer& item, int16_t itemIndex)
 {

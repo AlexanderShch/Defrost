@@ -67,7 +67,7 @@ void Error_Handler(void);
 #define MCU_ACTIVE_Pin GPIO_PIN_5
 #define MCU_ACTIVE_GPIO_Port GPIOE
 #define PROG_MASTER_DE_Pin GPIO_PIN_2
-#define PROG_MASTER_DE_GPIO_Port GPIOA
+#define PROG_MASTER_DE_GPIO_Port GPIOC
 #define MB_MASTER_DE_Pin GPIO_PIN_11
 #define MB_MASTER_DE_GPIO_Port GPIOC
 #define LD3_Pin GPIO_PIN_13
