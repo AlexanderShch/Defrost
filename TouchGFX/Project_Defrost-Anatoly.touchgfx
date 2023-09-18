@@ -1068,23 +1068,6 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
           },
           {
-            "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings5",
-            "X": 150,
-            "Y": 5,
-            "Width": 36,
-            "Height": 36,
-            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
-            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
-            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
-            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
-            "IconX": 4,
-            "IconY": 2,
-            "IconHeight": 30,
-            "IconWidth": 30,
-            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
-          },
-          {
             "Type": "TextArea",
             "Name": "LabelCoreTSensors_1",
             "X": 34,
@@ -1117,15 +1100,21 @@
             "AutoSize": true
           },
           {
-            "Type": "ToggleButton",
-            "Name": "BTNCoreTSensorsState",
-            "X": 51,
-            "Y": 84,
-            "Width": 138,
-            "Height": 50,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_dark.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded_text.json"
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings2",
+            "X": 195,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
           },
           {
             "Type": "TextArea",
@@ -1164,6 +1153,17 @@
             "IconHeight": 50,
             "IconWidth": 50,
             "Preset": "alternate_theme\\presets\\button\\regular\\height_36\\tiny_rounded_normal.json"
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTNCoreTSensorsState",
+            "X": 51,
+            "Y": 84,
+            "Width": 138,
+            "Height": 50,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_dark.png",
+            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded_text.json"
           },
           {
             "Type": "ButtonWithIcon",
