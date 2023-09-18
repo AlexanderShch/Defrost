@@ -10,7 +10,7 @@ public:
     virtual ~ScrollItemContainer() {}
 
     virtual void initialize();
-    void updateScrollItem(int16_t value);
+    virtual void updateScrollItem(int value);
 protected:
 };
 

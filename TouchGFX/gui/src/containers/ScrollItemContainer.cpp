@@ -10,7 +10,7 @@ void ScrollItemContainer::initialize()
     ScrollItemContainerBase::initialize();
 }
 
-void ScrollItemContainer::updateScrollItem(int16_t value)
+void ScrollItemContainer::updateScrollItem(int value)
 {
     Unicode::snprintf(ScrollItemBuffer, SCROLLITEM_SIZE, "%d", value);
     ScrollItem.invalidate();

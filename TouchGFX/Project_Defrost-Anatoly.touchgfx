@@ -2485,9 +2485,10 @@
           {
             "Type": "BoxWithBorder",
             "Name": "BoxSensorSelector_2",
-            "Y": 210,
+            "Y": 209,
             "Width": 240,
             "Height": 68,
+            "LockPosition": true,
             "Color": {
               "Red": 78,
               "Green": 118,
@@ -2508,6 +2509,7 @@
             "Y": 41,
             "Width": 199,
             "Height": 24,
+            "LockPosition": true,
             "TextId": "LabelProgramming",
             "TextRotation": "0",
             "Color": {
@@ -2525,6 +2527,7 @@
             "Y": 5,
             "Width": 36,
             "Height": 36,
+            "LockPosition": true,
             "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
             "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
             "IconPressed": "__generated\\icon_theme_images_action_home_filled_30_30_E8F6FB.svg.png",
@@ -2542,6 +2545,7 @@
             "Y": 5,
             "Width": 36,
             "Height": 36,
+            "LockPosition": true,
             "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
             "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
             "IconPressed": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
@@ -2559,6 +2563,7 @@
             "Y": 5,
             "Width": 36,
             "Height": 36,
+            "LockPosition": true,
             "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
             "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
             "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
@@ -2576,6 +2581,7 @@
             "Y": 5,
             "Width": 36,
             "Height": 36,
+            "LockPosition": true,
             "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
             "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
             "IconPressed": "__generated\\icon_theme_images_action_settings_applications_30_30_E8F6FB.svg.png",
@@ -2589,10 +2595,10 @@
           {
             "Type": "BoxWithBorder",
             "Name": "BoxSensorSelector",
-            "X": -1,
             "Y": 69,
             "Width": 240,
             "Height": 68,
+            "LockPosition": true,
             "Color": {
               "Red": 78,
               "Green": 118,
@@ -2609,9 +2615,10 @@
           {
             "Type": "BoxWithBorder",
             "Name": "BoxSensorSelector_1",
-            "Y": 140,
+            "Y": 139,
             "Width": 240,
             "Height": 68,
+            "LockPosition": true,
             "Color": {
               "Red": 78,
               "Green": 118,
@@ -2632,6 +2639,7 @@
             "Y": 89,
             "Width": 128,
             "Height": 24,
+            "LockPosition": true,
             "TextId": "LabelSensorTypeSelect",
             "TextRotation": "0",
             "Color": {
@@ -2649,6 +2657,7 @@
             "Y": 147,
             "Width": 94,
             "Height": 24,
+            "LockPosition": true,
             "TextId": "LabelSensorCurrentSpeed",
             "TextRotation": "0",
             "Color": {
@@ -2666,6 +2675,7 @@
             "Y": 171,
             "Width": 78,
             "Height": 24,
+            "LockPosition": true,
             "TextId": "SensorCurrentSpeed",
             "TextRotation": "0",
             "Color": {
@@ -2688,6 +2698,7 @@
             "Y": 171,
             "Width": 78,
             "Height": 24,
+            "LockPosition": true,
             "TextId": "SensorCurrentAddress",
             "TextRotation": "0",
             "Color": {
@@ -2710,6 +2721,7 @@
             "Y": 147,
             "Width": 61,
             "Height": 24,
+            "LockPosition": true,
             "TextId": "LabelSensorCurrentAddress",
             "TextRotation": "0",
             "Color": {
@@ -2728,6 +2740,7 @@
             "Width": 80,
             "Height": 80,
             "Visible": false,
+            "LockPosition": true,
             "FileNameFirst": "Refresh_anim_01.png",
             "FileNameLast": "Refresh_anim_06.png",
             "UpdateTicksInterval": 80,
@@ -2741,6 +2754,7 @@
             "Y": 280,
             "Width": 118,
             "Height": 33,
+            "LockPosition": true,
             "ButtonTrigger": {
               "Type": "ClickButtonTrigger"
             },
@@ -2797,6 +2811,7 @@
             "Width": 118,
             "Height": 33,
             "Visible": false,
+            "LockPosition": true,
             "ButtonTrigger": {
               "Type": "ClickButtonTrigger"
             },
@@ -2854,6 +2869,7 @@
             "Width": 118,
             "Height": 33,
             "Visible": false,
+            "LockPosition": true,
             "ButtonTrigger": {
               "Type": "ClickButtonTrigger"
             },
@@ -2907,9 +2923,10 @@
             "Type": "FlexButton",
             "Name": "BTNSetAddress",
             "X": 133,
-            "Y": 221,
+            "Y": 219,
             "Width": 93,
             "Height": 47,
+            "LockPosition": true,
             "ButtonTrigger": {
               "Type": "ClickButtonTrigger"
             },
@@ -2971,6 +2988,7 @@
             "Y": 79,
             "Width": 93,
             "Height": 47,
+            "LockPosition": true,
             "ButtonTrigger": {
               "Type": "ClickButtonTrigger"
             },
@@ -3029,9 +3047,10 @@
             "Type": "FlexButton",
             "Name": "BTNSetSpeed",
             "X": 13,
-            "Y": 221,
+            "Y": 219,
             "Width": 93,
             "Height": 47,
+            "LockPosition": true,
             "ButtonTrigger": {
               "Type": "ClickButtonTrigger"
             },
@@ -3093,12 +3112,13 @@
             "Width": 240,
             "Height": 207,
             "Visible": false,
-            "SelectedItemOffset": 25,
+            "LockPosition": true,
+            "SelectedItemOffset": 78,
             "UseSelectedStyle": true,
             "SelectedItemTemplateName": "ScrollSelectedItemContainer",
             "IsCircular": true,
             "ItemTemplateName": "ScrollItemContainer",
-            "NumberofItems": 3,
+            "NumberofItems": 5,
             "Easing": "Back",
             "EasingOption": "Out",
             "SwipeAcceleration": 1.0,
@@ -3111,12 +3131,14 @@
             "Width": 240,
             "Height": 207,
             "Visible": false,
+            "LockPosition": true,
             "SelectedItemOffset": 78,
             "UseSelectedStyle": true,
             "SelectedItemTemplateName": "ScrollSelectedItemContainer",
             "IsCircular": true,
             "ItemTemplateName": "ScrollItemContainer",
-            "NumberofItems": 6,
+            "NumberofItems": 8,
+            "InitialElement": 1,
             "Easing": "Back",
             "EasingOption": "Out",
             "SwipeAcceleration": 1.0,
@@ -3129,12 +3151,13 @@
             "Width": 240,
             "Height": 207,
             "Visible": false,
-            "SelectedItemOffset": 61,
+            "LockPosition": true,
+            "SelectedItemOffset": 78,
             "UseSelectedStyle": true,
             "SelectedItemTemplateName": "ScrollSelectedItemContainer",
             "IsCircular": true,
             "ItemTemplateName": "ScrollItemContainer",
-            "NumberofItems": 3,
+            "NumberofItems": 2,
             "Easing": "Back",
             "EasingOption": "Out",
             "SwipeAcceleration": 1.0,
@@ -3294,10 +3317,10 @@
           {
             "Type": "TextArea",
             "Name": "ScrollItem",
-            "X": 15,
+            "X": 30,
             "Y": 1,
-            "Width": 125,
-            "Height": 41,
+            "Width": 150,
+            "Height": 49,
             "TextId": "ScrollItem",
             "TextRotation": "0",
             "Color": {
@@ -3305,7 +3328,6 @@
               "Green": 94,
               "Blue": 116
             },
-            "AutoSize": true,
             "Wildcard1": {
               "TextId": "ScrollItem_W",
               "UseBuffer": true,
@@ -3330,10 +3352,10 @@
           {
             "Type": "TextArea",
             "Name": "ScrollSelectedItem",
-            "X": 15,
+            "X": -1,
             "Y": 1,
-            "Width": 168,
-            "Height": 41,
+            "Width": 183,
+            "Height": 49,
             "TextId": "ScrollSelectedItem",
             "TextRotation": "0",
             "Color": {
@@ -3341,7 +3363,6 @@
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true,
             "Wildcard1": {
               "TextId": "ScrollSelectedItem_W",
               "UseBuffer": true,
