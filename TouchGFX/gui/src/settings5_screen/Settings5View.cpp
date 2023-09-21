@@ -3,7 +3,6 @@
 uint8_t Selected;
 int16_t SetSensor;
 int SetSpeed;
-int Selected;
 /* Definitions for ProgrammingSens */
 osThreadId_t ProgrammingSensHandle;
 const osThreadAttr_t ProgrammingSens_attributes = {
@@ -15,8 +14,6 @@ int16_t SetAddress;
 
 void StartProgrammingSensor(void *argument);
 extern void ProgrammingSensor(void);
-
-Settings5View::Settings5View()
 extern SENSOR_typedef_t Sensor_array[SQ];
 
 Settings5View::Settings5View():
