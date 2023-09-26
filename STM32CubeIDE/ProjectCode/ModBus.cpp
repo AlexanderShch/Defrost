@@ -67,13 +67,14 @@ SENSOR_typedef_t Sensor_array[SQ] =
 {
 		{101,3,0,1,"Ldf", 0,0,0,0},		// 0 - defroster left
 		{102,3,0,1,"Rdf",0,0,0,0},		// 1 - defroster right
-		{103,3,0,1,"IN",0,0,0,0},			// 2 - defroster center
+		{103,3,0,1,"IN",0,0,0,0},		// 2 - defroster center
 		{104,3,0,0,"Lpr",0,0,0,0},		// 3 - fish left
 		{105,3,0,0,"Rpr",0,0,0,0},		// 4 - fish right
 };
 
-int8_t SensPortNumber;					// номер порта на шине для устройства
-int8_t SensBaudRateIndex;				// индекс в массиве скорости шины
+uint8_t SensPortNumber;					// номер порта на шине для устройства
+uint8_t SensBaudRateIndex;				// индекс в массиве скорости шины
+uint8_t SensNullValue = 255;
 // массив скорости шины
 int BaudRate[8] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
 
@@ -476,25 +477,32 @@ uint16_t resCRC = 65535;
 /*********************************************************************/
 void ProgrammingSensor()
 {
+	uint8_t OldBoadRate = 0;
+	uint8_t OldAddress = 0;
 	MB_Error_t result = MB_ERROR_NO;
 	// после инициализации семафоры установлены, надо их сбросить
 	resultSem = osSemaphoreAcquire(PR_TX_Compl_SemHandle, 100/portTICK_RATE_MS);
 	resultSem = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100/portTICK_RATE_MS);
+	// датчики не искали, выведем на экран инфо об их отсутствии
+	Model::setCurrentVal_PR(SensNullValue, SensNullValue);
+
 	while (1)
 	{
 		result = ScanSensor();
-		if (result != MB_ERROR_NO)
+		OldBoadRate = Model::getCurrentBoadRate_PR();
+		OldAddress = Model::getCurrentAddress_PR();
+		if (result == MB_ERROR_NO)
 		{	//всё хорошо, датчик найден
-			//SensBaudRateIndex, SensPortNumber
+			// отображение на экране, если новое значение отличается от текущего
+			if ((OldBoadRate != SensBaudRateIndex) || (OldAddress != SensPortNumber))
+			{
+				Model::setCurrentVal_PR(SensPortNumber, SensBaudRateIndex);
+			}
 		}
 		else
 		{	//датчик не найден
-
+			Model::setCurrentVal_PR(SensNullValue, SensNullValue);
 		}
-		// Включим направление - передача
-//		HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_SET);
-//		osDelay(10);
-//		HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
 		osDelay(10);
 	}
 
@@ -506,8 +514,8 @@ MB_Error_t ScanSensor()
 	// Производим сканирование широковещательной посылкой шины на всех скоростях
 	for (int i = 0; i < BOAD_RATE_NUMBER; ++i)
 	{
-//		huart4.Init.BaudRate = BaudRate[i];
-		result = PR_Master_Read(i);
+		PR_UART4_Init(BaudRate[i]);
+		result = PR_Master_Read();
 		osDelay(10);
 
 		if (result == MB_ERROR_NO) break;
@@ -516,16 +524,16 @@ MB_Error_t ScanSensor()
 }
 
 // Функция считывает данные с датчика
-MB_Error_t PR_Master_Read(int i)
+MB_Error_t PR_Master_Read(void)
 {
 	// параметры для датчика совмещенного типа
 	const uint16_t START_REG = 0x7D0, REG_COUNT = 2;
-	int Velocity = 0;
 	int Address = 0xFF;
 	MB_Error_t result;
 
 	result = PR_Master_Request(Address, START_REG, REG_COUNT);
 	SensPortNumber = 0;
+	SensBaudRateIndex = 0;
 			switch (result) {
 				case MB_ERROR_NO:
 					// данные приняты - проверяем достоверность
@@ -534,13 +542,7 @@ MB_Error_t PR_Master_Read(int i)
 						&& MB_GetCRC(PR_MasterRx_Buffer, PR_MasterRx_Buffer[2] + 5) == 0)
 					{	// все проверки ОК, пишем значения с датчика совмещённого типа
 						SensPortNumber = SwapBytes( *(uint16_t*) &PR_MasterRx_Buffer[3]);
-						Velocity = SwapBytes( *(uint16_t*) &PR_MasterRx_Buffer[5]);
-						for (i = 0; i < BOAD_RATE_NUMBER; ++i) {
-							if (BaudRate[i] == Velocity) {
-								SensBaudRateIndex = i;
-								break;
-							}
-						}
+						SensBaudRateIndex = SwapBytes( *(uint16_t*) &PR_MasterRx_Buffer[5]);
 					}
 					else
 					{	// проверки не пройдены, ошибка в принятых данных
@@ -644,3 +646,18 @@ MB_Error_t PR_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum
 	return MB_ERR;
 }
 
+void PR_UART4_Init(int BaudRateValue)
+{
+  huart4.Instance = UART4;
+  huart4.Init.BaudRate = BaudRateValue;
+  huart4.Init.WordLength = UART_WORDLENGTH_8B;
+  huart4.Init.StopBits = UART_STOPBITS_1;
+  huart4.Init.Parity = UART_PARITY_NONE;
+  huart4.Init.Mode = UART_MODE_TX_RX;
+  huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart4.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}

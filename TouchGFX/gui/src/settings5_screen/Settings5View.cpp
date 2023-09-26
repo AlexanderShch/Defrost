@@ -15,6 +15,8 @@ int16_t SetAddress;
 void StartProgrammingSensor(void *argument);
 extern void ProgrammingSensor(void);
 extern SENSOR_typedef_t Sensor_array[SQ];
+extern uint8_t SensNullValue;
+extern int BaudRate[];
 
 Settings5View::Settings5View():
 		//Вызов функций Handler для Callback
@@ -279,3 +281,32 @@ void Settings5View::BTNCancelClicked()
 	BTNWrite.invalidate();
 	Settings5ViewBase::setupScreen();
 }
+
+// Вывод на экран значения адреса
+void Settings5View::Val_Addr_UpdateView(uint8_t Val)
+{
+	if (Val != SensNullValue)
+	{
+		Unicode::snprintf(SensorCurrentAddressBuffer, sizeof(SensorCurrentAddressBuffer), "%d", Val);
+	}
+	else
+	{
+		Unicode::strncpy(SensorCurrentAddressBuffer, "---", 4); //buffer belongs to textArea
+	}
+	SensorCurrentAddress.invalidate();
+}
+
+// Вывод на экран значения скорости
+void Settings5View::Val_BoadRate_UpdateView(uint8_t Val)
+{
+	if (Val != SensNullValue)
+	{
+		Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate[Val]);
+	}
+	else
+	{
+		Unicode::strncpy(SensorCurrentSpeedBuffer, "---", 4); //buffer belongs to textArea
+	}
+	SensorCurrentSpeed.invalidate();
+}
+

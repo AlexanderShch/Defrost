@@ -16,3 +16,13 @@ void Settings5Presenter::deactivate()
 {
 
 }
+
+void Settings5Presenter::ValUpdatePresenter()
+{
+	if (Model::getFlagCurrentVal_PR_Chng() == 1)
+	{
+		Model::clearFlagCurrentVal_PR_Chng();
+		view.Val_Addr_UpdateView(Model::getCurrentAddress_PR());
+		view.Val_BoadRate_UpdateView(Model::getCurrentBoadRate_PR());
+	}
+}

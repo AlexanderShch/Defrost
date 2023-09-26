@@ -27,6 +27,9 @@ public:
     virtual void BTNSetAddressClicked();
     virtual void BTNConfirmClicked();
     virtual void BTNCancelClicked();
+
+    virtual void Val_Addr_UpdateView(uint8_t Val);
+    virtual void Val_BoadRate_UpdateView(uint8_t Val);
 protected:
     Callback<Settings5View, int16_t> scrollSensorTypeItemSelectedCallback;
     void scrollSensorTypeItemSelectedHandler(int16_t itemSelected);

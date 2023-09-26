@@ -27,6 +27,8 @@ public:
 
     virtual ~Settings5Presenter() {}
 
+    virtual void ValUpdatePresenter();
+
 private:
     Settings5Presenter();
 
