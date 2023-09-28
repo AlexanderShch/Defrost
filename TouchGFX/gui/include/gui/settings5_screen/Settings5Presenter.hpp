@@ -28,7 +28,7 @@ public:
     virtual ~Settings5Presenter() {}
 
     virtual void ValUpdatePresenter();
-
+    virtual void PR_Sensor_Data_Write(uint8_t SetSpeed, uint8_t SetAddress);
 private:
     Settings5Presenter();
 

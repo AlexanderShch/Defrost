@@ -72,9 +72,10 @@ SENSOR_typedef_t Sensor_array[SQ] =
 		{105,3,0,0,"Rpr",0,0,0,0},		// 4 - fish right
 };
 
-uint8_t SensPortNumber;					// номер порта на шине для устройства
+uint8_t SensPortNumber;					// номер порта на шине для устройства (чтение) - адрес регистра в датчике (запись)
 uint8_t SensBaudRateIndex;				// индекс в массиве скорости шины
 uint8_t SensNullValue = 255;
+int Sens_WR_value;						// переменная для чтения записанного в датчик значения
 // массив скорости шины
 int BaudRate[8] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
 
@@ -147,10 +148,10 @@ MB_Error_t MB_Master_Read(int i)
 			switch (result) {
 				case MB_ERROR_NO:
 					// данные приняты - проверяем достоверность
+					//(считаем CRC, вместе с принятым CRC, должно быть == 0
 					if (Sensor_array[i].Address == MB_MasterRx_Buffer[0]
-							&& MB_MasterRx_Buffer[1] == MB_CMD_READ_REGS
-							//(считаем CRC, вместе с принятым CRC, должно быть == 0
-							&& MB_GetCRC(MB_MasterRx_Buffer, MB_MasterRx_Buffer[2] + 5) == 0)
+						&& MB_MasterRx_Buffer[1] == MB_CMD_READ_REGS
+						&& MB_GetCRC(MB_MasterRx_Buffer, MB_MasterRx_Buffer[2] + 5) == 0)
 					{
 						// все проверки ОК, пишем значения с датчика совмещённого типа
 						H = SwapBytes( *(uint16_t*) &MB_MasterRx_Buffer[3]);
@@ -222,7 +223,7 @@ MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum
 	{
 		// ПЕРЕДАЧА UART ***************************
 		// Ждём, пока UART всё передаст в шину и обработчик прерывания HAL_UART_TxCpltCallback выдаст токен семафора
-		resultSem = osSemaphoreAcquire(TX_Compl_SemHandle, 100/portTICK_RATE_MS);
+		resultSem = osSemaphoreAcquire(TX_Compl_SemHandle, 150/portTICK_RATE_MS);
 		if (resultSem != osOK)
 		{	// обработка ошибки передачи по UART
 			MB_ERR = MB_ERROR_UART_SEND;
@@ -236,13 +237,13 @@ MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum
 		// ПРИЁМ DMA *******************************
 		// Инициируем приём с использованием DMA
 		osDelay(1);	// BUSY RX
-		result = HAL_UARTEx_ReceiveToIdle_DMA(&huart5, MB_MasterRx_Buffer, 100/portTICK_RATE_MS);
+		result = HAL_UARTEx_ReceiveToIdle_DMA(&huart5, MB_MasterRx_Buffer, MAX_MB_BUFSIZE);
 		if (result == HAL_OK)
 		{	// ReceiveToIdle_DMA отработал и вышел по тайм-ауту
 			// последнее значение в очереди = 0, ждём прерывание приёма по IDLE
 			// Ждём, когда приём закончится и прерывание выдаст токен семафора
 			//ответ должен нормально уложиться в 10 ms (19200 -> 500 us на байт), это время функция ждёт токен семафора в состоянии блокировки
-			resultSem = osSemaphoreAcquire(RX_Compl_SemHandle, 100/portTICK_RATE_MS);
+			resultSem = osSemaphoreAcquire(RX_Compl_SemHandle, 150/portTICK_RATE_MS);
 			osDelay(1);
 			if (resultSem != osOK)
 			{	// прерывания не случилось, семафора не дождались, вышли по тайм-ауту
@@ -477,8 +478,10 @@ uint16_t resCRC = 65535;
 /*********************************************************************/
 void ProgrammingSensor()
 {
-	uint8_t OldBoadRate = 0;
+	uint8_t OldBaudRate = 0;
 	uint8_t OldAddress = 0;
+	uint8_t WR_BaudRate = 0;
+	uint8_t WR_Address = 0;
 	MB_Error_t result = MB_ERROR_NO;
 	// после инициализации семафоры установлены, надо их сбросить
 	resultSem = osSemaphoreAcquire(PR_TX_Compl_SemHandle, 100/portTICK_RATE_MS);
@@ -489,12 +492,12 @@ void ProgrammingSensor()
 	while (1)
 	{
 		result = ScanSensor();
-		OldBoadRate = Model::getCurrentBoadRate_PR();
+		OldBaudRate = Model::getCurrentBaudRate_PR();
 		OldAddress = Model::getCurrentAddress_PR();
 		if (result == MB_ERROR_NO)
 		{	//всё хорошо, датчик найден
 			// отображение на экране, если новое значение отличается от текущего
-			if ((OldBoadRate != SensBaudRateIndex) || (OldAddress != SensPortNumber))
+			if ((OldBaudRate != SensBaudRateIndex) || (OldAddress != SensPortNumber))
 			{
 				Model::setCurrentVal_PR(SensPortNumber, SensBaudRateIndex);
 			}
@@ -504,7 +507,53 @@ void ProgrammingSensor()
 			Model::setCurrentVal_PR(SensNullValue, SensNullValue);
 		}
 		osDelay(10);
-	}
+
+		// запись данных в датчик, если флаг установлен
+		uint8_t i = 0;
+		while (Model::Flag_WR_to_sensor == 1)
+		{
+			// скорость шины установлена той, на которой датчик работает
+			// адрес датчика принят и записан в SensPortNumber
+			// устанавливаем данные для записи нового адреса порта
+			WR_BaudRate = Model::BaudRate_WR_to_sensor;
+			WR_Address = Model::Address_WR_to_sensor;
+			// запись и чтение адреса
+			result = PR_Master_RW(SensPortNumber, MB_CMD_WRITE_REG, 0x7D0, WR_Address);
+			// проверка записанного
+			if (result == MB_ERROR_NO)
+			{	//всё хорошо, датчик записан
+				if (Sens_WR_value == WR_Address)
+				{	// записываем и читаем скорость
+					SensPortNumber = Sens_WR_value;
+					osDelay(10);	// время на переключение датчика на новые параметры
+					result = PR_Master_RW(SensPortNumber, MB_CMD_WRITE_REG, 0x7D1, WR_BaudRate);
+					if (result == MB_ERROR_NO)
+					{	//всё хорошо, датчик записан
+						// сбрасываем флаг записи в датчик
+						Model::Flag_WR_to_sensor = 0;
+						SensBaudRateIndex = Sens_WR_value;
+						osDelay(10);	// время на переключение датчика на новые параметры
+					}
+					else
+					{	// плохо, что-то не получилось
+						// повторяем запись адреса ещё 3 раза
+						if (i++ == 3)
+							Model::Flag_WR_to_sensor = 0;
+						// надо как-то оповестить об ошибке
+					}
+				}
+				else
+				{	// плохо, что-то не получилось
+					Model::Flag_WR_to_sensor = 0;
+					// надо как-то оповестить об ошибке
+				}
+			} // конец проверки записанного
+			else
+				Model::Flag_WR_to_sensor = 0;
+			// надо как-то оповестить об ошибке
+
+		} // конец записи в датчик
+	} // конец цикла
 
 }
 
@@ -512,10 +561,10 @@ MB_Error_t ScanSensor()
 {
 	MB_Error_t result = MB_ERROR_NO;
 	// Производим сканирование широковещательной посылкой шины на всех скоростях
-	for (int i = 0; i < BOAD_RATE_NUMBER; ++i)
+	for (int i = 0; i < BAUD_RATE_NUMBER; ++i)
 	{
 		PR_UART4_Init(BaudRate[i]);
-		result = PR_Master_Read();
+		result = PR_Master_RW(0xFF, MB_CMD_READ_REGS, 0x7D0, 2);
 		osDelay(10);
 
 		if (result == MB_ERROR_NO) break;
@@ -524,46 +573,56 @@ MB_Error_t ScanSensor()
 }
 
 // Функция считывает данные с датчика
-MB_Error_t PR_Master_Read(void)
+MB_Error_t PR_Master_RW(int Address, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA)
 {
 	// параметры для датчика совмещенного типа
-	const uint16_t START_REG = 0x7D0, REG_COUNT = 2;
-	int Address = 0xFF;
 	MB_Error_t result;
+	// Выполним приведение типа: указателю Command присвоим указатель буфера, буфер примет тип MB_Frame_t
+	MB_Frame_t *Command = (MB_Frame_t*) PR_MasterTx_Buffer;
+	memset(PR_MasterTx_Buffer, 0, MAX_MB_BUFSIZE);
+	memset(PR_MasterRx_Buffer, 0, MAX_MB_BUFSIZE);
+	// Заполним начало буфера структурой для отправки команды датчику
+	Command->Address = Address;
+	Command->Command = CMD;
+	Command->StartReg = SwapBytes(START_REG);
+	Command->RegNum = SwapBytes(DATA);
+	Command->CRC_Sum = MB_GetCRC(PR_MasterTx_Buffer, 6);
 
-	result = PR_Master_Request(Address, START_REG, REG_COUNT);
-	SensPortNumber = 0;
-	SensBaudRateIndex = 0;
-			switch (result) {
-				case MB_ERROR_NO:
-					// данные приняты - проверяем достоверность
-					if (PR_MasterRx_Buffer[1] == MB_CMD_READ_REGS
-						//(считаем CRC всей посылки, вместе с принятым CRC, должно быть = 0
-						&& MB_GetCRC(PR_MasterRx_Buffer, PR_MasterRx_Buffer[2] + 5) == 0)
-					{	// все проверки ОК, пишем значения с датчика совмещённого типа
-						SensPortNumber = SwapBytes( *(uint16_t*) &PR_MasterRx_Buffer[3]);
-						SensBaudRateIndex = SwapBytes( *(uint16_t*) &PR_MasterRx_Buffer[5]);
-					}
-					else
-					{	// проверки не пройдены, ошибка в принятых данных
-						result = MB_ERROR_UART_SEND;
-					};
-
-					break;
-				case MB_ERROR_DMA_SEND:
-					break;
-				case MB_ERROR_UART_SEND:
-					break;
-				case MB_ERROR_UART_RECIEVE:
-					break;
-				case MB_ERROR_DMA_RECIEVE:
-					break;
-				default:
-					break;
+	result = PR_Master_Request();
+	switch (result) {
+		case MB_ERROR_NO:
+			// данные приняты - проверяем достоверность
+			if CheckAnswerCRC
+			{	// все проверки ОК, пишем значения с датчика совмещённого типа
+				if (CMD != MB_CMD_WRITE_REG)
+				{ 	// заказывали два регистра на чтение
+					SensPortNumber = SwapBytes( *(uint16_t*) &PR_MasterRx_Buffer[3]);
+					SensBaudRateIndex = SwapBytes( *(uint16_t*) &PR_MasterRx_Buffer[5]);
+				}
+				else
+				{	// всегда один регистр для записи
+					Sens_WR_value = SwapBytes( *(uint16_t*) &PR_MasterRx_Buffer[4]);
+				}
 			}
-			return result;
-}
+			else
+			{	// проверки не пройдены, ошибка в принятых данных
+				result = MB_ERROR_UART_SEND;
+			};
 
+			break;
+		case MB_ERROR_DMA_SEND:
+			break;
+		case MB_ERROR_UART_SEND:
+			break;
+		case MB_ERROR_UART_RECIEVE:
+			break;
+		case MB_ERROR_DMA_RECIEVE:
+			break;
+		default:
+			break;
+	}
+	return result;
+}
 
 // запрос датчикам на шине ModBus
 /*
@@ -576,21 +635,10 @@ MB_ERROR_UART_SEND = 0x05,
 MB_ERROR_UART_RECIEVE = 0x06,
 MB_ERROR_DMA_RECIEVE = 0x07
 */
-MB_Error_t PR_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum)
+MB_Error_t PR_Master_Request(void)
 {
 	MB_Error_t MB_ERR = MB_ERROR_NO;
 	HAL_StatusTypeDef result;		// status HAL: HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT
-	// Выполним приведение типа: указателю Command присвоим указатель буфера, буфер примет тип MB_Frame_t
-	MB_Frame_t *Command = (MB_Frame_t*) PR_MasterTx_Buffer;
-
-	memset(PR_MasterTx_Buffer, 0, MAX_MB_BUFSIZE);
-	memset(PR_MasterRx_Buffer, 0, MAX_MB_BUFSIZE);
-	// Заполним начало буфера структурой для отправки команды датчику
-	Command->Address = address;
-	Command->Command = MB_CMD_READ_REGS;
-	Command->StartReg = SwapBytes(StartReg);
-	Command->RegNum = SwapBytes(RegNum);
-	Command->CRC_Sum = MB_GetCRC(PR_MasterTx_Buffer, 6);
 
 	// ПЕРЕДАЧА DMA ********************************
 	// Включим направление - передача
@@ -601,7 +649,7 @@ MB_Error_t PR_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum
 	{
 		// ПЕРЕДАЧА UART ***************************
 		// Ждём, пока UART всё передаст в шину и обработчик прерывания HAL_UART_TxCpltCallback выдаст токен семафора
-		resultSem = osSemaphoreAcquire(PR_TX_Compl_SemHandle, 100/portTICK_RATE_MS);
+		resultSem = osSemaphoreAcquire(PR_TX_Compl_SemHandle, 150/portTICK_RATE_MS);
 		if (resultSem != osOK)
 		{	// обработка ошибки передачи по UART
 			MB_ERR = MB_ERROR_UART_SEND;
@@ -615,13 +663,13 @@ MB_Error_t PR_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum
 		// ПРИЁМ DMA *******************************
 		// Инициируем приём с использованием DMA
 		osDelay(1);	// BUSY RX
-		result = HAL_UARTEx_ReceiveToIdle_DMA(&huart4, PR_MasterRx_Buffer, 100/portTICK_RATE_MS);
+		result = HAL_UARTEx_ReceiveToIdle_DMA(&huart4, PR_MasterRx_Buffer, MAX_MB_BUFSIZE);
 		if (result == HAL_OK)
 		{	// ReceiveToIdle_DMA отработал и вышел по тайм-ауту
 			// последнее значение в очереди = 0, ждём прерывание приёма по IDLE
 			// Ждём, когда приём закончится и прерывание выдаст токен семафора
-			//ответ должен нормально уложиться в 10 ms (19200 -> 500 us на байт), это время функция ждёт токен семафора в состоянии блокировки
-			resultSem = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100/portTICK_RATE_MS);
+			//ответ должен нормально уложиться в 11 байт (1200 -> 6,7 ms на байт, всего 73,3 ms), это время функция ждёт токен семафора в состоянии блокировки
+			resultSem = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 150/portTICK_RATE_MS);
 			osDelay(1);
 			if (resultSem != osOK)
 			{	// прерывания не случилось, семафора не дождались, вышли по тайм-ауту

@@ -21,7 +21,7 @@
 #include "stm32f4xx_hal.h"
 
 #define MB_SLAVE_ADDRESS	200
-#define BOAD_RATE_NUMBER		8
+#define BAUD_RATE_NUMBER		8
 
 /* Описание набора датчиков дефростера */
 typedef struct {
@@ -38,6 +38,8 @@ uint16_t RxErrorCnt;		// счётчик ошибок приёма данных, 
 } SENSOR_typedef_t;
 
 #define SwapBytes(data) ( (((data) >> 8) & 0x00FF) | (((data) << 8) & 0xFF00) )
+//(считаем CRC всей посылки, вместе с принятым CRC, должно быть = 0
+#define CheckAnswerCRC (PR_MasterRx_Buffer[1] == CMD && MB_GetCRC(PR_MasterRx_Buffer, PR_MasterRx_Buffer[2] + 5) == 0)
 
 /* РЕГИСТРЫ ОПИСЫВАЮЩИЕ СОСТОЯНИЕ ДЕФРОСТЕРА */
 #define MB_SLAVE_REG_COUNT	11
@@ -77,6 +79,7 @@ typedef struct {
 	uint16_t StartReg;
 	uint16_t RegNum;
 	uint16_t CRC_Sum;
+	uint16_t Data;
 } MB_Frame_t;
 
 typedef enum
@@ -103,8 +106,8 @@ extern osThreadId MB_Master_TaskHandle;
 extern osMessageQId MB_MasterQHandle;
 MB_Error_t MB_Master_Read(int SensorNumber);
 MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum);
-MB_Error_t PR_Master_Read(void);
-MB_Error_t PR_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum);
+MB_Error_t PR_Master_RW(int Address, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA);
+MB_Error_t PR_Master_Request(void);
 void MB_Master_Init(void);
 void ProgrammingSensor(void);
 void PR_UART4_Init(int BaudRateValue);

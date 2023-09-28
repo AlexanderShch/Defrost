@@ -2,7 +2,8 @@
 
 uint8_t Selected;
 int16_t SetSensor;
-int SetSpeed;
+uint8_t SetSpeed;
+uint8_t SetAddress;
 /* Definitions for ProgrammingSens */
 osThreadId_t ProgrammingSensHandle;
 const osThreadAttr_t ProgrammingSens_attributes = {
@@ -10,7 +11,6 @@ const osThreadAttr_t ProgrammingSens_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-int16_t SetAddress;
 
 void StartProgrammingSensor(void *argument);
 extern void ProgrammingSensor(void);
@@ -68,65 +68,13 @@ void Settings5View::scrollSensorTypeUpdateCenterItem(ScrollSelectedItemContainer
 //Запись значений в scrollSensorSpeedNew
 void Settings5View::scrollSensorSpeedNewUpdateItem(ScrollItemContainer& item, int16_t itemIndex)
 {
-    switch (itemIndex)
-    {
-    case 0:
-    	item.updateScrollItem(2400);
-        break;
-    case 1:
-    	item.updateScrollItem(4800);
-        break;
-    case 2:
-    	item.updateScrollItem(9600);
-        break;
-    case 3:
-    	item.updateScrollItem(19200);
-        break;
-    case 4:
-    	item.updateScrollItem(38400);
-        break;
-    case 5:
-    	item.updateScrollItem(57600);
-        break;
-    case 6:
-    	item.updateScrollItem(115200);
-        break;
-    case 7:
-    	item.updateScrollItem(1200);
-        break;
-    }
+	item.updateScrollItem(BaudRate[itemIndex]);
 }
 
 //Запись значений в scrollSensorSpeedNewCenterItem
 void Settings5View::scrollSensorSpeedNewUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex)
 {
-    switch (itemIndex)
-    {
-    case 0:
-    	item.updateScrollSelectedItem(2400);
-        break;
-    case 1:
-    	item.updateScrollSelectedItem(4800);
-        break;
-    case 2:
-    	item.updateScrollSelectedItem(9600);
-        break;
-    case 3:
-    	item.updateScrollSelectedItem(19200);
-        break;
-    case 4:
-    	item.updateScrollSelectedItem(38400);
-        break;
-    case 5:
-    	item.updateScrollSelectedItem(57600);
-        break;
-    case 6:
-    	item.updateScrollSelectedItem(115200);
-        break;
-    case 7:
-    	item.updateScrollSelectedItem(1200);
-        break;
-    }
+	item.updateScrollSelectedItem(BaudRate[itemIndex]);
 }
 
 //Запись значений в SensorAddress
@@ -148,33 +96,7 @@ void Settings5View::scrollSensorTypeItemSelectedHandler(int16_t itemSelected)
 
 void Settings5View::scrollSensorSpeedNewItemSelectedHandler(int16_t itemSelected)
 {
-    switch (itemSelected)
-    {
-    case 0:
-        SetSpeed = 2400;
-        break;
-    case 1:
-    	SetSpeed = 4800;
-        break;
-    case 2:
-    	SetSpeed = 9600;
-        break;
-    case 3:
-    	SetSpeed = 19200;
-        break;
-    case 4:
-    	SetSpeed = 38400;
-        break;
-    case 5:
-    	SetSpeed = 57600;
-        break;
-    case 6:
-    	SetSpeed = 115200;
-        break;
-    case 7:
-    	SetSpeed = 1200;
-        break;
-    }
+	SetSpeed = itemSelected;
 }
 
 void Settings5View::scrollSensorAddressNewItemSelectedHandler(int16_t itemSelected)
@@ -185,6 +107,7 @@ void Settings5View::scrollSensorAddressNewItemSelectedHandler(int16_t itemSelect
 //Запись выбранных значений скорости и адреса в датчик
 void Settings5View::BTNWriteClicked()
 {
+	presenter -> PR_Sensor_Data_Write(SetSpeed, SetAddress);
 
 }
 
@@ -240,7 +163,7 @@ void Settings5View::BTNConfirmClicked()
 		scrollSensorType.setVisible(false);
 		break;
 		case 1:
-		Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", SetSpeed);
+		Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", BaudRate[SetSpeed]);
 		scrollSensorSpeedNew.setVisible(false);
 		break;
 		case 2:
@@ -297,7 +220,7 @@ void Settings5View::Val_Addr_UpdateView(uint8_t Val)
 }
 
 // Вывод на экран значения скорости
-void Settings5View::Val_BoadRate_UpdateView(uint8_t Val)
+void Settings5View::Val_BaudRate_UpdateView(uint8_t Val)
 {
 	if (Val != SensNullValue)
 	{

@@ -1,6 +1,8 @@
 #include <gui/settings5_screen/Settings5View.hpp>
 #include <gui/settings5_screen/Settings5Presenter.hpp>
 
+extern int BaudRate[];
+
 Settings5Presenter::Settings5Presenter(Settings5View& v)
     : view(v)
 {
@@ -23,6 +25,13 @@ void Settings5Presenter::ValUpdatePresenter()
 	{
 		Model::clearFlagCurrentVal_PR_Chng();
 		view.Val_Addr_UpdateView(Model::getCurrentAddress_PR());
-		view.Val_BoadRate_UpdateView(Model::getCurrentBoadRate_PR());
+		view.Val_BaudRate_UpdateView(Model::getCurrentBaudRate_PR());
 	}
+}
+
+void Settings5Presenter::PR_Sensor_Data_Write(uint8_t SetSpeed, uint8_t SetAddress)
+{
+	Model::BaudRate_WR_to_sensor = SetSpeed;
+	Model::Address_WR_to_sensor = SetAddress;
+	Model::Flag_WR_to_sensor = 1;
 }
