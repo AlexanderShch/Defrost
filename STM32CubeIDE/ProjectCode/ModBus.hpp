@@ -115,4 +115,15 @@ MB_Error_t ScanSensor();
 
 #endif /* MODBUS_HPP_ */
 
+// ModBus channel definition
+typedef struct {
+	GPIO_TypeDef * Port;
+	uint16_t Pin;
+	UART_HandleTypeDef UART;
+	uint8_t Tx_Buffer;
+	uint8_t Rx_Buffer;
+	osSemaphoreId_t Sem_TX;
+	osSemaphoreId_t Sem_Rx;
+}MB_Channel_Def;
+
 

@@ -78,6 +78,7 @@ uint8_t SensNullValue = 255;
 int Sens_WR_value;						// переменная для чтения записанного в датчик значения
 // массив скорости шины
 int BaudRate[8] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
+MB_Channel_Def UART_Sensors, UART_Sensor_PR;
 
 
 /************** ДАТЧИКИ ****************************/
@@ -488,6 +489,9 @@ void ProgrammingSensor()
 	resultSem = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100/portTICK_RATE_MS);
 	// датчики не искали, выведем на экран инфо об их отсутствии
 	Model::setCurrentVal_PR(SensNullValue, SensNullValue);
+
+	UART_Sensor_PR UART_PR;
+	UART_PR.Port = &uart4;
 
 	while (1)
 	{
