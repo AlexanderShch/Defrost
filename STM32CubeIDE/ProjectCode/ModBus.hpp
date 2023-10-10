@@ -82,6 +82,13 @@ typedef struct {
 	uint16_t Data;
 } MB_Frame_t;
 
+typedef struct
+{
+	uint8_t *Tx_Buffer;		// указатель на буфер передачи
+	uint8_t *Rx_Buffer;		// указатель на буфер приёма
+	UART_HandleTypeDef *UART;
+} MB_Active_t;
+
 typedef enum
 {
     MB_CMD_READ_REGS = 0x03,
@@ -107,7 +114,7 @@ extern osMessageQId MB_MasterQHandle;
 MB_Error_t MB_Master_Read(int SensorNumber);
 MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum);
 MB_Error_t PR_Master_RW(int Address, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA);
-MB_Error_t PR_Master_Request(void);
+MB_Error_t PR_Master_Request(MB_Active_t);
 void MB_Master_Init(void);
 void ProgrammingSensor(void);
 void PR_UART4_Init(int BaudRateValue);

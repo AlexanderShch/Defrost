@@ -577,6 +577,8 @@ MB_Error_t PR_Master_RW(int Address, MB_Command_t CMD, uint16_t START_REG, uint1
 {
 	// параметры для датчика совмещенного типа
 	MB_Error_t result;
+	MB_Active_t MB;
+
 	// Выполним приведение типа: указателю Command присвоим указатель буфера, буфер примет тип MB_Frame_t
 	MB_Frame_t *Command = (MB_Frame_t*) PR_MasterTx_Buffer;
 	memset(PR_MasterTx_Buffer, 0, MAX_MB_BUFSIZE);
@@ -587,8 +589,12 @@ MB_Error_t PR_Master_RW(int Address, MB_Command_t CMD, uint16_t START_REG, uint1
 	Command->StartReg = SwapBytes(START_REG);
 	Command->RegNum = SwapBytes(DATA);
 	Command->CRC_Sum = MB_GetCRC(PR_MasterTx_Buffer, 6);
+	// Инициируем среду для работы с датчиком
+	MB.Tx_Buffer = PR_MasterTx_Buffer;
+	MB.Rx_Buffer = PR_MasterRx_Buffer;
+	MB.UART = &huart4;
 
-	result = PR_Master_Request();
+	result = PR_Master_Request(MB);
 	switch (result) {
 		case MB_ERROR_NO:
 			// данные приняты - проверяем достоверность
@@ -635,7 +641,7 @@ MB_ERROR_UART_SEND = 0x05,
 MB_ERROR_UART_RECIEVE = 0x06,
 MB_ERROR_DMA_RECIEVE = 0x07
 */
-MB_Error_t PR_Master_Request(void)
+MB_Error_t PR_Master_Request(MB_Active_t MB)
 {
 	MB_Error_t MB_ERR = MB_ERROR_NO;
 	HAL_StatusTypeDef result;		// status HAL: HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT
@@ -644,7 +650,8 @@ MB_Error_t PR_Master_Request(void)
 	// Включим направление - передача
 	HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_SET);
 	// Начинаем передачу отправкой буфера с записанной структурой в порт UART через DMA
-	result = HAL_UART_Transmit_DMA(&huart4, PR_MasterTx_Buffer, 8);
+	result = HAL_UART_Transmit_DMA(&huart4, MB.Tx_Buffer, 8);
+//	result = HAL_UART_Transmit_DMA(MB.UART, MB.Tx_Buffer, 8);
 	if (result == HAL_OK)
 	{
 		// ПЕРЕДАЧА UART ***************************
@@ -663,7 +670,7 @@ MB_Error_t PR_Master_Request(void)
 		// ПРИЁМ DMA *******************************
 		// Инициируем приём с использованием DMA
 		osDelay(1);	// BUSY RX
-		result = HAL_UARTEx_ReceiveToIdle_DMA(&huart4, PR_MasterRx_Buffer, MAX_MB_BUFSIZE);
+		result = HAL_UARTEx_ReceiveToIdle_DMA(&huart4, MB.Rx_Buffer, MAX_MB_BUFSIZE);
 		if (result == HAL_OK)
 		{	// ReceiveToIdle_DMA отработал и вышел по тайм-ауту
 			// последнее значение в очереди = 0, ждём прерывание приёма по IDLE
