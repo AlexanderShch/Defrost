@@ -78,6 +78,15 @@ uint8_t SensNullValue = 255;
 int Sens_WR_value;						// переменная для чтения записанного в датчик значения
 // массив скорости шины
 int BaudRate[8] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
+typedef struct
+{
+	uint8_t *Tx_Buffer;		// указатель на буфер передачи
+	uint8_t *Rx_Buffer;		// указатель на буфер приёма
+	UART_HandleTypeDef &UART = huart4;
+
+} MB_Active_t;
+
+MB_Error_t PR_Master_Request(MB_Active_t);
 
 
 /************** ДАТЧИКИ ****************************/
@@ -592,7 +601,7 @@ MB_Error_t PR_Master_RW(int Address, MB_Command_t CMD, uint16_t START_REG, uint1
 	// Инициируем среду для работы с датчиком
 	MB.Tx_Buffer = PR_MasterTx_Buffer;
 	MB.Rx_Buffer = PR_MasterRx_Buffer;
-	MB.UART = &huart4;
+	MB.UART = huart4;
 
 	result = PR_Master_Request(MB);
 	switch (result) {
@@ -650,8 +659,7 @@ MB_Error_t PR_Master_Request(MB_Active_t MB)
 	// Включим направление - передача
 	HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_SET);
 	// Начинаем передачу отправкой буфера с записанной структурой в порт UART через DMA
-	result = HAL_UART_Transmit_DMA(&huart4, MB.Tx_Buffer, 8);
-//	result = HAL_UART_Transmit_DMA(MB.UART, MB.Tx_Buffer, 8);
+	result = HAL_UART_Transmit_DMA(&MB.UART, MB.Tx_Buffer, 8);
 	if (result == HAL_OK)
 	{
 		// ПЕРЕДАЧА UART ***************************
@@ -660,7 +668,7 @@ MB_Error_t PR_Master_Request(MB_Active_t MB)
 		if (resultSem != osOK)
 		{	// обработка ошибки передачи по UART
 			MB_ERR = MB_ERROR_UART_SEND;
-			HAL_UART_AbortTransmit_IT(&huart4);
+			HAL_UART_AbortTransmit_IT(&MB.UART);
 			// Включим направление - приём
 			HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
 			return MB_ERR;
@@ -670,19 +678,19 @@ MB_Error_t PR_Master_Request(MB_Active_t MB)
 		// ПРИЁМ DMA *******************************
 		// Инициируем приём с использованием DMA
 		osDelay(1);	// BUSY RX
-		result = HAL_UARTEx_ReceiveToIdle_DMA(&huart4, MB.Rx_Buffer, MAX_MB_BUFSIZE);
+		result = HAL_UARTEx_ReceiveToIdle_DMA(&MB.UART, MB.Rx_Buffer, MAX_MB_BUFSIZE);
 		if (result == HAL_OK)
 		{	// ReceiveToIdle_DMA отработал и вышел по тайм-ауту
 			// последнее значение в очереди = 0, ждём прерывание приёма по IDLE
 			// Ждём, когда приём закончится и прерывание выдаст токен семафора
 			//ответ должен нормально уложиться в 11 байт (1200 -> 6,7 ms на байт, всего 73,3 ms), это время функция ждёт токен семафора в состоянии блокировки
-			resultSem = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 150/portTICK_RATE_MS);
+			resultSem = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 200/portTICK_RATE_MS);
 			osDelay(1);
 			if (resultSem != osOK)
 			{	// прерывания не случилось, семафора не дождались, вышли по тайм-ауту
 				MB_ERR = MB_ERROR_UART_RECIEVE;
 				// датчик не ответил, прекращаем ReceiveToIdle_DMA
-				HAL_UART_AbortReceive_IT(&huart4);
+				HAL_UART_AbortReceive_IT(&MB.UART);
 				return MB_ERR;
 			}
 		}
@@ -694,7 +702,7 @@ MB_Error_t PR_Master_Request(MB_Active_t MB)
 	else
 	{  // обработка ошибки передачи по DMA
 		MB_ERR = MB_ERROR_DMA_SEND;
-		HAL_UART_AbortTransmit_IT(&huart4);
+		HAL_UART_AbortTransmit_IT(&MB.UART);
 		// Включим направление - приём
 		HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
 	}
