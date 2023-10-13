@@ -29,6 +29,7 @@ void Settings5Presenter::ValUpdatePresenter()
 	}
 }
 
+
 void Settings5Presenter::PR_Sensor_Data_Write(uint8_t SetSpeed, uint8_t SetAddress)
 {
 	Model::BaudRate_WR_to_sensor = SetSpeed;

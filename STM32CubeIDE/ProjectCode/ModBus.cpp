@@ -83,6 +83,10 @@ typedef struct
 	uint8_t *Tx_Buffer;		// указатель на буфер передачи
 	uint8_t *Rx_Buffer;		// указатель на буфер приёма
 	UART_HandleTypeDef &UART = huart4;
+	GPIO_TypeDef *GPIO;
+	uint16_t PIN;
+	osSemaphoreId_t &Sem_Tx = PR_TX_Compl_SemHandle;
+	osSemaphoreId_t &Sem_Rx = PR_RX_Compl_SemHandle;
 
 } MB_Active_t;
 
@@ -515,7 +519,7 @@ void ProgrammingSensor()
 		{	//датчик не найден
 			Model::setCurrentVal_PR(SensNullValue, SensNullValue);
 		}
-		osDelay(10);
+		osDelay(10); // таймаут, чтобы датчик приготовился к записи
 
 		// запись данных в датчик, если флаг установлен
 		uint8_t i = 0;
@@ -566,6 +570,7 @@ void ProgrammingSensor()
 
 }
 
+
 MB_Error_t ScanSensor()
 {
 	MB_Error_t result = MB_ERROR_NO;
@@ -598,16 +603,20 @@ MB_Error_t PR_Master_RW(int Address, MB_Command_t CMD, uint16_t START_REG, uint1
 	Command->StartReg = SwapBytes(START_REG);
 	Command->RegNum = SwapBytes(DATA);
 	Command->CRC_Sum = MB_GetCRC(PR_MasterTx_Buffer, 6);
-	// Инициируем среду для работы с датчиком
+	// Инициируем среду для программирования датчика
 	MB.Tx_Buffer = PR_MasterTx_Buffer;
 	MB.Rx_Buffer = PR_MasterRx_Buffer;
 	MB.UART = huart4;
+	MB.GPIO = PROG_MASTER_DE_GPIO_Port;
+	MB.PIN = PROG_MASTER_DE_Pin;
+	MB.Sem_Rx = PR_RX_Compl_SemHandle;
+	MB.Sem_Tx = PR_TX_Compl_SemHandle;
 
 	result = PR_Master_Request(MB);
 	switch (result) {
 		case MB_ERROR_NO:
 			// данные приняты - проверяем достоверность
-			if CheckAnswerCRC
+			if CheckAnswerCRC_PR
 			{	// все проверки ОК, пишем значения с датчика совмещённого типа
 				if (CMD != MB_CMD_WRITE_REG)
 				{ 	// заказывали два регистра на чтение
@@ -639,6 +648,7 @@ MB_Error_t PR_Master_RW(int Address, MB_Command_t CMD, uint16_t START_REG, uint1
 	return result;
 }
 
+
 // запрос датчикам на шине ModBus
 /*
 MB_ERROR_NO = 0x00,
@@ -650,6 +660,7 @@ MB_ERROR_UART_SEND = 0x05,
 MB_ERROR_UART_RECIEVE = 0x06,
 MB_ERROR_DMA_RECIEVE = 0x07
 */
+
 MB_Error_t PR_Master_Request(MB_Active_t MB)
 {
 	MB_Error_t MB_ERR = MB_ERROR_NO;
@@ -657,20 +668,20 @@ MB_Error_t PR_Master_Request(MB_Active_t MB)
 
 	// ПЕРЕДАЧА DMA ********************************
 	// Включим направление - передача
-	HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(MB.GPIO, MB.PIN, GPIO_PIN_SET);
 	// Начинаем передачу отправкой буфера с записанной структурой в порт UART через DMA
 	result = HAL_UART_Transmit_DMA(&MB.UART, MB.Tx_Buffer, 8);
 	if (result == HAL_OK)
 	{
 		// ПЕРЕДАЧА UART ***************************
 		// Ждём, пока UART всё передаст в шину и обработчик прерывания HAL_UART_TxCpltCallback выдаст токен семафора
-		resultSem = osSemaphoreAcquire(PR_TX_Compl_SemHandle, 150/portTICK_RATE_MS);
+		resultSem = osSemaphoreAcquire(MB.Sem_Tx, 150/portTICK_RATE_MS);
 		if (resultSem != osOK)
 		{	// обработка ошибки передачи по UART
 			MB_ERR = MB_ERROR_UART_SEND;
 			HAL_UART_AbortTransmit_IT(&MB.UART);
 			// Включим направление - приём
-			HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(MB.GPIO, MB.PIN, GPIO_PIN_RESET);
 			return MB_ERR;
 		}
 		// Направление на приём включается в обработчике прерывания HAL_UART_TxCpltCallback
@@ -684,7 +695,7 @@ MB_Error_t PR_Master_Request(MB_Active_t MB)
 			// последнее значение в очереди = 0, ждём прерывание приёма по IDLE
 			// Ждём, когда приём закончится и прерывание выдаст токен семафора
 			//ответ должен нормально уложиться в 11 байт (1200 -> 6,7 ms на байт, всего 73,3 ms), это время функция ждёт токен семафора в состоянии блокировки
-			resultSem = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 200/portTICK_RATE_MS);
+			resultSem = osSemaphoreAcquire(MB.Sem_Rx, 200/portTICK_RATE_MS);
 			osDelay(1);
 			if (resultSem != osOK)
 			{	// прерывания не случилось, семафора не дождались, вышли по тайм-ауту
@@ -704,7 +715,7 @@ MB_Error_t PR_Master_Request(MB_Active_t MB)
 		MB_ERR = MB_ERROR_DMA_SEND;
 		HAL_UART_AbortTransmit_IT(&MB.UART);
 		// Включим направление - приём
-		HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(MB.GPIO, MB.PIN, GPIO_PIN_RESET);
 	}
 	return MB_ERR;
 }
