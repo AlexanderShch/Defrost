@@ -76,8 +76,9 @@ uint8_t SensPortNumber;					// номер порта на шине для уст
 uint8_t SensBaudRateIndex;				// индекс в массиве скорости шины
 uint8_t SensNullValue = 255;
 int Sens_WR_value;						// переменная для чтения записанного в датчик значения
-// массив скорости шины
+										// массив скорости шины
 int BaudRate[8] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
+
 typedef struct
 {
 	uint8_t *Tx_Buffer;		// указатель на буфер передачи
@@ -88,9 +89,11 @@ typedef struct
 	osSemaphoreId_t &Sem_Tx = PR_TX_Compl_SemHandle;
 	osSemaphoreId_t &Sem_Rx = PR_RX_Compl_SemHandle;
 
-} MB_Active_t;
+} MB_Active_t;							// среда работы датчика
 
-MB_Error_t PR_Master_Request(MB_Active_t);
+MB_Error_t Master_Request(MB_Active_t);
+MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA);
+MB_Error_t ScanSensor(MB_Active_t *MB);
 
 
 /************** ДАТЧИКИ ****************************/
@@ -496,15 +499,25 @@ void ProgrammingSensor()
 	uint8_t WR_BaudRate = 0;
 	uint8_t WR_Address = 0;
 	MB_Error_t result = MB_ERROR_NO;
+	MB_Active_t PR;						// объявляем среду работы с датчиками
+	// Инициируем среду для программирования датчика
+	PR.Tx_Buffer = PR_MasterTx_Buffer;
+	PR.Rx_Buffer = PR_MasterRx_Buffer;
+	PR.UART = huart4;
+	PR.GPIO = PROG_MASTER_DE_GPIO_Port;
+	PR.PIN = PROG_MASTER_DE_Pin;
+	PR.Sem_Rx = PR_RX_Compl_SemHandle;
+	PR.Sem_Tx = PR_TX_Compl_SemHandle;
+
 	// после инициализации семафоры установлены, надо их сбросить
-	resultSem = osSemaphoreAcquire(PR_TX_Compl_SemHandle, 100/portTICK_RATE_MS);
-	resultSem = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100/portTICK_RATE_MS);
+	resultSem = osSemaphoreAcquire(PR.Sem_Tx, 100/portTICK_RATE_MS);
+	resultSem = osSemaphoreAcquire(PR.Sem_Rx, 100/portTICK_RATE_MS);
 	// датчики не искали, выведем на экран инфо об их отсутствии
 	Model::setCurrentVal_PR(SensNullValue, SensNullValue);
 
 	while (1)
 	{
-		result = ScanSensor();
+		result = ScanSensor(&PR);
 		OldBaudRate = Model::getCurrentBaudRate_PR();
 		OldAddress = Model::getCurrentAddress_PR();
 		if (result == MB_ERROR_NO)
@@ -531,24 +544,26 @@ void ProgrammingSensor()
 			WR_BaudRate = Model::BaudRate_WR_to_sensor;
 			WR_Address = Model::Address_WR_to_sensor;
 			// запись и чтение адреса
-			result = PR_Master_RW(SensPortNumber, MB_CMD_WRITE_REG, 0x7D0, WR_Address);
+			result = Master_RW(&PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D0, WR_Address);
 			// проверка записанного
 			if (result == MB_ERROR_NO)
 			{	//всё хорошо, датчик записан
 				if (Sens_WR_value == WR_Address)
-				{	// записываем и читаем скорость
+				{	// Считали то же, что и записали, теперь записываем и читаем скорость
 					SensPortNumber = Sens_WR_value;
-					osDelay(10);	// время на переключение датчика на новые параметры
-					result = PR_Master_RW(SensPortNumber, MB_CMD_WRITE_REG, 0x7D1, WR_BaudRate);
+					osDelay(10);	// нужно время на переключение датчика на новые параметры
+					result = Master_RW(&PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D1, WR_BaudRate);
 					if (result == MB_ERROR_NO)
 					{	//всё хорошо, датчик записан
 						// сбрасываем флаг записи в датчик
 						Model::Flag_WR_to_sensor = 0;
+						// Устанавливаем скорость датчика для отображения и работы той, что считали из датчика после записи
 						SensBaudRateIndex = Sens_WR_value;
-						osDelay(10);	// время на переключение датчика на новые параметры
+						osDelay(10);	// нужно время на переключение датчика на новые параметры
 					}
 					else
 					{	// плохо, что-то не получилось
+						osDelay(10);	// подождём: может помеха была
 						// повторяем запись адреса ещё 3 раза
 						if (i++ == 3)
 							Model::Flag_WR_to_sensor = 0;
@@ -570,15 +585,18 @@ void ProgrammingSensor()
 
 }
 
-
-MB_Error_t ScanSensor()
+/* Функция сканирует шину на наличие датчиков по всему разрешённому диапазону скоростей
+ * Возвращается с результатом поиска
+ * Если датчик был найден, прерывает сканирование и возвращается с результатом
+ */
+MB_Error_t ScanSensor(MB_Active_t *MB)
 {
 	MB_Error_t result = MB_ERROR_NO;
 	// Производим сканирование широковещательной посылкой шины на всех скоростях
 	for (int i = 0; i < BAUD_RATE_NUMBER; ++i)
 	{
 		PR_UART4_Init(BaudRate[i]);
-		result = PR_Master_RW(0xFF, MB_CMD_READ_REGS, 0x7D0, 2);
+		result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, 0x7D0, 2);
 		osDelay(10);
 
 		if (result == MB_ERROR_NO) break;
@@ -586,12 +604,18 @@ MB_Error_t ScanSensor()
 	return result;
 }
 
-// Функция считывает данные с датчика
-MB_Error_t PR_Master_RW(int Address, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA)
+/* Функция считывает данные с датчика или записывает данные в датчик в зависимости от команды CMD
+ * Параметры:
+ * - среда работы с датчиком,
+ * - адрес дачика,
+ * - команда датчику,
+ * - начальный регистр,
+ * - данные (для чтения - кол-во считываемых регистров, для записи - данные для записи в регистр)
+ */
+MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA)
 {
 	// параметры для датчика совмещенного типа
 	MB_Error_t result;
-	MB_Active_t MB;
 
 	// Выполним приведение типа: указателю Command присвоим указатель буфера, буфер примет тип MB_Frame_t
 	MB_Frame_t *Command = (MB_Frame_t*) PR_MasterTx_Buffer;
@@ -603,28 +627,21 @@ MB_Error_t PR_Master_RW(int Address, MB_Command_t CMD, uint16_t START_REG, uint1
 	Command->StartReg = SwapBytes(START_REG);
 	Command->RegNum = SwapBytes(DATA);
 	Command->CRC_Sum = MB_GetCRC(PR_MasterTx_Buffer, 6);
-	// Инициируем среду для программирования датчика
-	MB.Tx_Buffer = PR_MasterTx_Buffer;
-	MB.Rx_Buffer = PR_MasterRx_Buffer;
-	MB.UART = huart4;
-	MB.GPIO = PROG_MASTER_DE_GPIO_Port;
-	MB.PIN = PROG_MASTER_DE_Pin;
-	MB.Sem_Rx = PR_RX_Compl_SemHandle;
-	MB.Sem_Tx = PR_TX_Compl_SemHandle;
 
-	result = PR_Master_Request(MB);
+	result = Master_Request(*MB);
 	switch (result) {
 		case MB_ERROR_NO:
 			// данные приняты - проверяем достоверность
 			if CheckAnswerCRC_PR
 			{	// все проверки ОК, пишем значения с датчика совмещённого типа
-				if (CMD != MB_CMD_WRITE_REG)
+				if (CMD != MB_CMD_WRITE_REG) // был запрос на чтение
 				{ 	// заказывали два регистра на чтение
 					SensPortNumber = SwapBytes( *(uint16_t*) &PR_MasterRx_Buffer[3]);
 					SensBaudRateIndex = SwapBytes( *(uint16_t*) &PR_MasterRx_Buffer[5]);
 				}
-				else
+				else // был запрос на запись
 				{	// всегда один регистр для записи
+					// Считанные из датчика данные после записи помещаем в глобальную переменную Sens_WR_value
 					Sens_WR_value = SwapBytes( *(uint16_t*) &PR_MasterRx_Buffer[4]);
 				}
 			}
@@ -660,8 +677,11 @@ MB_ERROR_UART_SEND = 0x05,
 MB_ERROR_UART_RECIEVE = 0x06,
 MB_ERROR_DMA_RECIEVE = 0x07
 */
-
-MB_Error_t PR_Master_Request(MB_Active_t MB)
+/* Функция посылает запрос датчику и принимает ответ.
+ * Параметры порта uart, GPIO, буферы и семафоры передачи и приёма передаются в структуре MB.
+ * Возвращается статус обработки запроса к датчику.
+ */
+MB_Error_t Master_Request(MB_Active_t MB)
 {
 	MB_Error_t MB_ERR = MB_ERROR_NO;
 	HAL_StatusTypeDef result;		// status HAL: HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT
@@ -720,6 +740,9 @@ MB_Error_t PR_Master_Request(MB_Active_t MB)
 	return MB_ERR;
 }
 
+/* Функция устанавливает скорость обмена порта uart4.
+ * Применяется при сканировании шины на наличие датчиков с помощью широковещательного запроса.
+ */
 void PR_UART4_Init(int BaudRateValue)
 {
   huart4.Instance = UART4;
