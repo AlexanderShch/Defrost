@@ -39,7 +39,7 @@ uint16_t RxErrorCnt;		// счётчик ошибок приёма данных, 
 
 #define SwapBytes(data) ( (((data) >> 8) & 0x00FF) | (((data) << 8) & 0xFF00) )
 //(считаем CRC всей посылки, вместе с принятым CRC, должно быть = 0
-#define CheckAnswerCRC_PR (PR_MasterRx_Buffer[1] == CMD && MB_GetCRC(PR_MasterRx_Buffer, PR_MasterRx_Buffer[2] + 5) == 0)
+
 
 /* РЕГИСТРЫ ОПИСЫВАЮЩИЕ СОСТОЯНИЕ ДЕФРОСТЕРА */
 #define MB_SLAVE_REG_COUNT	11
