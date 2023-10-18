@@ -104,8 +104,7 @@ typedef enum
 //osThreadId MB_Slave_TaskHandle;
 extern osThreadId MB_Master_TaskHandle;
 extern osMessageQId MB_MasterQHandle;
-MB_Error_t MB_Master_Read(int SensorNumber);
-MB_Error_t MB_Master_Request(uint8_t address, uint16_t StartReg, uint16_t RegNum);
+MB_Error_t Sensor_Read(uint8_t SensIndex);
 
 void MB_Master_Init(void);
 void ProgrammingSensor(void);

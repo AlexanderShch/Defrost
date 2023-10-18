@@ -19,6 +19,7 @@ extern osThreadId_t TouchGFX_Task;
 
 uint32_t flags;				// flags for waiting event
 int8_t SensorNumber;
+MB_Error_t result;
 
 // definition of static variable. Member function definitions belong in the scope where the class is defined.
 // current number of measure
@@ -27,14 +28,17 @@ unsigned int Sensor::Time[TQ][SQ] = {{0}};	// number of time quantum measuring
 int Sensor::T[TQ][SQ] = {{0}};		// temperature
 int Sensor::H[TQ][SQ] = {{0}};		// humidity
 
-
-// Return integer value from measure array
-// TimeFromStart - value of measure counter give correct data only for last TQ measures
-// SensNum - number of interesting sensor
-// Param - 1 for time, 2 for temperature, 3 for humidity
-// Val - value of data
+/* Функция записывает int Val в массив данных, полученных с датчиков.
+ * Параметр Param определяет, какой величиной массива является int Val.
+ * Параметры функции:
+ * 	TimeFromStart - кол-во тиков с момента запуска программы,
+ * 	SensNum - number of interesting sensor,
+ * 	Param - место int Val в массиве данных: 1 for time, 2 for temperature, 3 for humidity
+ * 	Val - value of data
+ */
 void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val) {
-	int i = TimeFromStart % TQ;
+	// Преобразуем TimeFromStart в номер тика внутри буфера из последних TQ измерений
+	uint32_t i = TimeFromStart % TQ;
 
 	switch (Param)
 	{
@@ -53,11 +57,14 @@ void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned
 	;
 }
 
-//	 Return integer value from measure array
-//	 TimeFromStart - value of measure counter give correct data only for last TQ measures
-//	 SensNum - number of interesting sensor
-//	 Param - 0 for active, 1 for time, 2 for temperature, 3 for humidity
+/*	 Функция возвращает integer value из массива данных, полученных с датчиков
+*	 Параметры функции:
+*	 	TimeFromStart - кол-во тиков с момента запуска программы, но будет получена величина только из буфера последних измерений размером TQ
+*	 	SensNum - number of interesting sensor
+*	 	Param - 0 for active, 1 for time, 2 for temperature, 3 for humidity
+*/
 int Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param) {
+	// Преобразуем TimeFromStart в номер тика внутри буфера из последних TQ измерений
 	uint32_t i = TimeFromStart % TQ;
 	switch (Param) {
 	case 1:
@@ -85,7 +92,6 @@ void DataTimerFunc()
 	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
 	osDelay(100);
 	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
-
 }
 
 /* 2. The task ReadData reading data from sensors
@@ -111,27 +117,32 @@ void ReadDataFunc() {
 		// Новое значение счётчика времени
 		TimeFromStart ++;
 
-		for (int SensorNumber = 0; SensorNumber < SQ; SensorNumber++)
+		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
 		{
-			// Считывание с последовательной шины
-			if (Sensor_array[SensorNumber].Active == 0) continue; // посылаем запрос только если датчик числится активным,
-			MB_Master_Read(SensorNumber);
-			// запись в очередь передачи данных в удалённый компьютер
+			result = MB_ERROR_NO;
+			// Считывание с последовательной шины:
+			// посылаем запрос только если датчик числится активным!
+			if (Sensor_array[SensorIndex].Active == 1)
+			{
+				// Продолжаем для активного датчика
+				result = Sensor_Read(SensorIndex);
+				// запись в очередь передачи данных в удалённый компьютер
 
-			// запись в переменные экрана, если есть изменения
-			// Temperature
-			TempOld = Model::getCurrentVal_T(SensorNumber);
-			TempNew = Sensor::GetData(TimeFromStart, SensorNumber, 2);
-			if (TempOld != TempNew)
-			{
-				Model::setCurrentVal_T(SensorNumber, TempNew);
-			}
-			// Humidity
-			HumOld = Model::getCurrentVal_H(SensorNumber);
-			HumNew = Sensor::GetData(TimeFromStart, SensorNumber, 3);
-			if (HumOld != HumNew)
-			{
-				Model::setCurrentVal_H(SensorNumber, HumNew);
+				// запись в переменные экрана, если есть изменения
+				// Temperature
+				TempOld = Model::getCurrentVal_T(SensorIndex);
+				TempNew = Sensor::GetData(TimeFromStart, SensorIndex, 2);
+				if (TempOld != TempNew)
+				{
+					Model::setCurrentVal_T(SensorIndex, TempNew);
+				}
+				// Humidity
+				HumOld = Model::getCurrentVal_H(SensorIndex);
+				HumNew = Sensor::GetData(TimeFromStart, SensorIndex, 3);
+				if (HumOld != HumNew)
+				{
+					Model::setCurrentVal_H(SensorIndex, HumNew);
+				}
 			}
 		// установка флага FLAG_DataAnalysis для запуска задачи DataAnalysis
 
