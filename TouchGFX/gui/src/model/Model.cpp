@@ -96,6 +96,7 @@ int Model::CurrentValueT[SQ] = {0};
 int8_t Model::FlagCurrentValueTChanged[SQ] = {0};
 int Model::CurrentValueH[SQ] = {0};
 int8_t Model::FlagCurrentValueHChanged[SQ] = {0};
+uint8_t Model::Type_of_sensor = 0;
 uint8_t Model::BaudRate_PR_sensor = 0;
 uint8_t Model::Address_PR_sensor = 0;
 uint8_t Model::FlagCurrentValue_PR_sensor = 0;

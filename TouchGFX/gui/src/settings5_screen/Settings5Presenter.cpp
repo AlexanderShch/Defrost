@@ -36,3 +36,9 @@ void Settings5Presenter::PR_Sensor_Data_Write(uint8_t SetSpeed, uint8_t SetAddre
 	Model::Address_WR_to_sensor = SetAddress;
 	Model::Flag_WR_to_sensor = 1;
 }
+
+void Settings5Presenter::PR_Sensor_Type(uint8_t SetSensor)
+{
+	Model::Type_of_sensor = SetSensor;
+}
+

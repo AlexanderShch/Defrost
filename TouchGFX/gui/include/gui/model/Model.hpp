@@ -37,7 +37,7 @@ public:
     static void setCurrentVal_H(int8_t SensNumber, int Val);
     static int getCurrentVal_H(int8_t SensNumber);
     static void setCurrentVal_PR(uint8_t SensNumber, uint8_t Val);		// установка текущих значений адреса и скорости программируемого датчика
-    static uint8_t getCurrentAddress_PR(void);							// получить текущее значение адреса программируемого датчика
+     static uint8_t getCurrentAddress_PR(void);							// получить текущее значение адреса программируемого датчика
     static uint8_t getCurrentBaudRate_PR(void);							// получить текущее значение скорости программируемого датчика
 
     static void clearFlagCurrentVal_T_Chng(int8_t SensNumber);
@@ -46,7 +46,9 @@ public:
     static int8_t getFlagCurrentVal_H_Chng(int8_t SensNumber);
     static void clearFlagCurrentVal_PR_Chng();							// очистить флаг изменения значения адреса и скорости программируемого датчика
     static int8_t getFlagCurrentVal_PR_Chng();							// получить флаг изменения значения адреса и скорости программируемого датчика
-    static int BaudRate_WR_to_sensor;	// скорость для записи в датчик
+
+    static int BaudRate_WR_to_sensor;		// скорость для записи в датчик
+    static uint8_t Type_of_sensor;			// установленное значение типа датчика
     static uint8_t Address_WR_to_sensor;	// адрес для записи в датчик
     static uint8_t Flag_WR_to_sensor;		// флаг готовности данных для записи в датчик
 

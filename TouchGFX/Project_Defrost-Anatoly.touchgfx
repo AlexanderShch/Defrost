@@ -2754,6 +2754,7 @@
             "Y": 280,
             "Width": 118,
             "Height": 33,
+            "Visible": false,
             "LockPosition": true,
             "ButtonTrigger": {
               "Type": "ClickButtonTrigger"

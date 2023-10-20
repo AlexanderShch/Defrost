@@ -29,6 +29,7 @@ public:
 
     virtual void ValUpdatePresenter();
     virtual void PR_Sensor_Data_Write(uint8_t SetSpeed, uint8_t SetAddress);
+    virtual void PR_Sensor_Type(uint8_t SetSensor);
 private:
     Settings5Presenter();
 

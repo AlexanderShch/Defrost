@@ -449,94 +449,118 @@ uint16_t resCRC = 65535;
 /*********************************************************************/
 void ProgrammingSensor()
 {
-	uint8_t OldBaudRate = 0;
-	uint8_t OldAddress = 0;
-	uint8_t WR_BaudRate = 0;
-	uint8_t WR_Address = 0;
-	MB_Error_t result = MB_ERROR_NO;
-	MB_Active_t PR;						// объявляем среду работы с датчиками
-	// Инициируем среду для программирования датчика
-	PR.UART = &huart4;
-	PR.PORT = PROG_MASTER_DE_GPIO_Port;
-	PR.PORT_PIN = PROG_MASTER_DE_Pin;
-	PR.Sem_Rx = &PR_RX_Compl_SemHandle;
-	PR.Sem_Tx = &PR_TX_Compl_SemHandle;
-
-//	// после инициализации семафоры установлены, надо их сбросить
-//	resultSem = osSemaphoreAcquire(PR.Sem_Tx, 100/portTICK_RATE_MS);
-//	resultSem = osSemaphoreAcquire(PR.Sem_Rx, 100/portTICK_RATE_MS);
-	// датчики не искали, выведем на экран инфо об их отсутствии
-	Model::setCurrentVal_PR(SensNullValue, SensNullValue);
-
+/*
+ * 	Работаем с тем типом датчика, который установлен в окне программирования
+ * 	По-умолчания тип датчика = 0
+ */
 	while (1)
 	{
-		result = ScanSensor(&PR);
-		OldBaudRate = Model::getCurrentBaudRate_PR();
-		OldAddress = Model::getCurrentAddress_PR();
-		if (result == MB_ERROR_NO)
-		{	//всё хорошо, датчик найден
-			// отображение на экране, если новое значение отличается от текущего
-			if ((OldBaudRate != SensBaudRateIndex) || (OldAddress != SensPortNumber))
-			{
-				Model::setCurrentVal_PR(SensPortNumber, SensBaudRateIndex);
-			}
-		}
-		else
-		{	//датчик не найден
-			Model::setCurrentVal_PR(SensNullValue, SensNullValue);
-		}
-		osDelay(10); // таймаут
-
-		// запись данных в датчик, если флаг установлен
-		uint8_t i = 0;
-		while (Model::Flag_WR_to_sensor == 1)
+		switch (Model::Type_of_sensor)
 		{
-			// скорость шины установлена той, на которой датчик работает
-			// адрес датчика принят и записан в SensPortNumber
-			// устанавливаем данные для записи нового адреса порта
-			WR_BaudRate = Model::BaudRate_WR_to_sensor;
-			WR_Address = Model::Address_WR_to_sensor;
-			// запись и чтение адреса
-			result = Master_RW(&PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D0, WR_Address);
-			// проверка записанного
-			if (result == MB_ERROR_NO)
-			{	//всё хорошо, датчик записан
-				if (Sens_WR_value == WR_Address)
-				{	// Считали то же, что и записали, теперь записываем и читаем скорость
-					SensPortNumber = Sens_WR_value;
-					osDelay(10);	// нужно время на переключение датчика на новые параметры
-					result = Master_RW(&PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D1, WR_BaudRate);
+			case 0:
+				// датчики не искали, выведем на экран инфо об их отсутствии
+				Model::setCurrentVal_PR(SensNullValue, SensNullValue);
+				break;
+			case 1:		// это датчик совмещенного типа Т и Н GL-TH04-MT
+			{
+				uint8_t OldBaudRate = 0;
+				uint8_t OldAddress = 0;
+				uint8_t WR_BaudRate = 0;
+				uint8_t WR_Address = 0;
+				MB_Error_t result = MB_ERROR_NO;
+				// объявляем среду работы с датчиками
+				MB_Active_t PR;
+				// Инициируем среду для программирования датчика типа 1
+				PR.UART = &huart4;
+				PR.PORT = PROG_MASTER_DE_GPIO_Port;
+				PR.PORT_PIN = PROG_MASTER_DE_Pin;
+				PR.Sem_Rx = &PR_RX_Compl_SemHandle;
+				PR.Sem_Tx = &PR_TX_Compl_SemHandle;
+				// датчики не искали, выведем на экран инфо об их отсутствии
+				Model::setCurrentVal_PR(SensNullValue, SensNullValue);
+
+				while (Model::Type_of_sensor == 1)
+				{ // цикл сканирования датчика типа 1
+					result = ScanSensor(&PR);
+					OldBaudRate = Model::getCurrentBaudRate_PR();
+					OldAddress = Model::getCurrentAddress_PR();
 					if (result == MB_ERROR_NO)
-					{	//всё хорошо, датчик записан
-						// сбрасываем флаг записи в датчик
-						Model::Flag_WR_to_sensor = 0;
-						// Устанавливаем скорость датчика для отображения и работы той, что считали из датчика после записи
-						SensBaudRateIndex = Sens_WR_value;
-						osDelay(10);	// нужно время на переключение датчика на новые параметры
+					{	//всё хорошо, датчик найден
+						// отображение на экране, если новое значение отличается от текущего
+						if ((OldBaudRate != SensBaudRateIndex) || (OldAddress != SensPortNumber))
+						{
+							Model::setCurrentVal_PR(SensPortNumber, SensBaudRateIndex);
+						}
 					}
 					else
-					{	// плохо, что-то не получилось
-						osDelay(10);	// подождём: может помеха была
-						// повторяем запись адреса ещё 3 раза
-						if (i++ == 3)
+					{	//датчик не найден
+						Model::setCurrentVal_PR(SensNullValue, SensNullValue);
+					}
+					osDelay(10); // таймаут
+
+					// запись данных в датчик, если флаг установлен
+					uint8_t i = 0;
+					while (Model::Flag_WR_to_sensor == 1)
+					{
+						// скорость шины установлена той, на которой датчик работает
+						// адрес датчика принят и записан в SensPortNumber
+						// устанавливаем данные для записи нового адреса порта
+						WR_BaudRate = Model::BaudRate_WR_to_sensor;
+						WR_Address = Model::Address_WR_to_sensor;
+						// запись и чтение адреса
+						result = Master_RW(&PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D0, WR_Address);
+						// проверка записанного
+						if (result == MB_ERROR_NO)
+						{	//всё хорошо, датчик записан
+							if (Sens_WR_value == WR_Address)
+							{	// Считали то же, что и записали, теперь записываем и читаем скорость
+								SensPortNumber = Sens_WR_value;
+								osDelay(10);	// нужно время на переключение датчика на новые параметры
+								result = Master_RW(&PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D1, WR_BaudRate);
+								if (result == MB_ERROR_NO)
+								{	//всё хорошо, датчик записан
+									// сбрасываем флаг записи в датчик
+									Model::Flag_WR_to_sensor = 0;
+									// Устанавливаем скорость датчика для отображения и работы той, что считали из датчика после записи
+									SensBaudRateIndex = Sens_WR_value;
+									osDelay(10);	// нужно время на переключение датчика на новые параметры
+								}
+								else
+								{	// плохо, что-то не получилось
+									osDelay(10);	// подождём: может помеха была
+									// повторяем запись адреса ещё 3 раза
+									if (i++ == 3)
+										Model::Flag_WR_to_sensor = 0;
+									// надо как-то оповестить об ошибке
+								}
+							}
+							else
+							{	// плохо, что-то не получилось
+								Model::Flag_WR_to_sensor = 0;
+								// надо как-то оповестить об ошибке
+							}
+						} // конец проверки записанного
+						else
 							Model::Flag_WR_to_sensor = 0;
 						// надо как-то оповестить об ошибке
-					}
-				}
-				else
-				{	// плохо, что-то не получилось
-					Model::Flag_WR_to_sensor = 0;
-					// надо как-то оповестить об ошибке
-				}
-			} // конец проверки записанного
-			else
-				Model::Flag_WR_to_sensor = 0;
-			// надо как-то оповестить об ошибке
 
-		} // конец записи в датчик
-	} // конец цикла
-
-}
+					} // конец записи в датчик
+				} // конец цикла // цикл сканирования датчика типа 1
+				break;
+			}
+			case 2:
+			{
+				// Инициируем среду для программирования датчика типа 2
+//				PR.UART = 0;
+//				PR.PORT = 0;
+//				PR.PORT_PIN = 0;
+//				PR.Sem_Rx = 0;
+//				PR.Sem_Tx = 0;
+				break;
+			}
+		}	// конец оператора switch
+	}	// конец бесконечного цикла
+}	// конец функции ProgrammingSensor()
 
 /* Функция сканирует шину на наличие датчиков по всему разрешённому диапазону скоростей
  * Возвращается с результатом поиска
