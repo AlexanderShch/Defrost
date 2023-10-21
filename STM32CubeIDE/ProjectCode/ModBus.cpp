@@ -61,13 +61,20 @@ const static uint16_t crc16_table[] =
     0x4400, 0x84c1, 0x8581, 0x4540, 0x8701, 0x47c0, 0x4680, 0x8641,0x8201, 0x42c0, 0x4380, 0x8341, 0x4100, 0x81c1, 0x8081, 0x4040,
   };
 
+/*
+ * Типы датчиков:
+ * 		0 - нет датчика
+ * 		1 - совмещенный температура и влажность GL-TH04-MT
+ * 		2 - датчик температуры РТ100 с RS485
+ * 		3 - датчик температуры BlueTooth
+ */
 SENSOR_typedef_t Sensor_array[SQ] =
 {
-		{101,3,0,1,"Ldf", 0,0,0,0},		// 0 - defroster left
-		{102,3,0,1,"Rdf",0,0,0,0},		// 1 - defroster right
-		{103,3,0,1,"IN",0,0,0,0},		// 2 - defroster center
-		{104,3,0,0,"Lpr",0,0,0,0},		// 3 - fish left
-		{105,3,0,0,"Rpr",0,0,0,0},		// 4 - fish right
+		{101,3,0,1,"Ldf", 0,0,0,0},		// 0 - defroster left, 	GL-TH04-MT
+		{102,3,0,1,"Rdf",0,0,0,0},		// 1 - defroster right,	GL-TH04-MT
+		{103,3,0,1,"IN",0,0,0,0},		// 2 - defroster center,GL-TH04-MT
+		{104,3,0,2,"Lpr",0,0,0,0},		// 3 - fish left, 		РТ100 с RS485
+		{105,3,0,2,"Rpr",0,0,0,0},		// 4 - fish right,		РТ100 с RS485
 };
 
 uint8_t SensPortNumber;					// номер порта на шине для устройства (чтение) - адрес регистра в датчике (запись)
@@ -93,6 +100,7 @@ MB_Error_t Master_Request(MB_Active_t *MB);
 MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA);
 MB_Error_t Master_Read_1(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA);
 MB_Error_t ScanSensor(MB_Active_t *MB);
+MB_Error_t WriteToSensor(MB_Active_t *PR);
 // при чтении из датчика значение кол-ва переданных байт данных в Rx_Buffer[2] + всегда передаётся 5 байт
 #define CheckAnswerCRC (MB->Rx_Buffer[1] == CMD && MB_GetCRC(MB->Rx_Buffer, MB->Rx_Buffer[2] + 5) == 0)
 // при записи в датчик всегда передаётся 8 байт
@@ -156,9 +164,9 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 	// Считываем данные с датчика определённого типа
 	switch (Sensor_array[SensIndex].TypeOfSensor)
 	{
-		case 1:		// тип датчика: 1 - совмещённый датчик температуры и влажности
+		case 1:		// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
 		{
-			// параметры для датчика совмещенного типа
+			// параметры для датчика совмещенного типа GL-TH04-MT
 			//*****************************************
 			const uint16_t START_REG = 0, REG_COUNT = 2;
 			MB_Active_t SW;						// объявляем среду работы с датчиками
@@ -173,6 +181,11 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			result = Master_Read_1(&SW, SensIndex, MB_CMD_READ_REGS, START_REG, REG_COUNT);
 			break;
 		}
+		case 2:		// тип датчика: 2 - датчик температуры РТ100 с RS485
+		{
+
+			break;
+		}
 		default:
 			result = MB_ERROR_WRONG_ADDRESS;
 			break;
@@ -180,7 +193,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 	return result;
 }
 
-// Функция считывает данные с датчика типа 1
+// Функция считывает данные с датчика типа 1 GL-TH04-MT
 MB_Error_t Master_Read_1(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA)
 {
 	int T, H;
@@ -457,16 +470,15 @@ void ProgrammingSensor()
 	{
 		switch (Model::Type_of_sensor)
 		{
-			case 0:
+			case 0:		// датчика нет, тип датчика не назначен
 				// датчики не искали, выведем на экран инфо об их отсутствии
 				Model::setCurrentVal_PR(SensNullValue, SensNullValue);
 				break;
-			case 1:		// это датчик совмещенного типа Т и Н GL-TH04-MT
+// тип 1 - это датчик совмещенного типа Т и Н GL-TH04-MT
+			case 1:
 			{
 				uint8_t OldBaudRate = 0;
 				uint8_t OldAddress = 0;
-				uint8_t WR_BaudRate = 0;
-				uint8_t WR_Address = 0;
 				MB_Error_t result = MB_ERROR_NO;
 				// объявляем среду работы с датчиками
 				MB_Active_t PR;
@@ -496,71 +508,89 @@ void ProgrammingSensor()
 					{	//датчик не найден
 						Model::setCurrentVal_PR(SensNullValue, SensNullValue);
 					}
+
 					osDelay(10); // таймаут
-
-					// запись данных в датчик, если флаг установлен
-					uint8_t i = 0;
-					while (Model::Flag_WR_to_sensor == 1)
-					{
-						// скорость шины установлена той, на которой датчик работает
-						// адрес датчика принят и записан в SensPortNumber
-						// устанавливаем данные для записи нового адреса порта
-						WR_BaudRate = Model::BaudRate_WR_to_sensor;
-						WR_Address = Model::Address_WR_to_sensor;
-						// запись и чтение адреса
-						result = Master_RW(&PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D0, WR_Address);
-						// проверка записанного
-						if (result == MB_ERROR_NO)
-						{	//всё хорошо, датчик записан
-							if (Sens_WR_value == WR_Address)
-							{	// Считали то же, что и записали, теперь записываем и читаем скорость
-								SensPortNumber = Sens_WR_value;
-								osDelay(10);	// нужно время на переключение датчика на новые параметры
-								result = Master_RW(&PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D1, WR_BaudRate);
-								if (result == MB_ERROR_NO)
-								{	//всё хорошо, датчик записан
-									// сбрасываем флаг записи в датчик
-									Model::Flag_WR_to_sensor = 0;
-									// Устанавливаем скорость датчика для отображения и работы той, что считали из датчика после записи
-									SensBaudRateIndex = Sens_WR_value;
-									osDelay(10);	// нужно время на переключение датчика на новые параметры
-								}
-								else
-								{	// плохо, что-то не получилось
-									osDelay(10);	// подождём: может помеха была
-									// повторяем запись адреса ещё 3 раза
-									if (i++ == 3)
-										Model::Flag_WR_to_sensor = 0;
-									// надо как-то оповестить об ошибке
-								}
-							}
-							else
-							{	// плохо, что-то не получилось
-								Model::Flag_WR_to_sensor = 0;
-								// надо как-то оповестить об ошибке
-							}
-						} // конец проверки записанного
-						else
-							Model::Flag_WR_to_sensor = 0;
-						// надо как-то оповестить об ошибке
-
-					} // конец записи в датчик
-				} // конец цикла // цикл сканирования датчика типа 1
+					// если флаг записи (Model::Flag_WR_to_sensor) установлен, выполним запись данных в датчик
+					result = WriteToSensor(&PR);
+				} // конец цикла сканирования и записи в датчик типа 1
 				break;
 			}
+// тип 2 - это датчик температуры РТ100 с RS485
 			case 2:
 			{
-				// Инициируем среду для программирования датчика типа 2
-//				PR.UART = 0;
-//				PR.PORT = 0;
-//				PR.PORT_PIN = 0;
-//				PR.Sem_Rx = 0;
-//				PR.Sem_Tx = 0;
+
 				break;
-			}
+			}	// конец цикла сканирования и записи в датчик типа 2
+// тип 3 - это датчик температуры BlueTooth
+			case 3:
+			{
+
+				break;
+			}	// конец цикла сканирования и записи в датчик типа 3
 		}	// конец оператора switch
 	}	// конец бесконечного цикла
 }	// конец функции ProgrammingSensor()
+
+/*
+ * Функция записывает новые скорость и адрес в датчик, затем считывает записанное и сверяет с заданными
+ * Возвращается с результатом записи
+ */
+MB_Error_t WriteToSensor(MB_Active_t *PR)
+{
+	uint8_t i = 0;
+	uint8_t WR_BaudRate = 0;
+	uint8_t WR_Address = 0;
+	MB_Error_t result;
+/*
+* Запись данных в датчик, если флаг установлен
+* Флаг устанавливается, если датчик найден и выбраны скорость и адрес для записи
+*/
+	while (Model::Flag_WR_to_sensor == 1)
+	{	// начало записи в датчик
+		// скорость шины установлена той, на которой датчик работает
+		// адрес датчика принят и записан в SensPortNumber
+		// устанавливаем данные для записи нового адреса порта
+		WR_BaudRate = Model::BaudRate_WR_to_sensor;
+		WR_Address = Model::Address_WR_to_sensor;
+		// запись и чтение адреса
+		result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D0, WR_Address);
+		// проверка записанного
+		if (result == MB_ERROR_NO)
+		{	//всё хорошо, датчик записан
+			if (Sens_WR_value == WR_Address)
+			{	// Считали то же, что и записали, теперь записываем и читаем скорость
+				SensPortNumber = Sens_WR_value;
+				osDelay(10);	// нужно время на переключение датчика на новые параметры
+				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D1, WR_BaudRate);
+				if (result == MB_ERROR_NO)
+				{	//всё хорошо, датчик записан
+					// сбрасываем флаг записи в датчик
+					Model::Flag_WR_to_sensor = 0;
+					// Устанавливаем скорость датчика для отображения и работы той, что считали из датчика после записи
+					SensBaudRateIndex = Sens_WR_value;
+					osDelay(10);	// нужно время на переключение датчика на новые параметры
+				}
+				else
+				{	// плохо, что-то не получилось
+					osDelay(10);	// подождём: может помеха была
+					// повторяем запись адреса ещё 3 раза
+					if (i++ == 3)
+						Model::Flag_WR_to_sensor = 0;
+					// надо как-то оповестить об ошибке
+				}
+			}
+			else
+			{	// плохо, считали не то, что записали, что-то не получилось
+				Model::Flag_WR_to_sensor = 0;
+				// надо как-то оповестить об ошибке
+			}
+		} // конец проверки записанного
+		else
+			Model::Flag_WR_to_sensor = 0;
+		// надо как-то оповестить об ошибке записи
+	} // конец записи в датчик
+	return result;
+}
 
 /* Функция сканирует шину на наличие датчиков по всему разрешённому диапазону скоростей
  * Возвращается с результатом поиска
