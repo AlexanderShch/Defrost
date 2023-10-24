@@ -77,12 +77,14 @@ SENSOR_typedef_t Sensor_array[SQ] =
 		{105,3,0,2,"Rpr",0,0,0,0},		// 4 - fish right,		РТ100 с RS485
 };
 
+uint8_t SensNullValue = 255;
 uint8_t SensPortNumber;					// номер порта на шине для устройства (чтение) - адрес регистра в датчике (запись)
 uint8_t SensBaudRateIndex;				// индекс в массиве скорости шины
-uint8_t SensNullValue = 255;
 int Sens_WR_value;						// переменная для чтения записанного в датчик значения
-										// массив скорости шины
-int BaudRate[8] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
+// массив скорости шины для датчика типа 1 GL-TH04-MT
+int BaudRate_Type1[8] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
+// массив скорости шины для датчика типа 2 PT100 PT21A01
+int BaudRate_Type2[8] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
 
 typedef struct
 {
@@ -97,8 +99,8 @@ typedef struct
 } MB_Active_t;							// среда работы датчика
 
 MB_Error_t Master_Request(MB_Active_t *MB);
-MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA);
-MB_Error_t Master_Read_1(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA);
+MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, MB_Reg_t START_REG, uint16_t DATA);
+MB_Error_t Master_Read(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, MB_Reg_t START_REG, uint8_t DATA);
 MB_Error_t ScanSensor(MB_Active_t *MB);
 MB_Error_t WriteToSensor(MB_Active_t *PR);
 // при чтении из датчика значение кол-ва переданных байт данных в Rx_Buffer[2] + всегда передаётся 5 байт
@@ -161,40 +163,37 @@ void MB_Master_Init(void)
 MB_Error_t Sensor_Read(uint8_t SensIndex)
 {
 	MB_Error_t result = MB_ERROR_NO;
+	MB_Active_t SW;						// объявляем среду работы с датчиками
+	// Инициируем среду для работы датчика
+	SW.UART = &huart5;
+	SW.PORT = MB_MASTER_DE_GPIO_Port;
+	SW.PORT_PIN = MB_MASTER_DE_Pin;
+	SW.Sem_Rx = &RX_Compl_SemHandle;
+	SW.Sem_Tx = &TX_Compl_SemHandle;
 	// Считываем данные с датчика определённого типа
 	switch (Sensor_array[SensIndex].TypeOfSensor)
 	{
-		case 1:		// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
-		{
-			// параметры для датчика совмещенного типа GL-TH04-MT
-			//*****************************************
-			const uint16_t START_REG = 0, REG_COUNT = 2;
-			MB_Active_t SW;						// объявляем среду работы с датчиками
-			// Инициируем среду для программирования датчика
-			SW.UART = &huart5;
-			SW.PORT = MB_MASTER_DE_GPIO_Port;
-			SW.PORT_PIN = MB_MASTER_DE_Pin;
-			SW.Sem_Rx = &RX_Compl_SemHandle;
-			SW.Sem_Tx = &TX_Compl_SemHandle;
-			//*****************************************
+	// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
+		case 1:		{
+			uint8_t REG_COUNT = 2;		// запросим два значения: Н и Т
 			// Запросим данные с датчика
-			result = Master_Read_1(&SW, SensIndex, MB_CMD_READ_REGS, START_REG, REG_COUNT);
-			break;
-		}
-		case 2:		// тип датчика: 2 - датчик температуры РТ100 с RS485
-		{
-
-			break;
-		}
-		default:
+			result = Master_Read(&SW, SensIndex, MB_CMD_READ_REGS, Type1_H, REG_COUNT);
+			break; 	}
+	// тип датчика: 2 - датчик температуры РТ100 с RS485
+		case 2:		{
+			uint8_t REG_COUNT = 1;		// запросим одно значение: Т
+			// Запросим данные с датчика
+			result = Master_Read(&SW, SensIndex, MB_CMD_READ_REGS, Type2_T, REG_COUNT);
+			break;	}
+		default:	{
 			result = MB_ERROR_WRONG_ADDRESS;
-			break;
+			break;	}
 	}
 	return result;
 }
 
 // Функция считывает данные с датчика типа 1 GL-TH04-MT
-MB_Error_t Master_Read_1(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA)
+MB_Error_t Master_Read(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, MB_Reg_t START_REG, uint8_t DATA)
 {
 	int T, H;
 	MB_Error_t result;
@@ -219,9 +218,16 @@ MB_Error_t Master_Read_1(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, u
 					//(считаем CRC, вместе с принятым CRC, должно быть == 0
 					if CheckAnswerCRC
 					{
-						// все проверки ОК, пишем значения с датчика совмещённого типа
-						H = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
-						T = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
+						if (DATA == 2)
+						{// все проверки ОК, пишем два значения с датчика типа 1
+							H = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
+							T = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
+						}
+						else
+						{// все проверки ОК, пишем одно значение с датчика типа 2
+							H = 0;
+							T = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
+						}
 						Sensor_array[SensIndex].OkCnt++;
 					}
 					else
@@ -466,31 +472,29 @@ void ProgrammingSensor()
  * 	Работаем с тем типом датчика, который установлен в окне программирования
  * 	По-умолчания тип датчика = 0
  */
+	uint8_t OldBaudRate = 0;
+	uint8_t OldAddress = 0;
+	MB_Error_t result = MB_ERROR_NO;
+	// объявляем среду работы с датчиками
+	MB_Active_t PR;
+	// Инициируем среду для программирования датчика
+	PR.UART = &huart4;
+	PR.PORT = PROG_MASTER_DE_GPIO_Port;
+	PR.PORT_PIN = PROG_MASTER_DE_Pin;
+	PR.Sem_Rx = &PR_RX_Compl_SemHandle;
+	PR.Sem_Tx = &PR_TX_Compl_SemHandle;
+	// датчики не искали, выведем на экран инфо об их отсутствии
+	Model::setCurrentVal_PR(SensNullValue, SensNullValue);
+
 	while (1)
 	{
 		switch (Model::Type_of_sensor)
 		{
 			case 0:		// датчика нет, тип датчика не назначен
-				// датчики не искали, выведем на экран инфо об их отсутствии
-				Model::setCurrentVal_PR(SensNullValue, SensNullValue);
 				break;
 // тип 1 - это датчик совмещенного типа Т и Н GL-TH04-MT
 			case 1:
 			{
-				uint8_t OldBaudRate = 0;
-				uint8_t OldAddress = 0;
-				MB_Error_t result = MB_ERROR_NO;
-				// объявляем среду работы с датчиками
-				MB_Active_t PR;
-				// Инициируем среду для программирования датчика типа 1
-				PR.UART = &huart4;
-				PR.PORT = PROG_MASTER_DE_GPIO_Port;
-				PR.PORT_PIN = PROG_MASTER_DE_Pin;
-				PR.Sem_Rx = &PR_RX_Compl_SemHandle;
-				PR.Sem_Tx = &PR_TX_Compl_SemHandle;
-				// датчики не искали, выведем на экран инфо об их отсутствии
-				Model::setCurrentVal_PR(SensNullValue, SensNullValue);
-
 				while (Model::Type_of_sensor == 1)
 				{ // цикл сканирования датчика типа 1
 					result = ScanSensor(&PR);
@@ -553,7 +557,7 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 		WR_BaudRate = Model::BaudRate_WR_to_sensor;
 		WR_Address = Model::Address_WR_to_sensor;
 		// запись и чтение адреса
-		result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D0, WR_Address);
+		result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Addr, WR_Address);
 		// проверка записанного
 		if (result == MB_ERROR_NO)
 		{	//всё хорошо, датчик записан
@@ -561,7 +565,7 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 			{	// Считали то же, что и записали, теперь записываем и читаем скорость
 				SensPortNumber = Sens_WR_value;
 				osDelay(10);	// нужно время на переключение датчика на новые параметры
-				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, 0x7D1, WR_BaudRate);
+				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Baud, WR_BaudRate);
 				if (result == MB_ERROR_NO)
 				{	//всё хорошо, датчик записан
 					// сбрасываем флаг записи в датчик
@@ -602,8 +606,20 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 	// Производим сканирование широковещательной посылкой шины на всех скоростях
 	for (int i = 0; i < BAUD_RATE_NUMBER; ++i)
 	{
-		PR_UART4_Init(BaudRate[i]);
-		result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, 0x7D0, 2);
+		switch (Model::Type_of_sensor) {
+			case 1: 	{
+				PR_UART4_Init(BaudRate_Type1[i]);
+				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type1_Addr, 2);
+
+				break; 	}
+			case 2: 	{
+				PR_UART4_Init(BaudRate_Type2[i]);
+				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type2_Addr, 2);
+
+				break; 	}
+			default:
+				break;
+		}
 		osDelay(10);
 
 		if (result == MB_ERROR_NO) break;
@@ -620,7 +636,7 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
  * - начальный регистр,
  * - данные (для чтения - кол-во считываемых регистров, для записи - данные для записи в регистр)
  */
-MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, uint16_t START_REG, uint16_t DATA)
+MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, MB_Reg_t START_REG, uint16_t DATA)
 {
 	MB_Error_t result;
 	memset(MB->Tx_Buffer, 0, MAX_MB_BUFSIZE);

@@ -20,7 +20,8 @@ void StartProgrammingSensor(void *argument);
 extern void ProgrammingSensor(void);
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern uint8_t SensNullValue;
-extern int BaudRate[];
+extern int BaudRate_Type1[];
+extern int BaudRate_Type2[];
 
 Settings5View::Settings5View():
 		//Вызов функций Handler для Callback
@@ -82,13 +83,31 @@ void Settings5View::scrollSensorTypeUpdateCenterItem(ScrollSelectedItemContainer
 //Вызывается для каждого значения в массиве значений колеса
 void Settings5View::scrollSensorSpeedNewUpdateItem(ScrollItemContainer& item, int16_t itemIndex)
 {
-	item.updateScrollItem(BaudRate[itemIndex]);
+	switch (SetSensor) {
+		case 1:		{
+			item.updateScrollItem(BaudRate_Type1[itemIndex]);
+			break;	}
+		case 2:		{
+			item.updateScrollItem(BaudRate_Type2[itemIndex]);
+			break;	}
+		default:
+			break;
+	}
 }
 
 //Заполнение фокусного значения BaudRate в колесе прокрутки после остановки прокрутки даже после нажатия "Записать" в колесе
 void Settings5View::scrollSensorSpeedNewUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex)
 {
-	item.updateScrollSelectedItem(BaudRate[itemIndex]);
+	switch (SetSensor) {
+		case 1:		{
+			item.updateScrollSelectedItem(BaudRate_Type1[itemIndex]);
+			break;	}
+		case 2:		{
+			item.updateScrollSelectedItem(BaudRate_Type2[itemIndex]);
+			break;	}
+		default:
+			break;
+	}
 }
 
 //Запись значений в SensorAddress
@@ -185,7 +204,16 @@ void Settings5View::BTNConfirmClicked()
 			break;
 		case 1:
 			SetSpeedOld = SetSpeed;
-			Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", BaudRate[SetSpeed]);
+			switch (SetSensor) {
+				case 1:		{
+					Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", BaudRate_Type1[SetSpeed]);
+					break;	}
+				case 2:		{
+					Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", BaudRate_Type2[SetSpeed]);
+					break;	}
+				default:
+					break;
+			}
 			scrollSensorSpeedNew.setVisible(false);
 			break;
 		case 2:
@@ -264,7 +292,16 @@ void Settings5View::Val_BaudRate_UpdateView(uint8_t Val)
 {
 	if (Val != SensNullValue)
 	{
-		Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate[Val]);
+		switch (SetSensor) {
+			case 1:		{
+				Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate_Type1[Val]);
+				break;	}
+			case 2:		{
+				Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate_Type2[Val]);
+				break;	}
+			default:
+				break;
+		}
 		FlagWrite_visible = 1;
 		if ((FlagWrite_visible == 1)&&(SetSpeed != 0)&&(SetAddress != 0))
 			BTNWrite.setVisible(true);

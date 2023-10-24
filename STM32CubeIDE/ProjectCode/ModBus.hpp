@@ -81,7 +81,6 @@ typedef struct {
 	uint16_t CRC_Sum;
 } MB_Frame_t;
 
-
 typedef enum
 {
     MB_CMD_READ_REGS = 0x03,
@@ -89,6 +88,7 @@ typedef enum
     MB_CMD_WRITE_REGS = 0x10
 }MB_Command_t;
 
+// Ошибки работы с шиной ModBus
 typedef enum
 {
 	MB_ERROR_NO = 0x00,
@@ -100,6 +100,29 @@ typedef enum
 	MB_ERROR_UART_RECIEVE = 0x06,
 	MB_ERROR_DMA_RECIEVE = 0x07
 }MB_Error_t;
+
+// Адреса регистров устройств на шине
+typedef enum
+{
+	Type1_H = 0x0000,
+	Type1_T = 0x0001,
+	Type1_T_calibr = 0x0050,
+	Type1_H_calibr = 0x0051,
+	Type1_Addr = 0x07D0,
+	Type1_Baud = 0x07D1,
+
+	Type2_T = 0x0000,
+	Type2_R = 0x0020,
+	Type2_T_calibr = 0x0040,
+	Type2_R_calibr = 0x0060,
+	Type2_T_unit = 0x00F9,
+	Type2_Automatic = 0x00FA,
+	Type2_reset = 0x00FB,
+	Type2_delay = 0x00FC,
+	Type2_Addr = 0x00FD,
+	Type2_Baud = 0x00FE,
+	Type2_Parity = 0x00FF
+}MB_Reg_t;
 
 //osThreadId MB_Slave_TaskHandle;
 extern osThreadId MB_Master_TaskHandle;
