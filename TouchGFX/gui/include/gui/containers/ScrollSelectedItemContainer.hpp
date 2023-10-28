@@ -10,7 +10,7 @@ public:
     virtual ~ScrollSelectedItemContainer() {}
 
     virtual void initialize();
-    virtual void updateScrollSelectedItem(int value);
+    virtual void updateScrollSelectedItem(int value);	// функция наполнения контейнера элементом
 protected:
 };
 

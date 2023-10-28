@@ -30,7 +30,11 @@ public:
 
     virtual void Val_Addr_UpdateView(uint8_t Val);
     virtual void Val_BaudRate_UpdateView(uint8_t Val);
+
 protected:
+    // В классе Settings5View
+    // описываются смарт-пойнтеры класса Callback на функции, обслуживающие обратный вызов
+    // в скобках <...> определён шаблон для передачи в класс Callback - тип вызывающего функцию объекта и параметр для вызова
     Callback<Settings5View, int16_t> scrollSensorTypeItemSelectedCallback;
     void scrollSensorTypeItemSelectedHandler(int16_t itemSelected);
     Callback<Settings5View, int16_t> scrollSensorSpeedNewItemSelectedCallback;

@@ -280,6 +280,18 @@
     <Filter Include="Header Files\generated\gui_generated\containers">
       <UniqueIdentifier>211B02D9-B082-7510-78F5-F0ED207E5DFF</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\gui\settings6_screen">
+      <UniqueIdentifier>974EABE3-4EA7-C83A-15EA-7AB66463CC94</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\gui\settings6_screen">
+      <UniqueIdentifier>37A645AB-789C-3F65-C9B4-6B84F9CEE5E6</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\generated\gui_generated\settings6_screen">
+      <UniqueIdentifier>BF078E6A-A695-A868-6F55-92790A5027A3</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\generated\gui_generated\settings6_screen">
+      <UniqueIdentifier>C0BCD88C-797D-BCD7-69BD-4FC6788DD54B</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(TouchGFXReleasePath)\framework\source\platform\driver\touch\SDL2TouchController.cpp">
@@ -394,6 +406,39 @@
       <Filter>Source Files\gui\containers</Filter>
     </ClCompile>
     <ClCompile Include="..\..\generated\gui_generated\src\containers\ScrollSelectedItemContainerBase.cpp">
+      <Filter>Source Files\generated\gui_generated\containers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gui\src\settings6_screen\Settings6Presenter.cpp">
+      <Filter>Source Files\gui\settings6_screen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gui\src\settings6_screen\Settings6View.cpp">
+      <Filter>Source Files\gui\settings6_screen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\generated\gui_generated\src\settings6_screen\Settings6ViewBase.cpp">
+      <Filter>Source Files\generated\gui_generated\settings6_screen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gui\src\containers\DigitContainer.cpp">
+      <Filter>Source Files\gui\containers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\generated\gui_generated\src\containers\DigitContainerBase.cpp">
+      <Filter>Source Files\generated\gui_generated\containers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gui\src\containers\DigitSelectedContainer.cpp">
+      <Filter>Source Files\gui\containers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\generated\gui_generated\src\containers\DigitSelectedContainerBase.cpp">
+      <Filter>Source Files\generated\gui_generated\containers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gui\src\containers\TextContainer.cpp">
+      <Filter>Source Files\gui\containers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\generated\gui_generated\src\containers\TextContainerBase.cpp">
+      <Filter>Source Files\generated\gui_generated\containers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gui\src\containers\TextSelectedContainer.cpp">
+      <Filter>Source Files\gui\containers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\generated\gui_generated\src\containers\TextSelectedContainerBase.cpp">
       <Filter>Source Files\generated\gui_generated\containers</Filter>
     </ClCompile>
   </ItemGroup>
@@ -920,6 +965,39 @@
       <Filter>Header Files\gui\containers</Filter>
     </ClInclude>
     <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\ScrollSelectedItemContainerBase.hpp">
+      <Filter>Header Files\generated\gui_generated\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\settings6_screen\Settings6Presenter.hpp">
+      <Filter>Header Files\gui\settings6_screen</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\settings6_screen\Settings6View.hpp">
+      <Filter>Header Files\gui\settings6_screen</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\settings6_screen\Settings6ViewBase.hpp">
+      <Filter>Header Files\generated\gui_generated\settings6_screen</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\containers\DigitContainer.hpp">
+      <Filter>Header Files\gui\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\DigitContainerBase.hpp">
+      <Filter>Header Files\generated\gui_generated\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\containers\DigitSelectedContainer.hpp">
+      <Filter>Header Files\gui\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\DigitSelectedContainerBase.hpp">
+      <Filter>Header Files\generated\gui_generated\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\containers\TextContainer.hpp">
+      <Filter>Header Files\gui\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\TextContainerBase.hpp">
+      <Filter>Header Files\generated\gui_generated\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\containers\TextSelectedContainer.hpp">
+      <Filter>Header Files\gui\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\TextSelectedContainerBase.hpp">
       <Filter>Header Files\generated\gui_generated\containers</Filter>
     </ClInclude>
   </ItemGroup>

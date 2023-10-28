@@ -778,7 +778,7 @@
           },
           {
             "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings5_1",
+            "Name": "BTNGoToSettings6_1",
             "X": 150,
             "Y": 5,
             "Width": 36,
@@ -972,15 +972,15 @@
             }
           },
           {
-            "InteractionName": "GoToSettings5_1",
+            "InteractionName": "GoToSettings6_1",
             "Trigger": {
               "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGoToSettings5_1"
+              "TriggerComponent": "BTNGoToSettings6_1"
             },
             "Action": {
               "Type": "ActionGotoScreen",
               "ScreenTransitionType": "ScreenTransitionNone",
-              "ActionComponent": "Settings5"
+              "ActionComponent": "Settings6"
             }
           }
         ]
@@ -1051,23 +1051,6 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
           },
           {
-            "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings5",
-            "X": 150,
-            "Y": 5,
-            "Width": 36,
-            "Height": 36,
-            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
-            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
-            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
-            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
-            "IconX": 4,
-            "IconY": 2,
-            "IconHeight": 30,
-            "IconWidth": 30,
-            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
-          },
-          {
             "Type": "TextArea",
             "Name": "LabelCoreTSensors_1",
             "X": 34,
@@ -1101,6 +1084,23 @@
           },
           {
             "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings6",
+            "X": 150,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
             "Name": "BTNGoToSettings2",
             "X": 195,
             "Y": 5,
@@ -1122,7 +1122,7 @@
             "X": 97,
             "Y": 195,
             "Width": 47,
-            "Height": 49,
+            "Height": 41,
             "TextId": "ValueCoreTSet",
             "TextRotation": "0",
             "Color": {
@@ -1243,15 +1243,15 @@
             }
           },
           {
-            "InteractionName": "GoToSettings5",
+            "InteractionName": "GoToSettings6",
             "Trigger": {
               "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGoToSettings5"
+              "TriggerComponent": "BTNGoToSettings6"
             },
             "Action": {
               "Type": "ActionGotoScreen",
               "ScreenTransitionType": "ScreenTransitionNone",
-              "ActionComponent": "Settings5"
+              "ActionComponent": "Settings6"
             }
           }
         ]
@@ -2540,7 +2540,7 @@
           },
           {
             "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings1",
+            "Name": "BTNGoToSettings6",
             "X": 195,
             "Y": 5,
             "Width": 36,
@@ -3158,7 +3158,7 @@
             "SelectedItemTemplateName": "ScrollSelectedItemContainer",
             "IsCircular": true,
             "ItemTemplateName": "ScrollItemContainer",
-            "NumberofItems": 2,
+            "NumberofItems": 3,
             "Easing": "Back",
             "EasingOption": "Out",
             "SwipeAcceleration": 1.0,
@@ -3203,15 +3203,15 @@
             }
           },
           {
-            "InteractionName": "GoToSettings1",
+            "InteractionName": "GoToSettings6",
             "Trigger": {
               "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGoToSettings1"
+              "TriggerComponent": "BTNGoToSettings6"
             },
             "Action": {
               "Type": "ActionGotoScreen",
               "ScreenTransitionType": "ScreenTransitionNone",
-              "ActionComponent": "Settings1"
+              "ActionComponent": "Settings6"
             }
           },
           {
@@ -3278,6 +3278,899 @@
             "Action": {
               "Type": "ActionCustom",
               "FunctionName": "BTNCancelClicked"
+            }
+          }
+        ]
+      },
+      {
+        "Name": "Settings6",
+        "CanvasBufferSize": 3600,
+        "Components": [
+          {
+            "Type": "Image",
+            "Name": "IMGBackground",
+            "Width": 240,
+            "Height": 320,
+            "LockPosition": true,
+            "RelativeFilename": "__generated\\alternate_theme_images_backgrounds_240x320_gradient_light.png"
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "boxWithBorder1",
+            "X": 19,
+            "Y": 110,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 2,
+            "Alpha": 94
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "boxWithBorder1_1",
+            "X": 186,
+            "Y": 110,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 2,
+            "Alpha": 94
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "boxWithBorder1_2",
+            "X": 118,
+            "Y": 110,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 2,
+            "Alpha": 94
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "boxWithBorder1_3",
+            "X": 69,
+            "Y": 110,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 2,
+            "Alpha": 94
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSetCorrection",
+            "X": 133,
+            "Y": 215,
+            "Width": 94,
+            "Height": 34,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 4,
+                "TextId": "BTNSetCorrection",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSetCorrection_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 94,
+                "Height": 34,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSetAddress",
+            "X": 146,
+            "Y": 120,
+            "Width": 81,
+            "Height": 32,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 4,
+                "TextId": "BTNSetAddress",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSetAddress_W",
+                  "UseBuffer": true,
+                  "BufferSize": 4
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 81,
+                "Height": 32,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSensorType",
+            "X": 146,
+            "Y": 76,
+            "Width": 81,
+            "Height": 33,
+            "ButtonTrigger": {
+              "Type": "RepeatButtonTrigger",
+              "Delay": 200,
+              "Interval": 1000
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 4,
+                "TextId": "BTNSensorType",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSensorType_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 81,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings5",
+            "X": 150,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings1",
+            "X": 195,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettingsMenu",
+            "X": 102,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_action_settings_applications_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_action_settings_applications_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToHome",
+            "X": 5,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_action_home_filled_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_action_home_filled_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNWrite",
+            "X": 61,
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "Visible": false,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNWrite",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNConfirm",
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNWrite",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNCancel",
+            "X": 122,
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNCancel",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "toggleButton1",
+            "X": 33,
+            "Y": 168,
+            "Width": 62,
+            "Height": 34,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_light.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_normal.png",
+            "Preset": "alternate_theme\\presets\\togglebutton\\small\\rounded_neutral.json"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelCorrection",
+            "X": 64,
+            "Y": 41,
+            "Width": 112,
+            "Height": 24,
+            "LockPosition": true,
+            "TextId": "LabelChooseCorrection",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ChooseCorrection",
+            "X": 47,
+            "Y": 220,
+            "Width": 73,
+            "Height": 24,
+            "TextId": "ChooseCorrection",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelT",
+            "X": 5,
+            "Y": 174,
+            "Width": 21,
+            "Height": 23,
+            "TextId": "__SingleUse_E279",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelR",
+            "X": 102,
+            "Y": 174,
+            "Width": 23,
+            "Height": 23,
+            "TextId": "__SingleUse_917H",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelAddrSelect",
+            "X": 64,
+            "Y": 121,
+            "Width": 70,
+            "Height": 31,
+            "TextId": "__SingleUse_1ZUM",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelSensorTypeSelect",
+            "X": 5,
+            "Y": 80,
+            "Width": 128,
+            "Height": 24,
+            "TextId": "LabelSensorTypeSelect",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "LineSpacing": -1
+          },
+          {
+            "Type": "TextArea",
+            "Name": "CurrentValue",
+            "X": 134,
+            "Y": 173,
+            "Width": 84,
+            "Height": 24,
+            "TextId": "__SingleUse_RBOR",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "Wildcard1": {
+              "TextId": "CurrentValue_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "Whole_Digit",
+            "X": 12,
+            "Y": 70,
+            "Width": 214,
+            "Height": 28,
+            "Visible": false,
+            "TextId": "Whole_Digit",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "Whole_Digit_W",
+              "UseBuffer": true,
+              "BufferSize": 8
+            }
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollWheelDigit1",
+            "X": 186,
+            "Y": 110,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "SelectedItemOffset": 55,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "DigitSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "DigitContainer",
+            "NumberofItems": 10,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollWheelDigit2",
+            "X": 118,
+            "Y": 110,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "SelectedItemOffset": 55,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "DigitSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "DigitContainer",
+            "NumberofItems": 10,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollWheelDigit3",
+            "X": 69,
+            "Y": 110,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "SelectedItemOffset": 55,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "DigitSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "DigitContainer",
+            "NumberofItems": 10,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollWheelDigit4",
+            "X": 19,
+            "Y": 110,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "SelectedItemOffset": 55,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "DigitSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "DigitContainer",
+            "NumberofItems": 10,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollSensorAddress",
+            "Y": 71,
+            "Width": 240,
+            "Height": 207,
+            "Visible": false,
+            "LockPosition": true,
+            "SelectedItemOffset": 78,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "ScrollSelectedItemContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "ScrollItemContainer",
+            "NumberofItems": 5,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollSensorType",
+            "Y": 71,
+            "Width": 240,
+            "Height": 207,
+            "Visible": false,
+            "LockPosition": true,
+            "SelectedItemOffset": 78,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "TextSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "TextContainer",
+            "NumberofItems": 3,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          }
+        ],
+        "Interactions": [
+          {
+            "InteractionName": "GoToHome",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToHome"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Home"
+            }
+          },
+          {
+            "InteractionName": "GoToSettings5",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettings5"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Settings5"
+            }
+          },
+          {
+            "InteractionName": "GoToSettingsMenu",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettingsMenu"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "SettingsMenu"
+            }
+          },
+          {
+            "InteractionName": "GoToSettings1",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettings1"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Settings1"
+            }
+          },
+          {
+            "InteractionName": "BTNWriteClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNWrite"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNWriteClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNConfirmClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNConfirm"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNConfirmClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNCancelClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNCancel"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNCancelClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNSensorTypeClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNSensorType"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSensorTypeClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNSetAddressClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNSetAddress"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSetAddressClicked"
             }
           }
         ]
@@ -3368,6 +4261,131 @@
               "TextId": "ScrollSelectedItem_W",
               "UseBuffer": true,
               "BufferSize": 10
+            }
+          }
+        ],
+        "Interactions": []
+      },
+      {
+        "Name": "DigitContainer",
+        "Width": 40,
+        "Height": 25,
+        "Components": [
+          {
+            "Type": "TextArea",
+            "Name": "ScrollDigit",
+            "Width": 40,
+            "Height": 25,
+            "TextId": "ScrollDigit",
+            "TextRotation": "0",
+            "Wildcard1": {
+              "TextId": "ScrollDigit_W",
+              "UseBuffer": true,
+              "BufferSize": 2
+            }
+          },
+          {
+            "Type": "Line",
+            "Name": "line1",
+            "Width": 40,
+            "Height": 34,
+            "Color": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "StartX": 5.0,
+            "StartY": 25.0,
+            "EndX": 35.0,
+            "EndY": 25.0,
+            "LineWidth": 1.0,
+            "LineEndingStyle": "Round"
+          }
+        ],
+        "Interactions": []
+      },
+      {
+        "Name": "DigitSelectedContainer",
+        "Width": 40,
+        "Height": 25,
+        "Components": [
+          {
+            "Type": "TextArea",
+            "Name": "ScrollSelectedDigit",
+            "Width": 40,
+            "Height": 25,
+            "TextId": "ScrollSelectedDigit",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "ScrollSelectedDigit_W",
+              "UseBuffer": true,
+              "BufferSize": 2
+            }
+          }
+        ],
+        "Interactions": []
+      },
+      {
+        "Name": "TextContainer",
+        "Width": 240,
+        "Height": 50,
+        "Components": [
+          {
+            "Type": "TextArea",
+            "Name": "textArea",
+            "Y": 12,
+            "Width": 220,
+            "Height": 25,
+            "TextId": "textArea",
+            "TextRotation": "0",
+            "Wildcard1": {
+              "TextId": "textArea_W",
+              "UseBuffer": true,
+              "BufferSize": 20
+            }
+          },
+          {
+            "Type": "Line",
+            "Name": "line1",
+            "Width": 240,
+            "Height": 70,
+            "StartX": 10.0,
+            "StartY": 50.0,
+            "EndX": 230.0,
+            "EndY": 50.0,
+            "LineWidth": 1.7,
+            "LineEndingStyle": "Round"
+          }
+        ],
+        "Interactions": []
+      },
+      {
+        "Name": "TextSelectedContainer",
+        "Width": 240,
+        "Height": 50,
+        "Components": [
+          {
+            "Type": "TextArea",
+            "Name": "textAreaSelected",
+            "Y": 12,
+            "Width": 220,
+            "Height": 25,
+            "TextId": "textAreaSelected",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "textAreaSelected_W",
+              "UseBuffer": true,
+              "BufferSize": 20
             }
           }
         ],

@@ -109,7 +109,7 @@
         <Translation Language="GB">012345</Translation>
       </Text>
       <Text Id="BTNSetAddress_W" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">000000</Translation>
+        <Translation Language="GB">0000</Translation>
       </Text>
       <Text Id="ValueDefrosterH_W" Alignment="Left" TypographyId="Small">
         <Translation Language="GB">99</Translation>
@@ -156,7 +156,7 @@
         <Translation Language="GB">Отмена</Translation>
       </Text>
       <Text Id="BTNWrite" Alignment="Center" TypographyId="Default">
-        <Translation Language="GB">Записать</Translation>
+        <Translation Language="GB">Принять</Translation>
       </Text>
       <Text Id="BTNSettings1" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Управление температурой в теле</Translation>
@@ -250,7 +250,7 @@
       <Text Id="LabelCoreT" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Т° ядра 1/2</Translation>
       </Text>
-      <Text Id="LabelSensorTypeSelect" Alignment="Center" TypographyId="Default">
+      <Text Id="LabelSensorTypeSelect" Alignment="Right" TypographyId="Default">
         <Translation Language="GB">Тип датчика</Translation>
       </Text>
       <Text Id="LabelProgramming" Alignment="Center" TypographyId="Default">
@@ -263,7 +263,74 @@
         <Translation Language="GB">Группа 1</Translation>
       </Text>
     </TextGroup>
-    <TextGroup Id="Unsorted" />
+    <TextGroup Id="Unsorted">
+      <Text Id="textAreaSelected_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">New Text</Translation>
+      </Text>
+      <Text Id="textAreaSelected" Alignment="Right" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="textArea" Alignment="Right" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="textArea_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">New Text</Translation>
+      </Text>
+      <Text Id="ScrollItemText_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">FR---</Translation>
+      </Text>
+      <Text Id="BTNSetCorrection_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">000.0⁰C</Translation>
+      </Text>
+      <Text Id="BTNSetCorrection" Alignment="Right" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt; </Translation>
+      </Text>
+      <Text Id="CurrentValue_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">000.0⁰C</Translation>
+      </Text>
+      <Text Id="__SingleUse_RBOR" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="__SingleUse_1ZUM" Alignment="Right" TypographyId="Default">
+        <Translation Language="GB">Адрес</Translation>
+      </Text>
+      <Text Id="__SingleUse_917H" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">R</Translation>
+      </Text>
+      <Text Id="__SingleUse_E279" Alignment="Right" TypographyId="Default">
+        <Translation Language="GB">T</Translation>
+      </Text>
+      <Text Id="ChooseCorrection_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Температура</Translation>
+      </Text>
+      <Text Id="ChooseCorrection" Alignment="Right" TypographyId="Default">
+        <Translation Language="GB">Эталон</Translation>
+      </Text>
+      <Text Id="Label_Choose_correction_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Температура</Translation>
+      </Text>
+      <Text Id="ScrollSelectedDigit_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">0</Translation>
+      </Text>
+      <Text Id="ScrollSelectedDigit" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="Whole_Digit_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">000.0</Translation>
+      </Text>
+      <Text Id="Whole_Digit" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="ScrollDigit_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">0</Translation>
+      </Text>
+      <Text Id="ScrollDigit" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
+      <Text Id="LabelChooseCorrection" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Коррекция</Translation>
+      </Text>
+    </TextGroup>
   </Texts>
   <Typographies>
     <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacterRanges="0-9,0x2D" />

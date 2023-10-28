@@ -10,7 +10,7 @@ public:
     virtual ~ScrollItemContainer() {}
 
     virtual void initialize();
-    virtual void updateScrollItem(int value);
+    virtual void updateScrollItem(int value);	// функция включения элементов в список прокрутки
 protected:
 };
 

@@ -1,14 +1,15 @@
 #include <gui/settings5_screen/Settings5View.hpp>
 
-uint8_t Selected;
-int16_t SetSensor = 0;			// вновь устанавливаемое значение типа датчика, выводится на экран
-int16_t SetSensorOld = 0;		// старое значение типа датчика, сохраняется на время выбора в колесе нового значения
-uint8_t SetSpeed;
-uint8_t SetSpeedOld;
-uint8_t SetAddress;
-uint8_t SetAddressOld;
-uint8_t FlagWrite_visible = 0;	// флаг разрешения видимости кнопки "Запись" в датчик
-/* Definitions for ProgrammingSens */
+    uint8_t Selected;				// нажатая кнопка: 0 - тип, 1 - скорость, 2 - адрес
+    int16_t SetSensor = 0;			// вновь устанавливаемое значение типа датчика, выводится на экран
+    int16_t SetSensorOld = 0;		// старое значение типа датчика, сохраняется на время выбора в колесе нового значения
+    uint8_t SetSpeed;
+    uint8_t SetSpeedOld;
+    uint8_t SetAddress;
+    uint8_t SetAddressOld;
+    uint8_t FlagWrite_visible = 0;	// флаг разрешения видимости кнопки "Запись" в датчик
+
+    /* Definitions for ProgrammingSens */
 osThreadId_t ProgrammingSensHandle;
 const osThreadAttr_t ProgrammingSens_attributes = {
   .name = "ProgrammingSens",
@@ -24,7 +25,7 @@ extern int BaudRate_Type1[];
 extern int BaudRate_Type2[];
 
 Settings5View::Settings5View():
-		//Вызов функций Handler для Callback
+	//Создание смарт-пойнтеров на функции Handler для Callback
 	scrollSensorTypeItemSelectedCallback(this, &Settings5View::scrollSensorTypeItemSelectedHandler),
 	scrollSensorSpeedNewItemSelectedCallback(this, &Settings5View::scrollSensorSpeedNewItemSelectedHandler),
 	scrollSensorAddressNewItemSelectedCallback(this, &Settings5View::scrollSensorAddressNewItemSelectedHandler)
@@ -39,7 +40,8 @@ void Settings5View::setupScreen()
     /* creation of ProgrammingSens task */
     ProgrammingSensHandle = osThreadNew(StartProgrammingSensor, NULL, &ProgrammingSens_attributes);
 
-    //Callback для передачи ItemSelected значения при окончании анимации скролла
+    //В контейнерах колёс прокрутки устанавливаются Callback функции обработки события
+    //например, для передачи ItemSelected значения при окончании анимации скролла при выборе значения в колесе
     scrollSensorType.setItemSelectedCallback(scrollSensorTypeItemSelectedCallback);
     scrollSensorSpeedNew.setItemSelectedCallback(scrollSensorSpeedNewItemSelectedCallback);
     scrollSensorAddressNew.setItemSelectedCallback(scrollSensorAddressNewItemSelectedCallback);
@@ -117,7 +119,6 @@ void Settings5View::scrollSensorAddressNewUpdateItem(ScrollItemContainer& item, 
 {
     item.updateScrollItem(Sensor_array[itemIndex].Address);
 }
-
 //Заполнение фокусного значения SensorAddress в колесе прокрутки после остановки прокрутки даже после нажатия "Записать" в колесе
 void Settings5View::scrollSensorAddressNewUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex)
 {
@@ -218,8 +219,8 @@ void Settings5View::BTNConfirmClicked()
 			break;
 		case 2:
 			SetAddressOld = SetAddress;
-			BTNSetAddress.invalidate();
 			Unicode::snprintf(BTNSetAddressBuffer, BTNSETADDRESS_SIZE, "%d", SetAddress);
+			BTNSetAddress.invalidate();
 			scrollSensorAddressNew.setVisible(false);
 			break;
 	}

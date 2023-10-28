@@ -305,6 +305,16 @@
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/common/FrontendApplication.cpp</locationURI>
 		</link>
 		<link>
+			<name>Application/User/gui/DigitContainer.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/containers/DigitContainer.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/gui/DigitSelectedContainer.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/containers/DigitSelectedContainer.cpp</locationURI>
+		</link>
+		<link>
 			<name>Application/User/gui/ScrollItemContainer.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/containers/ScrollItemContainer.cpp</locationURI>
@@ -313,6 +323,16 @@
 			<name>Application/User/gui/ScrollSelectedItemContainer.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/containers/ScrollSelectedItemContainer.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/gui/TextContainer.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/containers/TextContainer.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/gui/TextSelectedContainer.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/containers/TextSelectedContainer.cpp</locationURI>
 		</link>
 		<link>
 			<name>Application/User/gui/HomePresenter.cpp</name>
@@ -380,6 +400,16 @@
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/settings5_screen/Settings5View.cpp</locationURI>
 		</link>
 		<link>
+			<name>Application/User/gui/Settings6Presenter.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/settings6_screen/Settings6Presenter.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/gui/Settings6View.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/settings6_screen/Settings6View.cpp</locationURI>
+		</link>
+		<link>
 			<name>Application/User/gui/SettingsMenuPresenter.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/gui/src/settingsmenu_screen/SettingsMenuPresenter.cpp</locationURI>
@@ -423,6 +453,11 @@
 			<name>Application/User/generated/Font_verdana_20_4bpp_0.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/fonts/src/Font_verdana_20_4bpp_0.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/generated/Font_verdana_20_4bpp_4.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/fonts/src/Font_verdana_20_4bpp_4.cpp</locationURI>
 		</link>
 		<link>
 			<name>Application/User/generated/Font_verdana_40_4bpp_0.cpp</name>
@@ -490,6 +525,16 @@
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/common/FrontendApplicationBase.cpp</locationURI>
 		</link>
 		<link>
+			<name>Application/User/generated/DigitContainerBase.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/containers/DigitContainerBase.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/generated/DigitSelectedContainerBase.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/containers/DigitSelectedContainerBase.cpp</locationURI>
+		</link>
+		<link>
 			<name>Application/User/generated/ScrollItemContainerBase.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/containers/ScrollItemContainerBase.cpp</locationURI>
@@ -498,6 +543,16 @@
 			<name>Application/User/generated/ScrollSelectedItemContainerBase.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/containers/ScrollSelectedItemContainerBase.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/generated/TextContainerBase.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/containers/TextContainerBase.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/generated/TextSelectedContainerBase.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/containers/TextSelectedContainerBase.cpp</locationURI>
 		</link>
 		<link>
 			<name>Application/User/generated/HomeViewBase.cpp</name>
@@ -528,6 +583,11 @@
 			<name>Application/User/generated/Settings5ViewBase.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/settings5_screen/Settings5ViewBase.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/generated/Settings6ViewBase.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/gui_generated/src/settings6_screen/Settings6ViewBase.cpp</locationURI>
 		</link>
 		<link>
 			<name>Application/User/generated/SettingsMenuViewBase.cpp</name>
