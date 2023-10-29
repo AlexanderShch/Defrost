@@ -25,11 +25,16 @@
 
 /* Описание набора датчиков дефростера */
 typedef struct {
+	uint8_t	TypeNumber;
+	char TypeName[11];
+} SENSOR_Type_t;
+
+typedef struct {
 uint8_t Address;			// ModBus address
 uint8_t BaudRate;			// ModBus baud rate
 uint8_t Active;				// флаг активности датчика
 uint8_t TypeOfSensor;		// тип датчика: 1 - совмещённый датчик температуры и влажности
-uint8_t PositionName[4];	// наименование позиции датчика
+char PositionName[11];	// наименование позиции датчика
 // статистика полученных ответов от датчика
 uint16_t OkCnt;				// счётчик ответов
 uint16_t ErrCnt;			// счётчик неответов

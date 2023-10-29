@@ -63,18 +63,22 @@ const static uint16_t crc16_table[] =
 
 /*
  * Типы датчиков:
- * 		0 - нет датчика
- * 		1 - совмещенный температура и влажность GL-TH04-MT
- * 		2 - датчик температуры РТ100 с RS485
- * 		3 - датчик температуры BlueTooth
  */
+SENSOR_Type_t Sensor_type[STQ] =
+{
+		{0, "Null"},			// 0 - нет датчика
+		{1, "Double T&H"},		// 1 - совмещенный температура и влажность GL-TH04-MT
+		{2, "Single T"},		// 2 - датчик температуры РТ100 с RS485
+		{3, "BT T"}				// 3 - датчик температуры BlueTooth
+};
+
 SENSOR_typedef_t Sensor_array[SQ] =
 {
-		{101,3,0,1,"Ldf", 0,0,0,0},		// 0 - defroster left, 	GL-TH04-MT
-		{102,3,0,1,"Rdf",0,0,0,0},		// 1 - defroster right,	GL-TH04-MT
-		{103,3,0,1,"IN",0,0,0,0},		// 2 - defroster center,GL-TH04-MT
-		{104,3,0,2,"Lpr",0,0,0,0},		// 3 - fish left, 		РТ100 с RS485
-		{105,3,0,2,"Rpr",0,0,0,0},		// 4 - fish right,		РТ100 с RS485
+		{101,3,0,1,"Left def", 0,0,0,0},		// 0 - defroster left, 	GL-TH04-MT
+		{102,3,0,1,"Right def",0,0,0,0},		// 1 - defroster right,	GL-TH04-MT
+		{103,3,0,1,"Center def",0,0,0,0},		// 2 - defroster center,GL-TH04-MT
+		{104,3,0,2,"Left prod",0,0,0,0},		// 3 - fish left, 		РТ100 с RS485
+		{105,3,0,2,"Right prod",0,0,0,0},		// 4 - fish right,		РТ100 с RS485
 };
 
 uint8_t SensNullValue = 255;

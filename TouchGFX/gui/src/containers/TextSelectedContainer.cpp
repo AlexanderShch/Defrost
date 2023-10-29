@@ -11,8 +11,8 @@ void TextSelectedContainer::initialize()
 }
 
 // функция включения элементов в список прокрутки
-void TextSelectedContainer::updateTextSelectedItem(char *text)
+void TextSelectedContainer::updateTextSelectedItem(char *text, int num)
 {
-    Unicode::snprintf(textAreaSelectedBuffer, TEXTAREASELECTED_SIZE, "%s", text);
+    Unicode::snprintf(textAreaSelectedBuffer, TEXTAREASELECTED_SIZE, text, num);
     textAreaSelected.invalidate();
 }

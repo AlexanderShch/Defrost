@@ -13,6 +13,7 @@
 
 #define TQ 16				// time quantity for saving measures in array
 #define SQ 5				// sensors quantity for measures (0-4) + sets of T (5, 6)
+#define STQ 4				// sensors type quantity - кол-во типов датчиков
 #define FLAG_ReadData 1ul		// read data event flag 0x00000001ul
 
 class Sensor

@@ -1,5 +1,9 @@
 #include <gui/settings6_screen/Settings6View.hpp>
-#include <string>
+#include <gui_generated/containers/TextContainerBase.hpp>
+
+#include "string.h"
+
+extern SENSOR_Type_t Sensor_type[STQ];
 extern SENSOR_typedef_t Sensor_array[SQ];
 
 
@@ -84,24 +88,40 @@ void Settings6View::scrollWheelDigit4UpdateCenterItem(DigitSelectedContainer& it
 /************** TYPE **********************/
 void Settings6View::scrollSensorTypeUpdateItem(TextContainer& item, int16_t itemIndex)
 {
-	char TextToItem[] {"SDR"};
-	Unicode::snprintf(TextToItem, 20, "%s", itemIndex);
-	item.updateTextItem(TextToItem);
+//	Формирование строки с именем типа датчика и его идентификатором
+	char str[20];
+	char FormatText[] = " %d";
+	strcpy(str, Sensor_type[itemIndex].TypeName);		// копирование PositionName в начало строки str, включая символ окончания строки \0
+	strcat(str, FormatText);							// добавление символа форматирования в строку str
+	item.updateTextItem(str, Sensor_type[itemIndex].TypeNumber);
 }
 void Settings6View::scrollSensorTypeUpdateCenterItem(TextSelectedContainer& item, int16_t itemIndex)
 {
-//	char TextToItem[20];
-//	Unicode::snprintf(TextToItem, 20, "%s", itemIndex);
-//	item.updateTextelectedItem(TextToItem);
+	//	Формирование строки с именем типа датчика и его идентификатором
+		char str[20];
+		char FormatText[] = " %d";
+		strcpy(str, Sensor_type[itemIndex].TypeName);		// копирование PositionName в начало строки str, включая символ окончания строки \0
+		strcat(str, FormatText);							// добавление символа форматирования в строку str
+		item.updateTextSelectedItem(str, Sensor_type[itemIndex].TypeNumber);
 }
 /************** ADDRESS ******************/
-void Settings6View::scrollSensorAddressUpdateItem(ScrollItemContainer& item, int16_t itemIndex)
+void Settings6View::scrollSensorAddressUpdateItem(TextContainer& item, int16_t itemIndex)
 {
-   item.updateScrollItem(Sensor_array[itemIndex].Address);
+	//	Формирование строки с именем датчика и его адресом
+		char str[20];
+		char FormatText[] = " %d";
+		strcpy(str, Sensor_array[itemIndex].PositionName);	// копирование PositionName в начало строки str, включая символ окончания строки \0
+		strcat(str, FormatText);							// добавление символа форматирования в строку str
+		item.updateTextItem(str, Sensor_array[itemIndex].Address);
 }
-void Settings6View::scrollSensorAddressUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex)
+void Settings6View::scrollSensorAddressUpdateCenterItem(TextSelectedContainer& item, int16_t itemIndex)
 {
-	item.updateScrollSelectedItem(Sensor_array[itemIndex].Address);
+	//	Формирование строки с именем типа датчика и его идентификатором
+		char str[20];
+		char FormatText[] = " %d";
+		strcpy(str, Sensor_array[itemIndex].PositionName);	// копирование PositionName в начало строки str, включая символ окончания строки \0
+		strcat(str, FormatText);							// добавление символа форматирования в строку str
+		item.updateTextSelectedItem(str, Sensor_array[itemIndex].Address);
 }
 /************* HANDLERS ******************/
 /*

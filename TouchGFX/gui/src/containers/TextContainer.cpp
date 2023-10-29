@@ -11,8 +11,8 @@ void TextContainer::initialize()
 }
 
 // функция включения элементов в список прокрутки
-void TextContainer::updateTextItem(touchgfx::Unicode::UnicodeChar *text)
+void TextContainer::updateTextItem(char *text, int num)
 {
-    Unicode::snprintf(textAreaBuffer, TEXTAREA_SIZE, "%s", text);
+    Unicode::snprintf(textAreaBuffer, TEXTAREA_SIZE, text, num);
     textArea.invalidate();
 }

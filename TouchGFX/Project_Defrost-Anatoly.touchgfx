@@ -4040,9 +4040,9 @@
             "LockPosition": true,
             "SelectedItemOffset": 78,
             "UseSelectedStyle": true,
-            "SelectedItemTemplateName": "ScrollSelectedItemContainer",
+            "SelectedItemTemplateName": "TextSelectedContainer",
             "IsCircular": true,
-            "ItemTemplateName": "ScrollItemContainer",
+            "ItemTemplateName": "TextContainer",
             "NumberofItems": 5,
             "Easing": "Back",
             "EasingOption": "Out",
@@ -4336,6 +4336,13 @@
         "Height": 50,
         "Components": [
           {
+            "Type": "Image",
+            "Name": "image1",
+            "Width": 240,
+            "Height": 50,
+            "RelativeFilename": "__generated\\alternate_theme_images_bars_240x240_bottom_light.png"
+          },
+          {
             "Type": "TextArea",
             "Name": "textArea",
             "Y": 12,
@@ -4355,9 +4362,9 @@
             "Width": 240,
             "Height": 70,
             "StartX": 10.0,
-            "StartY": 50.0,
+            "StartY": 48.0,
             "EndX": 230.0,
-            "EndY": 50.0,
+            "EndY": 48.0,
             "LineWidth": 1.7,
             "LineEndingStyle": "Round"
           }
@@ -4369,6 +4376,13 @@
         "Width": 240,
         "Height": 50,
         "Components": [
+          {
+            "Type": "Image",
+            "Name": "image1",
+            "Width": 240,
+            "Height": 50,
+            "RelativeFilename": "__generated\\alternate_theme_images_bars_240x240_bottom_light.png"
+          },
           {
             "Type": "TextArea",
             "Name": "textAreaSelected",
@@ -4387,6 +4401,18 @@
               "UseBuffer": true,
               "BufferSize": 20
             }
+          },
+          {
+            "Type": "Line",
+            "Name": "line1",
+            "Width": 240,
+            "Height": 70,
+            "StartX": 10.0,
+            "StartY": 48.0,
+            "EndX": 230.0,
+            "EndY": 48.0,
+            "LineWidth": 1.7,
+            "LineEndingStyle": "Round"
           }
         ],
         "Interactions": []

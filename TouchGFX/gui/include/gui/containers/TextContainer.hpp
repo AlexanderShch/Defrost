@@ -10,7 +10,7 @@ public:
     virtual ~TextContainer() {}
 
     virtual void initialize();
-    virtual void updateTextItem(touchgfx::Unicode::UnicodeChar *text);	// функция включения элементов в список прокрутки
+    virtual void updateTextItem(char *text, int num);	// функция включения элементов в список прокрутки
 
 protected:
 };

@@ -22,8 +22,8 @@ public:
     virtual void scrollWheelDigit4UpdateCenterItem(DigitSelectedContainer& item, int16_t itemIndex);
     virtual void scrollSensorTypeUpdateItem(TextContainer& item, int16_t itemIndex);
     virtual void scrollSensorTypeUpdateCenterItem(TextSelectedContainer& item, int16_t itemIndex);
-    virtual void scrollSensorAddressUpdateItem(ScrollItemContainer& item, int16_t itemIndex);
-    virtual void scrollSensorAddressUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex);
+    virtual void scrollSensorAddressUpdateItem(TextContainer& item, int16_t itemIndex);
+    virtual void scrollSensorAddressUpdateCenterItem(TextSelectedContainer& item, int16_t itemIndex);
 
    /*
      * Virtual Action Handlers

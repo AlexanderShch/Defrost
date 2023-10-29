@@ -10,7 +10,7 @@ public:
     virtual ~TextSelectedContainer() {}
 
     virtual void initialize();
-    virtual void updateTextSelectedItem(char *text);	// функция включения элементов в список прокрутки
+    virtual void updateTextSelectedItem(char *text, int num);	// функция включения элементов в список прокрутки
 protected:
 };
 
