@@ -125,6 +125,7 @@ void MB_Master_Init(void)
 	resultSem = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100/portTICK_RATE_MS);
 
 	// Запросим каждый датчик, если ответит - пометим как активный
+//	while (1)	{ // тестовый цикл
 	for (int i=0; i<SQ; i++)
 	{
 		result = Sensor_Read(i);
@@ -162,6 +163,7 @@ void MB_Master_Init(void)
 
 		}
 	}
+//	} // тестовый цикл
 }
 // Функция запускает считывание с датчика
 MB_Error_t Sensor_Read(uint8_t SensIndex)
@@ -193,6 +195,14 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			result = MB_ERROR_WRONG_ADDRESS;
 			break;	}
 	}
+	/* Перед началом передачи очередного фрейма, необходима выдержка времени,
+	соответствующая 3,5 временам передачи одного байта данных (t3,5) после завершения передачи
+	предыдущего фрейма (или “ложной” передачи данных).
+	Передача одного байта - 11 бит (старт+8бит+чет+стоп), 19200 бит/с - 52 мкс/бит
+	Время между фреймами - 11*52*3,5 = 2 мс
+	Возьмём с запасом = 3 мс
+	*/
+	osDelay(3);	// обеспечение выдержки между фреймами >3.5 времени передачи байта
 	return result;
 }
 
@@ -211,55 +221,60 @@ MB_Error_t Master_Read(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, MB_
 	Command->StartReg = SwapBytes(START_REG);
 	Command->RegNum = SwapBytes(DATA);
 	Command->CRC_Sum = MB_GetCRC(MB->Tx_Buffer, 6);
-
-	result = Master_Request(MB);
 	T = 0;
 	H = 0;
-			switch (result)
-			{
-				case MB_ERROR_NO:
-					// данные приняты - проверяем достоверность
-					//(считаем CRC, вместе с принятым CRC, должно быть == 0
-					if CheckAnswerCRC
-					{
-						if (DATA == 2)
-						{// все проверки ОК, пишем два значения с датчика типа 1
-							H = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
-							T = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
-						}
-						else
-						{// все проверки ОК, пишем одно значение с датчика типа 2
-							H = 0;
-							T = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
-						}
-						Sensor_array[SensIndex].OkCnt++;
+	uint8_t repeat = 4;	// повтор чтения при ошибке
+
+	do {
+	result = Master_Request(MB);
+	repeat -= 1;		// минус 1 проход чтения из датчика
+		switch (result)
+		{
+			case MB_ERROR_NO:
+				// данные приняты - проверяем достоверность
+				//(считаем CRC, вместе с принятым CRC, должно быть == 0
+				repeat = 0;	// всё нормально, повторять чтение не будем
+				if CheckAnswerCRC
+				{
+					if (DATA == 2)
+					{// все проверки ОК, пишем два значения с датчика типа 1
+						H = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
+						T = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
 					}
 					else
-					{
-						Sensor_array[SensIndex].ErrCnt++;
-						result = MB_ERROR_UART_SEND;
+					{// все проверки ОК, пишем одно значение с датчика типа 2
+						H = 0;
+						T = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
 					}
-					break;
-				case MB_ERROR_DMA_SEND:
-					Sensor_array[SensIndex].TxErrorCnt++;
-					break;
-				case MB_ERROR_UART_SEND:
-					Sensor_array[SensIndex].TxErrorCnt++;
-					break;
-				case MB_ERROR_UART_RECIEVE:
-					Sensor_array[SensIndex].RxErrorCnt++;
-					break;
-				case MB_ERROR_DMA_RECIEVE:
-					Sensor_array[SensIndex].RxErrorCnt++;
-					break;
-				default:
-					break;
-			}
-			// запись в массив данных
-			Sensor::PutData(TimeFromStart, SensIndex, 1, TimeFromStart);
-			Sensor::PutData(TimeFromStart, SensIndex, 2, T);
-			Sensor::PutData(TimeFromStart, SensIndex, 3, H);
-			return result;
+					Sensor_array[SensIndex].OkCnt++;
+				}
+				else
+				{
+					Sensor_array[SensIndex].ErrCnt++;
+					result = MB_ERROR_UART_SEND;
+				}
+				break;
+			case MB_ERROR_DMA_SEND:
+				Sensor_array[SensIndex].TxErrorCnt++;
+				break;
+			case MB_ERROR_UART_SEND:
+				Sensor_array[SensIndex].TxErrorCnt++;
+				break;
+			case MB_ERROR_UART_RECIEVE:
+				Sensor_array[SensIndex].RxErrorCnt++;
+				break;
+			case MB_ERROR_DMA_RECIEVE:
+				Sensor_array[SensIndex].RxErrorCnt++;
+				break;
+			default:
+				break;
+		}
+	} while (repeat != 0);
+	// запись в массив данных
+	Sensor::PutData(TimeFromStart, SensIndex, 1, TimeFromStart);
+	Sensor::PutData(TimeFromStart, SensIndex, 2, T);
+	Sensor::PutData(TimeFromStart, SensIndex, 3, H);
+	return result;
 }
 
 /**************** ОБРАБОТКА ПРЕРЫВАНИЙ ***************************/
@@ -724,12 +739,14 @@ MB_Error_t Master_Request(MB_Active_t *MB)
 	// Включим направление - передача
 	HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_SET);
 	// Начинаем передачу отправкой буфера с записанной структурой в порт UART через DMA
+//	osDelay(1);	// задержка перед стартовым битом
+
 	result = HAL_UART_Transmit_DMA(MB->UART, MB->Tx_Buffer, 8);
 	if (result == HAL_OK)
 	{
 		// ПЕРЕДАЧА UART ***************************
 		// Ждём, пока UART всё передаст в шину и обработчик прерывания HAL_UART_TxCpltCallback выдаст токен семафора
-		resultSem = osSemaphoreAcquire(*MB->Sem_Tx, 200/portTICK_RATE_MS);
+		resultSem = osSemaphoreAcquire(*MB->Sem_Tx, 80/portTICK_RATE_MS);
 		if (resultSem != osOK)
 		{	// обработка ошибки передачи по UART
 			MB_ERR = MB_ERROR_UART_SEND;
@@ -742,15 +759,13 @@ MB_Error_t Master_Request(MB_Active_t *MB)
 
 		// ПРИЁМ DMA *******************************
 		// Инициируем приём с использованием DMA
-		osDelay(1);	// BUSY RX
 		result = HAL_UARTEx_ReceiveToIdle_DMA(MB->UART, MB->Rx_Buffer, MAX_MB_BUFSIZE);
 		if (result == HAL_OK)
 		{	// ReceiveToIdle_DMA отработал и вышел по тайм-ауту
 			// последнее значение в очереди = 0, ждём прерывание приёма по IDLE
 			// Ждём, когда приём закончится и прерывание выдаст токен семафора
-			//ответ должен нормально уложиться в 11 байт (1200 -> 6,7 ms на байт, всего 73,3 ms), это время функция ждёт токен семафора в состоянии блокировки
-			resultSem = osSemaphoreAcquire(*MB->Sem_Rx, 200/portTICK_RATE_MS);
-			osDelay(1);
+			//ответ должен нормально уложиться в 11 байт (1200 -> 9.1 ms на байт, всего на фрейм 72,8 ms), это время функция ждёт токен семафора в состоянии блокировки
+			resultSem = osSemaphoreAcquire(*MB->Sem_Rx, 80/portTICK_RATE_MS);
 			if (resultSem != osOK)
 			{	// прерывания не случилось, семафора не дождались, вышли по тайм-ауту
 				MB_ERR = MB_ERROR_UART_RECIEVE;
