@@ -2473,6 +2473,7 @@
       },
       {
         "Name": "Settings5",
+        "CanvasBufferSize": 3600,
         "Components": [
           {
             "Type": "Image",
@@ -3116,9 +3117,9 @@
             "LockPosition": true,
             "SelectedItemOffset": 78,
             "UseSelectedStyle": true,
-            "SelectedItemTemplateName": "ScrollSelectedItemContainer",
+            "SelectedItemTemplateName": "TextSelectedContainer",
             "IsCircular": true,
-            "ItemTemplateName": "ScrollItemContainer",
+            "ItemTemplateName": "TextContainer",
             "NumberofItems": 5,
             "Easing": "Back",
             "EasingOption": "Out",
@@ -3155,9 +3156,9 @@
             "LockPosition": true,
             "SelectedItemOffset": 78,
             "UseSelectedStyle": true,
-            "SelectedItemTemplateName": "ScrollSelectedItemContainer",
+            "SelectedItemTemplateName": "TextSelectedContainer",
             "IsCircular": true,
-            "ItemTemplateName": "ScrollItemContainer",
+            "ItemTemplateName": "TextContainer",
             "NumberofItems": 3,
             "Easing": "Back",
             "EasingOption": "Out",
@@ -4190,43 +4191,31 @@
             "RelativeFilename": "__generated\\alternate_theme_images_bars_240x240_bottom_light.png"
           },
           {
-            "Type": "BoxWithBorder",
-            "Name": "BoxScrollItem",
-            "Y": -2,
-            "Width": 240,
-            "Height": 54,
-            "Color": {
-              "Red": 78,
-              "Green": 118,
-              "Blue": 147
-            },
-            "BorderColor": {
-              "Red": 40,
-              "Green": 71,
-              "Blue": 87
-            },
-            "BorderSize": 4,
-            "Alpha": 121
-          },
-          {
             "Type": "TextArea",
             "Name": "ScrollItem",
             "X": 30,
-            "Y": 1,
-            "Width": 150,
-            "Height": 49,
+            "Y": 13,
+            "Width": 171,
+            "Height": 25,
             "TextId": "ScrollItem",
             "TextRotation": "0",
-            "Color": {
-              "Red": 52,
-              "Green": 94,
-              "Blue": 116
-            },
             "Wildcard1": {
               "TextId": "ScrollItem_W",
               "UseBuffer": true,
               "BufferSize": 10
             }
+          },
+          {
+            "Type": "Line",
+            "Name": "line1",
+            "Width": 240,
+            "Height": 70,
+            "StartX": 10.0,
+            "StartY": 48.0,
+            "EndX": 230.0,
+            "EndY": 48.0,
+            "LineWidth": 1.7,
+            "LineEndingStyle": "Round"
           }
         ],
         "Interactions": []
@@ -4241,15 +4230,15 @@
             "Name": "image1",
             "Width": 240,
             "Height": 50,
-            "RelativeFilename": "__generated\\alternate_theme_images_bars_240x240_bottom_base.png"
+            "RelativeFilename": "__generated\\alternate_theme_images_bars_240x240_bottom_light.png"
           },
           {
             "Type": "TextArea",
             "Name": "ScrollSelectedItem",
             "X": -1,
-            "Y": 1,
+            "Y": 11,
             "Width": 183,
-            "Height": 49,
+            "Height": 28,
             "TextId": "ScrollSelectedItem",
             "TextRotation": "0",
             "Color": {
@@ -4262,6 +4251,18 @@
               "UseBuffer": true,
               "BufferSize": 10
             }
+          },
+          {
+            "Type": "Line",
+            "Name": "line1",
+            "Width": 240,
+            "Height": 50,
+            "StartX": 10.0,
+            "StartY": 48.0,
+            "EndX": 230.0,
+            "EndY": 48.0,
+            "LineWidth": 1.7,
+            "LineEndingStyle": "Round"
           }
         ],
         "Interactions": []

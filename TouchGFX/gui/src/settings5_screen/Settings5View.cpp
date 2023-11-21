@@ -1,4 +1,8 @@
 #include <gui/settings5_screen/Settings5View.hpp>
+#include "string.h"
+
+extern SENSOR_Type_t Sensor_type[STQ];
+extern SENSOR_typedef_t Sensor_array[SQ];
 
     uint8_t Selected;				// нажатая кнопка: 0 - тип, 1 - скорость, 2 - адрес
     int16_t SetSensor = 0;			// вновь устанавливаемое значение типа датчика, выводится на экран
@@ -69,15 +73,27 @@ void StartProgrammingSensor(void *argument)
 //Запись значений в ScrollItemContainer и обновление на кнопке BTNSetSpeed
 //Заполнение колеса прокрутки значениями SensorType, в т.ч. при прокрутке колеса
 //Вызывается для каждого значения в массиве значений колеса
-void Settings5View::scrollSensorTypeUpdateItem(ScrollItemContainer& item, int16_t itemIndex)
+void Settings5View::scrollSensorTypeUpdateItem(TextContainer& item, int16_t itemIndex)
 {
-	item.updateScrollItem(itemIndex);
+//	item.updateScrollItem(itemIndex);
+	//	Формирование строки с именем типа датчика и его идентификатором
+	char str[20];
+	char FormatText[] = " %d";
+	strcpy(str, Sensor_type[itemIndex].TypeName);		// копирование PositionName в начало строки str, включая символ окончания строки \0
+	strcat(str, FormatText);							// добавление символа форматирования в строку str
+	item.updateTextItem(str, Sensor_type[itemIndex].TypeNumber);
 }
 
 //Заполнение фокусного значения SensorType в колесе прокрутки после остановки прокрутки даже после нажатия "Записать" в колесе
-void Settings5View::scrollSensorTypeUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex)
+void Settings5View::scrollSensorTypeUpdateCenterItem(TextSelectedContainer& item, int16_t itemIndex)
 {
-	item.updateScrollSelectedItem(itemIndex);
+//	item.updateScrollSelectedItem(itemIndex);
+	//	Формирование строки с именем типа датчика и его идентификатором
+	char str[20];
+	char FormatText[] = " %d";
+	strcpy(str, Sensor_type[itemIndex].TypeName);		// копирование PositionName в начало строки str, включая символ окончания строки \0
+	strcat(str, FormatText);							// добавление символа форматирования в строку str
+	item.updateTextSelectedItem(str, Sensor_type[itemIndex].TypeNumber);
 }
 
 //Запись значений в scrollSensorSpeedNew
@@ -92,8 +108,9 @@ void Settings5View::scrollSensorSpeedNewUpdateItem(ScrollItemContainer& item, in
 		case 2:		{
 			item.updateScrollItem(BaudRate_Type2[itemIndex]);
 			break;	}
-		default:
-			break;
+		default:	{
+			item.updateScrollItem(0);
+			break;	}
 	}
 }
 
@@ -107,22 +124,35 @@ void Settings5View::scrollSensorSpeedNewUpdateCenterItem(ScrollSelectedItemConta
 		case 2:		{
 			item.updateScrollSelectedItem(BaudRate_Type2[itemIndex]);
 			break;	}
-		default:
-			break;
+		default:	{
+			item.updateScrollSelectedItem(0);
+			break;	}
 	}
 }
 
 //Запись значений в SensorAddress
 //Заполнение колеса прокрутки значениями Sensor_array[itemIndex].Address, в т.ч. при прокрутке колеса
 //Вызывается для каждого значения в массиве значений колеса
-void Settings5View::scrollSensorAddressNewUpdateItem(ScrollItemContainer& item, int16_t itemIndex)
+void Settings5View::scrollSensorAddressNewUpdateItem(TextContainer& item, int16_t itemIndex)
 {
-    item.updateScrollItem(Sensor_array[itemIndex].Address);
+//    item.updateScrollItem(Sensor_array[itemIndex].Address);
+	//	Формирование строки с именем датчика и его адресом
+	char str[20];
+	char FormatText[] = " %d";
+	strcpy(str, Sensor_array[itemIndex].PositionName);	// копирование PositionName в начало строки str, включая символ окончания строки \0
+	strcat(str, FormatText);							// добавление символа форматирования в строку str
+	item.updateTextItem(str, Sensor_array[itemIndex].Address);
 }
 //Заполнение фокусного значения SensorAddress в колесе прокрутки после остановки прокрутки даже после нажатия "Записать" в колесе
-void Settings5View::scrollSensorAddressNewUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex)
+void Settings5View::scrollSensorAddressNewUpdateCenterItem(TextSelectedContainer& item, int16_t itemIndex)
 {
-	item.updateScrollSelectedItem(Sensor_array[itemIndex].Address);
+//	item.updateScrollSelectedItem(Sensor_array[itemIndex].Address);
+	//	Формирование строки с именем типа датчика и его идентификатором
+	char str[20];
+	char FormatText[] = " %d";
+	strcpy(str, Sensor_array[itemIndex].PositionName);	// копирование PositionName в начало строки str, включая символ окончания строки \0
+	strcat(str, FormatText);							// добавление символа форматирования в строку str
+	item.updateTextSelectedItem(str, Sensor_array[itemIndex].Address);
 }
 // Вызывается при установке значения в центральное положение в колесе, в фокус
 void Settings5View::scrollSensorTypeItemSelectedHandler(int16_t itemSelected)

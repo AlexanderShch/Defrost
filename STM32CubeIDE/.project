@@ -615,11 +615,6 @@
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/__generated/image_alternate_theme_images_backgrounds_240x320_gradient_light.cpp</locationURI>
 		</link>
 		<link>
-			<name>Application/User/generated/image_alternate_theme_images_bars_240x240_bottom_base.cpp</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/__generated/image_alternate_theme_images_bars_240x240_bottom_base.cpp</locationURI>
-		</link>
-		<link>
 			<name>Application/User/generated/image_alternate_theme_images_bars_240x240_bottom_light.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/__generated/image_alternate_theme_images_bars_240x240_bottom_light.cpp</locationURI>

@@ -15,12 +15,12 @@ public:
     virtual void setupScreen();
     virtual void tearDownScreen();
 
-    virtual void scrollSensorTypeUpdateItem(ScrollItemContainer& item, int16_t itemIndex);
-    virtual void scrollSensorTypeUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex);
+    virtual void scrollSensorTypeUpdateItem(TextContainer& item, int16_t itemIndex);
+    virtual void scrollSensorTypeUpdateCenterItem(TextSelectedContainer& item, int16_t itemIndex);
     virtual void scrollSensorSpeedNewUpdateItem(ScrollItemContainer& item, int16_t itemIndex);
     virtual void scrollSensorSpeedNewUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex);
-    virtual void scrollSensorAddressNewUpdateItem(ScrollItemContainer& item, int16_t itemIndex);
-    virtual void scrollSensorAddressNewUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex);
+    virtual void scrollSensorAddressNewUpdateItem(TextContainer& item, int16_t itemIndex);
+    virtual void scrollSensorAddressNewUpdateCenterItem(TextSelectedContainer& item, int16_t itemIndex);
     virtual void BTNWriteClicked();
     virtual void BTNSensorTypeClicked();
     virtual void BTNSetSpeedClicked();

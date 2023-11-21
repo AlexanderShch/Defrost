@@ -88,10 +88,10 @@
       <Text Id="ValueCoreT1" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
-      <Text Id="ScrollSelectedItem" Alignment="Right" TypographyId="LargeHighlight">
+      <Text Id="ScrollSelectedItem" Alignment="Right" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;</Translation>
       </Text>
-      <Text Id="ScrollItem" Alignment="Right" TypographyId="Large">
+      <Text Id="ScrollItem" Alignment="Right" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;</Translation>
       </Text>
     </TextGroup>

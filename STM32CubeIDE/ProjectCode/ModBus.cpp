@@ -509,13 +509,24 @@ void ProgrammingSensor()
 	{
 		switch (Model::Type_of_sensor)
 		{
-			case 0:		// датчика нет, тип датчика не назначен
+// тип 0 - датчика нет, тип датчика не назначен
+			case 0:
 				break;
-// тип 1 - это датчик совмещенного типа Т и Н GL-TH04-MT
-			case 1:
+// тип 3 - это датчик температуры BlueTooth
+			case 3:
 			{
-				while (Model::Type_of_sensor == 1)
-				{ // цикл сканирования датчика типа 1
+
+				break;
+			}
+// default  -  к нему относятся:
+			// тип 1 - это датчик совмещенного типа Т и Н GL-TH04-MT
+			// тип 2 - это датчик температуры РТ100 с RS485
+			default:
+			{
+				uint8_t TypeOfSens = Model::Type_of_sensor;
+				// цикл будет повторяться, пока оператор не выберет датчик другого типа
+				while (Model::Type_of_sensor == TypeOfSens)
+				{ // цикл сканирования датчика
 					result = ScanSensor(&PR);
 					OldBaudRate = Model::getCurrentBaudRate_PR();
 					OldAddress = Model::getCurrentAddress_PR();
@@ -535,21 +546,9 @@ void ProgrammingSensor()
 					osDelay(10); // таймаут
 					// если флаг записи (Model::Flag_WR_to_sensor) установлен, выполним запись данных в датчик
 					result = WriteToSensor(&PR);
-				} // конец цикла сканирования и записи в датчик типа 1
+				} // конец цикла сканирования и записи в датчик
 				break;
 			}
-// тип 2 - это датчик температуры РТ100 с RS485
-			case 2:
-			{
-
-				break;
-			}	// конец цикла сканирования и записи в датчик типа 2
-// тип 3 - это датчик температуры BlueTooth
-			case 3:
-			{
-
-				break;
-			}	// конец цикла сканирования и записи в датчик типа 3
 		}	// конец оператора switch
 	}	// конец бесконечного цикла
 }	// конец функции ProgrammingSensor()
@@ -575,16 +574,38 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 		// устанавливаем данные для записи нового адреса порта
 		WR_BaudRate = Model::BaudRate_WR_to_sensor;
 		WR_Address = Model::Address_WR_to_sensor;
+
 		// запись и чтение адреса
-		result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Addr, WR_Address);
+		switch (Model::Type_of_sensor) {
+			case 1:
+				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Addr, WR_Address);
+				break;
+			case 2:
+				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type2_Addr, WR_Address);
+				break;
+			default:
+				break;
+		}
+
 		// проверка записанного
 		if (result == MB_ERROR_NO)
 		{	//всё хорошо, датчик записан
 			if (Sens_WR_value == WR_Address)
-			{	// Считали то же, что и записали, теперь записываем и читаем скорость
+			{	// Считали то же, что и записали, поменяем адрес на вновь записанный
 				SensPortNumber = Sens_WR_value;
 				osDelay(10);	// нужно время на переключение датчика на новые параметры
-				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Baud, WR_BaudRate);
+
+				// теперь записываем и читаем скорость
+				switch (Model::Type_of_sensor) {
+					case 1:
+						result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Baud, WR_BaudRate);
+						break;
+					case 2:
+						result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type2_Baud, WR_BaudRate);
+						break;
+					default:
+						break;
+				}
 				if (result == MB_ERROR_NO)
 				{	//всё хорошо, датчик записан
 					// сбрасываем флаг записи в датчик
@@ -628,13 +649,15 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 		switch (Model::Type_of_sensor) {
 			case 1: 	{
 				PR_UART4_Init(BaudRate_Type1[i]);
+				// считываем два регистра: адрес и скорость
 				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type1_Addr, 2);
 
 				break; 	}
 			case 2: 	{
 				PR_UART4_Init(BaudRate_Type2[i]);
-				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type2_Addr, 2);
-
+				// считать из датчика можно только один регистр - адрес!
+				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type2_Addr, 1);
+				SensBaudRateIndex = i;
 				break; 	}
 			default:
 				break;
