@@ -103,4 +103,5 @@ uint8_t Model::FlagCurrentValue_PR_sensor = 0;
 int Model::BaudRate_WR_to_sensor = 0;
 uint8_t Model::Address_WR_to_sensor = 0;
 uint8_t Model::Flag_WR_to_sensor = 0;
+uint8_t Model::Flag_Alert = 0;
 

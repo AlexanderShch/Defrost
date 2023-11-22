@@ -2821,7 +2821,7 @@
               {
                 "Type": "TextButtonStyle",
                 "Y": 2,
-                "TextId": "BTNWrite",
+                "TextId": "BTNConfirm",
                 "TextRotation": "0",
                 "ColorReleased": {
                   "Red": 232,
@@ -3164,6 +3164,32 @@
             "EasingOption": "Out",
             "SwipeAcceleration": 1.0,
             "DragAcceleration": 1.0
+          },
+          {
+            "Type": "Image",
+            "Name": "Alert_Background",
+            "X": 12,
+            "Y": 45,
+            "Width": 214,
+            "Height": 150,
+            "Visible": false,
+            "RelativeFilename": "__generated\\alternate_theme_images_containers_small_wide_outlined_light.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "Alert_Message",
+            "X": 20,
+            "Y": 70,
+            "Width": 200,
+            "Height": 100,
+            "Visible": false,
+            "TextId": "Alert_Message",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 252,
+              "Green": 3,
+              "Blue": 3
+            }
           }
         ],
         "Interactions": [

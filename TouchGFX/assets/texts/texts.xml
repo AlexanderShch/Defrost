@@ -156,7 +156,7 @@
         <Translation Language="GB">Отмена</Translation>
       </Text>
       <Text Id="BTNWrite" Alignment="Center" TypographyId="Default">
-        <Translation Language="GB">Принять</Translation>
+        <Translation Language="GB">Запись</Translation>
       </Text>
       <Text Id="BTNSettings1" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Управление температурой в теле</Translation>
@@ -264,6 +264,12 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Unsorted">
+      <Text Id="BTNConfirm" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Принять</Translation>
+      </Text>
+      <Text Id="Alert_Message" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Скорость модуля&#10;будет изменена&#10;после отключения&#10;питания модуля</Translation>
+      </Text>
       <Text Id="textAreaSelected_W" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">New Text</Translation>
       </Text>

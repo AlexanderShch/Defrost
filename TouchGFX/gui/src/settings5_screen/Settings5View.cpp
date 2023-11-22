@@ -4,7 +4,7 @@
 extern SENSOR_Type_t Sensor_type[STQ];
 extern SENSOR_typedef_t Sensor_array[SQ];
 
-    uint8_t Selected;				// нажатая кнопка: 0 - тип, 1 - скорость, 2 - адрес
+    uint8_t Selected;				// нажата кнопка "Принять": 0 - тип, 1 - скорость, 2 - адрес, 3 - предупреждение
     int16_t SetSensor = 0;			// вновь устанавливаемое значение типа датчика, выводится на экран
     int16_t SetSensorOld = 0;		// старое значение типа датчика, сохраняется на время выбора в колесе нового значения
     uint8_t SetSpeed;
@@ -222,7 +222,7 @@ void Settings5View::BTNSetAddressClicked()
 	BTNWrite.invalidate();
 }
 
-//Кнопка подтверждения "Записать" выбранного значения в колесе прокрутки
+//Кнопка подтверждения "Принять"
 void Settings5View::BTNConfirmClicked()
 {
 	switch (Selected)
@@ -252,6 +252,14 @@ void Settings5View::BTNConfirmClicked()
 			Unicode::snprintf(BTNSetAddressBuffer, BTNSETADDRESS_SIZE, "%d", SetAddress);
 			BTNSetAddress.invalidate();
 			scrollSensorAddressNew.setVisible(false);
+			break;
+		case 3:
+			Model::Flag_Alert = 0;
+			Alert_Background.setVisible(false);
+			Alert_Message.setVisible(false);
+			BTNConfirm.setVisible(false);
+			Alert_Background.invalidate();
+			Alert_Message.invalidate();
 			break;
 	}
 	BTNConfirm.setVisible(false);
@@ -346,5 +354,19 @@ void Settings5View::Val_BaudRate_UpdateView(uint8_t Val)
 		BTNWrite.setVisible(false);
 	}
 	SensorCurrentSpeed.invalidate();
+}
+
+// Выод на экран сообщения о необходимости сбросить питание модуля
+void Settings5View::Alert_Message_Output()
+{
+	Selected = 3;
+	Alert_Background.setVisible(true);
+	Alert_Message.setVisible(true);
+	BTNConfirm.setVisible(true);
+	BTNWrite.setVisible(false);
+	Alert_Background.invalidate();
+	Alert_Message.invalidate();
+	BTNConfirm.invalidate();
+	BTNWrite.invalidate();
 }
 

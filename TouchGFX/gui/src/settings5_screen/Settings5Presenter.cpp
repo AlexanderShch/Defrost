@@ -21,6 +21,10 @@ void Settings5Presenter::deactivate()
 
 void Settings5Presenter::ValUpdatePresenter()
 {
+	if (Model::Flag_Alert == 1) {
+		view.Alert_Message_Output();
+	}
+
 	if (Model::getFlagCurrentVal_PR_Chng() == 1)
 	{
 		Model::clearFlagCurrentVal_PR_Chng();

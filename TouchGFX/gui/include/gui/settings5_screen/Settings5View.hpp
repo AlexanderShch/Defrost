@@ -30,6 +30,7 @@ public:
 
     virtual void Val_Addr_UpdateView(uint8_t Val);
     virtual void Val_BaudRate_UpdateView(uint8_t Val);
+    virtual void Alert_Message_Output();
 
 protected:
     // В классе Settings5View

@@ -51,6 +51,7 @@ public:
     static uint8_t Type_of_sensor;			// установленное значение типа датчика
     static uint8_t Address_WR_to_sensor;	// адрес для записи в датчик
     static uint8_t Flag_WR_to_sensor;		// флаг готовности данных для записи в датчик
+    static uint8_t Flag_Alert;				// флаг всплывающего окна предупреждения
 
 protected:
     ModelListener* modelListener;
