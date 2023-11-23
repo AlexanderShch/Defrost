@@ -227,13 +227,13 @@ void Settings5View::BTNConfirmClicked()
 {
 	switch (Selected)
 	{
-		case 0:
+		case 0:		// обработка выбора типа датчика
 			SetSensorOld = SetSensor;
 			Unicode::snprintf(BTNSensorTypeBuffer, BTNSENSORTYPE_SIZE, "%d", SetSensor);
 			scrollSensorType.setVisible(false);
 			presenter -> PR_Sensor_Type(SetSensor);
 			break;
-		case 1:
+		case 1:		// обработка выбора скорости датчика
 			SetSpeedOld = SetSpeed;
 			switch (SetSensor) {
 				case 1:		{
@@ -247,13 +247,13 @@ void Settings5View::BTNConfirmClicked()
 			}
 			scrollSensorSpeedNew.setVisible(false);
 			break;
-		case 2:
+		case 2:		// обработка выбора адреса датчика
 			SetAddressOld = SetAddress;
 			Unicode::snprintf(BTNSetAddressBuffer, BTNSETADDRESS_SIZE, "%d", SetAddress);
 			BTNSetAddress.invalidate();
 			scrollSensorAddressNew.setVisible(false);
 			break;
-		case 3:
+		case 3:		// обработка подтверждения прочтения предупреждения
 			Model::Flag_Alert = 0;
 			Alert_Background.setVisible(false);
 			Alert_Message.setVisible(false);

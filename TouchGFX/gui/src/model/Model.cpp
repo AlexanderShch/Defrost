@@ -97,11 +97,18 @@ int8_t Model::FlagCurrentValueTChanged[SQ] = {0};
 int Model::CurrentValueH[SQ] = {0};
 int8_t Model::FlagCurrentValueHChanged[SQ] = {0};
 uint8_t Model::Type_of_sensor = 0;
-uint8_t Model::BaudRate_PR_sensor = 0;
-uint8_t Model::Address_PR_sensor = 0;
-uint8_t Model::FlagCurrentValue_PR_sensor = 0;
 int Model::BaudRate_WR_to_sensor = 0;
 uint8_t Model::Address_WR_to_sensor = 0;
 uint8_t Model::Flag_WR_to_sensor = 0;
 uint8_t Model::Flag_Alert = 0;
+uint8_t Model::BaudRate_PR_sensor = 0;
+uint8_t Model::Address_PR_sensor = 0;
+uint8_t Model::FlagCurrentValue_PR_sensor = 0;
 
+// определение переменных для корректировки
+uint8_t Model::Index_CORR_sensor;			// индекс корректируемого датчика в массиве датчиков
+uint8_t Model::Flag_CORR_ready = 0;
+int Model::T_CORR_sensor = 0;				// Текущая температура
+int Model::HR_CORR_sensor = 0;				// Текущая влажность (сопротивление для типа 2),
+int Model::dT_CORR_sensor = 0;				// Корректировка температуры
+int Model::dHR_CORR_sensor = 0;				// Корректировка влажности (сопротивления для типа 2),

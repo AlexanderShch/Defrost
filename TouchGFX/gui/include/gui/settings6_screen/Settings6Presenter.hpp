@@ -26,6 +26,8 @@ public:
     virtual void deactivate();
 
     virtual ~Settings6Presenter() {}
+    virtual void Corr_Sensor_Addr(uint8_t SetAddress);	// передача в обработку выбранного на экране адреса датчика для корректировки
+    virtual void Corr_Scan(bool flag);					// установка флага разрешения сканирования датчика для корректировки
 
 private:
     Settings6Presenter();

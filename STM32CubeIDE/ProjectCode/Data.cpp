@@ -144,10 +144,13 @@ void ReadDataFunc() {
 					Model::setCurrentVal_H(SensorIndex, HumNew);
 				}
 			}
-		// установка флага FLAG_DataAnalysis для запуска задачи DataAnalysis
+		// работа с корректировкой датчика
 
-		}
-	}
+
+			// установка флага FLAG_DataAnalysis для запуска задачи DataAnalysis
+
+		}	// конец цикла опроса датчиков
+	}	// конец рабочего цикла
 }
 
 // 3. The task DataAnalysis processing data from sensors

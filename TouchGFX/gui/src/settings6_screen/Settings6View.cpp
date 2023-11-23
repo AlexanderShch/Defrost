@@ -38,10 +38,9 @@ void Settings6View::setupScreen()
     scrollSensorAddress.setItemSelectedCallback(scrollSensorAddressItemSelectedCallback);
 
     FlagWrite_visible = 0;
-//    SetSpeed = 0;
     SetAddress = 0;
 	SetSensor = 0;
-//	presenter -> PR_Sensor_Type(SetSensor);
+	presenter -> Corr_Scan(false);	// датчик не выбран, сканирование датчика не разрешено
 }
 
 void Settings6View::tearDownScreen()
@@ -171,19 +170,22 @@ void Settings6View::BTNConfirmClicked()
 {
 	switch (Selected)
 	{
-		case 0:		{
-			SetSensorOld = SetSensor;
-			Unicode::snprintf(BTNSensorTypeBuffer, BTNSENSORTYPE_SIZE, "%d", SetSensor);
-			scrollSensorType.setVisible(false);
-			scrollSensorType.invalidate();
-//			presenter -> PR_Sensor_Type(SetSensor);
+		case 0:		{	// выбор типа датчика
+//			SetSensorOld = SetSensor;
+//			Unicode::snprintf(BTNSensorTypeBuffer, BTNSENSORTYPE_SIZE, "%d", SetSensor);
+//			scrollSensorType.setVisible(false);
+//			scrollSensorType.invalidate();
+////			presenter -> PR_Sensor_Type(SetSensor);
 			break;	}
-		case 1:		{
+		case 1:		{	// выбор адреса датчика
 			SetAddressOld = SetAddress;
 			Unicode::snprintf(BTNSetAddressBuffer, BTNSETADDRESS_SIZE, "%d", SetAddress);
-//			BTNSetAddress.invalidate();
 			scrollSensorAddress.setVisible(false);
 			scrollSensorAddress.invalidate();
+			// передадим адрес в программу управления
+			presenter -> Corr_Sensor_Addr(SetAddress);
+			presenter -> Corr_Scan(true);	// датчик выбран, сканирование датчика разрешено
+
 			break;	}
 		case 2:
 //			SetSpeedOld = SetSpeed;
@@ -215,12 +217,12 @@ void Settings6View::BTNCancelClicked()
 {
 	switch (Selected)
 	{
-		case 0:		{
+		case 0:		{	// обработка выбора типа датчика
 			SetSensor = SetSensorOld;
 			scrollSensorType.setVisible(false);
 			scrollSensorType.invalidate();
 			break;	}
-		case 1:		{
+		case 1:		{	// обработка выбора адреса
 			SetAddress = SetAddressOld;
 			scrollSensorAddress.setVisible(false);
 			scrollSensorAddress.invalidate();
@@ -244,16 +246,16 @@ void Settings6View::BTNCancelClicked()
 //Запуск колеса прокрутки "Выбор типа датчика"
 void Settings6View::BTNSensorTypeClicked()
 {
-	Selected = 0;
-	SetSensorOld = SetSensor;
-	scrollSensorType.setVisible(true);
-	scrollSensorType.invalidate();
-	BTNConfirm.setVisible(true);
-	BTNConfirm.invalidate();
-	BTNCancel.setVisible(true);
-	BTNCancel.invalidate();
-	BTNWrite.setVisible(false);
-	BTNWrite.invalidate();
+//	Selected = 0;
+//	SetSensorOld = SetSensor;
+//	scrollSensorType.setVisible(true);
+//	scrollSensorType.invalidate();
+//	BTNConfirm.setVisible(true);
+//	BTNConfirm.invalidate();
+//	BTNCancel.setVisible(true);
+//	BTNCancel.invalidate();
+//	BTNWrite.setVisible(false);
+//	BTNWrite.invalidate();
 }
 //Запуск колеса прокрутки "Выбор адреса датчика"
 void Settings6View::BTNSetAddressClicked()

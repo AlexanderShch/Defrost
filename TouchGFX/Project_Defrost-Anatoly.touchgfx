@@ -3470,7 +3470,7 @@
             "Type": "FlexButton",
             "Name": "BTNSetAddress",
             "X": 146,
-            "Y": 120,
+            "Y": 76,
             "Width": 81,
             "Height": 32,
             "ButtonTrigger": {
@@ -3531,7 +3531,7 @@
             "Type": "FlexButton",
             "Name": "BTNSensorType",
             "X": 146,
-            "Y": 76,
+            "Y": 110,
             "Width": 81,
             "Height": 33,
             "ButtonTrigger": {
@@ -3734,7 +3734,7 @@
               {
                 "Type": "TextButtonStyle",
                 "Y": 2,
-                "TextId": "BTNWrite",
+                "TextId": "BTNConfirm",
                 "TextRotation": "0",
                 "ColorReleased": {
                   "Red": 232,
@@ -3885,7 +3885,7 @@
             "Y": 174,
             "Width": 21,
             "Height": 23,
-            "TextId": "__SingleUse_E279",
+            "TextId": "Label_T",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -3900,7 +3900,7 @@
             "Y": 174,
             "Width": 23,
             "Height": 23,
-            "TextId": "__SingleUse_917H",
+            "TextId": "Label_R",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -3911,11 +3911,11 @@
           {
             "Type": "TextArea",
             "Name": "LabelAddrSelect",
-            "X": 64,
-            "Y": 121,
+            "X": 63,
+            "Y": 77,
             "Width": 70,
             "Height": 31,
-            "TextId": "__SingleUse_1ZUM",
+            "TextId": "LabelAddr",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -3926,8 +3926,8 @@
           {
             "Type": "TextArea",
             "Name": "LabelSensorTypeSelect",
-            "X": 5,
-            "Y": 80,
+            "X": 6,
+            "Y": 114,
             "Width": 128,
             "Height": 24,
             "TextId": "LabelSensorTypeSelect",
