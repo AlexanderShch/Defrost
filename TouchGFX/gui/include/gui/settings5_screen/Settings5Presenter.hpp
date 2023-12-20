@@ -27,7 +27,7 @@ public:
 
     virtual ~Settings5Presenter() {}
 
-    virtual void ValUpdatePresenter();
+    virtual void ValUpdatePresenter();	// функция запускается из Model, служит для обновления параметров на экране
     virtual void PR_Sensor_Data_Write(uint8_t SetSpeed, uint8_t SetAddress);
     virtual void PR_Sensor_Type(uint8_t SetSensor);
 private:

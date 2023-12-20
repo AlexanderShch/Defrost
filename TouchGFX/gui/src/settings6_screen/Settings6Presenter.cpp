@@ -16,12 +16,47 @@ void Settings6Presenter::deactivate()
 {
 
 }
+// обновим данные на экране
+void Settings6Presenter::ValUpdatePresenter()
+{
+	if (Model::Flag_Corr_T_changed == 1) {
+		view.CorrData_T_View();
+	}
+	if (Model::Flag_Corr_HR_changed == 1) {
+		view.CorrData_HR_View();
+	}
+}
 
+// передадим адрес в программу управления (Model)
 void Settings6Presenter::Corr_Sensor_Addr(uint8_t SetAddress)
 {
 	Model::Index_CORR_sensor = SetAddress;
 }
 
+// передадим значения корректировки в программу управления (Model)
+void Settings6Presenter::Corr_Sensor_Addr(uint8_t CORR_Type, int16_t CORR_Value)
+{
+	switch (CORR_Type) {
+		case 2:	// T
+			Model::CORR_T_sensor = CORR_Value;
+			break;
+		case 3:	// H
+			Model::CORR_H_sensor = CORR_Value;
+			break;
+		case 4:	// R
+			Model::CORR_R_sensor = CORR_Value;
+			break;
+		default:
+			break;
+	}
+}
+
+// установим в программе управления (Model) флаг разрешения записи в датчик
+void Settings6Presenter::Corr_Flag_Write()
+{
+			Model::Flag_WR_to_sensor = 1;
+}
+// сканирование датчика разрешено/запрещено программирование и установка флага в Model
 void Settings6Presenter::Corr_Scan(bool flag)
 {
 	if (flag)

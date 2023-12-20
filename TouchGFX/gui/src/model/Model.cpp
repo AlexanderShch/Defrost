@@ -107,8 +107,14 @@ uint8_t Model::FlagCurrentValue_PR_sensor = 0;
 
 // определение переменных для корректировки
 uint8_t Model::Index_CORR_sensor;			// индекс корректируемого датчика в массиве датчиков
-uint8_t Model::Flag_CORR_ready = 0;
+uint8_t Model::Flag_CORR_ready = 0;			// флаг готовности корректировать датчик
 int Model::T_CORR_sensor = 0;				// Текущая температура
 int Model::HR_CORR_sensor = 0;				// Текущая влажность (сопротивление для типа 2),
-int Model::dT_CORR_sensor = 0;				// Корректировка температуры
-int Model::dHR_CORR_sensor = 0;				// Корректировка влажности (сопротивления для типа 2),
+//int Model::dT_CORR_sensor = 0;				// Корректировка температуры
+//int Model::dHR_CORR_sensor = 0;				// Корректировка влажности (сопротивления для типа 2),
+uint8_t Model::Flag_Corr_T_changed = 0;		// флаг для обновления данных на экране
+uint8_t Model::Flag_Corr_HR_changed = 0;	// флаг для обновления данных на экране
+int16_t Model::CORR_T_sensor = 0;			// значение T для корректировки
+int16_t Model::CORR_H_sensor = 0;			// значение H для корректировки
+int16_t Model::CORR_R_sensor = 0;			// значение R для корректировки
+

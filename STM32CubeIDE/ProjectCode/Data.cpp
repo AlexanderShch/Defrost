@@ -27,6 +27,9 @@ unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// number of time quantum measuring
 int Sensor::T[TQ][SQ] = {{0}};		// temperature
 int Sensor::H[TQ][SQ] = {{0}};		// humidity
+int Sensor::Read_Data_1 = 0;		// первый считанный из датчика параметр, обычно это Н
+int Sensor::Read_Data_2 = 0;		// второй считанный из датчика параметр, обычно это Т
+
 
 /* Функция записывает int Val в массив данных, полученных с датчиков.
  * Параметр Param определяет, какой величиной массива является int Val.
@@ -106,6 +109,8 @@ void DataTimerFunc()
 void ReadDataFunc() {
 	int TempOld, HumOld = 0;
 	int TempNew, HumNew = 0;
+	int T_CORR_Old, HR_CORR_Old = 0;
+	int T_CORR_New, HR_CORR_New = 0;
 
 	// Инициализация датчиков при запуске задачи
 	MB_Master_Init();
@@ -145,7 +150,30 @@ void ReadDataFunc() {
 				}
 			}
 		// работа с корректировкой датчика
+			if (Model::Flag_CORR_ready == 1) {
+				T_CORR_Old = Model::T_CORR_sensor;
+				HR_CORR_Old = Model::HR_CORR_sensor;
+				// считаем параметры датчика
+				result = Sensor_Read_CORR_param(Model::Index_CORR_sensor);
+				if (result == MB_ERROR_NO)
+				{
+					T_CORR_New = Model::T_CORR_sensor;
+					HR_CORR_New = Model::HR_CORR_sensor;
+					if (T_CORR_Old != T_CORR_New) {
+						Model::Flag_Corr_T_changed = 1;		// флаг для обновления данных на экране
+					};
+					if (HR_CORR_Old != HR_CORR_New) {
+						Model::Flag_Corr_HR_changed = 1;	// флаг для обновления данных на экране
+					};
+				}	// закончили считывать параметры с датчика
+				// запишем корректировки в датчик
+				if (Model::Flag_WR_to_sensor == 1)
+				{
+					Model::Flag_WR_to_sensor = 0;
+					Model::Index_CORR_sensor;
 
+				}
+			}
 
 			// установка флага FLAG_DataAnalysis для запуска задачи DataAnalysis
 

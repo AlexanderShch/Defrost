@@ -100,7 +100,7 @@ typedef struct
 	osSemaphoreId_t *Sem_Tx;
 	osSemaphoreId_t *Sem_Rx;
 
-} MB_Active_t;							// среда работы датчика
+} MB_Active_t;										// среда работы датчика
 
 MB_Error_t Master_Request(MB_Active_t *MB);
 MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, MB_Reg_t START_REG, uint16_t DATA);
@@ -111,6 +111,7 @@ MB_Error_t WriteToSensor(MB_Active_t *PR);
 #define CheckAnswerCRC (MB->Rx_Buffer[1] == CMD && MB_GetCRC(MB->Rx_Buffer, MB->Rx_Buffer[2] + 5) == 0)
 // при записи в датчик всегда передаётся 8 байт
 #define PR_CheckAnswerCRC (MB->Rx_Buffer[1] == CMD && MB_GetCRC(MB->Rx_Buffer, 8) == 0)
+int Parametr_CORR;
 
 /************** ДАТЧИКИ ****************************/
 /***************************************************/
@@ -165,7 +166,7 @@ void MB_Master_Init(void)
 	}
 //	} // тестовый цикл
 }
-// Функция запускает считывание с датчика
+// Функция запускает считывание с датчика в рабочем режиме
 MB_Error_t Sensor_Read(uint8_t SensIndex)
 {
 	MB_Error_t result = MB_ERROR_NO;
@@ -195,6 +196,34 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			result = MB_ERROR_WRONG_ADDRESS;
 			break;	}
 	}
+	// Обработка считанных данных
+	switch (result)
+	{
+		case MB_ERROR_NO:
+			Sensor_array[SensIndex].OkCnt++;
+			// запись в массив данных
+			Sensor::PutData(TimeFromStart, SensIndex, 1, TimeFromStart);
+			Sensor::PutData(TimeFromStart, SensIndex, 2, Sensor::Read_Data_2);	// запись Т
+			Sensor::PutData(TimeFromStart, SensIndex, 3, Sensor::Read_Data_1);	// запись Н
+			break;
+		case MB_ERROR_DMA_SEND:
+			Sensor_array[SensIndex].TxErrorCnt++;
+			break;
+		case MB_ERROR_UART_SEND:
+			Sensor_array[SensIndex].TxErrorCnt++;
+			break;
+		case MB_ERROR_UART_RECIEVE:
+			Sensor_array[SensIndex].RxErrorCnt++;
+			break;
+		case MB_ERROR_DMA_RECIEVE:
+			Sensor_array[SensIndex].RxErrorCnt++;
+			break;
+		default:
+			Sensor_array[SensIndex].ErrCnt++;
+			result = MB_ERROR_UART_SEND;
+			break;
+	}
+
 	/* Перед началом передачи очередного фрейма, необходима выдержка времени,
 	соответствующая 3,5 временам передачи одного байта данных (t3,5) после завершения передачи
 	предыдущего фрейма (или “ложной” передачи данных).
@@ -206,10 +235,9 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 	return result;
 }
 
-// Функция считывает данные с датчика типа 1 GL-TH04-MT
+// Функция считывает данные с датчика
 MB_Error_t Master_Read(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, MB_Reg_t START_REG, uint8_t DATA)
 {
-	int T, H;
 	MB_Error_t result;
 	// Выполним приведение типа: указателю Command присвоим указатель буфера, буфер примет тип MB_Frame_t
 	MB_Frame_t *Command = (MB_Frame_t*) &MB->Tx_Buffer;
@@ -221,59 +249,37 @@ MB_Error_t Master_Read(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, MB_
 	Command->StartReg = SwapBytes(START_REG);
 	Command->RegNum = SwapBytes(DATA);
 	Command->CRC_Sum = MB_GetCRC(MB->Tx_Buffer, 6);
-	T = 0;
-	H = 0;
+	Sensor::Read_Data_1 = 0;
+	Sensor::Read_Data_2 = 0;
 	uint8_t repeat = 4;	// повтор чтения при ошибке
 
 	do {
-	result = Master_Request(MB);
-	repeat -= 1;		// минус 1 проход чтения из датчика
-		switch (result)
+		result = Master_Request(MB);
+		repeat -= 1;		// минус 1 проход чтения из датчика
+		if (result == MB_ERROR_NO)
 		{
-			case MB_ERROR_NO:
-				// данные приняты - проверяем достоверность
-				//(считаем CRC, вместе с принятым CRC, должно быть == 0
-				repeat = 0;	// всё нормально, повторять чтение не будем
-				if CheckAnswerCRC
-				{
-					if (DATA == 2)
-					{// все проверки ОК, пишем два значения с датчика типа 1
-						H = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
-						T = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
-					}
-					else
-					{// все проверки ОК, пишем одно значение с датчика типа 2
-						H = 0;
-						T = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
-					}
-					Sensor_array[SensIndex].OkCnt++;
+			// данные приняты - проверяем достоверность
+			//(считаем CRC, вместе с принятым CRC, должно быть == 0
+			repeat = 0;	// всё нормально, повторять чтение не будем
+			if CheckAnswerCRC
+			{
+				if (DATA == 2)
+				{// все проверки ОК, пишем два значения с датчика типа 1
+					Sensor::Read_Data_1 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
+					Sensor::Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
 				}
 				else
-				{
-					Sensor_array[SensIndex].ErrCnt++;
-					result = MB_ERROR_UART_SEND;
+				{// все проверки ОК, пишем одно значение с датчика типа 2
+					Sensor::Read_Data_1 = 0;
+					Sensor::Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
 				}
-				break;
-			case MB_ERROR_DMA_SEND:
-				Sensor_array[SensIndex].TxErrorCnt++;
-				break;
-			case MB_ERROR_UART_SEND:
-				Sensor_array[SensIndex].TxErrorCnt++;
-				break;
-			case MB_ERROR_UART_RECIEVE:
-				Sensor_array[SensIndex].RxErrorCnt++;
-				break;
-			case MB_ERROR_DMA_RECIEVE:
-				Sensor_array[SensIndex].RxErrorCnt++;
-				break;
-			default:
-				break;
+			}
+			else
+			{
+				result = MB_ERROR_UART_SEND;
+			}
 		}
 	} while (repeat != 0);
-	// запись в массив данных
-	Sensor::PutData(TimeFromStart, SensIndex, 1, TimeFromStart);
-	Sensor::PutData(TimeFromStart, SensIndex, 2, T);
-	Sensor::PutData(TimeFromStart, SensIndex, 3, H);
 	return result;
 }
 
@@ -661,7 +667,6 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 				PR_UART4_Init(BaudRate_Type2[i]);
 				// считать из датчика можно только один регистр - адрес!
 				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type2_Addr, 1);
-				SensBaudRateIndex = i;
 				break; 	}
 			default:
 				break;
@@ -827,3 +832,90 @@ void PR_UART4_Init(int BaudRateValue)
     Error_Handler();
   }
 }
+
+/*
+ * ******************  КОРРЕКТИРОВКА **************************
+ */
+// Функция считывает параметры с датчика
+MB_Error_t Sensor_Read_CORR_param(uint8_t SensIndex)
+{
+	MB_Error_t result = MB_ERROR_NO;
+	MB_Active_t SW;						// объявляем среду работы с датчиками
+	// Инициируем среду для работы датчика
+	SW.UART = &huart5;
+	SW.PORT = MB_MASTER_DE_GPIO_Port;
+	SW.PORT_PIN = MB_MASTER_DE_Pin;
+	SW.Sem_Rx = &RX_Compl_SemHandle;
+	SW.Sem_Tx = &TX_Compl_SemHandle;
+	// Считываем данные с датчика определённого типа
+	switch (Sensor_array[SensIndex].TypeOfSensor)
+	{
+	// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
+		case 1:		{
+			// Запросим данные с датчика
+			result = Master_Read(&SW, SensIndex, MB_CMD_READ_REGS, Type1_H, 2);
+			Model::HR_CORR_sensor = Sensor::Read_Data_1;
+			Model::T_CORR_sensor = Sensor::Read_Data_2;
+			break; 	}
+	// тип датчика: 2 - датчик температуры РТ100 с RS485
+		case 2:		{
+			// Запросим данные с датчика
+			// Одно значение получаем всегда в Read_Data_2
+			result = Master_Read(&SW, SensIndex, MB_CMD_READ_REGS, Type2_R, 1);
+			Model::HR_CORR_sensor = Sensor::Read_Data_2;
+			result = Master_Read(&SW, SensIndex, MB_CMD_READ_REGS, Type2_T, 1);
+			Model::T_CORR_sensor = Sensor::Read_Data_2;
+			break;	}
+		default:	{
+			result = MB_ERROR_WRONG_ADDRESS;
+			break;	}
+	}
+	/* Перед началом передачи очередного фрейма, необходима выдержка времени,
+	соответствующая 3,5 временам передачи одного байта данных (t3,5) после завершения передачи
+	предыдущего фрейма (или “ложной” передачи данных).
+	Передача одного байта - 11 бит (старт+8бит+чет+стоп), 19200 бит/с - 52 мкс/бит
+	Время между фреймами - 11*52*3,5 = 2 мс
+	Возьмём с запасом = 3 мс
+	*/
+	osDelay(3);	// обеспечение выдержки между фреймами >3.5 времени передачи байта
+	return result;
+}
+
+// Функция записывает в датчик
+MB_Error_t Sensor_Write(uint8_t SensIndex, MB_Reg_t Addr, int16_t CORR_Data)
+{
+	MB_Error_t result = MB_ERROR_NO;
+	MB_Active_t SW;						// объявляем среду работы с датчиками
+	// Инициируем среду для работы датчика
+	SW.UART = &huart5;
+	SW.PORT = MB_MASTER_DE_GPIO_Port;
+	SW.PORT_PIN = MB_MASTER_DE_Pin;
+	SW.Sem_Rx = &RX_Compl_SemHandle;
+	SW.Sem_Tx = &TX_Compl_SemHandle;
+	// Записываем данные в датчик определённого типа
+	switch (Sensor_array[SensIndex].TypeOfSensor)
+	{
+	// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
+		case 1:		{
+			result = Master_Read(&SW, SensIndex, MB_CMD_WRITE_REG, Addr, CORR_Data);
+			break; 	}
+	// тип датчика: 2 - датчик температуры РТ100 с RS485
+		case 2:		{
+			result = Master_Read(&SW, SensIndex, MB_CMD_WRITE_REG, Addr, CORR_Data);
+			break;	}
+		default:	{
+			result = MB_ERROR_WRONG_ADDRESS;
+			break;	}
+	}
+
+	/* Перед началом передачи очередного фрейма, необходима выдержка времени,
+	соответствующая 3,5 временам передачи одного байта данных (t3,5) после завершения передачи
+	предыдущего фрейма (или “ложной” передачи данных).
+	Передача одного байта - 11 бит (старт+8бит+чет+стоп), 19200 бит/с - 52 мкс/бит
+	Время между фреймами - 11*52*3,5 = 2 мс
+	Возьмём с запасом = 3 мс
+	*/
+	osDelay(3);	// обеспечение выдержки между фреймами >3.5 времени передачи байта
+	return result;
+}
+

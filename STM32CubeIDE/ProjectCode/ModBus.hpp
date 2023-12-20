@@ -137,6 +137,8 @@ MB_Error_t Sensor_Read(uint8_t SensIndex);
 void MB_Master_Init(void);
 void ProgrammingSensor(void);
 void PR_UART4_Init(int BaudRateValue);
+MB_Error_t Sensor_Read_CORR_param(uint8_t SensIndex);
+
 
 #endif /* MODBUS_HPP_ */
 

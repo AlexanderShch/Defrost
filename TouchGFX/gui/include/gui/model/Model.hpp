@@ -58,8 +58,13 @@ public:
     static uint8_t Flag_CORR_ready;			// флаг готовности к корректировке датчика
     static int T_CORR_sensor;				// Текущая температура
     static int HR_CORR_sensor;				// Текущая влажность (сопротивление для типа 2),
-    static int dT_CORR_sensor;				// Корректировка температуры
-    static int dHR_CORR_sensor;				// Корректировка влажности (сопротивления для типа 2),
+//    static int dT_CORR_sensor;				// Корректировка температуры
+//    static int dHR_CORR_sensor;				// Корректировка влажности (сопротивления для типа 2),
+    static uint8_t Flag_Corr_T_changed;		// флаг для обновления данных на экране
+    static uint8_t Flag_Corr_HR_changed;	// флаг для обновления данных на экране
+    static int16_t CORR_T_sensor;			// значение T для корректировки
+    static int16_t CORR_H_sensor;			// значение H для корректировки
+    static int16_t CORR_R_sensor;			// значение R для корректировки
 protected:
     ModelListener* modelListener;
     static int CurrentValueT[SQ];				// текущее значение Т на экране

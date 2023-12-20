@@ -37,8 +37,8 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Wildcard_labels">
-      <Text Id="__SingleUse_RBOR" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">&lt;value&gt;</Translation>
+      <Text Id="__SingleUse_RBOR" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt; </Translation>
       </Text>
       <Text Id="ScrollSelectedDigit" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;</Translation>
@@ -54,9 +54,6 @@
       </Text>
       <Text Id="textAreaSelected" Alignment="Right" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;</Translation>
-      </Text>
-      <Text Id="BTNSetCorrection" Alignment="Right" TypographyId="Default">
-        <Translation Language="GB">&lt;value&gt; </Translation>
       </Text>
       <Text Id="SensorCurrentSpeed" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;</Translation>
@@ -117,11 +114,20 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Wildcards">
+      <Text Id="BTN_H_Correction_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">000.0</Translation>
+      </Text>
+      <Text Id="CurrentValue_H_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">000.0</Translation>
+      </Text>
+      <Text Id="CurrentValue_T_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">000.0</Translation>
+      </Text>
       <Text Id="ScrollItemText_W" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">FR---</Translation>
       </Text>
-      <Text Id="CurrentValue_W" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">000.0⁰C</Translation>
+      <Text Id="CurrentValue_R_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">000.0</Translation>
       </Text>
       <Text Id="ChooseCorrection_W" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Температура</Translation>
@@ -144,8 +150,11 @@
       <Text Id="textAreaSelected_W" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">New Text</Translation>
       </Text>
-      <Text Id="BTNSetCorrection_W" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">000.0⁰C</Translation>
+      <Text Id="BTN_T_Correction_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">000.0</Translation>
+      </Text>
+      <Text Id="BTN_R_Correction_W" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">000.0</Translation>
       </Text>
       <Text Id="BTNSetSpeed_W" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">000000</Translation>
@@ -203,6 +212,9 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Buttons">
+      <Text Id="BTN_H_Correction" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;%</Translation>
+      </Text>
       <Text Id="BTNCancel" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">Отмена</Translation>
       </Text>
@@ -224,6 +236,12 @@
       <Text Id="BTNSettings4" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Вентиляторы и нагрев 3-4</Translation>
       </Text>
+      <Text Id="BTN_T_Correction" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;°</Translation>
+      </Text>
+      <Text Id="BTN_R_Correction" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;</Translation>
+      </Text>
       <Text Id="GoToVisualisation" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Просмотр состояния</Translation>
       </Text>
@@ -238,11 +256,23 @@
       <Text Id="LabelAddr" Alignment="Right" TypographyId="Default">
         <Translation Language="GB">Адрес</Translation>
       </Text>
-      <Text Id="Label_R" Alignment="Left" TypographyId="Default">
+      <Text Id="Label_R" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">R</Translation>
       </Text>
-      <Text Id="Label_T" Alignment="Right" TypographyId="Default">
+      <Text Id="Label_R_1" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Ом</Translation>
+      </Text>
+      <Text Id="Label_H" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">H</Translation>
+      </Text>
+      <Text Id="Label_H_1" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">%</Translation>
+      </Text>
+      <Text Id="Label_T" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">T</Translation>
+      </Text>
+      <Text Id="Label_T_1" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">°</Translation>
       </Text>
       <Text Id="ChooseCorrection" Alignment="Right" TypographyId="Default">
         <Translation Language="GB">Эталон</Translation>
@@ -322,6 +352,9 @@
       <Text Id="LabelCoreT" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Т° ядра 1/2</Translation>
       </Text>
+      <Text Id="LabelGroup1" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">Группа 1</Translation>
+      </Text>
       <Text Id="LabelSensorTypeSelect" Alignment="Right" TypographyId="Default">
         <Translation Language="GB">Тип датчика</Translation>
       </Text>
@@ -331,11 +364,18 @@
       <Text Id="LabelOffOn" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Выкл/вкл</Translation>
       </Text>
-      <Text Id="LabelGroup1" Alignment="Center" TypographyId="Small">
-        <Translation Language="GB">Группа 1</Translation>
+    </TextGroup>
+    <TextGroup Id="Unsorted">
+      <Text Id="__SingleUse_W5IH" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">H</Translation>
+      </Text>
+      <Text Id="CurrentValue_H" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;%</Translation>
+      </Text>
+      <Text Id="__SingleUse_CXAI" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
     </TextGroup>
-    <TextGroup Id="Unsorted" />
   </Texts>
   <Typographies>
     <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="B,D,H,R,L,N,S,T,C,b,d,e,f,g,h,i,l,n,o,p,r,t,u,&amp;" WildcardCharacterRanges="0-9,0x2D" />

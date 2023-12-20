@@ -3325,7 +3325,7 @@
             "Type": "BoxWithBorder",
             "Name": "boxWithBorder1",
             "X": 19,
-            "Y": 110,
+            "Y": 125,
             "Width": 40,
             "Height": 135,
             "Visible": false,
@@ -3346,7 +3346,7 @@
             "Type": "BoxWithBorder",
             "Name": "boxWithBorder1_1",
             "X": 186,
-            "Y": 110,
+            "Y": 125,
             "Width": 40,
             "Height": 135,
             "Visible": false,
@@ -3367,7 +3367,7 @@
             "Type": "BoxWithBorder",
             "Name": "boxWithBorder1_2",
             "X": 118,
-            "Y": 110,
+            "Y": 125,
             "Width": 40,
             "Height": 135,
             "Visible": false,
@@ -3388,7 +3388,7 @@
             "Type": "BoxWithBorder",
             "Name": "boxWithBorder1_3",
             "X": 69,
-            "Y": 110,
+            "Y": 125,
             "Width": 40,
             "Height": 135,
             "Visible": false,
@@ -3407,9 +3407,9 @@
           },
           {
             "Type": "FlexButton",
-            "Name": "BTNSetCorrection",
+            "Name": "BTN_R_Correction",
             "X": 133,
-            "Y": 215,
+            "Y": 225,
             "Width": 94,
             "Height": 34,
             "ButtonTrigger": {
@@ -3419,10 +3419,10 @@
               {
                 "Type": "TextButtonStyle",
                 "Y": 4,
-                "TextId": "BTNSetCorrection",
+                "TextId": "BTN_R_Correction",
                 "TextRotation": "0",
                 "Wildcard1": {
-                  "TextId": "BTNSetCorrection_W",
+                  "TextId": "BTN_R_Correction_W",
                   "UseBuffer": true,
                   "BufferSize": 10
                 },
@@ -3468,11 +3468,11 @@
           },
           {
             "Type": "FlexButton",
-            "Name": "BTNSetAddress",
-            "X": 146,
-            "Y": 76,
-            "Width": 81,
-            "Height": 32,
+            "Name": "BTN_H_Correction",
+            "X": 133,
+            "Y": 225,
+            "Width": 94,
+            "Height": 34,
             "ButtonTrigger": {
               "Type": "ClickButtonTrigger"
             },
@@ -3480,12 +3480,12 @@
               {
                 "Type": "TextButtonStyle",
                 "Y": 4,
-                "TextId": "BTNSetAddress",
+                "TextId": "BTN_H_Correction",
                 "TextRotation": "0",
                 "Wildcard1": {
-                  "TextId": "BTNSetAddress_W",
+                  "TextId": "BTN_H_Correction_W",
                   "UseBuffer": true,
-                  "BufferSize": 4
+                  "BufferSize": 10
                 },
                 "ColorReleased": {
                   "Red": 232,
@@ -3500,8 +3500,69 @@
               },
               {
                 "Type": "BoxWithBorderButtonStyle",
-                "Width": 81,
-                "Height": 32,
+                "Width": 94,
+                "Height": 34,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTN_T_Correction",
+            "X": 133,
+            "Y": 185,
+            "Width": 94,
+            "Height": 34,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 4,
+                "TextId": "BTN_T_Correction",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTN_T_Correction_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 94,
+                "Height": 34,
                 "LockToFlexButtonSize": true,
                 "BorderSize": 5,
                 "ColorReleased": {
@@ -3565,6 +3626,67 @@
                 "Type": "BoxWithBorderButtonStyle",
                 "Width": 81,
                 "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSetAddress",
+            "X": 146,
+            "Y": 76,
+            "Width": 81,
+            "Height": 32,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 4,
+                "TextId": "BTNSetAddress",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSetAddress_W",
+                  "UseBuffer": true,
+                  "BufferSize": 4
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 81,
+                "Height": 32,
                 "LockToFlexButtonSize": true,
                 "BorderSize": 5,
                 "ColorReleased": {
@@ -3834,17 +3956,6 @@
             ]
           },
           {
-            "Type": "ToggleButton",
-            "Name": "toggleButton1",
-            "X": 33,
-            "Y": 168,
-            "Width": 62,
-            "Height": 34,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_light.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_normal.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\small\\rounded_neutral.json"
-          },
-          {
             "Type": "TextArea",
             "Name": "LabelCorrection",
             "X": 64,
@@ -3865,8 +3976,8 @@
           {
             "Type": "TextArea",
             "Name": "ChooseCorrection",
-            "X": 47,
-            "Y": 220,
+            "X": 150,
+            "Y": 157,
             "Width": 73,
             "Height": 24,
             "TextId": "ChooseCorrection",
@@ -3877,36 +3988,6 @@
               "Blue": 251
             },
             "AutoSize": true
-          },
-          {
-            "Type": "TextArea",
-            "Name": "LabelT",
-            "X": 5,
-            "Y": 174,
-            "Width": 21,
-            "Height": 23,
-            "TextId": "Label_T",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            }
-          },
-          {
-            "Type": "TextArea",
-            "Name": "LabelR",
-            "X": 102,
-            "Y": 174,
-            "Width": 23,
-            "Height": 23,
-            "TextId": "Label_R",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            }
           },
           {
             "Type": "TextArea",
@@ -3941,12 +4022,33 @@
           },
           {
             "Type": "TextArea",
-            "Name": "CurrentValue",
-            "X": 134,
-            "Y": 173,
-            "Width": 84,
+            "Name": "CurrentValue_R",
+            "X": 39,
+            "Y": 230,
+            "Width": 70,
             "Height": 24,
+            "Visible": false,
             "TextId": "__SingleUse_RBOR",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "CurrentValue_R_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "CurrentValue_H",
+            "X": 39,
+            "Y": 230,
+            "Width": 81,
+            "Height": 24,
+            "TextId": "CurrentValue_H",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -3955,17 +4057,180 @@
             },
             "AutoSize": true,
             "Wildcard1": {
-              "TextId": "CurrentValue_W",
+              "TextId": "CurrentValue_H_W",
               "UseBuffer": true,
               "BufferSize": 10
             }
           },
           {
             "Type": "TextArea",
+            "Name": "CurrentValue_T",
+            "X": 39,
+            "Y": 190,
+            "Width": 70,
+            "Height": 24,
+            "TextId": "__SingleUse_CXAI",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "Wildcard1": {
+              "TextId": "CurrentValue_T_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelR",
+            "X": 9,
+            "Y": 230,
+            "Width": 23,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_R",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelR_1",
+            "X": 59,
+            "Y": 76,
+            "Width": 23,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_R",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelR_1_1",
+            "X": 160,
+            "Y": 76,
+            "Width": 32,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_R_1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelH",
+            "X": 9,
+            "Y": 230,
+            "Width": 23,
+            "Height": 23,
+            "TextId": "__SingleUse_W5IH",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelH_1",
+            "X": 59,
+            "Y": 76,
+            "Width": 23,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_H",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelH_1_1",
+            "X": 158,
+            "Y": 76,
+            "Width": 23,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_H_1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelT",
+            "X": 9,
+            "Y": 190,
+            "Width": 21,
+            "Height": 23,
+            "TextId": "Label_T",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelT_1",
+            "X": 60,
+            "Y": 76,
+            "Width": 21,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_T",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelT_1_1",
+            "X": 158,
+            "Y": 76,
+            "Width": 21,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_T_1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
             "Name": "Whole_Digit",
-            "X": 12,
-            "Y": 70,
-            "Width": 214,
+            "X": 87,
+            "Y": 76,
+            "Width": 70,
             "Height": 28,
             "Visible": false,
             "TextId": "Whole_Digit",
@@ -3985,7 +4250,7 @@
             "Type": "ScrollWheel",
             "Name": "scrollWheelDigit1",
             "X": 186,
-            "Y": 110,
+            "Y": 125,
             "Width": 40,
             "Height": 135,
             "Visible": false,
@@ -4004,7 +4269,7 @@
             "Type": "ScrollWheel",
             "Name": "scrollWheelDigit2",
             "X": 118,
-            "Y": 110,
+            "Y": 125,
             "Width": 40,
             "Height": 135,
             "Visible": false,
@@ -4023,7 +4288,7 @@
             "Type": "ScrollWheel",
             "Name": "scrollWheelDigit3",
             "X": 69,
-            "Y": 110,
+            "Y": 125,
             "Width": 40,
             "Height": 135,
             "Visible": false,
@@ -4042,7 +4307,7 @@
             "Type": "ScrollWheel",
             "Name": "scrollWheelDigit4",
             "X": 19,
-            "Y": 110,
+            "Y": 125,
             "Width": 40,
             "Height": 135,
             "Visible": false,
@@ -4198,6 +4463,39 @@
             "Action": {
               "Type": "ActionCustom",
               "FunctionName": "BTNSetAddressClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNSet_CORR_R",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_R_Correction"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSet_CORR_R"
+            }
+          },
+          {
+            "InteractionName": "BTNSet_CORR_H",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_H_Correction"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSet_CORR_H"
+            }
+          },
+          {
+            "InteractionName": "BTNSet_CORR_T",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_T_Correction"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSet_CORR_T"
             }
           }
         ]

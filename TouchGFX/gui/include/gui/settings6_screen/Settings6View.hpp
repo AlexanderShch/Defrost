@@ -35,15 +35,28 @@ public:
     virtual void BTNSetAddressClicked();
 
     virtual void Print_Whole_Digit(void);
+    virtual void CorrData_T_View();
+    virtual void CorrData_HR_View();
+    virtual void SwitchHRvisible();
+
+    virtual void BTNSet_CORR_T();
+    virtual void BTNSet_CORR_H();
+    virtual void BTNSet_CORR_R();
+    virtual void CHNG_CORR_value_visual(bool visual);
+    virtual void CHNG_CORR_weels_visual(bool visual);
+    virtual void DigitWheelOff();
+
 
     int16_t Set_Digit;
     int8_t Digit1, Digit2, Digit3, Digit4;
-    uint8_t Selected;				// нажатая кнопка: 0 - тип, 1 - адрес
+    uint8_t Selected;				// нажатая кнопка: 0 - тип, 1 - адрес, 2 - корректировка Т, 3 - корректировка H, 4 - корректировка R
     int16_t SetSensor = 0;			// вновь устанавливаемое значение типа датчика, выводится на экран
     int16_t SetSensorOld = 0;		// старое значение типа датчика, сохраняется на время выбора в колесе нового значения
     uint8_t SetAddress;				// вновь установленное значение адреса
     uint8_t SetAddressOld;			// старое значение адреса датчика, сохраняется на время выбора в колесе нового значения
-    uint8_t FlagWrite_visible = 0;	// флаг разрешения видимости кнопки "Запись" в датчик
+    uint8_t FlagWriteT = 0;			// флаг разрешения видимости кнопки "Запись" в датчик
+    uint8_t FlagWriteH = 0;			// флаг разрешения видимости кнопки "Запись" в датчик
+    uint8_t FlagWriteR = 0;			// флаг разрешения видимости кнопки "Запись" в датчик
 
 
 protected:
