@@ -24,8 +24,6 @@ public:
 	static void PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val);
 	static int GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param);
 
-	static int Read_Data_1;
-	static int Read_Data_2;
 protected:
 	static unsigned int Time[TQ][SQ];	// number of time quantum measuring
 	static int T[TQ][SQ];			// temperature

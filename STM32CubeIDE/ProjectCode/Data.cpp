@@ -27,8 +27,8 @@ unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// number of time quantum measuring
 int Sensor::T[TQ][SQ] = {{0}};		// temperature
 int Sensor::H[TQ][SQ] = {{0}};		// humidity
-int Sensor::Read_Data_1 = 0;		// первый считанный из датчика параметр, обычно это Н
-int Sensor::Read_Data_2 = 0;		// второй считанный из датчика параметр, обычно это Т
+//int Sensor::Read_Data_1 = 0;		// первый считанный из датчика параметр, обычно это Н
+//int Sensor::Read_Data_2 = 0;		// второй считанный из датчика параметр, обычно это Т
 
 
 /* Функция записывает int Val в массив данных, полученных с датчиков.
@@ -170,7 +170,7 @@ void ReadDataFunc() {
 				if (Model::Flag_WR_to_sensor == 1)
 				{
 					Model::Flag_WR_to_sensor = 0;
-					Model::Index_CORR_sensor;
+//					Model::Index_CORR_sensor;
 
 				}
 			}
