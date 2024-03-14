@@ -27,8 +27,6 @@ unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// number of time quantum measuring
 int Sensor::T[TQ][SQ] = {{0}};		// temperature
 int Sensor::H[TQ][SQ] = {{0}};		// humidity
-//int Sensor::Read_Data_1 = 0;		// первый считанный из датчика параметр, обычно это Н
-//int Sensor::Read_Data_2 = 0;		// второй считанный из датчика параметр, обычно это Т
 
 
 /* Функция записывает int Val в массив данных, полученных с датчиков.
@@ -109,8 +107,8 @@ void DataTimerFunc()
 void ReadDataFunc() {
 	int TempOld, HumOld = 0;
 	int TempNew, HumNew = 0;
-	int T_CORR_Old, HR_CORR_Old = 0;
-	int T_CORR_New, HR_CORR_New = 0;
+	int T_CORR_Old, H_CORR_Old = 0, R_CORR_Old = 0;
+	int T_CORR_New, H_CORR_New = 0, R_CORR_New = 0;
 
 	// Инициализация датчиков при запуске задачи
 	MB_Master_Init();
@@ -121,7 +119,7 @@ void ReadDataFunc() {
 		flags = osEventFlagsWait(ReadDataEventHandle, FLAG_ReadData, osFlagsWaitAny, osWaitForever);
 		// Новое значение счётчика времени
 		TimeFromStart ++;
-
+		// Цикл опроса датчиков
 		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
 		{
 			result = MB_ERROR_NO;
@@ -149,35 +147,46 @@ void ReadDataFunc() {
 					Model::setCurrentVal_H(SensorIndex, HumNew);
 				}
 			}
+		}	// конец цикла опроса датчиков
+
 		// работа с корректировкой датчика
 			if (Model::Flag_CORR_ready == 1) {
 				T_CORR_Old = Model::T_CORR_sensor;
-				HR_CORR_Old = Model::HR_CORR_sensor;
+				H_CORR_Old = Model::H_CORR_sensor;
+				R_CORR_Old = Model::R_CORR_sensor;
 				// считаем параметры датчика
-				result = Sensor_Read_CORR_param(Model::Index_CORR_sensor);
-				if (result == MB_ERROR_NO)
-				{
-					T_CORR_New = Model::T_CORR_sensor;
-					HR_CORR_New = Model::HR_CORR_sensor;
-					if (T_CORR_Old != T_CORR_New) {
-						Model::Flag_Corr_T_changed = 1;		// флаг для обновления данных на экране
-					};
-					if (HR_CORR_Old != HR_CORR_New) {
-						Model::Flag_Corr_HR_changed = 1;	// флаг для обновления данных на экране
-					};
-				}	// закончили считывать параметры с датчика
+				result = Sensor_Read_CORR(Model::Index_CORR_sensor);
 				// запишем корректировки в датчик
 				if (Model::Flag_WR_to_sensor == 1)
 				{
-					Model::Flag_WR_to_sensor = 0;
-//					Model::Index_CORR_sensor;
-
+					result = Sensor_Write_CORR(Model::Index_CORR_sensor);
 				}
+				// обнулим корректировки в датчике типа 1
+				if (Model::Flag_Alert == 1)
+				{
+					result = Sensor_CORR_Reset(Model::Index_CORR_sensor);
+				}
+
+				//  обновим значения датчиков на экране
+				if (result == MB_ERROR_NO)
+				{
+					T_CORR_New = Model::T_CORR_sensor;
+					H_CORR_New = Model::H_CORR_sensor;
+					R_CORR_New = Model::R_CORR_sensor;
+					if (T_CORR_Old != T_CORR_New) {
+						Model::Flag_Corr_T_changed = 1;		// флаг для обновления данных на экране
+					};
+					if (H_CORR_Old != H_CORR_New) {
+						Model::Flag_Corr_H_changed = 1;	// флаг для обновления данных на экране
+					};
+					if (R_CORR_Old != R_CORR_New) {
+						Model::Flag_Corr_R_changed = 1;	// флаг для обновления данных на экране
+					};
+				}	// закончили считывать параметры с датчика
 			}
 
 			// установка флага FLAG_DataAnalysis для запуска задачи DataAnalysis
 
-		}	// конец цикла опроса датчиков
 	}	// конец рабочего цикла
 }
 

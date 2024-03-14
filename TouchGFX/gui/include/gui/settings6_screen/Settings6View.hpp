@@ -33,10 +33,12 @@ public:
     virtual void BTNCancelClicked();
     virtual void BTNSensorTypeClicked();
     virtual void BTNSetAddressClicked();
+    virtual void BTNResetClicked();
 
     virtual void Print_Whole_Digit(void);
     virtual void CorrData_T_View();
-    virtual void CorrData_HR_View();
+    virtual void CorrData_H_View();
+    virtual void CorrData_R_View();
     virtual void SwitchHRvisible();
 
     virtual void BTNSet_CORR_T();

@@ -32,6 +32,14 @@ uint8_t MB_MasterTx_Buffer[MAX_MB_BUFSIZE] = {0};
 uint8_t MB_MasterRx_Buffer[MAX_MB_BUFSIZE] = {0};
 uint16_t master_rec_byte_count = 0;
 uint16_t CountRX = 0;
+uint8_t FrameDelay1 = 30;						// Задержка между фреймами рабочая
+//uint8_t FrameDelay2 = 0;						// Задержка между фреймами дополнительная при смене типа датчика
+/*
+ * Задержка между фреймами подобрана опытным путём. По стандарту ModBus RTU "Перед началом передачи очередного фрейма, необходима выдержка времени,
+ * соответствующая 3,5 временам передачи одного байта данных (t3,5) после завершения передачи предыдущего фрейма (или “ложной” передачи данных)."
+ * Однако на практике датчики начали отвечать без сбоев только при удержании шины в свободном состоянии в течение 30 мс - это примерно 6 фреймов
+ * (не байт, а фреймов) на скорости 19200.
+*/
 
 uint16_t MB_TransactionHandler();
 uint16_t MB_GetCRC(volatile uint8_t* buf, uint16_t len);
@@ -101,6 +109,7 @@ typedef struct
 	osSemaphoreId_t *Sem_Rx;
 	uint16_t Read_Data_1;							// данные №1, считанные с шины
 	uint16_t Read_Data_2;							// данные №2, считанные с шины
+	uint8_t PreviosTypeOfSensor;					// тип предыдущего обработанного датчика
 
 } MB_Active_t;										// среда работы датчика
 
@@ -172,13 +181,20 @@ void MB_Master_Init(void)
 MB_Error_t Sensor_Read(uint8_t SensIndex)
 {
 	MB_Error_t result = MB_ERROR_NO;
-	MB_Active_t SW;						// объявляем среду работы с датчиками
+	MB_Active_t SW;						// формируем среду работы с датчиками
 	// Инициируем среду для работы датчика
 	SW.UART = &huart5;
 	SW.PORT = MB_MASTER_DE_GPIO_Port;
 	SW.PORT_PIN = MB_MASTER_DE_Pin;
 	SW.Sem_Rx = &RX_Compl_SemHandle;
 	SW.Sem_Tx = &TX_Compl_SemHandle;
+//	/*
+//	 *  Датчик другого типа отвечает только после длительной паузы на шине,
+//	 *  поэтому после датчика типа 1 надо установить паузу
+//	 */
+//	if (SW.PreviosTypeOfSensor != Sensor_array[SensIndex].TypeOfSensor) {
+//		osDelay(FrameDelay2);	// обеспечение выдержки между фреймами
+//	}
 	// Считываем данные с датчика определённого типа
 	switch (Sensor_array[SensIndex].TypeOfSensor)
 	{
@@ -198,6 +214,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			result = MB_ERROR_WRONG_ADDRESS;
 			break;	}
 	}
+	SW.PreviosTypeOfSensor = Sensor_array[SensIndex].TypeOfSensor;
 	// Обработка считанных данных
 	switch (result)
 	{
@@ -214,9 +231,13 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 		case MB_ERROR_UART_SEND:
 			Sensor_array[SensIndex].TxErrorCnt++;
 			break;
-		case MB_ERROR_UART_RECIEVE:
+		case MB_ERROR_UART_RECIEVE:	{
 			Sensor_array[SensIndex].RxErrorCnt++;
-			break;
+			SW.Read_Data_2 = Sensor::GetData(TimeFromStart-1, SensIndex, 2);	// достали предыдущее значение T
+			SW.Read_Data_1 = Sensor::GetData(TimeFromStart-1, SensIndex, 1);	// достали предыдущее значение H
+			Sensor::PutData(TimeFromStart, SensIndex, 2, SW.Read_Data_2);		// запись Т
+			Sensor::PutData(TimeFromStart, SensIndex, 3, SW.Read_Data_1);		// запись Н
+			break;	}
 		case MB_ERROR_DMA_RECIEVE:
 			Sensor_array[SensIndex].RxErrorCnt++;
 			break;
@@ -225,65 +246,9 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			result = MB_ERROR_UART_SEND;
 			break;
 	}
-
-	/* Перед началом передачи очередного фрейма, необходима выдержка времени,
-	соответствующая 3,5 временам передачи одного байта данных (t3,5) после завершения передачи
-	предыдущего фрейма (или “ложной” передачи данных).
-	Передача одного байта - 11 бит (старт+8бит+чет+стоп), 19200 бит/с - 52 мкс/бит
-	Время между фреймами - 11*52*3,5 = 2 мс
-	Возьмём с запасом = 3 мс
-	*/
-	osDelay(3);	// обеспечение выдержки между фреймами >3.5 времени передачи байта
+	osDelay(FrameDelay1);	// обеспечение выдержки между фреймами
 	return result;
 }
-
-// Функция считывает данные с датчика
-//MB_Error_t Master_Read(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, MB_Reg_t START_REG, uint8_t DATA)
-//{
-//	MB_Error_t result;
-//	// Выполним приведение типа: указателю Command присвоим указатель буфера, буфер примет тип MB_Frame_t
-//	MB_Frame_t *Command = (MB_Frame_t*) &MB->Tx_Buffer;
-//	memset(MB->Tx_Buffer, 0, MAX_MB_BUFSIZE);
-//	memset(MB->Rx_Buffer, 0, MAX_MB_BUFSIZE);
-//	// Заполним начало буфера структурой для отправки команды датчику
-//	Command->Address = Sensor_array[SensIndex].Address;
-//	Command->Command = CMD;
-//	Command->StartReg = SwapBytes(START_REG);
-//	Command->RegNum = SwapBytes(DATA);
-//	Command->CRC_Sum = MB_GetCRC(MB->Tx_Buffer, 6);
-//	MB->Read_Data_1 = 0;
-//	MB->Read_Data_2 = 0;
-//	uint8_t repeat = 4;	// повтор чтения при ошибке
-//
-//	do {
-//		result = Master_Request(MB);
-//		repeat -= 1;		// минус 1 проход чтения из датчика
-//		if (result == MB_ERROR_NO)
-//		{
-//			// данные приняты - проверяем достоверность
-//			//(считаем CRC, вместе с принятым CRC, должно быть == 0
-//			repeat = 0;	// всё нормально, повторять чтение не будем
-//			if CheckAnswerCRC
-//			{
-//				if (DATA == 2)
-//				{// все проверки ОК, пишем два значения с датчика типа 1
-//					MB->Read_Data_1 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
-//					MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
-//				}
-//				else
-//				{// все проверки ОК, пишем одно значение с датчика типа 2
-//					MB->Read_Data_1 = 0;
-//					MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
-//				}
-//			}
-//			else
-//			{
-//				result = MB_ERROR_UART_SEND;
-//			}
-//		}
-//	} while (repeat != 0);
-//	return result;
-//}
 
 /**************** ОБРАБОТКА ПРЕРЫВАНИЙ ***************************/
 /*****************************************************************/
@@ -705,22 +670,22 @@ MB_Error_t Master_RW(MB_Active_t *MB, int SensIndex, MB_Command_t CMD, MB_Reg_t 
 	Command->CRC_Sum = MB_GetCRC(MB->Tx_Buffer, 6);
 
 	result = Master_Request(MB);
+	MB->Read_Data_1 = 0;
+	MB->Read_Data_2 = 0;
 	switch (result) {
 		case MB_ERROR_NO:
 			// данные приняты - проверяем достоверность
-			if (CMD != MB_CMD_WRITE_REG) // был запрос на чтение
-			{
+			if (CMD != MB_CMD_WRITE_REG)
+			{	// был запрос на чтение
 				if CheckAnswerCRC
 				{	// все проверки ОК
-//					SensPortNumber = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
-//					SensBaudRateIndex = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
 					if (DATA == 2) // заказывали два регистра на чтение
-					{// все проверки ОК, пишем два значения
+					{// все проверки ОК, читаем два значения
 						MB->Read_Data_1 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
 						MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
 					}
 					else
-					{// все проверки ОК, пишем одно значение
+					{// все проверки ОК, читаем одно значение
 						MB->Read_Data_1 = 0;
 						MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
 					}
@@ -730,12 +695,11 @@ MB_Error_t Master_RW(MB_Active_t *MB, int SensIndex, MB_Command_t CMD, MB_Reg_t 
 					result = MB_ERROR_UART_SEND;
 				};
 			}
-			else // был запрос на запись
-			{	// всегда один регистр для записи
+			else
+			{	// был запрос на запись, всегда один регистр для записи
 				if PR_CheckAnswerCRC
 				{	// все проверки ОК, пишем значения с датчика совмещённого типа
-					// Считанные из датчика данные после записи помещаем в глобальную переменную Sens_WR_value
-//					Sens_WR_value = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[4]);
+					// Считанные из датчика данные после записи помещаем в переменную
 					MB->Read_Data_1 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[4]);
 				}
 				else
@@ -769,19 +733,22 @@ MB_Error_t Master_Request(MB_Active_t *MB)
 {
 	MB_Error_t MB_ERR = MB_ERROR_NO;
 	HAL_StatusTypeDef result;		// status HAL: HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT
+//	Вычислим паузу 1000 бит в миллисекундах для ожидания ответа датчика на шине после запроса
+	double var = (1000 * 1000) / MB->UART->Init.BaudRate;
+	uint8_t pause = uint8_t (var);	// округляем паузу до целой части
 
 	// ПЕРЕДАЧА DMA ********************************
 	// Включим направление - передача
 	HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_SET);
 	// Начинаем передачу отправкой буфера с записанной структурой в порт UART через DMA
-//	osDelay(1);	// задержка перед стартовым битом
+	osDelay(1);	// задержка перед стартовым битом
 
 	result = HAL_UART_Transmit_DMA(MB->UART, MB->Tx_Buffer, 8);
 	if (result == HAL_OK)
 	{
 		// ПЕРЕДАЧА UART ***************************
 		// Ждём, пока UART всё передаст в шину и обработчик прерывания HAL_UART_TxCpltCallback выдаст токен семафора
-		resultSem = osSemaphoreAcquire(*MB->Sem_Tx, 80/portTICK_RATE_MS);
+		resultSem = osSemaphoreAcquire(*MB->Sem_Tx, pause/portTICK_RATE_MS);
 		if (resultSem != osOK)
 		{	// обработка ошибки передачи по UART
 			MB_ERR = MB_ERROR_UART_SEND;
@@ -800,7 +767,7 @@ MB_Error_t Master_Request(MB_Active_t *MB)
 			// последнее значение в очереди = 0, ждём прерывание приёма по IDLE
 			// Ждём, когда приём закончится и прерывание выдаст токен семафора
 			//ответ должен нормально уложиться в 11 байт (1200 -> 9.1 ms на байт, всего на фрейм 72,8 ms), это время функция ждёт токен семафора в состоянии блокировки
-			resultSem = osSemaphoreAcquire(*MB->Sem_Rx, 80/portTICK_RATE_MS);
+			resultSem = osSemaphoreAcquire(*MB->Sem_Rx, pause/portTICK_RATE_MS);
 			if (resultSem != osOK)
 			{	// прерывания не случилось, семафора не дождались, вышли по тайм-ауту
 				MB_ERR = MB_ERROR_UART_RECIEVE;
@@ -840,7 +807,7 @@ void PR_UART4_Init(int BaudRateValue)
  * ******************  КОРРЕКТИРОВКА **************************
  */
 // Функция считывает параметры с датчика
-MB_Error_t Sensor_Read_CORR_param(uint8_t SensIndex)
+MB_Error_t Sensor_Read_CORR(uint8_t SensIndex)
 {
 	MB_Error_t result = MB_ERROR_NO;
 	MB_Active_t SW;						// объявляем среду работы с датчиками
@@ -850,14 +817,21 @@ MB_Error_t Sensor_Read_CORR_param(uint8_t SensIndex)
 	SW.PORT_PIN = MB_MASTER_DE_Pin;
 	SW.Sem_Rx = &RX_Compl_SemHandle;
 	SW.Sem_Tx = &TX_Compl_SemHandle;
-	// Считываем данные с датчика определённого типа
+//	// Считываем данные с датчика определённого типа
+//	/*
+//	 *  Датчик другого типа отвечает только после длительной паузы на шине,
+//	 *  поэтому после датчика типа 1 надо установить паузу
+//	 */
+//	if (SW.PreviosTypeOfSensor != Sensor_array[SensIndex].TypeOfSensor) {
+//		osDelay(FrameDelay2);	// обеспечение выдержки между фреймами
+//	}
 	switch (Sensor_array[SensIndex].TypeOfSensor)
 	{
 	// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
 		case 1:		{
 			// Запросим данные с датчика
 			result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type1_H, 2);
-			Model::HR_CORR_sensor = SW.Read_Data_1;
+			Model::H_CORR_sensor = SW.Read_Data_1;
 			Model::T_CORR_sensor = SW.Read_Data_2;
 			break; 	}
 	// тип датчика: 2 - датчик температуры РТ100 с RS485
@@ -865,7 +839,8 @@ MB_Error_t Sensor_Read_CORR_param(uint8_t SensIndex)
 			// Запросим данные с датчика
 			// Одно значение получаем всегда в Read_Data_2
 			result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type2_R, 1);
-			Model::HR_CORR_sensor = SW.Read_Data_2;
+			Model::R_CORR_sensor = SW.Read_Data_2;
+			// Здесь паузу между фреймами не делаем, поскольку читаем из того же устройства
 			result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type2_T, 1);
 			Model::T_CORR_sensor = SW.Read_Data_2;
 			break;	}
@@ -873,22 +848,18 @@ MB_Error_t Sensor_Read_CORR_param(uint8_t SensIndex)
 			result = MB_ERROR_WRONG_ADDRESS;
 			break;	}
 	}
-	/* Перед началом передачи очередного фрейма, необходима выдержка времени,
-	соответствующая 3,5 временам передачи одного байта данных (t3,5) после завершения передачи
-	предыдущего фрейма (или “ложной” передачи данных).
-	Передача одного байта - 11 бит (старт+8бит+чет+стоп), 19200 бит/с - 52 мкс/бит
-	Время между фреймами - 11*52*3,5 = 2 мс
-	Возьмём с запасом = 3 мс
-	*/
-	osDelay(3);	// обеспечение выдержки между фреймами >3.5 времени передачи байта
+	SW.PreviosTypeOfSensor = Sensor_array[SensIndex].TypeOfSensor;
+	osDelay(FrameDelay1);	// обеспечение выдержки между фреймами
 	return result;
 }
 
 // Функция записывает в датчик
-MB_Error_t Sensor_Write(uint8_t SensIndex, MB_Reg_t Addr, int16_t CORR_Data)
+MB_Error_t Sensor_Write_CORR(uint8_t SensIndex)
 {
-	MB_Error_t result = MB_ERROR_NO;
+	MB_Error_t result = MB_ERROR_COMMAND;
+	Model::Flag_WR_to_sensor = 0;
 	MB_Active_t SW;						// объявляем среду работы с датчиками
+	int CORR_Data;
 	// Инициируем среду для работы датчика
 	SW.UART = &huart5;
 	SW.PORT = MB_MASTER_DE_GPIO_Port;
@@ -896,29 +867,88 @@ MB_Error_t Sensor_Write(uint8_t SensIndex, MB_Reg_t Addr, int16_t CORR_Data)
 	SW.Sem_Rx = &RX_Compl_SemHandle;
 	SW.Sem_Tx = &TX_Compl_SemHandle;
 	// Записываем данные в датчик определённого типа
+	// Пишем T
+	if (Model::CORR_T_sensor != 0) {
+		switch (Sensor_array[SensIndex].TypeOfSensor)
+		{
+		// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
+			case 1:		{	// Пишем Т
+				// Считаем имеющуюся корректировку
+				result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type1_T_calibr, 1);
+				// вычисляем разность величин с учётом имеющейся корректировки
+				CORR_Data = Model::CORR_T_sensor - (Model::T_CORR_sensor - SW.Read_Data_2);
+				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type1_T_calibr, CORR_Data);
+				break; 	}
+		// тип датчика: 2 - датчик температуры РТ100 с RS485
+			case 2:		{	// Пишем T
+				CORR_Data = Model::CORR_T_sensor;								// пишем нужную величину
+				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type2_T_calibr, CORR_Data);
+				break;	}
+			default:	{
+				result = MB_ERROR_WRONG_ADDRESS;
+				break;	}
+		}
+	};
+	// Пишем HR
+	osDelay(3);	// обеспечение выдержки между фреймами >3.5 времени передачи байта
 	switch (Sensor_array[SensIndex].TypeOfSensor)
 	{
 	// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
-		case 1:		{
-			result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Addr, CORR_Data);
+		case 1:		{	// Пишем H
+			if (Model::CORR_H_sensor != 0)
+			{
+				// Считаем имеющуюся корректировку
+				result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type1_H_calibr, 1);
+				// вычисляем разность величин с учётом имеющейся корректировки
+				CORR_Data = Model::CORR_H_sensor - (Model::H_CORR_sensor - SW.Read_Data_2);
+				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type1_H_calibr, CORR_Data);
+			}
 			break; 	}
 	// тип датчика: 2 - датчик температуры РТ100 с RS485
-		case 2:		{
-			result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Addr, CORR_Data);
+		case 2:		{	// Пишем R
+			if (Model::CORR_R_sensor != 0)
+			{
+				CORR_Data = Model::CORR_R_sensor;								// пишем нужную величину
+				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type2_R_calibr, CORR_Data);
+			}
 			break;	}
 		default:	{
 			result = MB_ERROR_WRONG_ADDRESS;
 			break;	}
 	}
+	return result;
+}
 
-	/* Перед началом передачи очередного фрейма, необходима выдержка времени,
-	соответствующая 3,5 временам передачи одного байта данных (t3,5) после завершения передачи
-	предыдущего фрейма (или “ложной” передачи данных).
-	Передача одного байта - 11 бит (старт+8бит+чет+стоп), 19200 бит/с - 52 мкс/бит
-	Время между фреймами - 11*52*3,5 = 2 мс
-	Возьмём с запасом = 3 мс
-	*/
-	osDelay(3);	// обеспечение выдержки между фреймами >3.5 времени передачи байта
+// Функция обнуляет корректировки в датчике
+MB_Error_t Sensor_CORR_Reset(uint8_t SensIndex)
+{
+	MB_Error_t result = MB_ERROR_COMMAND;
+	Model::Flag_Alert = 0;
+	MB_Active_t SW;						// объявляем среду работы с датчиками
+	// Инициируем среду для работы датчика
+	SW.UART = &huart5;
+	SW.PORT = MB_MASTER_DE_GPIO_Port;
+	SW.PORT_PIN = MB_MASTER_DE_Pin;
+	SW.Sem_Rx = &RX_Compl_SemHandle;
+	SW.Sem_Tx = &TX_Compl_SemHandle;
+
+	// Обнуляем корректировку Т
+		switch (Sensor_array[SensIndex].TypeOfSensor)
+		{
+		// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
+			case 1:		{
+				// Обнуляем корректировку Т
+				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type1_T_calibr, 0);
+				// Обнуляем корректировку Н
+				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type1_H_calibr, 0);
+				break; 	}
+		// тип датчика: 2 - датчик температуры РТ100 с RS485
+			case 2:		{
+				break;	}
+			default:	{
+				result = MB_ERROR_WRONG_ADDRESS;
+				break;	}
+		}
 	return result;
 }
 

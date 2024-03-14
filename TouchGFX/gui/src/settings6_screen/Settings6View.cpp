@@ -27,17 +27,21 @@ void Settings6View::setupScreen()
     Digit2 = 0;
     Digit3 = 0;
     Digit4 = 0;
-	Unicode::strncpy(CurrentValue_TBuffer, "---", 4); //buffer belongs to textArea
-	Unicode::strncpy(CurrentValue_HBuffer, "---", 4); //buffer belongs to textArea
-	Unicode::strncpy(CurrentValue_RBuffer, "---", 4); //buffer belongs to textArea
 	Unicode::strncpy(BTN_T_CorrectionBuffer, "---", 4); //buffer belongs to textArea
 	Unicode::strncpy(BTN_H_CorrectionBuffer, "---", 4); //buffer belongs to textArea
 	Unicode::strncpy(BTN_R_CorrectionBuffer, "---", 4); //buffer belongs to textArea
 	FlagWriteT = 0;
 	FlagWriteH = 0;
 	FlagWriteR = 0;
+	Model::T_CORR_sensor = 0;
+	Model::H_CORR_sensor = 0;
+	Model::R_CORR_sensor = 0;
+	Model::Type_CORR_sensor = 0;
+	Settings6View::CorrData_T_View();
+	Settings6View::CorrData_H_View();
+	Settings6View::CorrData_R_View();
 
-    //В контейнерах колёс прокрутки устанавливаются Callback функции обработки события
+	//В контейнерах колёс прокрутки устанавливаются Callback функции обработки события
     //например, для передачи значения ItemSelected при окончании анимации скролла при выборе значения в колесе
     scrollWheelDigit1.setItemSelectedCallback(scrollDigit1ItemSelectedCallback);
     scrollWheelDigit2.setItemSelectedCallback(scrollDigit2ItemSelectedCallback);
@@ -54,6 +58,9 @@ void Settings6View::setupScreen()
 void Settings6View::tearDownScreen()
 {
     Settings6ViewBase::tearDownScreen();
+    SetAddress = 0;
+	SetSensor = 0;
+	presenter -> Corr_Scan(false);	// датчик не выбран, сканирование датчика не разрешено
 }
 
 /************* DIGIT1 *********************/
@@ -175,6 +182,22 @@ void Settings6View::BTNWriteClicked()
 	presenter -> Corr_Flag_Write();
 }
 
+void Settings6View::BTNResetClicked()
+{
+	presenter -> Reset_Flag_Write();
+	// установку корректировки обнулим на экране и передадим в Model
+	Set_Digit = 0;
+	Selected = 2;
+	Unicode::strncpy(BTN_T_CorrectionBuffer, "---", 4); //buffer belongs to textArea
+	presenter -> Corr_Sensor_Value(Selected, Set_Digit);
+	Selected = 3;
+	Unicode::strncpy(BTN_H_CorrectionBuffer, "---", 4); //buffer belongs to textArea
+	presenter -> Corr_Sensor_Value(Selected, Set_Digit);
+	DigitWheelOff();
+	CorrData_T_View();
+	CorrData_H_View();
+}
+
 void Settings6View::BTNConfirmClicked()
 {
 	switch (Selected)
@@ -185,18 +208,26 @@ void Settings6View::BTNConfirmClicked()
 			scrollSensorAddress.setVisible(false);
 			scrollSensorAddress.invalidate();
 			// передадим адрес в программу управления
-			presenter -> Corr_Sensor_Addr(SetAddress);
+			presenter -> Corr_Sensor_Address(SetAddress);
 			presenter -> Corr_Scan(true);	// датчик выбран, сканирование датчика разрешено
-			Unicode::snprintf(BTNSensorTypeBuffer, BTNSENSORTYPE_SIZE, "%d", Sensor_array[SetAddress].TypeOfSensor);
-			Selected = 0;					// тип окна корректировки - 0, разрешено отображение Н и R
-			SwitchHRvisible();
+			Model::Type_CORR_sensor = Sensor_array[SetAddress].TypeOfSensor;
+			Unicode::snprintf(BTNSensorTypeBuffer, BTNSENSORTYPE_SIZE, "%d", Model::Type_CORR_sensor);
+
+			// включим видимость кнопки Reset для датчика типа 1
+			if (Model::Type_CORR_sensor == 1)
+				BTNReset.setVisible(true);
+			else
+				BTNReset.setVisible(false);
+			BTNReset.invalidate();
+
+			DigitWheelOff();			// тип окна корректировки - 0, разрешено отображение Н и R
 			break;	}
 		case 2:		{	// установка корректировочного значения T
 			if (Set_Digit != 0)
 				Unicode::snprintfFloat(BTN_T_CorrectionBuffer, BTN_T_CORRECTION_SIZE, "%5.1f", (float)Set_Digit/10);
 			else
 				Unicode::strncpy(BTN_T_CorrectionBuffer, "---", 4); //buffer belongs to textArea
-			presenter -> Corr_Sensor_Addr(Selected, Set_Digit);
+			presenter -> Corr_Sensor_Value(Selected, Set_Digit);
 			if (Set_Digit == 0) FlagWriteT = 0; else FlagWriteT = 1;
 			DigitWheelOff();
 			break;	}
@@ -205,7 +236,7 @@ void Settings6View::BTNConfirmClicked()
 				Unicode::snprintfFloat(BTN_H_CorrectionBuffer, BTN_H_CORRECTION_SIZE, "%5.1f", (float)Set_Digit/10);
 			else
 				Unicode::strncpy(BTN_H_CorrectionBuffer, "---", 4); //buffer belongs to textArea
-			presenter -> Corr_Sensor_Addr(Selected, Set_Digit);
+			presenter -> Corr_Sensor_Value(Selected, Set_Digit);
 			if (Set_Digit == 0) FlagWriteH = 0; else FlagWriteH = 1;
 			DigitWheelOff();
 			break;	}
@@ -214,7 +245,7 @@ void Settings6View::BTNConfirmClicked()
 				Unicode::snprintfFloat(BTN_R_CorrectionBuffer, BTN_R_CORRECTION_SIZE, "%5.1f", (float)Set_Digit/10);
 			else
 				Unicode::strncpy(BTN_R_CorrectionBuffer, "---", 4); //buffer belongs to textArea
-			presenter -> Corr_Sensor_Addr(Selected, Set_Digit);
+			presenter -> Corr_Sensor_Value(Selected, Set_Digit);
 			if (Set_Digit == 0) FlagWriteR = 0; else FlagWriteR = 1;
 			DigitWheelOff();
 			break;	}
@@ -303,6 +334,7 @@ void Settings6View::BTNSet_CORR_T()
 	CHNG_CORR_value_visual(false);
 	CHNG_CORR_weels_visual(true);
 	Settings6ViewBase::setupScreen();
+	Print_Whole_Digit();
 }
 
 // Запуск выбора значения корректировки
@@ -312,6 +344,7 @@ void Settings6View::BTNSet_CORR_H()
 	CHNG_CORR_value_visual(false);
 	CHNG_CORR_weels_visual(true);
 	Settings6ViewBase::setupScreen();
+	Print_Whole_Digit();
 }
 
 // Запуск выбора значения корректировки
@@ -321,6 +354,7 @@ void Settings6View::BTNSet_CORR_R()
 	CHNG_CORR_value_visual(false);
 	CHNG_CORR_weels_visual(true);
 	Settings6ViewBase::setupScreen();
+	Print_Whole_Digit();
 }
 
 // Визуализация выбора значения корректировки
@@ -348,18 +382,18 @@ void Settings6View::CHNG_CORR_value_visual(bool visual)
 void Settings6View::CHNG_CORR_weels_visual(bool visual)
 {
 	switch (Selected) {
-		case 2:	// T
+		case 2:		{// T
 			LabelT_1.setVisible(visual);
 			LabelT_1_1.setVisible(visual);
-			break;
-		case 3:	// H
+			break;	}
+		case 3:		{	// H
 			LabelH_1.setVisible(visual);
 			LabelH_1_1.setVisible(visual);
-			break;
-		case 4:	// R
+			break;	}
+		case 4:		{// R
 			LabelR_1.setVisible(visual);
 			LabelR_1_1.setVisible(visual);
-			break;
+			break;	}
 		default:
 			break;
 	}
@@ -371,9 +405,22 @@ void Settings6View::CHNG_CORR_weels_visual(bool visual)
 	Whole_Digit.setVisible(visual);
 	BTNConfirm.setVisible(visual);
 	BTNCancel.setVisible(visual);
+
+	if (visual == false)
+	{
+		// включим видимость кнопки Reset для датчика типа 1
+		if (Sensor_array[SetAddress].TypeOfSensor == 1)
+			BTNReset.setVisible(true);
+		else
+			BTNReset.setVisible(false);
+	} else {
+		BTNReset.setVisible(false);
+	}
+
 	Whole_Digit.invalidate();
 	BTNConfirm.invalidate();
 	BTNCancel.invalidate();
+	BTNReset.invalidate();
 	Settings6ViewBase::setupScreen();
 }
 
@@ -395,56 +442,46 @@ void Settings6View::CorrData_T_View()
 		Unicode::strncpy(CurrentValue_TBuffer, "---", 4); //buffer belongs to textArea
 	CurrentValue_T.invalidate();
 }
-void Settings6View::CorrData_HR_View()
+void Settings6View::CorrData_H_View()
 {
 	SwitchHRvisible();
-	switch (Sensor_array[SetAddress].TypeOfSensor) {
-	case 1:
-		if (Model::HR_CORR_sensor != 0)
-		{
-			Unicode::snprintfFloat(CurrentValue_HBuffer, sizeof(CurrentValue_HBuffer), "%5.1f", (float)Model::HR_CORR_sensor/10);
-		}
-		else
-		{
-			Unicode::strncpy(CurrentValue_HBuffer, "---", 4); //buffer belongs to textArea
-		}
-		break;
-	case 2:
-		if (Model::HR_CORR_sensor != 0)
-		{
-			Unicode::snprintfFloat(CurrentValue_RBuffer, sizeof(CurrentValue_RBuffer), "%5.1f", (float)Model::HR_CORR_sensor/10);
-		}
-		else
-		{
-			Unicode::strncpy(CurrentValue_RBuffer, "---", 4); //buffer belongs to textArea
-		}
-		break;
-	default:
-		break;
-	}
+	if (Model::H_CORR_sensor != 0)
+		Unicode::snprintfFloat(CurrentValue_HBuffer, sizeof(CurrentValue_HBuffer), "%5.1f", (float)Model::H_CORR_sensor/10);
+	else
+		Unicode::strncpy(CurrentValue_HBuffer, "---", 4); //buffer belongs to textArea
+	CurrentValue_H.invalidate();
+}
+void Settings6View::CorrData_R_View()
+{
+	SwitchHRvisible();
+	if (Model::R_CORR_sensor != 0)
+		Unicode::snprintfFloat(CurrentValue_RBuffer, sizeof(CurrentValue_RBuffer), "%5.1f", (float)Model::R_CORR_sensor/10);
+	else
+		Unicode::strncpy(CurrentValue_RBuffer, "---", 4); //buffer belongs to textArea
+	CurrentValue_R.invalidate();
 }
 
 void Settings6View::SwitchHRvisible()
 {
 	if (Selected == 0)
 	{
-		switch (Sensor_array[SetAddress].TypeOfSensor) {
-			case 1:
+		switch (Model::Type_CORR_sensor) {
+			case 1:		{
 				LabelH.setVisible(true);
 				LabelR.setVisible(false);
 				CurrentValue_H.setVisible(true);
 				CurrentValue_R.setVisible(false);
 				BTN_H_Correction.setVisible(true);
 				BTN_R_Correction.setVisible(false);
-				break;
-			case 2:
+				break;	}
+			case 2:		{
 				LabelH.setVisible(false);
 				LabelR.setVisible(true);
 				CurrentValue_H.setVisible(false);
 				CurrentValue_R.setVisible(true);
 				BTN_H_Correction.setVisible(false);
 				BTN_R_Correction.setVisible(true);
-				break;
+				break;	}
 			default:
 				break;
 		}
