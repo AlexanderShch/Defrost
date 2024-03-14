@@ -19,22 +19,31 @@ void Settings6Presenter::deactivate()
 // обновим данные на экране
 void Settings6Presenter::ValUpdatePresenter()
 {
-	if (Model::Flag_Corr_T_changed == 1) {
+	if (Model::Flag_Corr_T_changed == 1)
 		view.CorrData_T_View();
-	}
-	if (Model::Flag_Corr_HR_changed == 1) {
-		view.CorrData_HR_View();
+	switch (Model::Type_CORR_sensor) {
+		case 1:		{
+			if (Model::Flag_Corr_H_changed == 1)
+				view.CorrData_H_View();
+			break;	}
+		case 2:		{
+			if (Model::Flag_Corr_R_changed == 1)
+				view.CorrData_R_View();
+			break;	}
+		default:
+			break;
+
 	}
 }
 
 // передадим адрес в программу управления (Model)
-void Settings6Presenter::Corr_Sensor_Addr(uint8_t SetAddress)
+void Settings6Presenter::Corr_Sensor_Address(uint8_t SetAddress)
 {
 	Model::Index_CORR_sensor = SetAddress;
 }
 
 // передадим значения корректировки в программу управления (Model)
-void Settings6Presenter::Corr_Sensor_Addr(uint8_t CORR_Type, int16_t CORR_Value)
+void Settings6Presenter::Corr_Sensor_Value(uint8_t  CORR_Type, int16_t CORR_Value)
 {
 	switch (CORR_Type) {
 		case 2:	// T
@@ -63,4 +72,12 @@ void Settings6Presenter::Corr_Scan(bool flag)
 		Model::Flag_CORR_ready = 1;
 	else
 		Model::Flag_CORR_ready = 0;
+}
+
+// установим в программе управления (Model) флаг обнуления корректировки датчика типа 1
+void Settings6Presenter::Reset_Flag_Write()
+{
+			Model::Flag_Alert = 1;
+			Model::T_CORR_sensor = 0;
+			Model::H_CORR_sensor = 0;
 }

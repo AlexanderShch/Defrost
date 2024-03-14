@@ -3900,6 +3900,62 @@
           },
           {
             "Type": "FlexButton",
+            "Name": "BTNReset",
+            "Y": 153,
+            "Width": 118,
+            "Height": 33,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNReset",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
             "Name": "BTNCancel",
             "X": 122,
             "Y": 280,
@@ -4496,6 +4552,17 @@
             "Action": {
               "Type": "ActionCustom",
               "FunctionName": "BTNSet_CORR_T"
+            }
+          },
+          {
+            "InteractionName": "BTNResetClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNReset"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNResetClicked"
             }
           }
         ]
