@@ -77,7 +77,8 @@ SENSOR_Type_t Sensor_type[STQ] =
 		{0, "Null"},			// 0 - нет датчика
 		{1, "Double T&H"},		// 1 - совмещенный температура и влажность GL-TH04-MT
 		{2, "Single T"},		// 2 - датчик температуры РТ100 с RS485
-		{3, "BT T"}				// 3 - датчик температуры BlueTooth
+		{3, "BT T"},			// 3 - датчик температуры BlueTooth
+		{4, "MB IO"}			// 4 - модуль ввода-вывода MB 16DI-16RO
 };
 
 SENSOR_typedef_t Sensor_array[SQ] =
@@ -87,16 +88,19 @@ SENSOR_typedef_t Sensor_array[SQ] =
 		{103,3,0,1,"Center def",0,0,0,0},		// 2 - defroster center,GL-TH04-MT
 		{104,3,0,2,"Left prod",0,0,0,0},		// 3 - fish left, 		РТ100 с RS485
 		{105,3,0,2,"Right prod",0,0,0,0},		// 4 - fish right,		РТ100 с RS485
+		{201,3,0,4,"MB 16IO",0,0,0,0}			// 5 - модуль ввода-вывода с RS485
 };
 
 uint8_t SensNullValue = 255;
 uint8_t SensPortNumber;					// номер порта на шине для устройства (чтение) - адрес регистра в датчике (запись)
 uint8_t SensBaudRateIndex;				// индекс в массиве скорости шины
-int Sens_WR_value;						// переменная для чтения записанного в датчик значения
+int Sens_WR_value;						// переменная для чтения значения, записанного в датчик
 // массив скорости шины для датчика типа 1 GL-TH04-MT
 int BaudRate_Type1[8] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
 // массив скорости шины для датчика типа 2 PT100 PT21A01
 int BaudRate_Type2[8] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
+// массив скорости шины для датчика типа 4 MB 16DI-16RO
+int BaudRate_Type4[6] = {4800, 9600, 19200, 38400, 57600, 115200};
 
 typedef struct
 {
@@ -491,6 +495,12 @@ void ProgrammingSensor()
 
 				break;
 			}
+// тип 4 - это модуль ввода-вывода
+			case 4:
+			{
+
+				break;
+			}
 // default  -  к нему относятся:
 			// тип 1 - это датчик совмещенного типа Т и Н GL-TH04-MT
 			// тип 2 - это датчик температуры РТ100 с RS485
@@ -628,12 +638,21 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 				PR_UART4_Init(BaudRate_Type1[i]);
 				// считываем два регистра: адрес и скорость
 				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type1_Addr, 2);
-
+				if (result == MB_ERROR_NO)
+				{
+					SensPortNumber = MB->Read_Data_1;
+					SensBaudRateIndex = MB->Read_Data_2;
+				}
 				break; 	}
 			case 2: 	{
 				PR_UART4_Init(BaudRate_Type2[i]);
 				// считать из датчика можно только один регистр - адрес!
 				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type2_Addr, 1);
+				if (result == MB_ERROR_NO)
+				{
+					SensPortNumber = MB->Read_Data_2;
+					SensBaudRateIndex = i;
+				}
 				break; 	}
 			default:
 				break;
@@ -663,7 +682,11 @@ MB_Error_t Master_RW(MB_Active_t *MB, int SensIndex, MB_Command_t CMD, MB_Reg_t 
 	// Выполним приведение типа: указателю Command присвоим указатель буфера, буфер примет тип MB_Frame_t
 	MB_Frame_t *Command = (MB_Frame_t*) &MB->Tx_Buffer;
 	// Заполним начало буфера структурой для отправки команды датчику
-	Command->Address = Sensor_array[SensIndex].Address;
+	// Если широковещательная посылка, оставим адрес, как есть
+	if (SensIndex == 0xFF)
+		Command->Address = SensIndex;
+	else // иначе SenseIndex - это индекс сенсора в массиве сенсоров
+		Command->Address = Sensor_array[SensIndex].Address;
 	Command->Command = CMD;
 	Command->StartReg = SwapBytes(START_REG);
 	Command->RegNum = SwapBytes(DATA);

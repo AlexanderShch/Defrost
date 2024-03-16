@@ -127,6 +127,8 @@ typedef enum
 	Type2_Addr = 0x00FD,
 	Type2_Baud = 0x00FE,
 	Type2_Parity = 0x00FF
+
+
 }MB_Reg_t;
 
 //osThreadId MB_Slave_TaskHandle;

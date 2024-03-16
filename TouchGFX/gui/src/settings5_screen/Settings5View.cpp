@@ -25,8 +25,9 @@ void StartProgrammingSensor(void *argument);
 extern void ProgrammingSensor(void);
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern uint8_t SensNullValue;
-extern int BaudRate_Type1[];
-extern int BaudRate_Type2[];
+extern int BaudRate_Type1[];	// список скоростей для типа 1
+extern int BaudRate_Type2[];	// список скоростей для типа 2
+extern int BaudRate_Type4[];	// список скоростей для типа 4
 
 Settings5View::Settings5View():
 	//Создание смарт-пойнтеров на функции Handler для Callback
