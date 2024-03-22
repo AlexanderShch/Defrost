@@ -109,6 +109,9 @@ void Settings5View::scrollSensorSpeedNewUpdateItem(ScrollItemContainer& item, in
 		case 2:		{
 			item.updateScrollItem(BaudRate_Type2[itemIndex]);
 			break;	}
+		case 4:		{
+			item.updateScrollItem(BaudRate_Type4[itemIndex]);
+			break;	}
 		default:	{
 			item.updateScrollItem(0);
 			break;	}
@@ -125,6 +128,9 @@ void Settings5View::scrollSensorSpeedNewUpdateCenterItem(ScrollSelectedItemConta
 		case 2:		{
 			item.updateScrollSelectedItem(BaudRate_Type2[itemIndex]);
 			break;	}
+		case 4:		{
+			item.updateScrollSelectedItem(BaudRate_Type4[itemIndex]);
+			break;	}
 		default:	{
 			item.updateScrollSelectedItem(0);
 			break;	}
@@ -136,7 +142,6 @@ void Settings5View::scrollSensorSpeedNewUpdateCenterItem(ScrollSelectedItemConta
 //Вызывается для каждого значения в массиве значений колеса
 void Settings5View::scrollSensorAddressNewUpdateItem(TextContainer& item, int16_t itemIndex)
 {
-//    item.updateScrollItem(Sensor_array[itemIndex].Address);
 	//	Формирование строки с именем датчика и его адресом
 	char str[20];
 	char FormatText[] = " %d";
@@ -243,6 +248,9 @@ void Settings5View::BTNConfirmClicked()
 				case 2:		{
 					Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", BaudRate_Type2[SetSpeed]);
 					break;	}
+				case 4:		{
+					Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", BaudRate_Type4[SetSpeed]);
+					break;	}
 				default:
 					break;
 			}
@@ -338,6 +346,9 @@ void Settings5View::Val_BaudRate_UpdateView(uint8_t Val)
 				break;	}
 			case 2:		{
 				Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate_Type2[Val]);
+				break;	}
+			case 4:		{
+				Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate_Type4[Val]);
 				break;	}
 			default:
 				break;

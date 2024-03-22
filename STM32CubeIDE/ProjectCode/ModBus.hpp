@@ -45,7 +45,6 @@ uint16_t RxErrorCnt;		// счётчик ошибок приёма данных, 
 #define SwapBytes(data) ( (((data) >> 8) & 0x00FF) | (((data) << 8) & 0xFF00) )
 //(считаем CRC всей посылки, вместе с принятым CRC, должно быть = 0
 
-
 /* РЕГИСТРЫ ОПИСЫВАЮЩИЕ СОСТОЯНИЕ ДЕФРОСТЕРА */
 #define MB_SLAVE_REG_COUNT	11
 typedef struct
@@ -63,17 +62,15 @@ typedef struct
 // ФлагиСостояния, битовый регистр, Имена битов
 //	uint16_t DFR_flags;			    // доступ к регистру флагов целиком	11
 
-	uint16_t DFR_Ten1_Left:1;		// Тэн1 левый
-	uint16_t DFR_Ten2_Left:1;		// Тэн2 левый
-	uint16_t DFR_Ten3_Left:1;		// Тэн3 левый
-	uint16_t DFR_Ten1_Right:1;		// Тэн1 правый
-	uint16_t DFR_Ten2_Right:1;		// Тэн2 правый
-	uint16_t DFR_Ten3_Right:1;		// Тэн3 правый
-	uint16_t DFR_Vent1_Left:1;		// Вентилятор1 левый
-	uint16_t DFR_Vent2_Left:1;		// Вентилятор2 левый
-	uint16_t DFR_Vent1_Right:1;	    // Вентилятор1 правый
-	uint16_t DFR_Vent2_Right:1; 	// Вентилятор2 правый
-	uint16_t DFR_Water_Flap:1;		// Водный клапан
+	unsigned Ten1_Left:1;		// Тэн1 левый
+	unsigned Ten2_Left:1;		// Тэн2 левый
+	unsigned Ten1_Right:1;		// Тэн1 правый
+	unsigned Ten2_Right:1;		// Тэн2 правый
+	unsigned Vent1_Left:1;		// Вентилятор1 левый
+	unsigned Vent2_Left:1;		// Вентилятор2 левый
+	unsigned Vent1_Right:1;	    // Вентилятор1 правый
+	unsigned Vent2_Right:1; 	// Вентилятор2 правый
+	unsigned Water_Flap:1;		// Водный клапан
 
 } DFR_REGISTERS_t;
 
@@ -88,9 +85,16 @@ typedef struct {
 
 typedef enum
 {
-    MB_CMD_READ_REGS = 0x03,
+   // Holding registers
+	MB_CMD_READ_REGS = 0x03,
     MB_CMD_WRITE_REG = 0x06,
-    MB_CMD_WRITE_REGS = 0x10
+    MB_CMD_WRITE_REGS = 0x10,
+	// Output coil registers
+	MB_CMD_READ_COILS = 0x01,		// Read the value of one or more coil registers
+    MB_CMD_WRITE_COIL = 0x05,		// Write a coil register value
+    MB_CMD_WRITE_COILS = 0x0F,		// Write the value of one or more coil registers
+	// Discrete input register
+	MB_CMD_READ_INPUT = 0x02,		// Read input discrete
 }MB_Command_t;
 
 // Ошибки работы с шиной ModBus
@@ -126,8 +130,17 @@ typedef enum
 	Type2_delay = 0x00FC,
 	Type2_Addr = 0x00FD,
 	Type2_Baud = 0x00FE,
-	Type2_Parity = 0x00FF
+	Type2_Parity = 0x00FF,
 
+	Type4_Addr = 0x0002,		// 1 (default) ... 247
+	Type4_Baud = 0x0003,		// 1(4800), 2(9600) default, 3(19200), 4(38400), 5(57600), 6(115200)
+	Type4_CheckDigit = 0x0004,	// 1 (no check) default, 2 (odd check), 3 (even check)
+	Type4_TimeSet = 0x0005,		// disconnection protection function
+	/* If set to> = 1800, the network disconnection protection function will be cancelled.
+	0-1799S range is the network disconnection protection time, do output reset beyond this range */
+	Tipe4_Version = 0x0006,		// Year + month + day
+	Type4_DI = 0x0000,
+	Type4_DO = 0x0000,
 
 }MB_Reg_t;
 

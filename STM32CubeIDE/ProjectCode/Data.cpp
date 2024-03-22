@@ -19,6 +19,8 @@ extern osThreadId_t TouchGFX_Task;
 
 uint32_t flags;				// flags for waiting event
 int8_t SensorNumber;
+uint16_t RelayRegister;		// временная переменная, заменяющая регистр аппаратного управления устройствами
+
 MB_Error_t result;
 
 // definition of static variable. Member function definitions belong in the scope where the class is defined.
@@ -119,6 +121,11 @@ void ReadDataFunc() {
 		flags = osEventFlagsWait(ReadDataEventHandle, FLAG_ReadData, osFlagsWaitAny, osWaitForever);
 		// Новое значение счётчика времени
 		TimeFromStart ++;
+		// Новое значение во временный регистр управления устройствами - бегущая единица
+		if (RelayRegister == 0)
+			RelayRegister = 0x1;
+		else
+			RelayRegister = RelayRegister<<1;
 		// Цикл опроса датчиков
 		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
 		{

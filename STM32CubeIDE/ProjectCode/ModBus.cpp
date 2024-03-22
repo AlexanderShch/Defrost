@@ -20,7 +20,7 @@ extern osSemaphoreId_t PR_TX_Compl_SemHandle;	// семафор окончани
 extern osSemaphoreId_t PR_RX_Compl_SemHandle;	// семафор окончания передачи при программировании
 // current number of measure
 extern unsigned int TimeFromStart;
-
+extern uint16_t RelayRegister;	// временная переменная, заменяющая регистр аппаратного управления устройствами
 
 //osMessageQId MB_SlaveQHandle;
 //extern UART_HandleTypeDef huart7;
@@ -30,6 +30,9 @@ extern unsigned int TimeFromStart;
 volatile DFR_REGISTERS_t DFR_Reg;
 uint8_t MB_MasterTx_Buffer[MAX_MB_BUFSIZE] = {0};
 uint8_t MB_MasterRx_Buffer[MAX_MB_BUFSIZE] = {0};
+using MultWR_t = int8_t[8];						// Тип данных - Буфер для данных mult команд записи в устройство ModBus
+MultWR_t WR_Buffer = {0};
+
 uint16_t master_rec_byte_count = 0;
 uint16_t CountRX = 0;
 uint8_t FrameDelay1 = 30;						// Задержка между фреймами рабочая
@@ -88,19 +91,20 @@ SENSOR_typedef_t Sensor_array[SQ] =
 		{103,3,0,1,"Center def",0,0,0,0},		// 2 - defroster center,GL-TH04-MT
 		{104,3,0,2,"Left prod",0,0,0,0},		// 3 - fish left, 		РТ100 с RS485
 		{105,3,0,2,"Right prod",0,0,0,0},		// 4 - fish right,		РТ100 с RS485
-		{201,3,0,4,"MB 16IO",0,0,0,0}			// 5 - модуль ввода-вывода с RS485
+		{002,3,0,4,"MB 16IO",0,0,0,0}			// 5 - модуль ввода-вывода с RS485, диапазон адресов: 2 и 3
 };
 
 uint8_t SensNullValue = 255;
-uint8_t SensPortNumber;					// номер порта на шине для устройства (чтение) - адрес регистра в датчике (запись)
-uint8_t SensBaudRateIndex;				// индекс в массиве скорости шины
-int Sens_WR_value;						// переменная для чтения значения, записанного в датчик
+uint8_t SensPortNumber;					// физический адрес устройства на шине - получает значение из устройства при сканировании шины
+uint8_t SensAddress;					// физический адрес устройства на шине - получает значение из массива Sensor_array по индексу
+uint8_t SensBaudRateIndex;				// индекс в массиве скорости шины - получает значение из устройства при сканировании шины
+int Sens_WR_value;						// переменная для чтения записанного в датчик значения, применяется при контроля после записи в датчик
 // массив скорости шины для датчика типа 1 GL-TH04-MT
-int BaudRate_Type1[8] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
+int BaudRate_Type1[BAUD_RATE_NUMBER] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
 // массив скорости шины для датчика типа 2 PT100 PT21A01
-int BaudRate_Type2[8] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
+int BaudRate_Type2[BAUD_RATE_NUMBER] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
 // массив скорости шины для датчика типа 4 MB 16DI-16RO
-int BaudRate_Type4[6] = {4800, 9600, 19200, 38400, 57600, 115200};
+int BaudRate_Type4[BAUD_RATE_NUMBER] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
 
 typedef struct
 {
@@ -117,8 +121,8 @@ typedef struct
 
 } MB_Active_t;										// среда работы датчика
 
-MB_Error_t Master_Request(MB_Active_t *MB);
-MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, MB_Reg_t START_REG, uint16_t DATA);
+MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes);
+MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, MB_Reg_t START_REG, uint16_t DATA, MultWR_t WR_Buf);
 //MB_Error_t Master_Read(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, MB_Reg_t START_REG, uint8_t DATA);
 MB_Error_t ScanSensor(MB_Active_t *MB);
 MB_Error_t WriteToSensor(MB_Active_t *PR);
@@ -186,6 +190,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 {
 	MB_Error_t result = MB_ERROR_NO;
 	MB_Active_t SW;						// формируем среду работы с датчиками
+
 	// Инициируем среду для работы датчика
 	SW.UART = &huart5;
 	SW.PORT = MB_MASTER_DE_GPIO_Port;
@@ -199,6 +204,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 //	if (SW.PreviosTypeOfSensor != Sensor_array[SensIndex].TypeOfSensor) {
 //		osDelay(FrameDelay2);	// обеспечение выдержки между фреймами
 //	}
+	SensAddress = Sensor_array[SensIndex].Address;
 	// Считываем данные с датчика определённого типа
 	switch (Sensor_array[SensIndex].TypeOfSensor)
 	{
@@ -206,18 +212,35 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 		case 1:		{
 			uint8_t REG_COUNT = 2;		// запросим два значения: Н и Т
 			// Запросим данные с датчика
-			result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type1_H, REG_COUNT);
+			result = Master_RW(&SW, SensAddress, MB_CMD_READ_REGS, Type1_H, REG_COUNT, WR_Buffer);
 			break; 	}
 	// тип датчика: 2 - датчик температуры РТ100 с RS485
 		case 2:		{
 			uint8_t REG_COUNT = 1;		// запросим одно значение: Т
 			// Запросим данные с датчика
-			result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type2_T, REG_COUNT);
+			result = Master_RW(&SW, SensAddress, MB_CMD_READ_REGS, Type2_T, REG_COUNT, WR_Buffer);
+			break;	}
+	// тип датчика: 4 - модуль ввода-вывода с RS485
+		case 4:		{
+			/* Запишем состояние регистра аппаратного управления устройствами
+			 * в выходной регистр модуля ввода-вывода */
+			uint8_t REG_COUNT = 16;		// делаем запись/чтение в/из 16 портов
+			WR_Buffer[0] = 2;								// кол-во байт для записи
+			WR_Buffer[1] = RelayRegister & 0xFF;			// младший байт
+			WR_Buffer[2] = (RelayRegister>>8) & 0xFF;		// старший байт
+			result = Master_RW(&SW, SensAddress, MB_CMD_WRITE_COILS, Type4_DO, REG_COUNT, WR_Buffer);
+			if (result != MB_ERROR_NO)
+				break;
+			// Запросим данные с выходного регистра модуля ввода-вывода, запишем в H (Read_Data_1)
+			result = Master_RW(&SW, SensAddress, MB_CMD_READ_COILS, Type4_DO, REG_COUNT, WR_Buffer);
+			// Запросим данные со входного регистра модуля ввода-вывода, запишем в Т (Read_Data_2)
+			result = Master_RW(&SW, SensAddress, MB_CMD_READ_INPUT, Type4_DI, REG_COUNT, WR_Buffer);
 			break;	}
 		default:	{
 			result = MB_ERROR_WRONG_ADDRESS;
 			break;	}
 	}
+	// Если тайминги между разными типами датчиков на шине будут разными, сохраним тип считанного датчика в переменной
 	SW.PreviosTypeOfSensor = Sensor_array[SensIndex].TypeOfSensor;
 	// Обработка считанных данных
 	switch (result)
@@ -495,15 +518,10 @@ void ProgrammingSensor()
 
 				break;
 			}
-// тип 4 - это модуль ввода-вывода
-			case 4:
-			{
-
-				break;
-			}
 // default  -  к нему относятся:
 			// тип 1 - это датчик совмещенного типа Т и Н GL-TH04-MT
 			// тип 2 - это датчик температуры РТ100 с RS485
+			// тип 4 - это модуль ввода-вывода
 			default:
 			{
 				uint8_t TypeOfSens = Model::Type_of_sensor;
@@ -542,29 +560,42 @@ void ProgrammingSensor()
  */
 MB_Error_t WriteToSensor(MB_Active_t *PR)
 {
-	uint8_t i = 0;
+//	uint8_t i = 0;
 	uint8_t WR_BaudRate = 0;
 	uint8_t WR_Address = 0;
 	MB_Error_t result;
+
 /*
-* Запись данных в датчик, если флаг установлен
+* Запись данных в датчик в режиме программирования датчика, если флаг установлен
 * Флаг устанавливается, если датчик найден и выбраны скорость и адрес для записи
 */
 	while (Model::Flag_WR_to_sensor == 1)
 	{	// начало записи в датчик
 		// скорость шины установлена той, на которой датчик работает
-		// адрес датчика принят и записан в SensPortNumber
+		// адрес датчика считан из устройства и записан в SensPortNumber
 		// устанавливаем данные для записи нового адреса порта
-		WR_BaudRate = Model::BaudRate_WR_to_sensor;
 		WR_Address = Model::Address_WR_to_sensor;
+		WR_BaudRate = Model::BaudRate_WR_to_sensor;
+		uint8_t REG_COUNT = 2;						// делаем запись в 2 регистра: адрес и скорость
+		WR_Buffer[0] = 4;							// кол-во байт для записи
+		WR_Buffer[1] = (WR_Address>>8) & 0xFF;		// адрес старший байт
+		WR_Buffer[2] = WR_Address & 0xFF;			// адрес младший байт
+		WR_Buffer[3] = (WR_BaudRate>>8) & 0xFF;		// скорость старший байт
+		WR_Buffer[4] = WR_BaudRate & 0xFF;			// скорость младший байт
 
-		// запись и чтение адреса
+		// запись адреса и скорости
 		switch (Model::Type_of_sensor) {
 			case 1:
-				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Addr, WR_Address);
+//				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Addr, WR_Address, WR_Buffer);
+				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type1_Addr, REG_COUNT, WR_Buffer);
 				break;
 			case 2:
-				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type2_Addr, WR_Address);
+//				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type2_Addr, WR_Address, WR_Buffer);
+				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type2_Addr, REG_COUNT, WR_Buffer);
+				break;
+			case 4:
+//				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type4_Addr, WR_Address, WR_Buffer);
+				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type4_Addr, REG_COUNT, WR_Buffer);
 				break;
 			default:
 				break;
@@ -573,48 +604,54 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 		// проверка записанного
 		if (result == MB_ERROR_NO)
 		{	//всё хорошо, датчик записан
-			if (Sens_WR_value == WR_Address)
-			{	// Считали то же, что и записали, поменяем адрес на вновь записанный
-				SensPortNumber = Sens_WR_value;
-				osDelay(10);	// нужно время на переключение датчика на новые параметры
-
-				// теперь записываем и читаем скорость
-				switch (Model::Type_of_sensor) {
-					case 1:
-						result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Baud, WR_BaudRate);
-						break;
-					case 2:
-						result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type2_Baud, WR_BaudRate);
-						break;
-					default:
-						break;
-				}
-				if (result == MB_ERROR_NO)
-				{	//всё хорошо, скорость в датчик записана
+//			if (Sens_WR_value == WR_Address)
+//			{
+//				osDelay(10);	// нужно время на переключение датчика на новые параметры
+//				// теперь записываем и читаем скорость
+//				switch (Model::Type_of_sensor) {
+//					case 1:
+//						// Считали то же, что и записали, поменяем адрес на вновь записанный
+//						SensPortNumber = Sens_WR_value;
+//						result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Baud, WR_BaudRate, WR_Buffer);
+//						break;
+//					case 2:
+//						// Считали то же, что и записали, поменяем адрес на вновь записанный
+//						SensPortNumber = Sens_WR_value;
+//						result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type2_Baud, WR_BaudRate, WR_Buffer);
+//						break;
+//					case 4:
+//						// модуль до снятия питания будет откликаться на старый адрес
+//						result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type4_Baud, WR_BaudRate, WR_Buffer);
+//						break;
+//					default:
+//						break;
+//				}
+//				if (result == MB_ERROR_NO)
+//				{	//всё хорошо, скорость в датчик записана
+//					// Меняем скорость датчика для отображения и работы на ту, что считали из датчика после записи
+//					SensBaudRateIndex = Sens_WR_value;
 					// сбрасываем флаг записи в датчик
 					Model::Flag_WR_to_sensor = 0;
-					// Меняем скорость датчика для отображения и работы на ту, что считали из датчика после записи
-					SensBaudRateIndex = Sens_WR_value;
-					// Установим флаг для всплывающего окна предупреждения о необходимости сбросить питание модуля типа 2
-					if (Model::Type_of_sensor == 2) {
-						Model::Flag_Alert = 1;
-					}
-					osDelay(10);	// нужно время на переключение датчика на новые параметры
+				// Установим флаг для всплывающего окна предупреждения о необходимости сбросить питание модуля типа 2
+				if ((Model::Type_of_sensor == 2)||(Model::Type_of_sensor == 4)) {
+					Model::Flag_Alert = 1;
 				}
-				else
-				{	// плохо, что-то не получилось
-					osDelay(10);	// подождём: может помеха была
-					// повторяем запись адреса ещё 3 раза
-					if (i++ == 3)
-						Model::Flag_WR_to_sensor = 0;
-					// надо как-то оповестить об ошибке
-				}
-			}
-			else
-			{	// плохо, считали не то, что записали, что-то не получилось
-				Model::Flag_WR_to_sensor = 0;
-				// надо как-то оповестить об ошибке
-			}
+//				osDelay(10);	// нужно время на переключение датчика на новые параметры
+//				}
+//				else
+//				{	// плохо, что-то не получилось
+//					osDelay(10);	// подождём: может помеха была
+//					// повторяем запись адреса ещё 3 раза
+//					if (i++ == 3)
+//						Model::Flag_WR_to_sensor = 0;
+//					// надо как-то оповестить об ошибке
+//				}
+//			}
+//			else
+//			{	// плохо, считали не то, что записали, что-то не получилось
+//				Model::Flag_WR_to_sensor = 0;
+//				// надо как-то оповестить об ошибке
+//			}
 		} // конец проверки записанного
 		else
 			Model::Flag_WR_to_sensor = 0;
@@ -630,6 +667,7 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 MB_Error_t ScanSensor(MB_Active_t *MB)
 {
 	MB_Error_t result = MB_ERROR_NO;
+
 	// Производим сканирование широковещательной посылкой шины на всех скоростях
 	for (int i = 0; i < BAUD_RATE_NUMBER; ++i)
 	{
@@ -637,7 +675,7 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 			case 1: 	{
 				PR_UART4_Init(BaudRate_Type1[i]);
 				// считываем два регистра: адрес и скорость
-				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type1_Addr, 2);
+				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type1_Addr, 2, WR_Buffer);
 				if (result == MB_ERROR_NO)
 				{
 					SensPortNumber = MB->Read_Data_1;
@@ -646,12 +684,28 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 				break; 	}
 			case 2: 	{
 				PR_UART4_Init(BaudRate_Type2[i]);
-				// считать из датчика можно только один регистр - адрес!
-				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type2_Addr, 1);
+				// в широковещательном режиме тип 2 позволяет считать только один регистр!
+				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type2_Addr, 1, WR_Buffer);
 				if (result == MB_ERROR_NO)
 				{
 					SensPortNumber = MB->Read_Data_2;
 					SensBaudRateIndex = i;
+				}
+				break; 	}
+			case 4: 	{
+				PR_UART4_Init(BaudRate_Type4[i]);
+				// для этого типа не работает широковещательный адрес, будем перебирать все адреса до ответа устройства
+				for (int addr = 1; addr < 4; ++addr)
+				{
+					// считываем два регистра: адрес и скорость
+					result = Master_RW(MB, addr, MB_CMD_READ_REGS, Type4_Addr, 2, WR_Buffer);
+					if (result == MB_ERROR_NO)
+					{
+						SensPortNumber = MB->Read_Data_1;
+						SensBaudRateIndex = MB->Read_Data_2;
+						break;
+					}
+					osDelay(10);
 				}
 				break; 	}
 			default:
@@ -665,7 +719,7 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 }
 
 /* Функция считывает данные с датчика или записывает данные в датчик в зависимости от команды CMD
- * Используется только для программирования датчиков
+ * Используется для работы с датчиками для чтения нескольких и записи одного регистра
  * Параметры:
  * - среда работы с датчиком,
  * - адрес датчика,
@@ -673,66 +727,98 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
  * - начальный регистр,
  * - данные (для чтения - кол-во считываемых регистров, для записи - данные для записи в регистр)
  */
-MB_Error_t Master_RW(MB_Active_t *MB, int SensIndex, MB_Command_t CMD, MB_Reg_t START_REG, uint16_t DATA)
+MB_Error_t Master_RW(MB_Active_t *MB, int SensAddress, MB_Command_t CMD, MB_Reg_t START_REG, uint16_t DATA, MultWR_t WR_Buf)
 {
 	MB_Error_t result;
 	memset(MB->Tx_Buffer, 0, MAX_MB_BUFSIZE);
 	memset(MB->Rx_Buffer, 0, MAX_MB_BUFSIZE);
+	/* в обычной работе для чтения нескольких регистров (команда 0х03)
+	 * и записи одного регистра (команда 0х06) требуется 8 байт в посылке */
+	int N_Bytes = 8;
+	int var, valCRC;
+
 	// параметры для датчика совмещенного типа
 	// Выполним приведение типа: указателю Command присвоим указатель буфера, буфер примет тип MB_Frame_t
 	MB_Frame_t *Command = (MB_Frame_t*) &MB->Tx_Buffer;
 	// Заполним начало буфера структурой для отправки команды датчику
-	// Если широковещательная посылка, оставим адрес, как есть
-	if (SensIndex == 0xFF)
-		Command->Address = SensIndex;
-	else // иначе SenseIndex - это индекс сенсора в массиве сенсоров
-		Command->Address = Sensor_array[SensIndex].Address;
+	Command->Address = SensAddress;
 	Command->Command = CMD;
 	Command->StartReg = SwapBytes(START_REG);
 	Command->RegNum = SwapBytes(DATA);
-	Command->CRC_Sum = MB_GetCRC(MB->Tx_Buffer, 6);
+	Command->CRC_Sum = MB_GetCRC(MB->Tx_Buffer, N_Bytes-2);
+	// посылка для передачи подготовлена
+	// Теперь нужно скорректировать посылку для команд mult записи
 
-	result = Master_Request(MB);
-	MB->Read_Data_1 = 0;
-	MB->Read_Data_2 = 0;
-	switch (result) {
-		case MB_ERROR_NO:
-			// данные приняты - проверяем достоверность
-			if (CMD != MB_CMD_WRITE_REG)
-			{	// был запрос на чтение
+	if (CMD >= 0x0F) // это команды mult записи 0x0F, 0x10?
+	{
+		for (var = 0; var <= WR_Buf[0]; ++var) {
+			MB->Tx_Buffer[var+6] = WR_Buf[var];
+		}
+		// пересчитаем CRC
+		valCRC = MB_GetCRC(MB->Tx_Buffer, (N_Bytes-2)+var);
+		MB->Tx_Buffer[var+++(N_Bytes-2)] = valCRC & 0xFF;			// CRC Lo
+		MB->Tx_Buffer[var+++(N_Bytes-2)] = valCRC>>8 & 0xFF;		// CRC Hi
+		result = Master_Request(MB, var+(N_Bytes-2));
+	}
+	else
+		result = Master_Request(MB, N_Bytes);
+
+	if (result == MB_ERROR_NO)
+	{
+		// данные приняты - проверяем достоверность и сохраняем принятые данные в переменные
+		switch (CMD)	{
+			case MB_CMD_READ_COILS:	{
+				if (CMD == *(uint8_t*) &MB->Rx_Buffer[1])
+					// читаем два байта
+					MB->Read_Data_1 = *(uint16_t*) &MB->Rx_Buffer[3];
+				else	{
+					// возможно, была ошибка. Код ошибки сохраним в Read_Data_1
+					MB->Read_Data_1 = *(uint16_t*) &MB->Rx_Buffer[2];
+					result = MB_ERROR_UART_SEND;	}
+				break;	}
+			case MB_CMD_READ_INPUT:	{
+				if (CMD == *(uint8_t*) &MB->Rx_Buffer[1])
+					// читаем два байта
+					MB->Read_Data_2 = *(uint16_t*) &MB->Rx_Buffer[3];
+				else	{
+					// возможно, была ошибка. Код ошибки сохраним в Read_Data_2
+					MB->Read_Data_2 = *(uint16_t*) &MB->Rx_Buffer[2];
+					result = MB_ERROR_UART_SEND;	}
+				break;	}
+			case MB_CMD_READ_REGS: {	// был запрос на чтение одного или нескольких регистров
 				if CheckAnswerCRC
 				{	// все проверки ОК
-					if (DATA == 2) // заказывали два регистра на чтение
-					{// все проверки ОК, читаем два значения
-						MB->Read_Data_1 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
-						MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
-					}
-					else
+					if (DATA == 1) // заказывали один регистр на чтение
 					{// все проверки ОК, читаем одно значение
 						MB->Read_Data_1 = 0;
 						MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
 					}
+					else
+					{// все проверки ОК, читаем два значения
+						MB->Read_Data_1 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
+						MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
+					}
 				}
 				else
 				{	// проверки не пройдены, ошибка в принятых данных
 					result = MB_ERROR_UART_SEND;
 				};
-			}
-			else
-			{	// был запрос на запись, всегда один регистр для записи
+				break;	}
+			case MB_CMD_WRITE_REG: {	// был запрос на запись одного регистра
 				if PR_CheckAnswerCRC
-				{	// все проверки ОК, пишем значения с датчика совмещённого типа
-					// Считанные из датчика данные после записи помещаем в переменную
-					MB->Read_Data_1 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[4]);
+				{	// Считанные из датчика данные после записи помещаем в переменную
+					Sens_WR_value = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[4]);
 				}
 				else
 				{	// проверки не пройдены, ошибка в принятых данных
 					result = MB_ERROR_UART_SEND;
 				};
-			}
-			break;
-		default:
-			break;
+				break;	}
+			case MB_CMD_WRITE_REGS: {	// был запрос на запись нескольких регистров
+				break;	}
+			default:	{	//
+				break;	}
+		}
 	}
 	return result;
 }
@@ -752,7 +838,7 @@ MB_ERROR_DMA_RECIEVE = 0x07
  * Параметры порта uart, GPIO, буферы и семафоры передачи и приёма передаются в структуре MB.
  * Возвращается статус обработки запроса к датчику.
  */
-MB_Error_t Master_Request(MB_Active_t *MB)
+MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 {
 	MB_Error_t MB_ERR = MB_ERROR_NO;
 	HAL_StatusTypeDef result;		// status HAL: HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT
@@ -766,7 +852,7 @@ MB_Error_t Master_Request(MB_Active_t *MB)
 	// Начинаем передачу отправкой буфера с записанной структурой в порт UART через DMA
 	osDelay(1);	// задержка перед стартовым битом
 
-	result = HAL_UART_Transmit_DMA(MB->UART, MB->Tx_Buffer, 8);
+	result = HAL_UART_Transmit_DMA(MB->UART, MB->Tx_Buffer, N_Bytes);
 	if (result == HAL_OK)
 	{
 		// ПЕРЕДАЧА UART ***************************
@@ -834,6 +920,8 @@ MB_Error_t Sensor_Read_CORR(uint8_t SensIndex)
 {
 	MB_Error_t result = MB_ERROR_NO;
 	MB_Active_t SW;						// объявляем среду работы с датчиками
+
+
 	// Инициируем среду для работы датчика
 	SW.UART = &huart5;
 	SW.PORT = MB_MASTER_DE_GPIO_Port;
@@ -848,12 +936,13 @@ MB_Error_t Sensor_Read_CORR(uint8_t SensIndex)
 //	if (SW.PreviosTypeOfSensor != Sensor_array[SensIndex].TypeOfSensor) {
 //		osDelay(FrameDelay2);	// обеспечение выдержки между фреймами
 //	}
+	SensAddress = Sensor_array[SensIndex].Address;
 	switch (Sensor_array[SensIndex].TypeOfSensor)
 	{
 	// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
 		case 1:		{
 			// Запросим данные с датчика
-			result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type1_H, 2);
+			result = Master_RW(&SW, SensAddress, MB_CMD_READ_REGS, Type1_H, 2, WR_Buffer);
 			Model::H_CORR_sensor = SW.Read_Data_1;
 			Model::T_CORR_sensor = SW.Read_Data_2;
 			break; 	}
@@ -861,10 +950,10 @@ MB_Error_t Sensor_Read_CORR(uint8_t SensIndex)
 		case 2:		{
 			// Запросим данные с датчика
 			// Одно значение получаем всегда в Read_Data_2
-			result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type2_R, 1);
+			result = Master_RW(&SW, SensAddress, MB_CMD_READ_REGS, Type2_R, 1, WR_Buffer);
 			Model::R_CORR_sensor = SW.Read_Data_2;
 			// Здесь паузу между фреймами не делаем, поскольку читаем из того же устройства
-			result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type2_T, 1);
+			result = Master_RW(&SW, SensAddress, MB_CMD_READ_REGS, Type2_T, 1, WR_Buffer);
 			Model::T_CORR_sensor = SW.Read_Data_2;
 			break;	}
 		default:	{
@@ -882,6 +971,8 @@ MB_Error_t Sensor_Write_CORR(uint8_t SensIndex)
 	MB_Error_t result = MB_ERROR_COMMAND;
 	Model::Flag_WR_to_sensor = 0;
 	MB_Active_t SW;						// объявляем среду работы с датчиками
+
+
 	int CORR_Data;
 	// Инициируем среду для работы датчика
 	SW.UART = &huart5;
@@ -892,20 +983,21 @@ MB_Error_t Sensor_Write_CORR(uint8_t SensIndex)
 	// Записываем данные в датчик определённого типа
 	// Пишем T
 	if (Model::CORR_T_sensor != 0) {
+		SensAddress = Sensor_array[SensIndex].Address;
 		switch (Sensor_array[SensIndex].TypeOfSensor)
 		{
 		// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
 			case 1:		{	// Пишем Т
 				// Считаем имеющуюся корректировку
-				result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type1_T_calibr, 1);
+				result = Master_RW(&SW, SensAddress, MB_CMD_READ_REGS, Type1_T_calibr, 1, WR_Buffer);
 				// вычисляем разность величин с учётом имеющейся корректировки
 				CORR_Data = Model::CORR_T_sensor - (Model::T_CORR_sensor - SW.Read_Data_2);
-				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type1_T_calibr, CORR_Data);
+				result = Master_RW(&SW, SensAddress, MB_CMD_WRITE_REG, Type1_T_calibr, CORR_Data, WR_Buffer);
 				break; 	}
 		// тип датчика: 2 - датчик температуры РТ100 с RS485
 			case 2:		{	// Пишем T
 				CORR_Data = Model::CORR_T_sensor;								// пишем нужную величину
-				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type2_T_calibr, CORR_Data);
+				result = Master_RW(&SW, SensAddress, MB_CMD_WRITE_REG, Type2_T_calibr, CORR_Data, WR_Buffer);
 				break;	}
 			default:	{
 				result = MB_ERROR_WRONG_ADDRESS;
@@ -914,6 +1006,7 @@ MB_Error_t Sensor_Write_CORR(uint8_t SensIndex)
 	};
 	// Пишем HR
 	osDelay(3);	// обеспечение выдержки между фреймами >3.5 времени передачи байта
+	SensAddress = Sensor_array[SensIndex].Address;
 	switch (Sensor_array[SensIndex].TypeOfSensor)
 	{
 	// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
@@ -921,10 +1014,10 @@ MB_Error_t Sensor_Write_CORR(uint8_t SensIndex)
 			if (Model::CORR_H_sensor != 0)
 			{
 				// Считаем имеющуюся корректировку
-				result = Master_RW(&SW, SensIndex, MB_CMD_READ_REGS, Type1_H_calibr, 1);
+				result = Master_RW(&SW, SensAddress, MB_CMD_READ_REGS, Type1_H_calibr, 1, WR_Buffer);
 				// вычисляем разность величин с учётом имеющейся корректировки
 				CORR_Data = Model::CORR_H_sensor - (Model::H_CORR_sensor - SW.Read_Data_2);
-				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type1_H_calibr, CORR_Data);
+				result = Master_RW(&SW, SensAddress, MB_CMD_WRITE_REG, Type1_H_calibr, CORR_Data, WR_Buffer);
 			}
 			break; 	}
 	// тип датчика: 2 - датчик температуры РТ100 с RS485
@@ -932,7 +1025,7 @@ MB_Error_t Sensor_Write_CORR(uint8_t SensIndex)
 			if (Model::CORR_R_sensor != 0)
 			{
 				CORR_Data = Model::CORR_R_sensor;								// пишем нужную величину
-				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type2_R_calibr, CORR_Data);
+				result = Master_RW(&SW, SensAddress, MB_CMD_WRITE_REG, Type2_R_calibr, CORR_Data, WR_Buffer);
 			}
 			break;	}
 		default:	{
@@ -948,6 +1041,8 @@ MB_Error_t Sensor_CORR_Reset(uint8_t SensIndex)
 	MB_Error_t result = MB_ERROR_COMMAND;
 	Model::Flag_Alert = 0;
 	MB_Active_t SW;						// объявляем среду работы с датчиками
+
+
 	// Инициируем среду для работы датчика
 	SW.UART = &huart5;
 	SW.PORT = MB_MASTER_DE_GPIO_Port;
@@ -956,22 +1051,23 @@ MB_Error_t Sensor_CORR_Reset(uint8_t SensIndex)
 	SW.Sem_Tx = &TX_Compl_SemHandle;
 
 	// Обнуляем корректировку Т
-		switch (Sensor_array[SensIndex].TypeOfSensor)
-		{
-		// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
-			case 1:		{
-				// Обнуляем корректировку Т
-				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type1_T_calibr, 0);
-				// Обнуляем корректировку Н
-				result = Master_RW(&SW, SensIndex, MB_CMD_WRITE_REG, Type1_H_calibr, 0);
-				break; 	}
-		// тип датчика: 2 - датчик температуры РТ100 с RS485
-			case 2:		{
-				break;	}
-			default:	{
-				result = MB_ERROR_WRONG_ADDRESS;
-				break;	}
-		}
+	SensAddress = Sensor_array[SensIndex].Address;
+	switch (Sensor_array[SensIndex].TypeOfSensor)
+	{
+	// тип датчика: 1 - совмещённый датчик температуры и влажности GL-TH04-MT
+		case 1:		{
+			// Обнуляем корректировку Т
+			result = Master_RW(&SW, SensAddress, MB_CMD_WRITE_REG, Type1_T_calibr, 0, WR_Buffer);
+			// Обнуляем корректировку Н
+			result = Master_RW(&SW, SensAddress, MB_CMD_WRITE_REG, Type1_H_calibr, 0, WR_Buffer);
+			break; 	}
+	// тип датчика: 2 - датчик температуры РТ100 с RS485
+		case 2:		{
+			break;	}
+		default:	{
+			result = MB_ERROR_WRONG_ADDRESS;
+			break;	}
+	}
 	return result;
 }
 
