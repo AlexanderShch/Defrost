@@ -1,6 +1,11 @@
 #include <gui/visualization_screen/VisualizationView.hpp>
 #include <gui/visualization_screen/VisualizationPresenter.hpp>
 
+
+//extern volatile DFR_REGISTERS_t DFR;				// Объявление регистра состояния управления устройствами
+//extern volatile DFR_REGISTERS_t DFR_current;		// Объявление регистра текущего отображения состояния управления устройствами
+//extern volatile DFR_REGISTERS_t DFR_chng_flag;		// Объявление регистра флагов изменения состояния управления устройствами
+uint16_t FlagsTemp;
 VisualizationPresenter::VisualizationPresenter(VisualizationView& v)
     : view(v)
 {
@@ -73,4 +78,50 @@ void VisualizationPresenter::ValUpdatePresenter()
 			}
 		}
 	}
+	// Закончено обновление Т и Н
+	// Обновим работу оборудования
+	// Проверим флаги смены состояния и передадим флаг состояния во view
+	if (Model::DFR_chng_flag.Ten1_Left == 1)
+	{
+	    view.Val_Ten1_Left_UpdateView(Model::DFR.Ten1_Left);
+	};
+    if (Model::DFR_chng_flag.Ten2_Left == 1)
+	{
+    	view.Val_Ten2_Left_UpdateView(Model::DFR.Ten2_Left);
+	};
+    if (Model::DFR_chng_flag.Ten1_Right == 1)
+	{
+    	view.Val_Ten1_Right_UpdateView(Model::DFR.Ten1_Right);
+	};
+    if (Model::DFR_chng_flag.Ten2_Right == 1)
+	{
+    	view.Val_Ten2_Right_UpdateView(Model::DFR.Ten2_Right);
+	};
+    if (Model::DFR_chng_flag.Vent1_Left == 1)
+	{
+    	view.Val_Vent1_Left_UpdateView(Model::DFR.Vent1_Left);
+	};
+    if (Model::DFR_chng_flag.Vent2_Left == 1)
+	{
+    	view.Val_Vent2_Left_UpdateView(Model::DFR.Vent2_Left);
+	};
+    if (Model::DFR_chng_flag.Vent1_Right == 1)
+	{
+    	view.Val_Vent1_Right_UpdateView(Model::DFR.Vent1_Right);
+	};
+    if (Model::DFR_chng_flag.Vent2_Right == 1)
+	{
+    	view.Val_Vent2_Right_UpdateView(Model::DFR.Vent2_Right);
+	};
+    if (Model::DFR_chng_flag.Water_Flap == 1)
+	{
+    	view.Val_Water_Flap_UpdateView(Model::DFR.Water_Flap);
+	};
+
+//	DFR_chng_flag.Vent1_Left = 1;
+//	DFR_current.Vent2_Left = 1;
+//	FlagsTemp = *(uint16_t*) &DFR;
+//	FlagsTemp = *(uint16_t*) &DFR_chng_flag;
+//			//*(uint16_t*) &DFR ^ *(uint16_t*) &DFR_current;
 }
+

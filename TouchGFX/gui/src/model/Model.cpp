@@ -1,7 +1,6 @@
 #include <gui/model/Model.hpp>
 #include <gui/model/ModelListener.hpp>
 
-
 Model::Model() : modelListener(0)
 {
 
@@ -104,6 +103,10 @@ uint8_t Model::Flag_Alert = 0;
 uint8_t Model::BaudRate_PR_sensor = 0;
 uint8_t Model::Address_PR_sensor = 0;
 uint8_t Model::FlagCurrentValue_PR_sensor = 0;
+DFR_REGISTERS_t Model::DFR;				// Регистр состояния управления устройствами
+DFR_REGISTERS_t Model::DFR_current;		// Регистр текущего отображения состояния управления устройствами
+DFR_REGISTERS_t Model::DFR_chng_flag;	// Регистр флагов изменения состояния управления устройствами
+
 
 // определение переменных для корректировки
 uint8_t Model::Index_CORR_sensor;			// индекс корректируемого датчика в массиве датчиков
@@ -118,3 +121,6 @@ int16_t Model::CORR_T_sensor = 0;			// значение T для коррект�
 int16_t Model::CORR_H_sensor = 0;			// значение H для корректировки
 int16_t Model::CORR_R_sensor = 0;			// значение R для корректировки
 uint8_t Model::Type_CORR_sensor = 0;
+
+
+

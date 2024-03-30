@@ -346,22 +346,6 @@
             "RelativeFilename": "Defroster.png"
           },
           {
-            "Type": "TextArea",
-            "Name": "StateHeat2",
-            "X": 94,
-            "Y": 120,
-            "Width": 6,
-            "Height": 12,
-            "TextId": "StateHeat2",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "AutoSize": true
-          },
-          {
             "Type": "ButtonWithIcon",
             "Name": "BTNGoToHome",
             "X": 5,
@@ -379,94 +363,44 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\tiny_fill_normal.json"
           },
           {
-            "Type": "AnimatedImage",
-            "Name": "AnimFan12",
-            "X": 21,
-            "Y": 133,
-            "Width": 38,
-            "Height": 38,
-            "FileNameFirst": "Fan_01.png",
-            "FileNameLast": "Fan_12.png",
-            "UpdateTicksInterval": 50,
-            "StartOnLoad": true,
-            "LoopEnabled": true
-          },
-          {
-            "Type": "AnimatedImage",
-            "Name": "AnimFan34",
-            "X": 181,
-            "Y": 133,
-            "Width": 38,
-            "Height": 38,
-            "FileNameFirst": "Fan_01.png",
-            "FileNameLast": "Fan_12.png",
-            "UpdateTicksInterval": 50,
-            "StartOnLoad": true,
-            "LoopEnabled": true
-          },
-          {
             "Type": "TextArea",
-            "Name": "StateFan1",
-            "X": 28,
-            "Y": 172,
-            "Width": 6,
-            "Height": 12,
-            "TextId": "StateFan1",
+            "Name": "ValueCoreT2Small",
+            "X": 133,
+            "Y": 226,
+            "Width": 35,
+            "Height": 15,
+            "TextId": "ValueCoreT2Small",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true
+            "Wildcard1": {
+              "TextId": "ValueCoreT2_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
           },
           {
             "Type": "TextArea",
-            "Name": "StateFan3",
-            "X": 188,
-            "Y": 172,
-            "Width": 6,
-            "Height": 12,
-            "TextId": "StateFan3",
+            "Name": "ValueCoreT1Small",
+            "X": 73,
+            "Y": 226,
+            "Width": 35,
+            "Height": 15,
+            "TextId": "ValueCoreT1Small",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true
-          },
-          {
-            "Type": "TextArea",
-            "Name": "StateFan4",
-            "X": 206,
-            "Y": 172,
-            "Width": 6,
-            "Height": 12,
-            "TextId": "StateFan4",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "AutoSize": true
-          },
-          {
-            "Type": "TextArea",
-            "Name": "StateFan2",
-            "X": 46,
-            "Y": 172,
-            "Width": 6,
-            "Height": 12,
-            "TextId": "StateFan2",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "AutoSize": true
+            "Wildcard1": {
+              "TextId": "ValueCoreT1_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
           },
           {
             "Type": "TextArea",
@@ -530,46 +464,6 @@
           },
           {
             "Type": "TextArea",
-            "Name": "ValueCoreT1Small",
-            "X": 73,
-            "Y": 226,
-            "Width": 35,
-            "Height": 15,
-            "TextId": "ValueCoreT1Small",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "Wildcard1": {
-              "TextId": "ValueCoreT1_W",
-              "UseBuffer": true,
-              "BufferSize": 10
-            }
-          },
-          {
-            "Type": "TextArea",
-            "Name": "ValueCoreT2Small",
-            "X": 133,
-            "Y": 226,
-            "Width": 35,
-            "Height": 15,
-            "TextId": "ValueCoreT2Small",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "Wildcard1": {
-              "TextId": "ValueCoreT2_W",
-              "UseBuffer": true,
-              "BufferSize": 10
-            }
-          },
-          {
-            "Type": "TextArea",
             "Name": "ValueDefrosterH2",
             "X": 178,
             "Y": 251,
@@ -610,12 +504,80 @@
           },
           {
             "Type": "TextArea",
-            "Name": "StateHeat1",
-            "X": 84,
-            "Y": 120,
+            "Name": "ValueDefrosterH",
+            "X": 103,
+            "Y": 171,
+            "Width": 35,
+            "Height": 12,
+            "TextId": "__SingleUse_7H2N",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "ValueDefrosterH_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "StateFan4",
+            "X": 206,
+            "Y": 172,
             "Width": 6,
             "Height": 12,
-            "TextId": "StateHeat1",
+            "TextId": "StateFan4",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "StateFan3",
+            "X": 188,
+            "Y": 172,
+            "Width": 6,
+            "Height": 12,
+            "TextId": "StateFan3",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "StateFan2",
+            "X": 46,
+            "Y": 172,
+            "Width": 6,
+            "Height": 12,
+            "TextId": "StateFan2",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "StateFan1",
+            "X": 28,
+            "Y": 172,
+            "Width": 6,
+            "Height": 12,
+            "TextId": "StateFan1",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -657,17 +619,61 @@
             "AutoSize": true
           },
           {
+            "Type": "TextArea",
+            "Name": "StateHeat2",
+            "X": 94,
+            "Y": 120,
+            "Width": 6,
+            "Height": 12,
+            "TextId": "StateHeat2",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "StateHeat1",
+            "X": 84,
+            "Y": 120,
+            "Width": 6,
+            "Height": 12,
+            "TextId": "StateHeat1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
             "Type": "AnimatedImage",
-            "Name": "AnimHeat12",
-            "X": 63,
-            "Y": 86,
-            "Width": 25,
-            "Height": 30,
-            "FileNameFirst": "Heat_01.png",
-            "FileNameLast": "Heat_14.png",
-            "UpdateTicksInterval": 80,
+            "Name": "AnimFan34",
+            "X": 181,
+            "Y": 133,
+            "Width": 38,
+            "Height": 38,
+            "FileNameFirst": "Fan_01.png",
+            "FileNameLast": "Fan_12.png",
+            "UpdateTicksInterval": 50,
             "StartOnLoad": true,
-            "ReverseEnabled": true,
+            "LoopEnabled": true
+          },
+          {
+            "Type": "AnimatedImage",
+            "Name": "AnimFan12",
+            "X": 21,
+            "Y": 133,
+            "Width": 38,
+            "Height": 38,
+            "FileNameFirst": "Fan_01.png",
+            "FileNameLast": "Fan_12.png",
+            "UpdateTicksInterval": 50,
+            "StartOnLoad": true,
             "LoopEnabled": true
           },
           {
@@ -684,24 +690,18 @@
             "LoopEnabled": true
           },
           {
-            "Type": "TextArea",
-            "Name": "ValueDefrosterH",
-            "X": 103,
-            "Y": 171,
-            "Width": 35,
-            "Height": 12,
-            "TextId": "__SingleUse_7H2N",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "Wildcard1": {
-              "TextId": "ValueDefrosterH_W",
-              "UseBuffer": true,
-              "BufferSize": 10
-            }
+            "Type": "AnimatedImage",
+            "Name": "AnimHeat12",
+            "X": 63,
+            "Y": 86,
+            "Width": 25,
+            "Height": 30,
+            "FileNameFirst": "Heat_01.png",
+            "FileNameLast": "Heat_14.png",
+            "UpdateTicksInterval": 80,
+            "StartOnLoad": true,
+            "ReverseEnabled": true,
+            "LoopEnabled": true
           }
         ],
         "Interactions": [

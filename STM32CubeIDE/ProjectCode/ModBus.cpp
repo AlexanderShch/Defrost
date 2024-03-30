@@ -18,20 +18,15 @@ extern osSemaphoreId_t TX_Compl_SemHandle;		// семафор окончания
 extern osSemaphoreId_t RX_Compl_SemHandle;		// семафор окончания приёма от датчиков
 extern osSemaphoreId_t PR_TX_Compl_SemHandle;	// семафор окончания приёма при программировании
 extern osSemaphoreId_t PR_RX_Compl_SemHandle;	// семафор окончания передачи при программировании
-// current number of measure
+
 extern unsigned int TimeFromStart;
 extern uint16_t RelayRegister;	// временная переменная, заменяющая регистр аппаратного управления устройствами
+												// volatile - может изменяться другими потоками
 
-//osMessageQId MB_SlaveQHandle;
-//extern UART_HandleTypeDef huart7;
-//extern DMA_HandleTypeDef hdma_uart7_rx;
-//extern DMA_HandleTypeDef hdma_uart7_tx;
-
-volatile DFR_REGISTERS_t DFR_Reg;
 uint8_t MB_MasterTx_Buffer[MAX_MB_BUFSIZE] = {0};
 uint8_t MB_MasterRx_Buffer[MAX_MB_BUFSIZE] = {0};
 using MultWR_t = int8_t[8];						// Тип данных - Буфер для данных mult команд записи в устройство ModBus
-MultWR_t WR_Buffer = {0};
+MultWR_t WR_Buffer = {0};						// Обявление буфера для mult команд
 
 uint16_t master_rec_byte_count = 0;
 uint16_t CountRX = 0;
@@ -577,6 +572,7 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 		WR_Address = Model::Address_WR_to_sensor;
 		WR_BaudRate = Model::BaudRate_WR_to_sensor;
 		uint8_t REG_COUNT = 2;						// делаем запись в 2 регистра: адрес и скорость
+		// заполним буфер для mult записи
 		WR_Buffer[0] = 4;							// кол-во байт для записи
 		WR_Buffer[1] = (WR_Address>>8) & 0xFF;		// адрес старший байт
 		WR_Buffer[2] = WR_Address & 0xFF;			// адрес младший байт
@@ -586,15 +582,12 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 		// запись адреса и скорости
 		switch (Model::Type_of_sensor) {
 			case 1:
-//				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Addr, WR_Address, WR_Buffer);
 				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type1_Addr, REG_COUNT, WR_Buffer);
 				break;
 			case 2:
-//				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type2_Addr, WR_Address, WR_Buffer);
 				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type2_Addr, REG_COUNT, WR_Buffer);
 				break;
 			case 4:
-//				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type4_Addr, WR_Address, WR_Buffer);
 				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type4_Addr, REG_COUNT, WR_Buffer);
 				break;
 			default:
@@ -604,54 +597,12 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 		// проверка записанного
 		if (result == MB_ERROR_NO)
 		{	//всё хорошо, датчик записан
-//			if (Sens_WR_value == WR_Address)
-//			{
-//				osDelay(10);	// нужно время на переключение датчика на новые параметры
-//				// теперь записываем и читаем скорость
-//				switch (Model::Type_of_sensor) {
-//					case 1:
-//						// Считали то же, что и записали, поменяем адрес на вновь записанный
-//						SensPortNumber = Sens_WR_value;
-//						result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type1_Baud, WR_BaudRate, WR_Buffer);
-//						break;
-//					case 2:
-//						// Считали то же, что и записали, поменяем адрес на вновь записанный
-//						SensPortNumber = Sens_WR_value;
-//						result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type2_Baud, WR_BaudRate, WR_Buffer);
-//						break;
-//					case 4:
-//						// модуль до снятия питания будет откликаться на старый адрес
-//						result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REG, Type4_Baud, WR_BaudRate, WR_Buffer);
-//						break;
-//					default:
-//						break;
-//				}
-//				if (result == MB_ERROR_NO)
-//				{	//всё хорошо, скорость в датчик записана
-//					// Меняем скорость датчика для отображения и работы на ту, что считали из датчика после записи
-//					SensBaudRateIndex = Sens_WR_value;
-					// сбрасываем флаг записи в датчик
-					Model::Flag_WR_to_sensor = 0;
-				// Установим флаг для всплывающего окна предупреждения о необходимости сбросить питание модуля типа 2
-				if ((Model::Type_of_sensor == 2)||(Model::Type_of_sensor == 4)) {
-					Model::Flag_Alert = 1;
-				}
-//				osDelay(10);	// нужно время на переключение датчика на новые параметры
-//				}
-//				else
-//				{	// плохо, что-то не получилось
-//					osDelay(10);	// подождём: может помеха была
-//					// повторяем запись адреса ещё 3 раза
-//					if (i++ == 3)
-//						Model::Flag_WR_to_sensor = 0;
-//					// надо как-то оповестить об ошибке
-//				}
-//			}
-//			else
-//			{	// плохо, считали не то, что записали, что-то не получилось
-//				Model::Flag_WR_to_sensor = 0;
-//				// надо как-то оповестить об ошибке
-//			}
+			// сбрасываем флаг записи в датчик
+			Model::Flag_WR_to_sensor = 0;
+			// Установим флаг для всплывающего окна предупреждения о необходимости сбросить питание для модуля типа 2 или 4
+			if ((Model::Type_of_sensor == 2)||(Model::Type_of_sensor == 4)) {
+				Model::Flag_Alert = 1;
+			}
 		} // конец проверки записанного
 		else
 			Model::Flag_WR_to_sensor = 0;
@@ -661,7 +612,7 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 }
 
 /* Функция сканирует шину на наличие датчиков по всему разрешённому диапазону скоростей
- * Возвращается с результатом поиска
+ * Возвращается с результатом поиска result и значениями в переменных SensPortNumber и SensBaudRateIndex
  * Если датчик был найден, прерывает сканирование и возвращается с результатом
  */
 MB_Error_t ScanSensor(MB_Active_t *MB)
@@ -752,13 +703,13 @@ MB_Error_t Master_RW(MB_Active_t *MB, int SensAddress, MB_Command_t CMD, MB_Reg_
 	if (CMD >= 0x0F) // это команды mult записи 0x0F, 0x10?
 	{
 		for (var = 0; var <= WR_Buf[0]; ++var) {
-			MB->Tx_Buffer[var+6] = WR_Buf[var];
+			MB->Tx_Buffer[var + (N_Bytes-2)] = WR_Buf[var];
 		}
 		// пересчитаем CRC
-		valCRC = MB_GetCRC(MB->Tx_Buffer, (N_Bytes-2)+var);
-		MB->Tx_Buffer[var+++(N_Bytes-2)] = valCRC & 0xFF;			// CRC Lo
-		MB->Tx_Buffer[var+++(N_Bytes-2)] = valCRC>>8 & 0xFF;		// CRC Hi
-		result = Master_Request(MB, var+(N_Bytes-2));
+		valCRC = MB_GetCRC(MB->Tx_Buffer, (N_Bytes-2) + var);
+		MB->Tx_Buffer[var++ + (N_Bytes-2)] = valCRC & 0xFF;			// CRC Lo
+		MB->Tx_Buffer[var++ + (N_Bytes-2)] = valCRC>>8 & 0xFF;		// CRC Hi
+		result = Master_Request(MB, var + (N_Bytes-2));
 	}
 	else
 		result = Master_Request(MB, N_Bytes);

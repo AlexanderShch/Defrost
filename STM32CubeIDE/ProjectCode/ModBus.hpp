@@ -43,12 +43,9 @@ uint16_t RxErrorCnt;		// счётчик ошибок приёма данных, 
 } SENSOR_typedef_t;
 
 #define SwapBytes(data) ( (((data) >> 8) & 0x00FF) | (((data) << 8) & 0xFF00) )
-//(считаем CRC всей посылки, вместе с принятым CRC, должно быть = 0
 
 /* РЕГИСТРЫ ОПИСЫВАЮЩИЕ СОСТОЯНИЕ ДЕФРОСТЕРА */
 #define MB_SLAVE_REG_COUNT	11
-typedef struct
-{
 //	int16_t		DFR_Hum_In;			// Влажность входная				1
 //	int16_t		DFR_Temp_In;		// Температура входная				2
 //	int16_t		DFR_Hum_Out_Left;	// Влажность выходная левая			3
@@ -59,20 +56,6 @@ typedef struct
 //	int16_t		DFR_Temp_Prod_Left;	// Температура продукта левая		8
 //	int16_t		DFR_Hum_Prod_Right;	// Влажность продукта правая		9
 //	int16_t		DFR_Temp_Prod_Right;// Температура продукта правая		10
-// ФлагиСостояния, битовый регистр, Имена битов
-//	uint16_t DFR_flags;			    // доступ к регистру флагов целиком	11
-
-	unsigned Ten1_Left:1;		// Тэн1 левый
-	unsigned Ten2_Left:1;		// Тэн2 левый
-	unsigned Ten1_Right:1;		// Тэн1 правый
-	unsigned Ten2_Right:1;		// Тэн2 правый
-	unsigned Vent1_Left:1;		// Вентилятор1 левый
-	unsigned Vent2_Left:1;		// Вентилятор2 левый
-	unsigned Vent1_Right:1;	    // Вентилятор1 правый
-	unsigned Vent2_Right:1; 	// Вентилятор2 правый
-	unsigned Water_Flap:1;		// Водный клапан
-
-} DFR_REGISTERS_t;
 
 // Modbus request frame
 typedef struct {

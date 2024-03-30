@@ -14,12 +14,19 @@
 extern osEventFlagsId_t ReadDataEventHandle;
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osThreadId_t TouchGFX_Task;
-// MB_Master_Task_CPP() was defined in ModBus.cpp
-//extern void MB_Master_Task_CPP();
 
 uint32_t flags;				// flags for waiting event
 int8_t SensorNumber;
-uint16_t RelayRegister;		// временная переменная, заменяющая регистр аппаратного управления устройствами
+uint16_t CirStop = 0x3C0;
+
+/* Регистр аппаратного управления устройствами загружается в модуль ввода-вывода,
+ * который содержит реле, переключающие устройства дефростера.
+ * В регистр аппаратного управления загружаются флаги устройств из регистра состояния устройств.
+ * Всего есть два регистра состояния устройств, флагами одного из которых управляет алгоритм,
+ * а флагами другого - оператор (ручное управление).
+ * Регистр состояни volatile - может изменяться другими потоками программы
+*/
+uint16_t RelayRegister;				// Объявление регистра аппаратного управления устройствами
 
 MB_Error_t result;
 
@@ -114,6 +121,10 @@ void ReadDataFunc() {
 
 	// Инициализация датчиков при запуске задачи
 	MB_Master_Init();
+	uint16_t *pDFR = (uint16_t*) &Model::DFR;	// указатель на регистр DFR
+	uint16_t *pDFR_current = (uint16_t*) &Model::DFR_current;	// указатель на регистр DFR_current
+	uint16_t *pDFR_chng_flag = (uint16_t*) &Model::DFR_chng_flag;	// указатель на регистр DFR_chng_flag
+
 	// Бесконечный цикл задачи ReadData
 	while (1)
 	{
@@ -122,10 +133,22 @@ void ReadDataFunc() {
 		// Новое значение счётчика времени
 		TimeFromStart ++;
 		// Новое значение во временный регистр управления устройствами - бегущая единица
-		if (RelayRegister == 0)
-			RelayRegister = 0x1;
-		else
+		if (RelayRegister == 0x0) {
+			Model::DFR.Ten1_Left = 1;
+			Model::DFR.Ten2_Left = 1;
+			Model::DFR.Ten1_Right = 1;
+			Model::DFR.Ten2_Right = 1;
+			// Загрузим регистр аппаратного управления устройствами
+			RelayRegister = *pDFR;
+		}
+		else	{
 			RelayRegister = RelayRegister<<1;
+			if (RelayRegister == CirStop) RelayRegister = 0x0F;
+		}
+		*pDFR = RelayRegister;
+		*pDFR_chng_flag = RelayRegister ^ *pDFR_current;
+		*pDFR_current = RelayRegister;
+
 		// Цикл опроса датчиков
 		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
 		{
