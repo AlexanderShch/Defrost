@@ -254,6 +254,15 @@
       <Text Id="Start" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">Старт</Translation>
       </Text>
+      <Text Id="BTN_GateDOWN" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">ВНИЗ</Translation>
+      </Text>
+      <Text Id="BTN_GateSTOP" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">СТОП</Translation>
+      </Text>
+      <Text Id="BTN_GateUP" Alignment="Center" TypographyId="Small">
+        <Translation Language="GB">ВВЕРХ</Translation>
+      </Text>
     </TextGroup>
     <TextGroup Id="Labels">
       <Text Id="LabelAddr" Alignment="Right" TypographyId="Default">
@@ -265,7 +274,7 @@
       <Text Id="Label_R_1" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">Ом</Translation>
       </Text>
-      <Text Id="Label_H" Alignment="Left" TypographyId="Default">
+      <Text Id="Label_H" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">H</Translation>
       </Text>
       <Text Id="Label_H_1" Alignment="Center" TypographyId="Default">
@@ -316,29 +325,17 @@
       <Text Id="LabelSettingsMenu" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">Ручное управление&#10;и настройки</Translation>
       </Text>
-      <Text Id="LabelGateControlManual" Alignment="Left" TypographyId="Small">
-        <Translation Language="GB">Ручн. управление</Translation>
-      </Text>
-      <Text Id="LabelGateControls" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">Управление воротами</Translation>
-      </Text>
-      <Text Id="LabelCloseGate" Alignment="Left" TypographyId="Small">
-        <Translation Language="GB">Закрыть</Translation>
-      </Text>
-      <Text Id="LabelOpenGate" Alignment="Left" TypographyId="Small">
-        <Translation Language="GB">Открыть</Translation>
-      </Text>
-      <Text Id="LabelSprayManual" Alignment="Left" TypographyId="Small">
-        <Translation Language="GB">Ручн. управление</Translation>
-      </Text>
-      <Text Id="LabelSprayOff" Alignment="Left" TypographyId="Small">
-        <Translation Language="GB">Закрыть</Translation>
-      </Text>
-      <Text Id="LabelSprayOn" Alignment="Left" TypographyId="Small">
-        <Translation Language="GB">Открыть</Translation>
+      <Text Id="LabelGate" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Ворота</Translation>
       </Text>
       <Text Id="LabelSpray" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Форсунки</Translation>
+      </Text>
+      <Text Id="LabelSprayOff" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">ВЫКЛ</Translation>
+      </Text>
+      <Text Id="LabelSprayOn" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">ВКЛ</Translation>
       </Text>
       <Text Id="LabelFan34" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">Вентиляторы 3-4</Translation>
@@ -367,18 +364,14 @@
       <Text Id="LabelOffOn" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">Выкл/вкл</Translation>
       </Text>
-    </TextGroup>
-    <TextGroup Id="Unsorted">
-      <Text Id="__SingleUse_W5IH" Alignment="Center" TypographyId="Default">
-        <Translation Language="GB">H</Translation>
-      </Text>
       <Text Id="CurrentValue_H" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;%</Translation>
       </Text>
-      <Text Id="__SingleUse_CXAI" Alignment="Center" TypographyId="Default">
+      <Text Id="CurrentValue_T" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
     </TextGroup>
+    <TextGroup Id="Unsorted" />
   </Texts>
   <Typographies>
     <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="B,D,H,I,R,L,M,N,O,S,T,C,b,d,e,f,g,h,i,l,n,o,p,r,t,u,&amp;" WildcardCharacterRanges="0-9,0x2D" />

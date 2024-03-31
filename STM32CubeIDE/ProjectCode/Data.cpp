@@ -17,7 +17,7 @@ extern osThreadId_t TouchGFX_Task;
 
 uint32_t flags;				// flags for waiting event
 int8_t SensorNumber;
-uint16_t CirStop = 0x3C0;
+uint16_t CirStop = 0x20;	// бит, из которого будет выполняться перенос "бегущей единицы"
 
 /* Регистр аппаратного управления устройствами загружается в модуль ввода-вывода,
  * который содержит реле, переключающие устройства дефростера.
@@ -122,6 +122,7 @@ void ReadDataFunc() {
 	// Инициализация датчиков при запуске задачи
 	MB_Master_Init();
 	uint16_t *pDFR = (uint16_t*) &Model::DFR;	// указатель на регистр DFR
+	uint16_t *pDFR_manual = (uint16_t*) &Model::DFR_manual;	// указатель на регистр DFR_manual
 	uint16_t *pDFR_current = (uint16_t*) &Model::DFR_current;	// указатель на регистр DFR_current
 	uint16_t *pDFR_chng_flag = (uint16_t*) &Model::DFR_chng_flag;	// указатель на регистр DFR_chng_flag
 
@@ -132,24 +133,46 @@ void ReadDataFunc() {
 		flags = osEventFlagsWait(ReadDataEventHandle, FLAG_ReadData, osFlagsWaitAny, osWaitForever);
 		// Новое значение счётчика времени
 		TimeFromStart ++;
-		// Новое значение во временный регистр управления устройствами - бегущая единица
+		/************************************************************
+		 * Работа с регистрами управления устройствами
+		 * в режиме отладки вместо автоматического управления регистром DFR
+		 * запускается "бегущая единица" в переменной RelayRegister.
+		 * RelayRegister записывается в регистр управления реле модуля ввода-вывода
+		 * в цикле опроса датчиков
+		 ************************************************************/
+		// Новое значение в регистр автоматического управления устройствами - "бегущая единица"
 		if (RelayRegister == 0x0) {
 			Model::DFR.Ten1_Left = 1;
 			Model::DFR.Ten2_Left = 1;
 			Model::DFR.Ten1_Right = 1;
 			Model::DFR.Ten2_Right = 1;
 			// Загрузим регистр аппаратного управления устройствами
+			// Это основное действие при автоматической работе
 			RelayRegister = *pDFR;
 		}
 		else	{
 			RelayRegister = RelayRegister<<1;
-			if (RelayRegister == CirStop) RelayRegister = 0x0F;
+			// выполним перенос (зацикливание) старшего бита CirStop
+			if ((RelayRegister ^ CirStop) == 1)
+				RelayRegister = RelayRegister | 0x01;
+		} // конец тестовой "бегущей единицы"
+
+		// загрузим регистр управления устройствами
+		if (Model::Flag_DFR_manual == 0) {
+			// в автоматическом режиме грузим
+//			RelayRegister = *pDFR;
+		}else{
+			// в ручном режиме грузим DFR_manual
+			RelayRegister = *pDFR_manual;
 		}
-		*pDFR = RelayRegister;
+		// установим флаги изменения отображения на экране
 		*pDFR_chng_flag = RelayRegister ^ *pDFR_current;
+		// загрузим новое значение в регистр текущего отображения устройств на экране
 		*pDFR_current = RelayRegister;
 
-		// Цикл опроса датчиков
+		/**************************************************************
+		 * Цикл опроса датчиков
+		 **************************************************************/
 		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
 		{
 			result = MB_ERROR_NO;

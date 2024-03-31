@@ -11,8 +11,14 @@ public:
     virtual ~Settings2View() {}
     virtual void setupScreen();
     virtual void tearDownScreen();
-    virtual void BTNGateManualClicked();
-    virtual void BTNSprayManualClicked();
+    virtual void BTNManualClicked();
+    virtual void BTNSprayClicked();
+    virtual void BTNGateUpClicked();
+    virtual void BTNGateStopClicked();
+    virtual void BTNGateDownClicked();
+
+    virtual void SetAlpha(uint8_t MinAlhpa);
+
 protected:
 };
 

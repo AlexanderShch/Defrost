@@ -31,6 +31,9 @@ typedef struct
 	unsigned Vent1_Right:1;	    // Вентилятор1 правый
 	unsigned Vent2_Right:1; 	// Вентилятор2 правый
 	unsigned Water_Flap:1;		// Водный клапан
+	unsigned Gate_Up:1;			// Поднять ворота
+	unsigned Gate_Down:1;		// Опустить ворота
+	unsigned Gate_Stop:1;		// Остановить движение ворот
 
 } DFR_REGISTERS_t;
 
@@ -85,7 +88,8 @@ public:
     static DFR_REGISTERS_t DFR;				// Объявление регистра состояния управления устройствами
     static DFR_REGISTERS_t DFR_current;		// Объявление регистра текущего отображения состояния управления устройствами
     static DFR_REGISTERS_t DFR_chng_flag;	// Объявление регистра флагов изменения состояния управления устройствами
-
+    static DFR_REGISTERS_t DFR_manual;		// Объявление регистра флагов ручного управления устройствами
+    static uint8_t Flag_DFR_manual;			// флаг включения ручного режима управления
 
 protected:
     ModelListener* modelListener;

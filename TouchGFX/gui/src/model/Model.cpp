@@ -103,10 +103,11 @@ uint8_t Model::Flag_Alert = 0;
 uint8_t Model::BaudRate_PR_sensor = 0;
 uint8_t Model::Address_PR_sensor = 0;
 uint8_t Model::FlagCurrentValue_PR_sensor = 0;
+uint8_t Model::Flag_DFR_manual = 0;
 DFR_REGISTERS_t Model::DFR;				// Регистр состояния управления устройствами
 DFR_REGISTERS_t Model::DFR_current;		// Регистр текущего отображения состояния управления устройствами
 DFR_REGISTERS_t Model::DFR_chng_flag;	// Регистр флагов изменения состояния управления устройствами
-
+DFR_REGISTERS_t Model::DFR_manual;		// Регистр ручного управления устройствами
 
 // определение переменных для корректировки
 uint8_t Model::Index_CORR_sensor;			// индекс корректируемого датчика в массиве датчиков

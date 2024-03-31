@@ -1262,6 +1262,7 @@
           {
             "Type": "Image",
             "Name": "IMGBackground",
+            "Y": -1,
             "Width": 240,
             "Height": 320,
             "LockPosition": true,
@@ -1336,82 +1337,59 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
           },
           {
-            "Type": "ToggleButton",
-            "Name": "BTNGateManual",
-            "X": 99,
-            "Y": 124,
-            "Width": 138,
-            "Height": 50,
-            "InitialStatePressed": true,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_dark.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded_text.json"
-          },
-          {
             "Type": "TextArea",
-            "Name": "LabelGateControlManual",
-            "X": 4,
-            "Y": 143,
-            "Width": 92,
-            "Height": 12,
-            "TextId": "LabelGateControlManual",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "AutoSize": true
-          },
-          {
-            "Type": "TextArea",
-            "Name": "LabelSprayManual",
-            "X": 4,
-            "Y": 276,
-            "Width": 92,
-            "Height": 12,
-            "TextId": "LabelSprayManual",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "AutoSize": true
-          },
-          {
-            "Type": "ToggleButton",
-            "Name": "BTNSprayManual",
-            "X": 99,
-            "Y": 257,
-            "Width": 138,
-            "Height": 50,
-            "InitialStatePressed": true,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_dark.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded_text.json"
-          },
-          {
-            "Type": "TextArea",
-            "Name": "LabelGateControls",
-            "X": 7,
-            "Y": 47,
-            "Width": 227,
+            "Name": "LabelGate",
+            "X": 84,
+            "Y": 136,
+            "Width": 72,
             "Height": 24,
-            "TextId": "LabelGateControls",
+            "TextId": "LabelGate",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
               "Green": 246,
               "Blue": 251
             },
+            "AutoSize": true
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTN_Spray",
+            "X": 88,
+            "Y": 267,
+            "Width": 62,
+            "Height": 34,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_light.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_normal.png",
+            "Preset": "alternate_theme\\presets\\togglebutton\\small\\rounded_neutral.json"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelSprayOn",
+            "X": 63,
+            "Y": 278,
+            "Width": 21,
+            "Height": 12,
+            "TextId": "LabelSprayOn",
+            "TextRotation": "0",
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelSprayOff",
+            "X": 156,
+            "Y": 278,
+            "Width": 30,
+            "Height": 12,
+            "TextId": "LabelSprayOff",
+            "TextRotation": "0",
             "AutoSize": true
           },
           {
             "Type": "TextArea",
             "Name": "LabelSpray",
             "X": 70,
-            "Y": 178,
+            "Y": 236,
             "Width": 101,
             "Height": 24,
             "TextId": "LabelSpray",
@@ -1425,25 +1403,23 @@
           },
           {
             "Type": "ToggleButton",
-            "Name": "BTNGateControl",
-            "X": 65,
-            "Y": 72,
-            "Width": 110,
+            "Name": "BTN_Manual",
+            "X": 51,
+            "Y": 83,
+            "Width": 138,
             "Height": 50,
-            "Visible": false,
-            "InitialStatePressed": true,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_off_light.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_on_normal.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded.json"
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_dark.png",
+            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded_text.json"
           },
           {
             "Type": "TextArea",
-            "Name": "LabelCloseGate",
-            "X": 10,
-            "Y": 91,
-            "Width": 43,
-            "Height": 12,
-            "TextId": "LabelCloseGate",
+            "Name": "LabelControls",
+            "X": 19,
+            "Y": 49,
+            "Width": 203,
+            "Height": 24,
+            "TextId": "LabelManualControl",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -1453,65 +1429,73 @@
             "AutoSize": true
           },
           {
-            "Type": "TextArea",
-            "Name": "LabelOpenGate",
-            "X": 187,
-            "Y": 91,
-            "Width": 44,
-            "Height": 12,
-            "TextId": "LabelOpenGate",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
+            "Type": "ButtonWithLabel",
+            "Name": "BTN_GateUP",
+            "X": 18,
+            "Y": 164,
+            "Width": 60,
+            "Height": 60,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "TextId": "BTN_GateUP",
+            "ReleasedColor": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
             },
-            "AutoSize": true
+            "PressedColor": {
+              "Red": 41,
+              "Green": 227,
+              "Blue": 20
+            },
+            "TextRotation": "0",
+            "Preset": "alternate_theme\\presets\\button\\icon\\rounded\\tiny_fill_disabled.json"
           },
           {
-            "Type": "TextArea",
-            "Name": "LabelSprayOn",
-            "X": 187,
-            "Y": 223,
-            "Width": 44,
-            "Height": 12,
-            "TextId": "LabelSprayOn",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
+            "Type": "ButtonWithLabel",
+            "Name": "BTN_GateSTOP",
+            "X": 90,
+            "Y": 164,
+            "Width": 60,
+            "Height": 60,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "TextId": "BTN_GateSTOP",
+            "ReleasedColor": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
             },
-            "AutoSize": true
+            "PressedColor": {
+              "Red": 227,
+              "Green": 14,
+              "Blue": 14
+            },
+            "TextRotation": "0",
+            "Preset": "alternate_theme\\presets\\button\\icon\\rounded\\tiny_fill_disabled.json"
           },
           {
-            "Type": "TextArea",
-            "Name": "LabelSprayOff",
-            "X": 10,
-            "Y": 223,
-            "Width": 43,
-            "Height": 12,
-            "TextId": "LabelSprayOff",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
+            "Type": "ButtonWithLabel",
+            "Name": "BTN_GateDOWN",
+            "X": 162,
+            "Y": 164,
+            "Width": 60,
+            "Height": 60,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "TextId": "BTN_GateDOWN",
+            "ReleasedColor": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
             },
-            "AutoSize": true
-          },
-          {
-            "Type": "ToggleButton",
-            "Name": "BTNSprayControl",
-            "X": 68,
-            "Y": 204,
-            "Width": 110,
-            "Height": 50,
-            "Visible": false,
-            "InitialStatePressed": true,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_off_light.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_on_normal.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded.json"
+            "PressedColor": {
+              "Red": 41,
+              "Green": 227,
+              "Blue": 20
+            },
+            "TextRotation": "0",
+            "Preset": "alternate_theme\\presets\\button\\icon\\rounded\\tiny_fill_disabled.json"
           }
         ],
         "Interactions": [
@@ -1564,25 +1548,58 @@
             }
           },
           {
-            "InteractionName": "BTNGateManualClicked",
+            "InteractionName": "BTNManualClicked",
             "Trigger": {
               "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGateManual"
+              "TriggerComponent": "BTN_Manual"
             },
             "Action": {
               "Type": "ActionCustom",
-              "FunctionName": "BTNGateManualClicked"
+              "FunctionName": "BTNManualClicked"
             }
           },
           {
-            "InteractionName": "BTNSprayManualClicked",
+            "InteractionName": "BTNSprayClicked",
             "Trigger": {
               "Type": "TriggerClicked",
-              "TriggerComponent": "BTNSprayManual"
+              "TriggerComponent": "BTN_Spray"
             },
             "Action": {
               "Type": "ActionCustom",
-              "FunctionName": "BTNSprayManualClicked"
+              "FunctionName": "BTNSprayClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNGateUPClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_GateUP"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNGateUpClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNGateStopClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_GateSTOP"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNGateStopClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNGateDownClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_GateDOWN"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNGateDownClicked"
             }
           }
         ]
@@ -4125,7 +4142,7 @@
             "Y": 190,
             "Width": 70,
             "Height": 24,
-            "TextId": "__SingleUse_CXAI",
+            "TextId": "CurrentValue_T",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -4194,7 +4211,7 @@
             "Y": 230,
             "Width": 23,
             "Height": 23,
-            "TextId": "__SingleUse_W5IH",
+            "TextId": "Label_H",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
