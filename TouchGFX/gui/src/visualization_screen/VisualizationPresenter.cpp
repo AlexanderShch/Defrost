@@ -14,7 +14,10 @@ VisualizationPresenter::VisualizationPresenter(VisualizationView& v)
 
 void VisualizationPresenter::activate()
 {
-
+	// Инициализация отображения работы устройств
+	uint16_t *pDFR_chng_flag = (uint16_t*) &Model::DFR_chng_flag;	// указатель на регистр DFR_chng_flag
+	*pDFR_chng_flag = 0b1111111111111111;
+	VisualizationPresenter::ValUpdatePresenter();
 }
 
 void VisualizationPresenter::deactivate()
@@ -100,15 +103,15 @@ void VisualizationPresenter::ValUpdatePresenter()
     if (Model::DFR_chng_flag.Vent1_Left == 1)
 	{
     	view.Val_Vent1_Left_UpdateView(Model::DFR.Vent1_Left);
-	};
+ 	};
     if (Model::DFR_chng_flag.Vent2_Left == 1)
 	{
     	view.Val_Vent2_Left_UpdateView(Model::DFR.Vent2_Left);
-	};
+ 	};
     if (Model::DFR_chng_flag.Vent1_Right == 1)
 	{
     	view.Val_Vent1_Right_UpdateView(Model::DFR.Vent1_Right);
-	};
+  	};
     if (Model::DFR_chng_flag.Vent2_Right == 1)
 	{
     	view.Val_Vent2_Right_UpdateView(Model::DFR.Vent2_Right);
@@ -116,7 +119,7 @@ void VisualizationPresenter::ValUpdatePresenter()
     if (Model::DFR_chng_flag.Water_Flap == 1)
 	{
     	view.Val_Water_Flap_UpdateView(Model::DFR.Water_Flap);
-	};
+ 	};
 
 //	DFR_chng_flag.Vent1_Left = 1;
 //	DFR_current.Vent2_Left = 1;
