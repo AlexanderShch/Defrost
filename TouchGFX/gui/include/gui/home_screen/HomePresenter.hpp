@@ -27,6 +27,8 @@ public:
 
     virtual ~HomePresenter() {};
 
+    virtual void ValUpdatePresenter();
+
 private:
     HomePresenter();
 

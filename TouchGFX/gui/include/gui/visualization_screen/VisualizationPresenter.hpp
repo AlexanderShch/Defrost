@@ -30,7 +30,7 @@ public:
 
     /**
      * The deactivate function is called automatically when this screen is "switched out"
-     * (ie. made inactive). Teardown functionality can be placed here.
+     * (i.e. made inactive). Teardown functionality can be placed here.
      */
     virtual void deactivate();
 

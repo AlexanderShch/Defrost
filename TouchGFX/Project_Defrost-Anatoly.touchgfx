@@ -186,29 +186,10 @@
           },
           {
             "Type": "TextArea",
-            "Name": "ValueCoreT1",
-            "X": 15,
-            "Y": 33,
-            "Width": 46,
-            "Height": 24,
-            "TextId": "ValueCoreT1",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "AutoSize": true,
-            "Wildcard1": {
-              "TextId": "ValueCoreT1_W"
-            }
-          },
-          {
-            "Type": "TextArea",
             "Name": "ValueCoreT2",
-            "X": 91,
+            "X": 85,
             "Y": 33,
-            "Width": 46,
+            "Width": 60,
             "Height": 24,
             "TextId": "ValueCoreT2",
             "TextRotation": "0",
@@ -217,9 +198,30 @@
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true,
             "Wildcard1": {
-              "TextId": "ValueCoreT2_W"
+              "TextId": "ValueCoreT2_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ValueCoreT1",
+            "X": 15,
+            "Y": 33,
+            "Width": 60,
+            "Height": 24,
+            "TextId": "ValueCoreT1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "ValueCoreT1_W",
+              "UseBuffer": true,
+              "BufferSize": 10
             }
           },
           {

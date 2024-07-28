@@ -11,6 +11,9 @@ public:
     virtual ~HomeView() {}
     virtual void setupScreen();
     virtual void tearDownScreen();
+
+    virtual void Val_T_3UpdateView(int val);
+    virtual void Val_T_4UpdateView(int val);
 protected:
 };
 

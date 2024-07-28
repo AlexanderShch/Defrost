@@ -100,10 +100,10 @@
       <Text Id="ValuePRGTimeLeft" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;</Translation>
       </Text>
-      <Text Id="ValueCoreT2" Alignment="Left" TypographyId="Default">
+      <Text Id="ValueCoreT2" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
-      <Text Id="ValueCoreT1" Alignment="Left" TypographyId="Default">
+      <Text Id="ValueCoreT1" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
       <Text Id="ScrollSelectedItem" Alignment="Right" TypographyId="Default">

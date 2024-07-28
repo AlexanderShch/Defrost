@@ -149,6 +149,7 @@
                   <listOptionValue builtIn="false" value="D:/ST/Project_Defrost-Anatoly/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
                   <listOptionValue builtIn="false" value="D:/ST/Defrost/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
                   <listOptionValue builtIn="false" value="D:/OneDrive/Coding/Defrost/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
+                  <listOptionValue builtIn="false" value="D:/Util/ST/Defrost/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
                 </option>
                 <inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.input.351982862" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.input">
                   <additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
@@ -167,8 +168,8 @@
           </folderInfo>
           <fileInfo id="com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.debug.60130020.1447297728" name="Data.cpp" rcbsApplicability="disable" resourcePath="ProjectCode/Data.cpp" toolsToInvoke="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.2021226659.1441365115">
             <tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.2021226659.1441365115" name="MCU G++ Compiler" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.2021226659">
-              <option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.optimization.level.908256154" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.optimization.level" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.optimization.level.value.o0" valueType="enumerated"/>
-              <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.otherflags.2416859238" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.otherflags" valueType="stringList">
+              <option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.optimization.level.908256154" name="Optimization level" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.optimization.level" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.optimization.level.value.o0" valueType="enumerated"/>
+              <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.otherflags.2416859238" name="Other flags" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.otherflags" valueType="stringList">
                 <listOptionValue builtIn="false" value="-femit-class-debug-always"/>
               </option>
               <inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.input.cpp.1022465935" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.input.cpp"/>
@@ -333,6 +334,7 @@
                   <listOptionValue builtIn="false" value="D:/ST/Project_Defrost-Anatoly/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
                   <listOptionValue builtIn="false" value="D:/ST/Defrost/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
                   <listOptionValue builtIn="false" value="D:/OneDrive/Coding/Defrost/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
+                  <listOptionValue builtIn="false" value="D:/Util/ST/Defrost/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
                 </option>
                 <inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.input.1556095232" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.input">
                   <additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
