@@ -14,6 +14,7 @@
 extern osEventFlagsId_t ReadDataEventHandle;
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osThreadId_t TouchGFX_Task;
+extern osMessageQueueId_t Data_QueueHandle;
 
 uint32_t flags;				// flags for waiting event
 int8_t SensorNumber;
@@ -37,6 +38,16 @@ unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// number of time quantum measuring
 int Sensor::T[TQ][SQ] = {{0}};		// temperature
 int Sensor::H[TQ][SQ] = {{0}};		// humidity
+
+typedef struct   // object data for Server type
+{
+    uint16_t Time;
+    uint8_t SensorNumber[SQ];
+    uint8_t Active[SQ];
+    uint16_t T[SQ];
+    uint16_t H[SQ];
+} MSGQUEUE_OBJ_t;
+
 
 
 /* Функция записывает int Val в массив данных, полученных с датчиков.
@@ -119,6 +130,7 @@ void ReadDataFunc() {
 	int TempNew, HumNew = 0;
 	int T_CORR_Old, H_CORR_Old = 0, R_CORR_Old = 0;
 	int T_CORR_New, H_CORR_New = 0, R_CORR_New = 0;
+	MSGQUEUE_OBJ_t DataToServer;
 
 	// Инициализация датчиков при запуске задачи
 	MB_Master_Init();
@@ -199,7 +211,6 @@ void ReadDataFunc() {
 			{
 				// Продолжаем для активного датчика
 				result = Sensor_Read(SensorIndex);
-				// запись в очередь передачи данных в удалённый компьютер
 
 				// запись в переменные экрана, если есть изменения
 				// Temperature
@@ -218,6 +229,19 @@ void ReadDataFunc() {
 				}
 			}
 		}	// конец цикла опроса датчиков
+		// формирование данных для сервера
+		DataToServer = {};
+		DataToServer.Time = TimeFromStart;
+		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
+		{
+			DataToServer.SensorNumber[SensorIndex] = SensorIndex;
+			DataToServer.Active[SensorIndex] = Sensor_array[SensorIndex].Active;
+			DataToServer.T[SensorIndex] = Sensor::GetData(TimeFromStart, SensorIndex, 2);
+			DataToServer.H[SensorIndex] = Sensor::GetData(TimeFromStart, SensorIndex, 3);
+		}
+		// запись в очередь передачи данных в удалённый компьютер
+		osMessageQueuePut(Data_QueueHandle, &DataToServer, 0U, 100);
+
 
 		// работа с корректировкой датчика
 			if (Model::Flag_CORR_ready == 1) {
@@ -269,4 +293,10 @@ void DataFunc()
 void InitData()
 {
 
+}
+
+// 4. Передача данных серверу работает в потоке TX_To_Server
+void TX_ToServer()
+{
+	osDelay(1000);
 }

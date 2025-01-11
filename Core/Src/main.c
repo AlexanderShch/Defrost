@@ -55,6 +55,8 @@
 
 #define I2C3_TIMEOUT_MAX                    0x3000 /*<! The value of the maximal timeout for I2C waiting loops */
 #define SPI5_TIMEOUT_MAX                    0x1000
+
+#define MSGQUEUE_OBJECTS 128                     // number of Message Queue Objects
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -110,18 +112,6 @@ const osThreadAttr_t ReadData_attributes = {
   .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for TX_To_Server */
-osThreadId_t TX_To_ServerHandle;
-const osThreadAttr_t TX_To_Server_attributes = {
-  .name = "TX_To_Server",
-  .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityLow,
-};
-/* Definitions for Data_Queue */
-osMessageQueueId_t Data_QueueHandle;
-const osMessageQueueAttr_t Data_Queue_attributes = {
-  .name = "Data_Queue"
-};
 /* Definitions for DataTimer */
 osTimerId_t DataTimerHandle;
 const osTimerAttr_t DataTimer_attributes = {
@@ -153,6 +143,18 @@ const osEventFlagsAttr_t ReadDataEvent_attributes = {
   .name = "ReadDataEvent"
 };
 /* USER CODE BEGIN PV */
+/* Definitions for TX_To_Server */
+osThreadId_t TX_To_ServerHandle;
+const osThreadAttr_t TX_To_Server_attributes = {
+  .name = "TX_To_Server",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for Data_Queue */
+osMessageQueueId_t Data_QueueHandle;
+const osMessageQueueAttr_t Data_Queue_attributes = {
+  .name = "Data_Queue"
+};
 
 /* USER CODE END PV */
 
@@ -172,11 +174,11 @@ void StartDefaultTask(void *argument);
 extern void TouchGFX_Task(void *argument);
 void HandleDataProcessing(void *argument);
 void ReadDataFunction(void *argument);
-void TransferToServer(void *argument);
 void Callback01(void *argument);
 
 /* USER CODE BEGIN PFP */
 static void BSP_SDRAM_Initialization_Sequence(SDRAM_HandleTypeDef *hsdram, FMC_SDRAM_CommandTypeDef *Command);
+void TransferToServer(void *argument);
 
 
 
@@ -267,16 +269,16 @@ int main(void)
 
   /* Create the semaphores(s) */
   /* creation of TX_Compl_Sem */
-  TX_Compl_SemHandle = osSemaphoreNew(1, 1, &TX_Compl_Sem_attributes);
+  TX_Compl_SemHandle = osSemaphoreNew(1, 0, &TX_Compl_Sem_attributes);
 
   /* creation of RX_Compl_Sem */
-  RX_Compl_SemHandle = osSemaphoreNew(1, 1, &RX_Compl_Sem_attributes);
+  RX_Compl_SemHandle = osSemaphoreNew(1, 0, &RX_Compl_Sem_attributes);
 
   /* creation of PR_TX_Compl_Sem */
-  PR_TX_Compl_SemHandle = osSemaphoreNew(1, 1, &PR_TX_Compl_Sem_attributes);
+  PR_TX_Compl_SemHandle = osSemaphoreNew(1, 0, &PR_TX_Compl_Sem_attributes);
 
   /* creation of PR_RX_Compl_Sem */
-  PR_RX_Compl_SemHandle = osSemaphoreNew(1, 1, &PR_RX_Compl_Sem_attributes);
+  PR_RX_Compl_SemHandle = osSemaphoreNew(1, 0, &PR_RX_Compl_Sem_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
@@ -294,7 +296,7 @@ int main(void)
   /* USER CODE BEGIN RTOS_QUEUES */
   /* Create the queue(s) */
   /* creation of Data_Queue */
-  Data_QueueHandle = osMessageQueueNew (16, sizeof(uint16_t), &Data_Queue_attributes);
+  Data_QueueHandle = osMessageQueueNew (MSGQUEUE_OBJECTS, sizeof(uint16_t), &Data_Queue_attributes);
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -310,11 +312,11 @@ int main(void)
   /* creation of ReadData */
   ReadDataHandle = osThreadNew(ReadDataFunction, NULL, &ReadData_attributes);
 
-  /* creation of TX_To_Server */
-  TX_To_ServerHandle = osThreadNew(TransferToServer, NULL, &TX_To_Server_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
+  /* creation of TX_To_Server */
+  TX_To_ServerHandle = osThreadNew(TransferToServer, NULL, &TX_To_Server_attributes);
   /* USER CODE END RTOS_THREADS */
 
   /* Create the event(s) */
@@ -1196,16 +1198,16 @@ void ReadDataFunction(void *argument)
 * @retval None
 */
 /* USER CODE END Header_TransferToServer */
-void TransferToServer(void *argument)
-{
   /* USER CODE BEGIN TransferToServer */
   /* Infinite loop */
+void TransferToServer(void *argument)
+{
   for(;;)
   {
-    osDelay(1);
+	  TransferToServer_С();
   }
-  /* USER CODE END TransferToServer */
 }
+  /* USER CODE END TransferToServer */
 
 /* Callback01 function */
 void Callback01(void *argument)

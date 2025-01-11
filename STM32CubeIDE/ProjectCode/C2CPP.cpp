@@ -25,6 +25,11 @@ extern "C"
 	{
 		InitData();
 	}
+	void TransferToServer_С()
+	{
+		TX_ToServer();
+	}
+
 }
 
 

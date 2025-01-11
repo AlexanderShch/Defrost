@@ -12,6 +12,7 @@ void DataTimerFunc();
 void DataFunc(void);
 void ReadDataFunc();
 void InitData();
+void TX_ToServer();
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,6 +21,7 @@ extern "C" {
 	void DataFunc_C(void);
 	void ReadDataFunc_C();
 	void InitDataVariables_C();
+	void TransferToServer_С();
 #ifdef __cplusplus
 }
 #endif
