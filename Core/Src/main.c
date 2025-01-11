@@ -110,6 +110,18 @@ const osThreadAttr_t ReadData_attributes = {
   .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for TX_To_Server */
+osThreadId_t TX_To_ServerHandle;
+const osThreadAttr_t TX_To_Server_attributes = {
+  .name = "TX_To_Server",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for Data_Queue */
+osMessageQueueId_t Data_QueueHandle;
+const osMessageQueueAttr_t Data_Queue_attributes = {
+  .name = "Data_Queue"
+};
 /* Definitions for DataTimer */
 osTimerId_t DataTimerHandle;
 const osTimerAttr_t DataTimer_attributes = {
@@ -160,6 +172,7 @@ void StartDefaultTask(void *argument);
 extern void TouchGFX_Task(void *argument);
 void HandleDataProcessing(void *argument);
 void ReadDataFunction(void *argument);
+void TransferToServer(void *argument);
 void Callback01(void *argument);
 
 /* USER CODE BEGIN PFP */
@@ -279,7 +292,9 @@ int main(void)
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
+  /* Create the queue(s) */
+  /* creation of Data_Queue */
+  Data_QueueHandle = osMessageQueueNew (16, sizeof(uint16_t), &Data_Queue_attributes);
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -294,6 +309,9 @@ int main(void)
 
   /* creation of ReadData */
   ReadDataHandle = osThreadNew(ReadDataFunction, NULL, &ReadData_attributes);
+
+  /* creation of TX_To_Server */
+  TX_To_ServerHandle = osThreadNew(TransferToServer, NULL, &TX_To_Server_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -1169,6 +1187,24 @@ void ReadDataFunction(void *argument)
 	ReadDataFunc_C();
   }
   /* USER CODE END ReadDataFunction */
+}
+
+/* USER CODE BEGIN Header_TransferToServer */
+/**
+* @brief Function implementing the TX_To_Server thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_TransferToServer */
+void TransferToServer(void *argument)
+{
+  /* USER CODE BEGIN TransferToServer */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END TransferToServer */
 }
 
 /* Callback01 function */
