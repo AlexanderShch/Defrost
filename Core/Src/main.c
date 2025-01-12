@@ -56,7 +56,8 @@
 #define I2C3_TIMEOUT_MAX                    0x3000 /*<! The value of the maximal timeout for I2C waiting loops */
 #define SPI5_TIMEOUT_MAX                    0x1000
 
-#define MSGQUEUE_OBJECTS 128                     // number of Message Queue Objects
+#define MSGQUEUE_OBJECTS        6       // number of Message Queue Objects
+#define MSGQUEUE_OBJECT_SIZE	64		// size of one object in queue
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -142,7 +143,9 @@ osEventFlagsId_t ReadDataEventHandle;
 const osEventFlagsAttr_t ReadDataEvent_attributes = {
   .name = "ReadDataEvent"
 };
+
 /* USER CODE BEGIN PV */
+
 /* Definitions for TX_To_Server */
 osThreadId_t TX_To_ServerHandle;
 const osThreadAttr_t TX_To_Server_attributes = {
@@ -150,6 +153,7 @@ const osThreadAttr_t TX_To_Server_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+
 /* Definitions for Data_Queue */
 osMessageQueueId_t Data_QueueHandle;
 const osMessageQueueAttr_t Data_Queue_attributes = {
@@ -296,7 +300,7 @@ int main(void)
   /* USER CODE BEGIN RTOS_QUEUES */
   /* Create the queue(s) */
   /* creation of Data_Queue */
-  Data_QueueHandle = osMessageQueueNew (MSGQUEUE_OBJECTS, sizeof(uint16_t), &Data_Queue_attributes);
+  Data_QueueHandle = osMessageQueueNew (MSGQUEUE_OBJECTS, MSGQUEUE_OBJECT_SIZE, &Data_Queue_attributes);
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */

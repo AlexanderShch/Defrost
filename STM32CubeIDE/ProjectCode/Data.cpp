@@ -12,6 +12,7 @@
 
 // ReadDataEventHandle was defined in main.c
 extern osEventFlagsId_t ReadDataEventHandle;
+extern osEventFlagsId_t Start_TX_EventHandle;
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osThreadId_t TouchGFX_Task;
 extern osMessageQueueId_t Data_QueueHandle;
@@ -229,6 +230,7 @@ void ReadDataFunc() {
 				}
 			}
 		}	// конец цикла опроса датчиков
+
 		// формирование данных для сервера
 		DataToServer = {};
 		DataToServer.Time = TimeFromStart;
@@ -240,7 +242,7 @@ void ReadDataFunc() {
 			DataToServer.H[SensorIndex] = Sensor::GetData(TimeFromStart, SensorIndex, 3);
 		}
 		// запись в очередь передачи данных в удалённый компьютер
-		osMessageQueuePut(Data_QueueHandle, &DataToServer, 0U, 100);
+		osMessageQueuePut(Data_QueueHandle, &DataToServer, 0U, 0U);
 
 
 		// работа с корректировкой датчика
@@ -298,5 +300,14 @@ void InitData()
 // 4. Передача данных серверу работает в потоке TX_To_Server
 void TX_ToServer()
 {
-	osDelay(1000);
+	MSGQUEUE_OBJ_t Data_TX_Server;
+	while (1)
+	{
+		Data_TX_Server = {};
+		osMessageQueueGet(Data_QueueHandle, &Data_TX_Server, 0u, osWaitForever);
+		for (int var = 0; var < SQ; ++var) {
+			;
+		}
+
+	}
 }
