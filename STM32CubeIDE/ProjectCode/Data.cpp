@@ -47,6 +47,7 @@ typedef struct   // object data for Server type
     uint8_t Active[SQ];
     uint16_t T[SQ];
     uint16_t H[SQ];
+    uint16_t CRC_SUM;
 } MSGQUEUE_OBJ_t;
 
 
@@ -301,13 +302,19 @@ void InitData()
 void TX_ToServer()
 {
 	MSGQUEUE_OBJ_t Data_TX_Server;
+
 	while (1)
 	{
 		Data_TX_Server = {};
 		osMessageQueueGet(Data_QueueHandle, &Data_TX_Server, 0u, osWaitForever);
-		for (int var = 0; var < SQ; ++var) {
-			;
+		// сделаем расчёт CRC
+		Data_TX_Server.CRC_SUM = MB_GetCRC((uint8_t*)&Data_TX_Server, sizeof(Data_TX_Server)-2);
+		WriteToServer((uint8_t*)&Data_TX_Server, (int) sizeof(Data_TX_Server));
+		if (result == MB_ERROR_NO)
+		{
+			// данные приняты - проверяем достоверность и сохраняем принятые данные в переменные
 		}
-
 	}
 }
+
+

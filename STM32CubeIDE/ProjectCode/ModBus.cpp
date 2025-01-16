@@ -10,7 +10,7 @@
 
 //#include "usb_host.h"
 
-#define  MAX_MB_BUFSIZE 20
+#define  MAX_MB_BUFSIZE 40
 
 extern UART_HandleTypeDef huart4;				// для программирования датчиков
 extern UART_HandleTypeDef huart5;				// для считывания данных с датчиков
@@ -40,7 +40,6 @@ uint8_t FrameDelay1 = 30;						// Задержка между фреймами �
 */
 
 uint16_t MB_TransactionHandler();
-uint16_t MB_GetCRC(volatile uint8_t* buf, uint16_t len);
 osStatus_t resultSem;			/* status семафора:  	osOK: токен получен, и количество токенов уменьшено.
 														osErrorTimeout: не удалось получить токен в заданное время.
 														osErrorResource: не удалось получить токен, если не был указан тайм-аут.
@@ -134,10 +133,12 @@ void MB_Master_Init(void)
 {
 	MB_Error_t result = MB_ERROR_NO;
 	// после инициализации семафоры установлены, надо их сбросить
+/*
 	resultSem = osSemaphoreAcquire(TX_Compl_SemHandle, 100/portTICK_RATE_MS);
 	resultSem = osSemaphoreAcquire(RX_Compl_SemHandle, 100/portTICK_RATE_MS);
 	resultSem = osSemaphoreAcquire(PR_TX_Compl_SemHandle, 100/portTICK_RATE_MS);
 	resultSem = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100/portTICK_RATE_MS);
+*/
 
 	// Запросим каждый датчик, если ответит - пометим как активный
 //	while (1)	{ // тестовый цикл
@@ -1020,5 +1021,23 @@ MB_Error_t Sensor_CORR_Reset(uint8_t SensIndex)
 			break;	}
 	}
 	return result;
+}
+
+// Функция для передачи данных на сервер
+void WriteToServer(uint8_t* Data, int length)
+{
+	MB_Error_t result;
+	MB_Active_t MB;						// объявляем среду работы с шиной
+
+	// Инициируем среду для работы по шине программирования
+	MB.UART = &huart4;
+	MB.PORT = PROG_MASTER_DE_GPIO_Port;
+	MB.PORT_PIN = PROG_MASTER_DE_Pin;
+	MB.Sem_Rx = &PR_RX_Compl_SemHandle;
+	MB.Sem_Tx = &PR_TX_Compl_SemHandle;
+	// копируем данные из структуры Data_TX_Server в буфер передачи
+    memcpy(MB.Tx_Buffer, Data, length);
+    // пердаем данные в шину
+	result = Master_Request(&MB, length);
 }
 

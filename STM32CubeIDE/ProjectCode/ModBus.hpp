@@ -135,6 +135,9 @@ MB_Error_t Sensor_Read(uint8_t SensIndex);
 void MB_Master_Init(void);
 void ProgrammingSensor(void);
 void PR_UART4_Init(int BaudRateValue);
+void WriteToServer(uint8_t* Data, int length);
+uint16_t MB_GetCRC(volatile uint8_t* buf, uint16_t len);
+
 MB_Error_t Sensor_Read_CORR(uint8_t SensIndex);
 MB_Error_t Sensor_Write_CORR(uint8_t SensIndex);
 MB_Error_t Sensor_CORR_Reset(uint8_t SensIndex);

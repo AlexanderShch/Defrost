@@ -57,7 +57,7 @@
 #define SPI5_TIMEOUT_MAX                    0x1000
 
 #define MSGQUEUE_OBJECTS        6       // number of Message Queue Objects
-#define MSGQUEUE_OBJECT_SIZE	64		// size of one object in queue
+#define MSGQUEUE_OBJECT_SIZE	80		// size of one object in queue
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
