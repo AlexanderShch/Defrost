@@ -280,20 +280,21 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 // однако обычно размер пакета неопределён и указывается для приёма большой буфер, который никогда не будет заполнен
 // нормальное завершение приёма - это событие, например IDLE, остановка принимаемой информации
 // это событие обрабатывается прерыванием HAL_UARTEx_RxEventCallback
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *Uart) {
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+	if (huart == &huart5)		// приём от датчика
+ 	{
+		// Открыть семафор окончания приёма, продолжится задача ReadData
+		osSemaphoreRelease(RX_Compl_SemHandle);
+	}
+	else if (huart == &huart4)	// сканирование устройства на шине программирования
+	{
+		osSemaphoreRelease(PR_RX_Compl_SemHandle);
+	}
 }
 
 // обработка прерывания ошибки
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *Uart) {
-//	MB_Error_t res = MB_ERROR_COMMAND;
 	HAL_UART_AbortTransmit_IT(Uart);
-//	BaseType_t xCoRoutinePreviouslyWoken = pdFALSE;
-	/*if (Uart == &huart7)		// ошибка от компьютера
-	{
-		HAL_GPIO_WritePin(MB_SLAVE_DE_GPIO_Port, MB_SLAVE_DE_Pin, GPIO_PIN_RESET); // сброс бита DE RS-485
-		xQueueSendFromISR(MB_SlaveQHandle, &res, &xCoRoutinePreviouslyWoken);
-	}
-	else*/
 	if (Uart == &huart5)		// ошибка датчика
 	{
 		// Включим направление - приём
@@ -307,23 +308,19 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *Uart) {
 
 // обработка прерывания приём завершён по событию RX Event callback
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
-//	MB_Error_t res = MB_ERROR_NO; // no err
-//	BaseType_t xCoRoutinePreviouslyWoken = pdFALSE;
-
-/* 	if (huart == &huart7)		//	приём от компьютера
- 	{
-//		slave_rec_byte_count = MAX_MB_BUFSIZE - hdma_uart5_rx.Instance->NDTR;
-//		xQueueSendFromISR(MB_SlaveQHandle, &res, &xCoRoutinePreviouslyWoken);
-	}
- 	else*/
 	if (huart == &huart5)		// приём от датчика
  	{
-		// Установим семафор окончания приёма, продолжится задача ReadData
+		// Открыть семафор окончания приёма, продолжится задача ReadData
 		osSemaphoreRelease(RX_Compl_SemHandle);
 	}
 	else if (huart == &huart4)	// сканирование устройства на шине программирования
 	{
+//		HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_RESET);
 		osSemaphoreRelease(PR_RX_Compl_SemHandle);
+//		osDelay(1);	// задержка перед стартовым битом
+//		HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
 	}
 }
 
@@ -335,8 +332,6 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *Uart) {
 		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
 		// Установим семафор окончания передачи, продолжится задача ModBus
 		osSemaphoreRelease(TX_Compl_SemHandle);
-//	} else if (Uart == &huart7) {
-//		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET); // сброс бита DE RS-485}
 	}
 	else if (Uart == &huart4)
 	{
@@ -345,37 +340,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *Uart) {
 	}
 }
 
-//************************** РАБОТА С СЕРВЕРОМ ********************************/
-/*****************************************************************************/
-
-
-
-// задача ждет запросы от мастера Modbus и отправляет ответ на запрос
-//void Start_MB_Slave_Task(void const *argument) {
-//	MB_Error_t MB_QueueData; // ответ из очереди
-//
-//	MB_Slave_TaskHandle = xTaskGetCurrentTaskHandle();
-//
-//	do { // ждем запросов
-//		if (HAL_UARTEx_ReceiveToIdle_DMA(&huart5, MB_Slave_Buffer, sizeof(MB_Slave_Buffer)) != HAL_OK) {
-//			HAL_UART_Abort_IT(&huart7);
-//			continue;
-//		}
-//		if (xQueueReceive(MB_SlaveQHandle, &MB_QueueData, portMAX_DELAY)) {
-//			if (MB_QueueData == MB_ERROR_NO) {
-//				uint16_t TxLen = MB_TransactionHandler();
-//				// если длина ненулевая - отсылаем пакет
-//				if (TxLen > 0) {
-//					HAL_GPIO_WritePin(MB_SLAVE_DE_GPIO_Port, MB_SLAVE_DE_Pin, GPIO_PIN_SET);
-//					if (HAL_UART_Transmit_DMA(&huart5, MB_Slave_Buffer, TxLen)== HAL_OK) {
-//						while (HAL_UART_GetState(&huart5) != HAL_UART_STATE_READY)
-//							osDelay(1);
-//					}
-//				}
-//			}
-//		}
-//	} while (1);
-//}
+/***************************************************************************************/
 
 /*Error handler*/
 uint16_t MB_ErrorHandler(volatile uint8_t * frame, MB_Error_t error) {
@@ -821,15 +786,19 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 		// Направление на приём включается в обработчике прерывания HAL_UART_TxCpltCallback
 
 		// ПРИЁМ DMA *******************************
-		// Инициируем приём с использованием DMA
+		// Функция принимает объем данных в режиме DMA до тех пор,
+		// пока не будет получено ожидаемое количество данных или не произойдет событие ПРОСТОЯ.
 		result = HAL_UARTEx_ReceiveToIdle_DMA(MB->UART, MB->Rx_Buffer, MAX_MB_BUFSIZE);
+	    // Отключаем прерывание половины приёма
+	    __HAL_DMA_DISABLE_IT(MB->UART->hdmarx, DMA_IT_HT);
+
 		if (result == HAL_OK)
 		{	// ReceiveToIdle_DMA отработал и вышел по тайм-ауту
 			// последнее значение в очереди = 0, ждём прерывание приёма по IDLE
 			// Ждём, когда приём закончится и прерывание выдаст токен семафора
 			//ответ должен нормально уложиться в 11 байт (1200 -> 9.1 ms на байт, всего на фрейм 72,8 ms), это время функция ждёт токен семафора в состоянии блокировки
-			resultSem = osSemaphoreAcquire(*MB->Sem_Rx, pause/portTICK_RATE_MS);
-			if (resultSem != osOK)
+		resultSem = osSemaphoreAcquire(*MB->Sem_Rx, pause/portTICK_RATE_MS);
+		if (resultSem != osOK)
 			{	// прерывания не случилось, семафора не дождались, вышли по тайм-ауту
 				MB_ERR = MB_ERROR_UART_RECIEVE;
 				// датчик не ответил, прекращаем ReceiveToIdle_DMA
@@ -1039,5 +1008,8 @@ void WriteToServer(uint8_t* Data, int length)
     memcpy(MB.Tx_Buffer, Data, length);
     // пердаем данные в шину
 	result = Master_Request(&MB, length);
+	if (result != MB_ERROR_NO){
+
+	}
 }
 
