@@ -10,7 +10,7 @@
 
 //#include "usb_host.h"
 
-#define  MAX_MB_BUFSIZE 40
+#define  MAX_MB_BUFSIZE 42						// определяется размер буфера для обмена по UART
 
 extern UART_HandleTypeDef huart4;				// для программирования датчиков
 extern UART_HandleTypeDef huart5;				// для считывания данных с датчиков
@@ -1006,7 +1006,7 @@ void WriteToServer(uint8_t* Data, int length)
 	MB.Sem_Tx = &PR_TX_Compl_SemHandle;
 	// копируем данные из структуры Data_TX_Server в буфер передачи
     memcpy(MB.Tx_Buffer, Data, length);
-    // пердаем данные в шину
+    // передаем данные в шину
 	result = Master_Request(&MB, length);
 	if (result != MB_ERROR_NO){
 

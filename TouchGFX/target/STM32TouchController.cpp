@@ -145,6 +145,10 @@ void BSP_TS_GetState(TS_StateTypeDef* TsState)
         {}
         y = yr;
 
+        // моя модификация координаты для синей платы контроллера 32F429
+//        y = 320 - y;
+        // конец модификации
+
         /* X value first correction */
         if (x <= 3000)
         {

@@ -42,14 +42,15 @@ int Sensor::H[TQ][SQ] = {{0}};		// humidity
 
 typedef struct   // object data for Server type
 {
-    uint16_t Time;
-    uint8_t SensorNumber[SQ];
-    uint8_t Active[SQ];
-    uint16_t T[SQ];
-    uint16_t H[SQ];
-    uint16_t CRC_SUM;
+    uint16_t Time;				// Количество секунд с момента включения
+    uint8_t SensorQuantity;		// Количество сенсоров
+    uint8_t SensorType[SQ];		// Тип сенсора
+    uint8_t Active[SQ];			// Активность сенсора
+    uint16_t T[SQ];				// Значение 1 сенсора (температура)
+    uint16_t H[SQ];				// Значение 2 сенсора (влажность)
+    uint16_t CRC_SUM;			// Контрольное значение
 } MSGQUEUE_OBJ_t;
-
+// !!! ВНИМАНИЕ! Если меняется структура, надо поменять и размер буфера MAX_MB_BUFSIZE в ModBus.cpp
 
 
 /* Функция записывает int Val в массив данных, полученных с датчиков.
@@ -235,9 +236,10 @@ void ReadDataFunc() {
 		// формирование данных для сервера
 		DataToServer = {};
 		DataToServer.Time = TimeFromStart;
+		DataToServer.SensorQuantity = SQ;
 		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
 		{
-			DataToServer.SensorNumber[SensorIndex] = SensorIndex;
+			DataToServer.SensorType[SensorIndex] = Sensor_array[SensorIndex].TypeOfSensor;
 			DataToServer.Active[SensorIndex] = Sensor_array[SensorIndex].Active;
 			DataToServer.T[SensorIndex] = Sensor::GetData(TimeFromStart, SensorIndex, 2);
 			DataToServer.H[SensorIndex] = Sensor::GetData(TimeFromStart, SensorIndex, 3);
