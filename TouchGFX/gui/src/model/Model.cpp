@@ -13,13 +13,13 @@ void Model::tick()
 }
 
 //******************** Temperature **********************
-void Model::setCurrentVal_T(int8_t SensNumber, int Val)
+void Model::setCurrentVal_T(int8_t SensNumber, short Val)
 {
 	CurrentValueT[SensNumber] = Val;
 	FlagCurrentValueTChanged[SensNumber] = 1;
 }
 
-int Model::getCurrentVal_T(int8_t SensNumber)
+short Model::getCurrentVal_T(int8_t SensNumber)
 {
 	return CurrentValueT[SensNumber];
 }
@@ -35,13 +35,13 @@ int8_t Model::getFlagCurrentVal_T_Chng(int8_t SensNumber)
 }
 
 //******************** Humidity **********************
-void Model::setCurrentVal_H(int8_t SensNumber, int Val)
+void Model::setCurrentVal_H(int8_t SensNumber, short Val)
 {
 	CurrentValueH[SensNumber] = Val;
 	FlagCurrentValueHChanged[SensNumber] = 1;
 }
 
-int Model::getCurrentVal_H(int8_t SensNumber)
+short Model::getCurrentVal_H(int8_t SensNumber)
 {
 	return CurrentValueH[SensNumber];
 }
@@ -91,9 +91,9 @@ void Model::ValUpdateModel()
 //*****************************************************
 
 // definition of static variable. Member function definitions belong in the scope where the class is defined.
-int Model::CurrentValueT[SQ] = {0};
+short Model::CurrentValueT[SQ] = {0};
 int8_t Model::FlagCurrentValueTChanged[SQ] = {0};
-int Model::CurrentValueH[SQ] = {0};
+short Model::CurrentValueH[SQ] = {0};
 int8_t Model::FlagCurrentValueHChanged[SQ] = {0};
 uint8_t Model::Type_of_sensor = 0;
 int Model::BaudRate_WR_to_sensor = 0;

@@ -20,7 +20,8 @@ extern osMessageQueueId_t Data_QueueHandle;
 uint32_t flags;				// flags for waiting event
 int8_t SensorNumber;
 uint16_t CirStop = 0b0001111000000000;	// стоповое слово, из которого будет выполняться перенос "бегущей единицы"
-uint8_t CirNum= 4;				// счётчик паузы для цикла "бегущей единицы"
+uint8_t CirNum= 4;						// счётчик паузы для цикла "бегущей единицы"
+uint8_t ShiftCounter = DataRead_ShiftCounter;		// Счётчик 1 сек периодов между считываниями данных
 
 /* Регистр аппаратного управления устройствами загружается в модуль ввода-вывода,
  * который содержит реле, переключающие устройства дефростера.
@@ -111,8 +112,11 @@ int Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned 
 void DataTimerFunc()
 {
 	// Здесь установка флага события для запуска задачи по считыванию данных
-	osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
-
+	--ShiftCounter;
+	if (ShiftCounter == 0) {
+		ShiftCounter = DataRead_ShiftCounter;
+		osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
+	};
 	// моргнём светодиодом
 	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
 	osDelay(100);
@@ -247,6 +251,8 @@ void ReadDataFunc() {
 		// запись в очередь передачи данных в удалённый компьютер
 		osMessageQueuePut(Data_QueueHandle, &DataToServer, 0U, 0U);
 
+		// проверим не активные датчики на активность
+		MB_Master_Init();
 
 		// работа с корректировкой датчика
 			if (Model::Flag_CORR_ready == 1) {
@@ -309,7 +315,8 @@ void TX_ToServer()
 	{
 		Data_TX_Server = {};
 		osMessageQueueGet(Data_QueueHandle, &Data_TX_Server, 0u, osWaitForever);
-		// сделаем расчёт CRC
+		// сделаем расчёт CRC для структуры Data_TX_Server,
+		// но без учёта последних двух байт структуры, занятых CRC
 		Data_TX_Server.CRC_SUM = MB_GetCRC((uint8_t*)&Data_TX_Server, sizeof(Data_TX_Server)-2);
 		WriteToServer((uint8_t*)&Data_TX_Server, (int) sizeof(Data_TX_Server));
 		if (result == MB_ERROR_NO)

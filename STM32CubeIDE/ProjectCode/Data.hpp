@@ -12,9 +12,10 @@
 #include "ModBus.hpp"
 
 #define TQ 16				// time quantity for saving measures in array
-#define SQ 6				// sensors quantity for measures (0-4) + sets of T (5, 6) + MB_IO
+#define SQ 7				// датчики TH дефростера (0-2) + датчики продукта (3, 4) + T корпуса (5) + MB_IO (6)
 #define STQ 5				// sensors type quantity - кол-во типов датчиков и модулей IO
 #define FLAG_ReadData 1ul	// read data event flag 0x00000001ul
+#define DataRead_ShiftCounter 1 // Кол-во 1 сек периодов между считываниями данных
 
 class Sensor
 {

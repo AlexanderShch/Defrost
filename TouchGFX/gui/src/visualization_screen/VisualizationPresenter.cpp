@@ -35,7 +35,7 @@ void VisualizationPresenter::ValUpdatePresenter()
 	for (int sensNum = 0; sensNum < SQ; ++sensNum)
 	{
 		if (Model::getFlagCurrentVal_T_Chng(sensNum) == 1) {
-			int Val = Model::getCurrentVal_T(sensNum);
+			short Val = Model::getCurrentVal_T(sensNum);
 			Model::clearFlagCurrentVal_T_Chng(sensNum);
 			switch (sensNum) {
 				case 0:								//	 	0 - defroster left temperature check
@@ -58,7 +58,7 @@ void VisualizationPresenter::ValUpdatePresenter()
 			}
 		}
 		if (Model::getFlagCurrentVal_H_Chng(sensNum) == 1) {
-			int Val = Model::getCurrentVal_H(sensNum);
+			short Val = Model::getCurrentVal_H(sensNum);
 			Model::clearFlagCurrentVal_H_Chng(sensNum);
 			switch (sensNum) {
 				case 0:								//	 	0 - defroster left humidity check

@@ -29,7 +29,6 @@ using MultWR_t = int8_t[8];						// Тип данных - Буфер для да
 MultWR_t WR_Buffer = {0};						// Обявление буфера для mult команд
 
 uint16_t master_rec_byte_count = 0;
-uint16_t CountRX = 0;
 uint8_t FrameDelay1 = 30;						// Задержка между фреймами рабочая
 //uint8_t FrameDelay2 = 0;						// Задержка между фреймами дополнительная при смене типа датчика
 /*
@@ -85,7 +84,8 @@ SENSOR_typedef_t Sensor_array[SQ] =
 		{103,3,0,1,"Center def",0,0,0,0},		// 2 - defroster center,GL-TH04-MT
 		{104,3,0,2,"Left prod",0,0,0,0},		// 3 - fish left, 		РТ100 с RS485
 		{105,3,0,2,"Right prod",0,0,0,0},		// 4 - fish right,		РТ100 с RS485
-		{002,3,0,4,"MB 16IO",0,0,0,0}			// 5 - модуль ввода-вывода с RS485, диапазон адресов: 2 и 3
+		{106,3,0,2,"Body def",0,0,0,0},			// 5 - Т корпуса дефростера,	РТ100 с RS485
+		{002,3,0,4,"MB 16IO",0,0,0,0}			// 6 - модуль ввода-вывода с RS485, диапазон адресов: 2 и 3
 };
 
 uint8_t SensNullValue = 255;
@@ -128,55 +128,20 @@ int Parametr_CORR;
 
 /************** ДАТЧИКИ ****************************/
 /***************************************************/
-// при запуске проверим все сенсоры на активность
+// проверим все сенсоры на активность, в т.ч. при запуске
 void MB_Master_Init(void)
 {
 	MB_Error_t result = MB_ERROR_NO;
-	// после инициализации семафоры установлены, надо их сбросить
-/*
-	resultSem = osSemaphoreAcquire(TX_Compl_SemHandle, 100/portTICK_RATE_MS);
-	resultSem = osSemaphoreAcquire(RX_Compl_SemHandle, 100/portTICK_RATE_MS);
-	resultSem = osSemaphoreAcquire(PR_TX_Compl_SemHandle, 100/portTICK_RATE_MS);
-	resultSem = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100/portTICK_RATE_MS);
-*/
-
-	// Запросим каждый датчик, если ответит - пометим как активный
+	// Запросим каждый не активный датчик, если ответит - пометим как активный
 //	while (1)	{ // тестовый цикл
 	for (int i=0; i<SQ; i++)
 	{
-		result = Sensor_Read(i);
-		if (result == MB_ERROR_NO)
-		{
-			Sensor_array[i].Active = 1;
-			// Инициируем значения в модели для отображения на экране
-			Model::setCurrentVal_T(i, Sensor::GetData(TimeFromStart, i, 2));
-		}
-		else
-		{
-			// Повторим чтение из датчика ещё три раза
-			CountRX = 0;
-			for (int var = 0; var < 3; ++var)
-			{
-				result = Sensor_Read(i);
-				if (result == MB_ERROR_NO)
-				{
-					CountRX++;
-				}
-			}
-			switch (CountRX)
-			{
-				case 3:		// всё хорошо, датчик отвечает стабильно
-					Sensor_array[i].Active = 1;
-					// Инициируем значения в модели для отображения на экране
-					Model::setCurrentVal_T(i, Sensor::GetData(TimeFromStart, i, 2));
-					break;
-				default:	// датчик нестабилен
-					Sensor_array[i].Active = 0;
-					// Изменим цвет поля датчика в модели для отображения на экране
-
-					break;
-			}
-
+		if (Sensor_array[i].Active == 0) {
+			result = Sensor_Read(i);
+			if (result == MB_ERROR_NO) {
+				Sensor_array[i].Active = 1; }
+			else {
+				Sensor_array[i].Active = 0;	}
 		}
 	}
 //	} // тестовый цикл

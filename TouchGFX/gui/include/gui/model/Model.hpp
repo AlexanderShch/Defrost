@@ -35,6 +35,25 @@ typedef struct
 	unsigned Gate_Down:1;		// Опустить ворота
 	unsigned Gate_Stop:1;		// Остановить движение ворот
 
+	// наименования и порядок переменных в программе сервера
+//	unsigned _V0:1; 			// Циркуляционный вентилятор 1 левый включить
+//	unsigned _V1:1; 			// Циркуляционный вентилятор 2 левый включить
+//	unsigned _V2:1; 			// Циркуляционный вентилятор 1 правый включить
+//	unsigned _V3:1; 			// Циркуляционный вентилятор 2 правый включить
+//	unsigned _H0:1; 			// Нагреватель (ТЭН) 1 левый включить
+//	unsigned _H1:1; 			// Нагреватель (ТЭН) 2 левый включить
+//	unsigned _H2:1; 			// Нагреватель (ТЭН) 1 правый включить
+//	unsigned _H3:1; 			// Нагреватель (ТЭН) 2 правый включить
+//	unsigned _Out:1;     		// Вытяжной вентилятор включить
+//	unsigned _Inj:1;     		// Водяную форсунку включить
+//	unsigned _Flp:1;     		// Закрыть защитную заслонку вытяжного вентилятора
+//	unsigned _Opn:1;     		// Ворота открыть
+//	unsigned _Stp:1;     		// Ворота остановить
+//	unsigned _Cls:1;     		// Ворота закрыть
+//	unsigned _Snd:1;     		// Звуковой сигнал включить
+//	unsigned _Wrk:1;     		// Включить зелёную лампу РАБОТА
+
+
 } DFR_REGISTERS_t;
 
 class Model
@@ -50,10 +69,10 @@ public:
     void tick();
     void ValUpdateModel();
 
-    static void setCurrentVal_T(int8_t SensNumber, int Val);
-    static int getCurrentVal_T(int8_t SensNumber);
-    static void setCurrentVal_H(int8_t SensNumber, int Val);
-    static int getCurrentVal_H(int8_t SensNumber);
+    static void setCurrentVal_T(int8_t SensNumber, short Val);
+    static short getCurrentVal_T(int8_t SensNumber);
+    static void setCurrentVal_H(int8_t SensNumber, short Val);
+    static short getCurrentVal_H(int8_t SensNumber);
     static void setCurrentVal_PR(uint8_t SensNumber, uint8_t Val);		// установка текущих значений адреса и скорости программируемого датчика
     static uint8_t getCurrentAddress_PR(void);							// получить текущее значение адреса программируемого датчика
     static uint8_t getCurrentBaudRate_PR(void);							// получить текущее значение скорости программируемого датчика
@@ -93,9 +112,9 @@ public:
 
 protected:
     ModelListener* modelListener;
-    static int CurrentValueT[SQ];				// текущее значение Т на экране
+    static short CurrentValueT[SQ];				// текущее значение Т на экране
     static int8_t FlagCurrentValueTChanged[SQ];	// флаг изменения Т
-    static int CurrentValueH[SQ];				// текущее значение Н на экране
+    static short CurrentValueH[SQ];				// текущее значение Н на экране
     static int8_t FlagCurrentValueHChanged[SQ];	// флаг изменения Н
     static uint8_t BaudRate_PR_sensor;			// скорость программируемого датчика
     static uint8_t Address_PR_sensor;			// адрес программируемого датчика
