@@ -19,6 +19,9 @@ extern osSemaphoreId_t RX_Compl_SemHandle;		// семафор окончания
 extern osSemaphoreId_t PR_TX_Compl_SemHandle;	// семафор окончания приёма при программировании
 extern osSemaphoreId_t PR_RX_Compl_SemHandle;	// семафор окончания передачи при программировании
 
+// Объявления функций CommandReceiver
+void CommandReceiver_OnDataReceived(uint16_t receivedSize);
+
 extern unsigned int TimeFromStart;
 extern uint16_t RelayRegister;	// временная переменная, заменяющая регистр аппаратного управления устройствами
 												// volatile - может изменяться другими потоками
@@ -45,7 +48,7 @@ osStatus_t resultSem;			/* status семафора:  	osOK: токен полу�
 														osErrorParameter: параметр semaphore_id имеет значение NULL или недопустим */
 
 /*CRC16-CITT tables*/
-const static uint16_t crc16_table[] =
+const uint16_t crc16_table[] =
   {
     0x0000, 0xc0c1, 0xc181, 0x0140, 0xc301, 0x03c0, 0x0280, 0xc241,0xc601, 0x06c0, 0x0780, 0xc741, 0x0500, 0xc5c1, 0xc481, 0x0440,
     0xcc01, 0x0cc0, 0x0d80, 0xcd41, 0x0f00, 0xcfc1, 0xce81, 0x0e40,0x0a00, 0xcac1, 0xcb81, 0x0b40, 0xc901, 0x09c0, 0x0880, 0xc841,
@@ -278,14 +281,11 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 		// Открыть семафор окончания приёма, продолжится задача ReadData
 		osSemaphoreRelease(RX_Compl_SemHandle);
 	}
-	else if (huart == &huart4)	// сканирование устройства на шине программирования
+	else if (huart == &huart4)	// приём команд от сервера
 	{
-//		HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_SET);
-//		HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_RESET);
-		osSemaphoreRelease(PR_RX_Compl_SemHandle);
-//		osDelay(1);	// задержка перед стартовым битом
-//		HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_SET);
-//		HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
+		// Быстро уведомляем поток о получении данных
+		// Обработка будет происходить в потоке RX_From_ServerHandle
+		CommandReceiver_OnDataReceived(Size);
 	}
 }
 
@@ -727,6 +727,24 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 //	Вычислим паузу 1000 бит в миллисекундах для ожидания ответа датчика на шине после запроса
 	double var = (1000 * 1000) / MB->UART->Init.BaudRate;
 	uint8_t pause = uint8_t (var);	// округляем паузу до целой части
+
+	// Проверяем состояние UART перед передачей (только для UART4)
+	if (MB->UART == &huart4)
+	{
+		// Ждем, пока UART не будет готов к передаче (нет активного приема)
+		uint32_t timeout = 100; // 100 мс таймаут
+		while (HAL_UART_GetState(MB->UART) != HAL_UART_STATE_READY && timeout > 0)
+		{
+			osDelay(1);
+			timeout--;
+		}
+		
+		if (timeout == 0)
+		{
+			// Таймаут ожидания готовности UART
+			return MB_ERROR_UART_SEND;
+		}
+	}
 
 	// ПЕРЕДАЧА DMA ********************************
 	// Включим направление - передача

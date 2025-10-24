@@ -30,10 +30,6 @@ extern "C"
 	{
 		TX_ToServer();
 	}
-	void CommandReceiver_Task_C(void *argument)
-	{
-		CommandReceiver_Task(argument);
-	}
 
 }
 

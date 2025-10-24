@@ -142,6 +142,8 @@ MB_Error_t Sensor_Read_CORR(uint8_t SensIndex);
 MB_Error_t Sensor_Write_CORR(uint8_t SensIndex);
 MB_Error_t Sensor_CORR_Reset(uint8_t SensIndex);
 
+// CRC16 таблица для быстрого вычисления (ModBus CRC16)
+extern const uint16_t crc16_table[];
 
 #endif /* MODBUS_HPP_ */
 

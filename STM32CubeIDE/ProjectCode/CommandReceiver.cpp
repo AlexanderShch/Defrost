@@ -20,6 +20,7 @@ extern osSemaphoreId_t PR_TX_Compl_SemHandle;  // Семафор передач�
 // Буферы для приема команд
 static uint8_t RX_CMD_Buffer[CMD_MAX_LENGTH];
 static uint8_t TX_Response_Buffer[CMD_MAX_LENGTH];
+static volatile uint16_t RX_ReceivedSize = 0;  // Размер полученных данных
 
 // Статистика работы модуля
 typedef struct {
@@ -84,7 +85,16 @@ void CommandReceiver_Init(void)
     // Сброс статистики
     memset(&commandStats, 0, sizeof(CommandStats_t));
     
-    // Инициализация UART уже выполнена в main.c
+    // Устанавливаем направление приема (DE = 0) - один раз при инициализации
+    HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
+    
+    // Запускаем первый цикл приема данных
+    // После получения данных и IDLE, прерывание автоматически перезапустит прием
+    // Это создает непрерывный цикл: прием → IDLE → прерывание → перезапуск → прием...
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart4, RX_CMD_Buffer, CMD_MAX_LENGTH);
+    
+    // Отключаем прерывание половины приема
+    __HAL_DMA_DISABLE_IT(huart4.hdmarx, DMA_IT_HT);
 }
 
 /*
@@ -117,6 +127,21 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     TX_Response_Buffer[txLength + 1] = (response->crc >> 8) & 0xFF;  // CRC Hi
     
     txLength += 2;
+    
+    // Проверяем состояние UART перед передачей
+    // Ждем, пока UART не будет готов к передаче (нет активного приема)
+    uint32_t timeout = 100; // 100 мс таймаут
+    while (HAL_UART_GetState(&huart4) != HAL_UART_STATE_READY && timeout > 0)
+    {
+        osDelay(1);
+        timeout--;
+    }
+    
+    if (timeout == 0)
+    {
+        // Таймаут ожидания готовности UART
+        return;
+    }
     
     // Отправляем через UART4
     // Включаем направление передачи
@@ -267,37 +292,37 @@ CommandStatus_t CommandReceiver_HandleDeviceControl(Command_t *cmd)
         case DEV_CTRL_CMD_HEATER_ON:
             // Включить нагреватели (ТЭНы)
             Model::Flag_DFR_manual = 1;  // Ручной режим
-            Model::DFR_manual.Ten1_Left = 1;
-            Model::DFR_manual.Ten2_Left = 1;
-            Model::DFR_manual.Ten1_Right = 1;
-            Model::DFR_manual.Ten2_Right = 1;
+//            Model::DFR_manual.Ten1_Left = 1;
+//            Model::DFR_manual.Ten2_Left = 1;
+//            Model::DFR_manual.Ten1_Right = 1;
+//            Model::DFR_manual.Ten2_Right = 1;
             break;
             
         case DEV_CTRL_CMD_HEATER_OFF:
             // Выключить нагреватели (ТЭНы)
             Model::Flag_DFR_manual = 1;  // Ручной режим
-            Model::DFR_manual.Ten1_Left = 0;
-            Model::DFR_manual.Ten2_Left = 0;
-            Model::DFR_manual.Ten1_Right = 0;
-            Model::DFR_manual.Ten2_Right = 0;
+//            Model::DFR_manual.Ten1_Left = 0;
+//            Model::DFR_manual.Ten2_Left = 0;
+//            Model::DFR_manual.Ten1_Right = 0;
+//            Model::DFR_manual.Ten2_Right = 0;
             break;
             
         case DEV_CTRL_CMD_FAN_ON:
             // Включить вентиляторы
             Model::Flag_DFR_manual = 1;  // Ручной режим
-            Model::DFR_manual.Fan1_Left = 1;
-            Model::DFR_manual.Fan2_Left = 1;
-            Model::DFR_manual.Fan1_Right = 1;
-            Model::DFR_manual.Fan2_Right = 1;
+//            Model::DFR_manual.Fan1_Left = 1;
+//            Model::DFR_manual.Fan2_Left = 1;
+//            Model::DFR_manual.Fan1_Right = 1;
+//            Model::DFR_manual.Fan2_Right = 1;
             break;
             
         case DEV_CTRL_CMD_FAN_OFF:
             // Выключить вентиляторы
             Model::Flag_DFR_manual = 1;  // Ручной режим
-            Model::DFR_manual.Fan1_Left = 0;
-            Model::DFR_manual.Fan2_Left = 0;
-            Model::DFR_manual.Fan1_Right = 0;
-            Model::DFR_manual.Fan2_Right = 0;
+//            Model::DFR_manual.Fan1_Left = 0;
+//            Model::DFR_manual.Fan2_Left = 0;
+//            Model::DFR_manual.Fan1_Right = 0;
+//            Model::DFR_manual.Fan2_Right = 0;
             break;
             
         default:
@@ -404,7 +429,8 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
     CommandResponse_t response;
     
     // Подготовка базовой структуры ответа
-    response.commandType = CMD_TYPE_RESPONSE;
+    // Возвращаем тот же тип команды REQUEST, а не CMD_TYPE_RESPONSE
+    response.commandType = CMD_TYPE_REQUEST;
     response.commandCode = cmd->commandCode;
     response.status = CMD_STATUS_OK;
     response.dataLength = 0;
@@ -416,13 +442,13 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
         {
             // Отправляем текущий статус устройства
             // Например, состояние регистров DFR
-            uint16_t currentStatus = Model::DFR_current;
-            memcpy(response.data, &currentStatus, sizeof(uint16_t));
-            response.dataLength = sizeof(uint16_t);
-            
-            // Отправляем ответ
-            CommandReceiver_SendResponse(&response);
-            break;
+//            uint16_t currentStatus = Model::DFR_current;
+//            memcpy(response.data, &currentStatus, sizeof(uint16_t));
+//            response.dataLength = sizeof(uint16_t);
+//
+//            // Отправляем ответ
+//            CommandReceiver_SendResponse(&response);
+//            break;
         }
         
         case REQ_CMD_GET_VERSION:
@@ -519,6 +545,220 @@ CommandStatus_t CommandReceiver_ProcessCommand(Command_t *cmd)
 }
 
 /*
+ * Функция: CommandReceiver_ReceiveCommand
+ * Описание: Надежный прием команды от сервера с проверкой целостности
+ * Параметры:
+ *   - cmd: указатель на структуру команды для заполнения
+ * Возвращает: статус приема команды
+ */
+CommandStatus_t CommandReceiver_ReceiveCommand(Command_t *cmd)
+{
+    HAL_StatusTypeDef halStatus;
+    osStatus_t semStatus;
+    
+    // Очистка буфера приема
+    memset(RX_CMD_Buffer, 0, CMD_MAX_LENGTH);
+    
+    // Сначала принимаем заголовок команды (3 байта)
+    halStatus = HAL_UART_Receive_DMA(&huart4, RX_CMD_Buffer, CMD_HEADER_SIZE);
+    
+    if (halStatus != HAL_OK)
+    {
+        return CMD_STATUS_TIMEOUT;
+    }
+    
+    // Ждем получения заголовка
+    semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 1000); // 1 секунда на заголовок
+    
+    if (semStatus != osOK)
+    {
+        HAL_UART_AbortReceive_IT(&huart4);
+        return CMD_STATUS_TIMEOUT;
+    }
+    
+    // Парсим заголовок
+    cmd->commandType = RX_CMD_Buffer[0];
+    cmd->commandCode = RX_CMD_Buffer[1];
+    cmd->dataLength = RX_CMD_Buffer[2];
+    
+    // Проверяем корректность длины данных
+    if (cmd->dataLength > CMD_MAX_DATA_LENGTH)
+    {
+        HAL_UART_AbortReceive_IT(&huart4);
+        return CMD_STATUS_INVALID_LENGTH;
+    }
+    
+    // Если есть данные, принимаем их
+    if (cmd->dataLength > 0)
+    {
+        halStatus = HAL_UART_Receive_DMA(&huart4, &RX_CMD_Buffer[CMD_HEADER_SIZE], cmd->dataLength);
+        
+        if (halStatus != HAL_OK)
+        {
+            return CMD_STATUS_TIMEOUT;
+        }
+        
+        // Ждем получения данных
+        semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 2000); // 2 секунды на данные
+        
+        if (semStatus != osOK)
+        {
+            HAL_UART_AbortReceive_IT(&huart4);
+            return CMD_STATUS_TIMEOUT;
+        }
+        
+        // Копируем данные в структуру команды
+        memcpy(cmd->data, &RX_CMD_Buffer[CMD_HEADER_SIZE], cmd->dataLength);
+    }
+    
+    // Принимаем CRC (2 байта)
+    halStatus = HAL_UART_Receive_DMA(&huart4, &RX_CMD_Buffer[CMD_HEADER_SIZE + cmd->dataLength], CMD_CRC_SIZE);
+    
+    if (halStatus != HAL_OK)
+    {
+        return CMD_STATUS_TIMEOUT;
+    }
+    
+    // Ждем получения CRC
+    semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 1000); // 1 секунда на CRC
+    
+    if (semStatus != osOK)
+    {
+        HAL_UART_AbortReceive_IT(&huart4);
+        return CMD_STATUS_TIMEOUT;
+    }
+    
+    // Извлекаем CRC
+    cmd->crc = RX_CMD_Buffer[CMD_HEADER_SIZE + cmd->dataLength] | 
+               (RX_CMD_Buffer[CMD_HEADER_SIZE + cmd->dataLength + 1] << 8);
+    
+    // Проверяем CRC
+    uint16_t totalLength = CMD_HEADER_SIZE + cmd->dataLength;
+    if (!CommandReceiver_ValidateCRC(RX_CMD_Buffer, totalLength, cmd->crc))
+    {
+        return CMD_STATUS_CRC_ERROR;
+    }
+    
+    return CMD_STATUS_OK;
+}
+
+/*
+ * Функция: CommandReceiver_ProcessReceivedData
+ * Описание: Обработка полученных данных из прерывания UART
+ * Параметры:
+ *   - receivedSize: количество полученных байт
+ */
+void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
+{
+    Command_t receivedCommand;
+    CommandStatus_t cmdStatus;
+    
+    // Проверяем минимальную длину сообщения
+    if (receivedSize < CMD_HEADER_SIZE + CMD_CRC_SIZE)
+    {
+        commandStats.invalidCommands++;
+        return;
+    }
+    
+    // Парсим заголовок команды
+    receivedCommand.commandType = RX_CMD_Buffer[0];
+    receivedCommand.commandCode = RX_CMD_Buffer[1];
+    receivedCommand.dataLength = RX_CMD_Buffer[2];
+    
+    // Проверяем корректность длины данных
+    if (receivedCommand.dataLength > CMD_MAX_DATA_LENGTH)
+    {
+        commandStats.invalidCommands++;
+        return;
+    }
+    
+    // Проверяем общую длину сообщения
+    uint16_t expectedLength = CMD_HEADER_SIZE + receivedCommand.dataLength + CMD_CRC_SIZE;
+    if (receivedSize != expectedLength)
+    {
+        commandStats.invalidCommands++;
+        return;
+    }
+    
+    // Копируем данные
+    if (receivedCommand.dataLength > 0)
+    {
+        memcpy(receivedCommand.data, &RX_CMD_Buffer[CMD_HEADER_SIZE], receivedCommand.dataLength);
+    }
+    
+    // Извлекаем CRC
+    receivedCommand.crc = RX_CMD_Buffer[CMD_HEADER_SIZE + receivedCommand.dataLength] | 
+                          (RX_CMD_Buffer[CMD_HEADER_SIZE + receivedCommand.dataLength + 1] << 8);
+    
+    // Проверяем CRC
+    uint16_t totalLength = CMD_HEADER_SIZE + receivedCommand.dataLength;
+    if (!CommandReceiver_ValidateCRC(RX_CMD_Buffer, totalLength, receivedCommand.crc))
+    {
+        commandStats.crcErrors++;
+        
+        // Отправляем ответ об ошибке CRC (с тем же типом команды)
+        CommandResponse_t response;
+        response.commandType = receivedCommand.commandType;  // Возвращаем тот же тип команды
+        response.commandCode = receivedCommand.commandCode;
+        response.status = CMD_STATUS_CRC_ERROR;
+        response.dataLength = 0;
+        
+        CommandReceiver_SendResponse(&response);
+        return;
+    }
+    
+    // Обрабатываем команду
+    cmdStatus = CommandReceiver_ProcessCommand(&receivedCommand);
+    
+    // Для команд, требующих подтверждения, отправляем ответ
+    if (receivedCommand.commandType == CMD_TYPE_PROG_CONTROL || 
+        receivedCommand.commandType == CMD_TYPE_DEVICE_CONTROL ||
+        receivedCommand.commandType == CMD_TYPE_CONFIGURATION)
+    {
+        CommandResponse_t response;
+        response.commandType = receivedCommand.commandType;  // Возвращаем тот же тип команды
+        response.commandCode = receivedCommand.commandCode;
+        response.status = cmdStatus;
+        response.dataLength = 0;
+        
+        CommandReceiver_SendResponse(&response);
+    }
+}
+
+/*
+ * Функция: CommandReceiver_RestartReception
+ * Описание: Перезапускает прием данных (вызывается из прерывания)
+ *           Создает непрерывный цикл приема
+ */
+void CommandReceiver_RestartReception(void)
+{
+    // Очищаем буфер приема для следующего сообщения
+    memset(RX_CMD_Buffer, 0, CMD_MAX_LENGTH);
+    
+    // Перезапускаем прием - ждем следующего сообщения до IDLE
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart4, RX_CMD_Buffer, CMD_MAX_LENGTH);
+    __HAL_DMA_DISABLE_IT(huart4.hdmarx, DMA_IT_HT);
+}
+
+/*
+ * Функция: CommandReceiver_OnDataReceived
+ * Описание: Вызывается из прерывания при получении данных
+ * Параметры:
+ *   - receivedSize: количество полученных байт
+ */
+void CommandReceiver_OnDataReceived(uint16_t receivedSize)
+{
+    // Сохраняем размер полученных данных
+    RX_ReceivedSize = receivedSize;
+    
+    // Освобождаем семафор для уведомления потока
+    osSemaphoreRelease(PR_RX_Compl_SemHandle);
+    
+    // Перезапускаем прием для следующего сообщения
+    CommandReceiver_RestartReception();
+}
+
+/*
  * Функция: CommandReceiver_Task
  * Описание: Основная задача приема команд от сервера
  * Параметры:
@@ -528,104 +768,20 @@ void CommandReceiver_Task(void *argument)
 {
     CommandReceiver_Init();
     
-    HAL_StatusTypeDef halStatus;
-    Command_t receivedCommand;
-    
-    // Бесконечный цикл задачи приема команд
+    // Основной цикл задачи - ожидаем получения данных и обрабатываем их
     while (1)
     {
-        // Очистка буфера приема
-        memset(RX_CMD_Buffer, 0, CMD_MAX_LENGTH);
+        // Ждем семафор от прерывания о получении данных
+        osStatus_t semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, osWaitForever);
         
-        // Включаем направление приема
-        HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
-        
-        // Запускаем прием по UART4 с ожиданием IDLE
-        halStatus = HAL_UARTEx_ReceiveToIdle_DMA(&huart4, RX_CMD_Buffer, CMD_MAX_LENGTH);
-        
-        // Отключаем прерывание половины приема
-        __HAL_DMA_DISABLE_IT(huart4.hdmarx, DMA_IT_HT);
-        
-        if (halStatus == HAL_OK)
+        if (semStatus == osOK && RX_ReceivedSize > 0)
         {
-            // Ждем завершения приема (семафор освобождается в прерывании)
-            osStatus_t semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 5000);
+            // Обрабатываем полученные данные
+            CommandReceiver_ProcessReceivedData(RX_ReceivedSize);
             
-            if (semStatus == osOK)
-            {
-                // Команда получена, парсим ее
-                receivedCommand.commandType = RX_CMD_Buffer[0];
-                receivedCommand.commandCode = RX_CMD_Buffer[1];
-                receivedCommand.dataLength = RX_CMD_Buffer[2];
-                
-                // Проверка корректности длины данных
-                if (receivedCommand.dataLength <= CMD_MAX_DATA_LENGTH)
-                {
-                    // Копируем данные
-                    if (receivedCommand.dataLength > 0)
-                    {
-                        memcpy(receivedCommand.data, &RX_CMD_Buffer[3], receivedCommand.dataLength);
-                    }
-                    
-                    // Извлекаем CRC (последние 2 байта)
-                    uint16_t totalLength = CMD_HEADER_SIZE + receivedCommand.dataLength;
-                    receivedCommand.crc = RX_CMD_Buffer[totalLength] | (RX_CMD_Buffer[totalLength + 1] << 8);
-                    
-                    // Проверяем CRC
-                    if (CommandReceiver_ValidateCRC(RX_CMD_Buffer, totalLength, receivedCommand.crc))
-                    {
-                        // CRC корректна, обрабатываем команду
-                        CommandStatus_t cmdStatus = CommandReceiver_ProcessCommand(&receivedCommand);
-                        
-                        // Для команд PROG_CONTROL, DEVICE_CONTROL и CONFIGURATION отправляем подтверждение
-                        if (receivedCommand.commandType == CMD_TYPE_PROG_CONTROL || 
-                            receivedCommand.commandType == CMD_TYPE_DEVICE_CONTROL ||
-                            receivedCommand.commandType == CMD_TYPE_CONFIGURATION)
-                        {
-                            CommandResponse_t response;
-                            response.commandType = CMD_TYPE_RESPONSE;
-                            response.commandCode = receivedCommand.commandCode;
-                            response.status = cmdStatus;
-                            response.dataLength = 0;
-                            
-                            CommandReceiver_SendResponse(&response);
-                        }
-                    }
-                    else
-                    {
-                        // Ошибка CRC
-                        commandStats.crcErrors++;
-                        
-                        // Отправляем ответ об ошибке CRC
-                        CommandResponse_t response;
-                        response.commandType = CMD_TYPE_RESPONSE;
-                        response.commandCode = receivedCommand.commandCode;
-                        response.status = CMD_STATUS_CRC_ERROR;
-                        response.dataLength = 0;
-                        
-                        CommandReceiver_SendResponse(&response);
-                    }
-                }
-                else
-                {
-                    // Неверная длина данных
-                    commandStats.invalidCommands++;
-                }
-            }
-            else
-            {
-                // Таймаут приема - прерываем прием
-                HAL_UART_AbortReceive_IT(&huart4);
-            }
+            // Сбрасываем размер
+            RX_ReceivedSize = 0;
         }
-        else
-        {
-            // Ошибка запуска приема
-            osDelay(100);  // Небольшая задержка перед повторной попыткой
-        }
-        
-        // Небольшая задержка между циклами приема
-        osDelay(10);
     }
 }
 
@@ -636,4 +792,5 @@ extern "C" void CommandReceiver_Task_C(void *argument)
 {
     CommandReceiver_Task(argument);
 }
+
 

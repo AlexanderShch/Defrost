@@ -26,6 +26,7 @@
 /* USER CODE BEGIN Includes */
 #include "Components/ili9341/ili9341.h"
 #include "C2CPP.hpp"
+#include "CommandReceiver.hpp"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -85,7 +86,7 @@ DMA_HandleTypeDef hdma_uart5_tx;
 
 SDRAM_HandleTypeDef hsdram1;
 
-//GJNJRB
+// ПОТОКИ
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
@@ -114,12 +115,12 @@ const osThreadAttr_t ReadData_attributes = {
   .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for ReadData */
-osThreadId_t ReadDataHandle;
-const osThreadAttr_t ReadData_attributes = {
-  .name = "ReadData",
+/* Definitions for RX_From_Server */
+osThreadId_t RX_From_ServerHandle;
+const osThreadAttr_t RX_From_Server_attributes = {
+  .name = "RX_From_Server",
   .stack_size = 512 * 4,
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
 };
 
 // ТАЙМЕРЫ
@@ -316,29 +317,25 @@ int main(void)
   /* Create the thread(s) */
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
-
   /* creation of GUI_Task */
   GUI_TaskHandle = osThreadNew(TouchGFX_Task, NULL, &GUI_Task_attributes);
 
+  /* USER CODE BEGIN RTOS_THREADS */
   /* creation of DataProcessing */
   DataProcessingHandle = osThreadNew(HandleDataProcessing, NULL, &DataProcessing_attributes);
-
   /* creation of ReadData */
   ReadDataHandle = osThreadNew(ReadDataFunction, NULL, &ReadData_attributes);
-
-
-  /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
   /* creation of TX_To_Server */
   TX_To_ServerHandle = osThreadNew(TransferToServer, NULL, &TX_To_Server_attributes);
+  /* creation of RX_From_Server */
+  RX_From_ServerHandle = osThreadNew(CommandReceiver_Task_C, NULL, &RX_From_Server_attributes);
   /* USER CODE END RTOS_THREADS */
 
   /* Create the event(s) */
-  /* creation of ReadDataEvent */
-  ReadDataEventHandle = osEventFlagsNew(&ReadDataEvent_attributes);
 
   /* USER CODE BEGIN RTOS_EVENTS */
-  /* add events, ... */
+  /* creation of ReadDataEvent */
+  ReadDataEventHandle = osEventFlagsNew(&ReadDataEvent_attributes);
   /* USER CODE END RTOS_EVENTS */
 
   /* Start scheduler */

@@ -23,7 +23,6 @@ extern "C" {
 	void ReadDataFunc_C();
 	void InitDataVariables_C();
 	void TransferToServer_С();
-	void CommandReceiver_Task_C(void *argument);
 #ifdef __cplusplus
 }
 #endif
