@@ -85,6 +85,7 @@ DMA_HandleTypeDef hdma_uart5_tx;
 
 SDRAM_HandleTypeDef hsdram1;
 
+//GJNJRB
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
@@ -113,6 +114,15 @@ const osThreadAttr_t ReadData_attributes = {
   .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for ReadData */
+osThreadId_t ReadDataHandle;
+const osThreadAttr_t ReadData_attributes = {
+  .name = "ReadData",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+
+// ТАЙМЕРЫ
 /* Definitions for DataTimer */
 osTimerId_t DataTimerHandle;
 const osTimerAttr_t DataTimer_attributes = {

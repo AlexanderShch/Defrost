@@ -13,6 +13,7 @@ void DataFunc(void);
 void ReadDataFunc();
 void InitData();
 void TX_ToServer();
+void CommandReceiver_Task(void *argument);
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,6 +23,7 @@ extern "C" {
 	void ReadDataFunc_C();
 	void InitDataVariables_C();
 	void TransferToServer_С();
+	void CommandReceiver_Task_C(void *argument);
 #ifdef __cplusplus
 }
 #endif

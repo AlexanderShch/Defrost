@@ -6,6 +6,7 @@
  */
 
 #include "C2CPP.hpp"
+#include "CommandReceiver.hpp"
 
 extern "C"
 {
@@ -28,6 +29,10 @@ extern "C"
 	void TransferToServer_С()
 	{
 		TX_ToServer();
+	}
+	void CommandReceiver_Task_C(void *argument)
+	{
+		CommandReceiver_Task(argument);
 	}
 
 }
