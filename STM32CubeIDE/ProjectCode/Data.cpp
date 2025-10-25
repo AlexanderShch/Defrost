@@ -41,8 +41,9 @@ unsigned int Sensor::Time[TQ][SQ] = {{0}};	// number of time quantum measuring
 int Sensor::T[TQ][SQ] = {{0}};		// temperature
 int Sensor::H[TQ][SQ] = {{0}};		// humidity
 
-typedef struct   // object data for Server type
+typedef struct __attribute__((packed))   // object data for Server type
 {
+    uint8_t DataType;			// Байт типа передаваемых данных (0x00 для телеметрии)
     uint16_t Time;				// Количество секунд с момента включения
     uint8_t SensorQuantity;		// Количество сенсоров
     uint8_t SensorType[SQ];		// Тип сенсора
@@ -208,6 +209,7 @@ void ReadDataFunc() {
 
 		// формирование данных для сервера
 		DataToServer = {};
+		DataToServer.DataType = 0x00;	// Тип данных: 0x00 = телеметрия
 		DataToServer.Time = TimeFromStart;
 		DataToServer.SensorQuantity = SQ;
 		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)

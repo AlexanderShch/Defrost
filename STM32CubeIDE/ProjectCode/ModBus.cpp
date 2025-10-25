@@ -10,7 +10,7 @@
 
 //#include "usb_host.h"
 
-#define  MAX_MB_BUFSIZE 42						// определяется размер буфера для обмена по UART
+#define  MAX_MB_BUFSIZE 48						// определяется размер буфера для обмена по UART
 
 extern UART_HandleTypeDef huart4;				// для программирования датчиков
 extern UART_HandleTypeDef huart5;				// для считывания данных с датчиков
