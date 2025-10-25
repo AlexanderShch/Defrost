@@ -291,10 +291,11 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 
 // обработка прерывания - передача завершена
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *Uart) {
+	// Включим направление - приём
+	HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
+
 	if (Uart == &huart5)
 	{
-		// Включим направление - приём
-		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
 		// Установим семафор окончания передачи, продолжится задача ModBus
 		osSemaphoreRelease(TX_Compl_SemHandle);
 	}

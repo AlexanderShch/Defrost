@@ -43,12 +43,6 @@ typedef enum {
 // Коды команд управления устройствами (DeviceControlCommand)
 typedef enum {
     DEV_CTRL_CMD_RELAY_ON    = 0x01,  // Включить реле
-    DEV_CTRL_CMD_RELAY_OFF   = 0x02,  // Выключить реле
-    DEV_CTRL_CMD_RELAY_SET   = 0x03,  // Установить состояние реле (битовая маска)
-    DEV_CTRL_CMD_HEATER_ON   = 0x04,  // Включить нагреватели
-    DEV_CTRL_CMD_HEATER_OFF  = 0x05,  // Выключить нагреватели
-    DEV_CTRL_CMD_FAN_ON      = 0x06,  // Включить вентиляторы
-    DEV_CTRL_CMD_FAN_OFF     = 0x07   // Выключить вентиляторы
 } DeviceControlCommand_t;
 
 // Коды команд конфигурации (ConfigCommand)
@@ -60,9 +54,10 @@ typedef enum {
 
 // Коды команд запроса (RequestCommand)
 typedef enum {
-    REQ_CMD_GET_STATUS  = 0x01,  // Запросить текущий статус устройства
-    REQ_CMD_GET_VERSION = 0x02,  // Запросить версию прошивки
-    REQ_CMD_GET_CONFIG  = 0x03   // Запросить текущую конфигурацию
+    REQ_CMD_GET_STATUS     = 0x01,  // Запросить текущий статус устройства
+    REQ_CMD_GET_VERSION    = 0x02,  // Запросить версию прошивки (MAJOR.MINOR.PATCH)
+    REQ_CMD_GET_CONFIG     = 0x03,  // Запросить текущую конфигурацию
+    REQ_CMD_GET_BUILD_INFO = 0x04   // Запросить информацию о сборке (версия + дата)
 } RequestCommand_t;
 
 // Статусы обработки команд

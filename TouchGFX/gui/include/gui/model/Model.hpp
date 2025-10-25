@@ -22,18 +22,21 @@ class ModelListener;
 // ФлагиСостояния, битовый регистр, Имена битов
 typedef struct
 {
-	unsigned Ten1_Left:1;		// Тэн1 левый
-	unsigned Ten2_Left:1;		// Тэн2 левый
-	unsigned Ten1_Right:1;		// Тэн1 правый
-	unsigned Ten2_Right:1;		// Тэн2 правый
 	unsigned Vent1_Left:1;		// Вентилятор1 левый
 	unsigned Vent2_Left:1;		// Вентилятор2 левый
 	unsigned Vent1_Right:1;	    // Вентилятор1 правый
 	unsigned Vent2_Right:1; 	// Вентилятор2 правый
+	unsigned Ten1_Left:1;		// Тэн1 левый
+	unsigned Ten2_Left:1;		// Тэн2 левый
+	unsigned Ten1_Right:1;		// Тэн1 правый
+	unsigned Ten2_Right:1;		// Тэн2 правый
+	unsigned _Out:1;     		// Вытяжной вентилятор включить
 	unsigned Water_Flap:1;		// Водный клапан
 	unsigned Gate_Up:1;			// Поднять ворота
-	unsigned Gate_Down:1;		// Опустить ворота
 	unsigned Gate_Stop:1;		// Остановить движение ворот
+	unsigned Gate_Down:1;		// Опустить ворота
+	unsigned _Snd:1;     		// Звуковой сигнал включить
+	unsigned _Wrk:1;     		// Включить зелёную лампу РАБОТА
 
 	// наименования и порядок переменных в программе сервера
 //	unsigned _V0:1; 			// Циркуляционный вентилятор 1 левый включить

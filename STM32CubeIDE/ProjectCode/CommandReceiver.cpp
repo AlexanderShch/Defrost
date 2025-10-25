@@ -9,6 +9,7 @@
 #include "CommandReceiver.hpp"
 #include "ModBus.hpp"
 #include "Data.hpp"
+#include "version.h"
 #include <string.h>
 #include <gui/model/model.hpp>
 
@@ -21,6 +22,9 @@ extern osSemaphoreId_t PR_TX_Compl_SemHandle;  // Семафор передач�
 static uint8_t RX_CMD_Buffer[CMD_MAX_LENGTH];
 static uint8_t TX_Response_Buffer[CMD_MAX_LENGTH];
 static volatile uint16_t RX_ReceivedSize = 0;  // Размер полученных данных
+
+// Таймер для бита _Wrk (время в мс, когда нужно сбросить бит)
+static volatile uint32_t WrkBitTimer = 0;
 
 // Статистика работы модуля
 typedef struct {
@@ -174,34 +178,29 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             // Запуск программы
             // Активируем автоматический режим работы
             Model::Flag_DFR_manual = 0;  // Автоматический режим
+            
+            // Устанавливаем бит _Wrk (зелёная лампа РАБОТА) на 1 секунду
+            Model::DFR._Wrk = 1;
+            WrkBitTimer = osKernelGetTickCount() + 1000;  // Сбросить через 1000 мс
             break;
             
         case PROG_CTRL_CMD_STOP:
             // Остановка программы
-            // Переключаем в ручной режим и выключаем все
-            Model::Flag_DFR_manual = 1;  // Ручной режим
-            Model::DFR_manual.Ten1_Left = 0;
-            Model::DFR_manual.Ten2_Left = 0;
-            Model::DFR_manual.Ten1_Right = 0;
-            Model::DFR_manual.Ten2_Right = 0;
             break;
             
         case PROG_CTRL_CMD_PAUSE:
             // Приостановка программы
-            // Можно сохранить текущее состояние и деактивировать
-            Model::Flag_DFR_manual = 1;  // Переключаем в ручной режим
             break;
             
         case PROG_CTRL_CMD_RESUME:
             // Возобновление программы
-            // Восстановить автоматический режим
-            Model::Flag_DFR_manual = 0;  // Автоматический режим
             break;
             
         case PROG_CTRL_CMD_RESET:
-            // Сброс программы (программный reset)
-            // Можно использовать HAL_NVIC_SystemReset() если нужен полный сброс
-            // или сбросить только параметры работы
+            // Сбрасываем устройство
+            // ВАЖНО: Отправляем ответ сервису ПЕРЕД сбросом
+            // Сброс выполняется после возврата из функции ответа серверу
+            status = CMD_STATUS_OK;
             break;
             
         default:
@@ -226,103 +225,7 @@ CommandStatus_t CommandReceiver_HandleDeviceControl(Command_t *cmd)
     switch (cmd->commandCode)
     {
         case DEV_CTRL_CMD_RELAY_ON:
-            // Включить реле (ожидаем 1 байт - номер реле)
-            if (cmd->dataLength == 1)
-            {
-                uint8_t relayNum = cmd->data[0];
-                if (relayNum < 16)
-                {
-                    // Устанавливаем бит в регистре ручного управления
-                    Model::Flag_DFR_manual = 1;  // Ручной режим
-                    uint16_t *pDFR_manual = (uint16_t*) &Model::DFR_manual;
-                    *pDFR_manual |= (1 << relayNum);
-                }
-                else
-                {
-                    status = CMD_STATUS_INVALID_LENGTH;
-                }
-            }
-            else
-            {
-                status = CMD_STATUS_INVALID_LENGTH;
-            }
-            break;
-            
-        case DEV_CTRL_CMD_RELAY_OFF:
-            // Выключить реле (ожидаем 1 байт - номер реле)
-            if (cmd->dataLength == 1)
-            {
-                uint8_t relayNum = cmd->data[0];
-                if (relayNum < 16)
-                {
-                    // Сбрасываем бит в регистре ручного управления
-                    Model::Flag_DFR_manual = 1;  // Ручной режим
-                    uint16_t *pDFR_manual = (uint16_t*) &Model::DFR_manual;
-                    *pDFR_manual &= ~(1 << relayNum);
-                }
-                else
-                {
-                    status = CMD_STATUS_INVALID_LENGTH;
-                }
-            }
-            else
-            {
-                status = CMD_STATUS_INVALID_LENGTH;
-            }
-            break;
-            
-        case DEV_CTRL_CMD_RELAY_SET:
-            // Установить состояние всех реле (ожидаем 2 байта - битовая маска)
-            if (cmd->dataLength == 2)
-            {
-                uint16_t relayMask;
-                memcpy(&relayMask, cmd->data, sizeof(uint16_t));
-                
-                // Устанавливаем регистр ручного управления
-                Model::Flag_DFR_manual = 1;  // Ручной режим
-                uint16_t *pDFR_manual = (uint16_t*) &Model::DFR_manual;
-                *pDFR_manual = relayMask;
-            }
-            else
-            {
-                status = CMD_STATUS_INVALID_LENGTH;
-            }
-            break;
-            
-        case DEV_CTRL_CMD_HEATER_ON:
-            // Включить нагреватели (ТЭНы)
-            Model::Flag_DFR_manual = 1;  // Ручной режим
-//            Model::DFR_manual.Ten1_Left = 1;
-//            Model::DFR_manual.Ten2_Left = 1;
-//            Model::DFR_manual.Ten1_Right = 1;
-//            Model::DFR_manual.Ten2_Right = 1;
-            break;
-            
-        case DEV_CTRL_CMD_HEATER_OFF:
-            // Выключить нагреватели (ТЭНы)
-            Model::Flag_DFR_manual = 1;  // Ручной режим
-//            Model::DFR_manual.Ten1_Left = 0;
-//            Model::DFR_manual.Ten2_Left = 0;
-//            Model::DFR_manual.Ten1_Right = 0;
-//            Model::DFR_manual.Ten2_Right = 0;
-            break;
-            
-        case DEV_CTRL_CMD_FAN_ON:
-            // Включить вентиляторы
-            Model::Flag_DFR_manual = 1;  // Ручной режим
-//            Model::DFR_manual.Fan1_Left = 1;
-//            Model::DFR_manual.Fan2_Left = 1;
-//            Model::DFR_manual.Fan1_Right = 1;
-//            Model::DFR_manual.Fan2_Right = 1;
-            break;
-            
-        case DEV_CTRL_CMD_FAN_OFF:
-            // Выключить вентиляторы
-            Model::Flag_DFR_manual = 1;  // Ручной режим
-//            Model::DFR_manual.Fan1_Left = 0;
-//            Model::DFR_manual.Fan2_Left = 0;
-//            Model::DFR_manual.Fan1_Right = 0;
-//            Model::DFR_manual.Fan2_Right = 0;
+            {}
             break;
             
         default:
@@ -351,8 +254,8 @@ CommandStatus_t CommandReceiver_HandleConfiguration(Command_t *cmd)
             // Ожидаем 4 байта с float значением температуры
             if (cmd->dataLength == 4)
             {
-                float targetTemp;
-                memcpy(&targetTemp, cmd->data, sizeof(float));
+                // float targetTemp;
+                // memcpy(&targetTemp, cmd->data, sizeof(float));
                 
                 // Здесь установить целевую температуру в системе
                 // Например, можно добавить переменную в Model или DFR
@@ -370,8 +273,8 @@ CommandStatus_t CommandReceiver_HandleConfiguration(Command_t *cmd)
             // Ожидаем 2 байта с uint16_t значением интервала в секундах
             if (cmd->dataLength == 2)
             {
-                uint16_t interval;
-                memcpy(&interval, cmd->data, sizeof(uint16_t));
+                // uint16_t interval;
+                // memcpy(&interval, cmd->data, sizeof(uint16_t));
                 
                 // Установить интервал измерений
                 // Можно изменить DataRead_ShiftCounter
@@ -453,13 +356,21 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
         
         case REQ_CMD_GET_VERSION:
         {
-            // Отправляем версию прошивки
-            const char *version = "v1.0.0";
+            // Отправляем версию прошивки из version.h
+            // Формат ответа: MAJOR.MINOR.PATCH (строка)
+            const char *version = FW_VERSION_STRING;
             uint8_t versionLen = strlen(version);
+            
             if (versionLen <= CMD_MAX_DATA_LENGTH)
             {
                 memcpy(response.data, version, versionLen);
                 response.dataLength = versionLen;
+            }
+            else
+            {
+                // Версия слишком длинная - отправляем ошибку
+                status = CMD_STATUS_INVALID_LENGTH;
+                response.status = status;
             }
             
             // Отправляем ответ
@@ -473,6 +384,32 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
             // Например, режим работы
             response.data[0] = Model::Flag_DFR_manual;
             response.dataLength = 1;
+            
+            // Отправляем ответ
+            CommandReceiver_SendResponse(&response);
+            break;
+        }
+        
+        case REQ_CMD_GET_BUILD_INFO:
+        {
+            // Отправляем полную информацию о сборке
+            // Формат: "v1.0.0 (Oct 25 2025 14:30:45)"
+            const char *buildInfo = FW_VERSION_FULL;
+            uint8_t buildInfoLen = strlen(buildInfo);
+            
+            if (buildInfoLen <= CMD_MAX_DATA_LENGTH)
+            {
+                memcpy(response.data, buildInfo, buildInfoLen);
+                response.dataLength = buildInfoLen;
+            }
+            else
+            {
+                // Информация слишком длинная - отправляем только версию
+                const char *version = FW_VERSION_STRING;
+                uint8_t versionLen = strlen(version);
+                memcpy(response.data, version, versionLen);
+                response.dataLength = versionLen;
+            }
             
             // Отправляем ответ
             CommandReceiver_SendResponse(&response);
@@ -556,9 +493,9 @@ CommandStatus_t CommandReceiver_ReceiveCommand(Command_t *cmd)
     HAL_StatusTypeDef halStatus;
     osStatus_t semStatus;
     
-    // Очистка буфера приема
-    memset(RX_CMD_Buffer, 0, CMD_MAX_LENGTH);
-    
+        // Очистка буфера приема
+        memset(RX_CMD_Buffer, 0, CMD_MAX_LENGTH);
+        
     // Сначала принимаем заголовок команды (3 байта)
     halStatus = HAL_UART_Receive_DMA(&huart4, RX_CMD_Buffer, CMD_HEADER_SIZE);
     
@@ -652,6 +589,18 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
 {
     Command_t receivedCommand;
     CommandStatus_t cmdStatus;
+    uint8_t localBuffer[CMD_MAX_LENGTH];
+    
+    // КРИТИЧНО: Копируем данные из RX_CMD_Buffer в локальный буфер
+    // чтобы защититься от перезаписи при следующем приеме
+    memcpy(localBuffer, RX_CMD_Buffer, receivedSize);
+    
+    // Сразу очищаем буфер приема, чтобы минимизировать риск потери данных
+    // при быстром следующем приеме (DMA уже перезапущен в прерывании)
+    memset(RX_CMD_Buffer, 0, CMD_MAX_LENGTH);
+    
+    // Увеличиваем счетчик полученных команд
+    commandStats.totalCommandsReceived++;
     
     // Проверяем минимальную длину сообщения
     if (receivedSize < CMD_HEADER_SIZE + CMD_CRC_SIZE)
@@ -660,10 +609,10 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         return;
     }
     
-    // Парсим заголовок команды
-    receivedCommand.commandType = RX_CMD_Buffer[0];
-    receivedCommand.commandCode = RX_CMD_Buffer[1];
-    receivedCommand.dataLength = RX_CMD_Buffer[2];
+    // Парсим заголовок команды из локального буфера
+    receivedCommand.commandType = localBuffer[0];
+    receivedCommand.commandCode = localBuffer[1];
+    receivedCommand.dataLength = localBuffer[2];
     
     // Проверяем корректность длины данных
     if (receivedCommand.dataLength > CMD_MAX_DATA_LENGTH)
@@ -680,19 +629,19 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         return;
     }
     
-    // Копируем данные
-    if (receivedCommand.dataLength > 0)
-    {
-        memcpy(receivedCommand.data, &RX_CMD_Buffer[CMD_HEADER_SIZE], receivedCommand.dataLength);
+                    // Копируем данные
+                    if (receivedCommand.dataLength > 0)
+                    {
+        memcpy(receivedCommand.data, &localBuffer[CMD_HEADER_SIZE], receivedCommand.dataLength);
     }
     
     // Извлекаем CRC
-    receivedCommand.crc = RX_CMD_Buffer[CMD_HEADER_SIZE + receivedCommand.dataLength] | 
-                          (RX_CMD_Buffer[CMD_HEADER_SIZE + receivedCommand.dataLength + 1] << 8);
-    
-    // Проверяем CRC
+    receivedCommand.crc = localBuffer[CMD_HEADER_SIZE + receivedCommand.dataLength] | 
+                          (localBuffer[CMD_HEADER_SIZE + receivedCommand.dataLength + 1] << 8);
+                    
+                    // Проверяем CRC
     uint16_t totalLength = CMD_HEADER_SIZE + receivedCommand.dataLength;
-    if (!CommandReceiver_ValidateCRC(RX_CMD_Buffer, totalLength, receivedCommand.crc))
+    if (!CommandReceiver_ValidateCRC(localBuffer, totalLength, receivedCommand.crc))
     {
         commandStats.crcErrors++;
         
@@ -711,17 +660,30 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     cmdStatus = CommandReceiver_ProcessCommand(&receivedCommand);
     
     // Для команд, требующих подтверждения, отправляем ответ
-    if (receivedCommand.commandType == CMD_TYPE_PROG_CONTROL || 
-        receivedCommand.commandType == CMD_TYPE_DEVICE_CONTROL ||
-        receivedCommand.commandType == CMD_TYPE_CONFIGURATION)
-    {
-        CommandResponse_t response;
+                        if (receivedCommand.commandType == CMD_TYPE_PROG_CONTROL || 
+                            receivedCommand.commandType == CMD_TYPE_DEVICE_CONTROL ||
+                            receivedCommand.commandType == CMD_TYPE_CONFIGURATION)
+                        {
+                            CommandResponse_t response;
         response.commandType = receivedCommand.commandType;  // Возвращаем тот же тип команды
-        response.commandCode = receivedCommand.commandCode;
-        response.status = cmdStatus;
-        response.dataLength = 0;
+                            response.commandCode = receivedCommand.commandCode;
+                            response.status = cmdStatus;
+                            response.dataLength = 0;
+                            
+                            CommandReceiver_SendResponse(&response);
+                        }
+    
+    // КРИТИЧНО: Проверяем команду сброса ПОСЛЕ отправки ответа
+    if (receivedCommand.commandType == CMD_TYPE_PROG_CONTROL && 
+        receivedCommand.commandCode == PROG_CTRL_CMD_RESET &&
+        cmdStatus == CMD_STATUS_OK)
+    {
+        // Даём время на завершение передачи ответа
+        osDelay(100);
         
-        CommandReceiver_SendResponse(&response);
+        // Теперь выполняем сброс
+        HAL_NVIC_SystemReset();
+        // Эта строка никогда не выполнится
     }
 }
 
@@ -732,8 +694,8 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
  */
 void CommandReceiver_RestartReception(void)
 {
-    // Очищаем буфер приема для следующего сообщения
-    memset(RX_CMD_Buffer, 0, CMD_MAX_LENGTH);
+    // ВАЖНО: Не очищаем буфер здесь!
+    // Очистка будет в потоке CommandReceiver_Task после копирования данных
     
     // Перезапускаем прием - ждем следующего сообщения до IDLE
     HAL_UARTEx_ReceiveToIdle_DMA(&huart4, RX_CMD_Buffer, CMD_MAX_LENGTH);
@@ -759,6 +721,26 @@ void CommandReceiver_OnDataReceived(uint16_t receivedSize)
 }
 
 /*
+ * Функция: CommandReceiver_ProcessWrkBitTimer
+ * Описание: Проверяет и сбрасывает бит _Wrk по таймеру
+ */
+static void CommandReceiver_ProcessWrkBitTimer(void)
+{
+    // Проверяем, установлен ли таймер
+    if (WrkBitTimer > 0)
+    {
+        uint32_t currentTick = osKernelGetTickCount();
+        
+        // Если время истекло, сбрасываем бит
+        if (currentTick >= WrkBitTimer)
+        {
+            Model::DFR._Wrk = 0;
+            WrkBitTimer = 0;  // Отключаем таймер
+        }
+    }
+}
+
+/*
  * Функция: CommandReceiver_Task
  * Описание: Основная задача приема команд от сервера
  * Параметры:
@@ -771,12 +753,16 @@ void CommandReceiver_Task(void *argument)
     // Основной цикл задачи - ожидаем получения данных и обрабатываем их
     while (1)
     {
-        // Ждем семафор от прерывания о получении данных
-        osStatus_t semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, osWaitForever);
+        // Проверяем таймер бита _Wrk
+        CommandReceiver_ProcessWrkBitTimer();
+        
+        // Ждем семафор от прерывания о получении данных (с таймаутом для проверки таймера)
+        osStatus_t semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100);
         
         if (semStatus == osOK && RX_ReceivedSize > 0)
         {
             // Обрабатываем полученные данные
+            // (функция копирует данные в локальный буфер и сразу очищает RX_CMD_Buffer)
             CommandReceiver_ProcessReceivedData(RX_ReceivedSize);
             
             // Сбрасываем размер

@@ -145,8 +145,7 @@ void ReadDataFunc() {
 	uint16_t *pDFR_manual = (uint16_t*) &Model::DFR_manual;	// указатель на регистр ручного управления устройствами DFR_manual
 	uint16_t *pDFR_current = (uint16_t*) &Model::DFR_current;	// указатель на регистр текущего отображения устройств DFR_current
 	uint16_t *pDFR_chng_flag = (uint16_t*) &Model::DFR_chng_flag;	// указатель на регистр DFR_chng_flag
-	uint8_t Counter = CirNum;
-	// Выведем на экран текущее состояние всех устройст в дефростере
+	// Выведем на экран текущее состояние всех устройств в дефростере
 	*pDFR = 0;
 	*pDFR_manual = 0;
 	*pDFR_current = 0;
@@ -158,42 +157,12 @@ void ReadDataFunc() {
 		flags = osEventFlagsWait(ReadDataEventHandle, FLAG_ReadData, osFlagsWaitAny, osWaitForever);
 		// Новое значение счётчика времени
 		TimeFromStart ++;
+
 		/************************************************************
 		 * Работа с регистрами управления устройствами
-		 * в режиме отладки вместо автоматического управления регистром DFR
-		 * запускается "бегущая единица" в переменной RelayRegister.
 		 * RelayRegister записывается в регистр управления реле модуля ввода-вывода
 		 * в цикле опроса датчиков
 		 ************************************************************/
-		// Новое значение в регистр автоматического управления устройствами - "бегущая единица"
-		if (RelayRegister == 0) {
-			Model::DFR.Ten1_Left = 1;
-			Model::DFR.Ten2_Left = 1;
-			Model::DFR.Ten1_Right = 1;
-			Model::DFR.Ten2_Right = 1;
-			// Загрузим регистр аппаратного управления устройствами
-			// Это основное действие при автоматической работе
-			// Состояние автоматического управления устройствами грузим в переменную
-			RelayRegister = *pDFR;
-		}
-		else	{
-
-			if (Counter == 0){
-				RelayRegister = RelayRegister<<1;
-				// изменяем состояние автоматического управления устройствами
-				*pDFR = RelayRegister;
-				if (RelayRegister == CirStop) {
-						RelayRegister = 0;
-						// изменяем состояние автоматического управления устройствами
-						*pDFR = RelayRegister;
-				}
-				Counter = CirNum;
-			}
-			else {
-				Counter--;
-			}
-		} // конец тестовой "бегущей единицы"
-
 		if (Model::Flag_DFR_manual == 0) {
 			// в режиме автоматического управления загрузим регистр управления устройствами
 			RelayRegister = *pDFR;
