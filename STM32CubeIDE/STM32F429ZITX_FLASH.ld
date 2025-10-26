@@ -56,14 +56,14 @@ ENTRY(Reset_Handler)
 /* Highest address of the user mode stack */
 _estack = ORIGIN(RAM) + LENGTH(RAM);	/* end of "RAM" Ram type memory */
 
-_Min_Heap_Size = 0xa00 ;	/* required amount of heap  */
-_Min_Stack_Size = 0xa00 ;	/* required amount of stack */
+_Min_Heap_Size = 0x200 ;	/* required amount of heap (512 байт вместо 2560) */
+_Min_Stack_Size = 0x400 ;	/* required amount of stack (1024 байт вместо 2560) */
 
 /* Memories definition */
 MEMORY
 {
   CCMRAM    (xrw)    : ORIGIN = 0x10000000,   LENGTH = 64K
-  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 192K
+  RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 256K  /* 192K SRAM1 + 64K SRAM2/3 */
   FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 2048K
   SDRAM        (xrw)    : ORIGIN = 0xD0000000,   LENGTH = 8M
 }
@@ -191,7 +191,23 @@ SECTIONS
     . = ALIGN(8);
   } >RAM
 
-  /* Remove information from the compiler libraries */
+  /* TouchGFX Framebuffer в external SDRAM (NOLOAD - не копируется из Flash) */
+  .TouchGFX_Framebuffer (NOLOAD) : 
+  { 
+    . = ALIGN(4);
+    *(.TouchGFX_Framebuffer)
+    . = ALIGN(4);
+  } >SDRAM
+
+  /* FreeRTOS Heap в CCMRAM для экономии основной RAM */
+  .ccmram (NOLOAD) :
+  {
+    . = ALIGN(4);
+    *(.ccmram)
+    . = ALIGN(4);
+  } >CCMRAM
+
+/* Remove information from the compiler libraries */
   /DISCARD/ :
   {
     libc.a ( * )
@@ -200,6 +216,4 @@ SECTIONS
   }
 
   .ARM.attributes 0 : { *(.ARM.attributes) }
-  
-  TouchGFX_Framebuffer (NOLOAD) : { *(TouchGFX_Framebuffer) } >SDRAM
 }

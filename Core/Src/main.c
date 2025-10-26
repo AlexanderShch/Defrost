@@ -27,6 +27,12 @@
 #include "Components/ili9341/ili9341.h"
 #include "C2CPP.hpp"
 #include "CommandReceiver.hpp"
+#include "FreeRTOS.h"
+
+/* FreeRTOS Heap размещен в CCMRAM (64 КБ быстрой памяти) для экономии основной RAM */
+__attribute__((section(".ccmram"))) __attribute__((aligned(8)))
+uint8_t ucHeap[configTOTAL_HEAP_SIZE];
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -98,7 +104,7 @@ const osThreadAttr_t defaultTask_attributes = {
 osThreadId_t GUI_TaskHandle;
 const osThreadAttr_t GUI_Task_attributes = {
   .name = "GUI_Task",
-  .stack_size = 8192 * 4,
+  .stack_size = 6144 * 4,  // Уменьшено с 8192 до 6144 (экономия 8 КБ)
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for DataProcessing */

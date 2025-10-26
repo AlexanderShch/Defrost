@@ -40,9 +40,11 @@ using namespace touchgfx;
 
 namespace
 {
-// Use the section "TouchGFX_Framebuffer" in the linker script to specify the placement of the buffer
-LOCATION_PRAGMA_NOLOAD("TouchGFX_Framebuffer")
-uint32_t frameBuf[(240 * 320 * 2 + 3) / 4 * 2] LOCATION_ATTRIBUTE_NOLOAD("TouchGFX_Framebuffer");
+// Framebuffer размещён в external SDRAM для экономии внутренней RAM
+// Размер: 240x320 пикселей, RGB565 (2 байта/пиксель), двойная буферизация = ~460 КБ
+__attribute__((section(".TouchGFX_Framebuffer"))) __attribute__((aligned(4)))
+uint32_t frameBuf[(240 * 320 * 2 + 3) / 4 * 2];
+
 static uint16_t lcd_int_active_line;
 static uint16_t lcd_int_porch_line;
 }
