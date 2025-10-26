@@ -29,9 +29,9 @@
 #include "CommandReceiver.hpp"
 #include "FreeRTOS.h"
 
-/* FreeRTOS Heap размещен в CCMRAM (64 КБ быстрой памяти) для экономии основной RAM */
+/* FreeRTOS Heap (64 КБ) размещен в CCMRAM для экономии основной RAM */
 __attribute__((section(".ccmram"))) __attribute__((aligned(8)))
-uint8_t ucHeap[configTOTAL_HEAP_SIZE];
+uint8_t ucHeap[65536];  // Явно указываем размер вместо configTOTAL_HEAP_SIZE
 
 /* USER CODE END Includes */
 
@@ -104,7 +104,7 @@ const osThreadAttr_t defaultTask_attributes = {
 osThreadId_t GUI_TaskHandle;
 const osThreadAttr_t GUI_Task_attributes = {
   .name = "GUI_Task",
-  .stack_size = 6144 * 4,  // Уменьшено с 8192 до 6144 (экономия 8 КБ)
+  .stack_size = 4736 * 4,  // Уменьшено с 5632 до 4736 (экономия ~3.5 КБ для решения проблемы RAM)
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for DataProcessing */
@@ -118,14 +118,14 @@ const osThreadAttr_t DataProcessing_attributes = {
 osThreadId_t ReadDataHandle;
 const osThreadAttr_t ReadData_attributes = {
   .name = "ReadData",
-  .stack_size = 512 * 4,
+  .stack_size = 320 * 4,  // Уменьшено с 384 до 320 (экономия 256 байт)
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for RX_From_Server */
 osThreadId_t RX_From_ServerHandle;
 const osThreadAttr_t RX_From_Server_attributes = {
   .name = "RX_From_Server",
-  .stack_size = 512 * 4,
+  .stack_size = 320 * 4,  // Уменьшено с 384 до 320 (экономия 256 байт)
   .priority = (osPriority_t) osPriorityNormal,
 };
 

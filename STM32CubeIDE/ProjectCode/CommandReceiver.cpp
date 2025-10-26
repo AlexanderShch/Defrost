@@ -626,7 +626,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
 {
     Command_t receivedCommand;
     CommandStatus_t cmdStatus;
-    uint8_t localBuffer[CMD_MAX_LENGTH];
+    static uint8_t localBuffer[CMD_MAX_LENGTH];  // Static для экономии стека
     
     // КРИТИЧНО: Копируем данные из RX_CMD_Buffer в локальный буфер
     // чтобы защититься от перезаписи при следующем приеме

@@ -15,8 +15,8 @@
 #include <stdint.h>
 
 // Максимальная длина команды (заголовок + данные + CRC)
-#define CMD_MAX_LENGTH 64
-#define CMD_MAX_DATA_LENGTH 59
+#define CMD_MAX_LENGTH 56  // Уменьшено с 64 до 56 (экономия 192 байта)
+#define CMD_MAX_DATA_LENGTH 51  // 56 - 3 (header) - 2 (CRC) = 51
 #define CMD_HEADER_SIZE 3
 #define CMD_CRC_SIZE 2
 
