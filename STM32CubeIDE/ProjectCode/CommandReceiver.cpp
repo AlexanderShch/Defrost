@@ -17,6 +17,7 @@
 extern UART_HandleTypeDef huart4;  // UART для связи с сервером
 extern osSemaphoreId_t PR_RX_Compl_SemHandle;  // Семафор приема
 extern osSemaphoreId_t PR_TX_Compl_SemHandle;  // Семафор передачи
+extern SENSOR_typedef_t Sensor_array[SQ];  // Массив датчиков и модулей
 
 // Буферы для приема команд
 static uint8_t RX_CMD_Buffer[CMD_MAX_LENGTH];
@@ -176,6 +177,14 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
     {
         case PROG_CTRL_CMD_START:
             // Запуск программы
+            // Проверка: модуль ввода-вывода (SQ=6) должен быть активен
+            if (Sensor_array[6].Active != 1)
+            {
+                // Модуль ввода-вывода не активен - прерываем исполнение команды
+                status = CMD_STATUS_EXECUTION_ERROR;
+                break;
+            }
+            
             // Активируем автоматический режим работы
             Model::Flag_DFR_manual = 0;  // Автоматический режим
             
