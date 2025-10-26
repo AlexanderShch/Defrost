@@ -24,8 +24,25 @@ static uint8_t RX_CMD_Buffer[CMD_MAX_LENGTH];
 static uint8_t TX_Response_Buffer[CMD_MAX_LENGTH];
 static volatile uint16_t RX_ReceivedSize = 0;  // Размер полученных данных
 
-// Таймер для бита _Wrk (время в мс, когда нужно сбросить бит)
-static volatile uint32_t WrkBitTimer = 0;
+// Структура для описания таймера битов DFR
+typedef struct {
+    volatile uint32_t expireTime;  // Время истечения таймера (в мс от старта системы)
+    uint8_t bitMask;               // Маска бита в структуре DFR (смещение бита)
+    const char* name;              // Имя таймера для отладки
+} BitTimer_t;
+
+// Индексы таймеров в массиве
+enum {
+    TIMER_WRK = 0,  // Таймер для бита _Wrk (зелёная лампа РАБОТА)
+    TIMER_STP = 1,  // Таймер для бита _Stp (красная лампа СТОП)
+    TIMER_COUNT     // Количество таймеров
+};
+
+// Массив таймеров
+static BitTimer_t bitTimers[TIMER_COUNT] = {
+    {0, 14, "Wrk"},  // _Wrk - бит 14
+    {0, 15, "Stp"}   // _Stp - бит 15
+};
 
 // Статистика работы модуля
 typedef struct {
@@ -186,15 +203,26 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             }
             
             // Активируем автоматический режим работы
-            Model::Flag_DFR_manual = 0;  // Автоматический режим
+            // Model::Flag_DFR_manual = 0;  // Автоматический режим
             
             // Устанавливаем бит _Wrk (зелёная лампа РАБОТА) на 1 секунду
             Model::DFR._Wrk = 1;
-            WrkBitTimer = osKernelGetTickCount() + 1000;  // Сбросить через 1000 мс
+            bitTimers[TIMER_WRK].expireTime = osKernelGetTickCount() + 1000;  // Сбросить через 1000 мс
             break;
             
         case PROG_CTRL_CMD_STOP:
             // Остановка программы
+            // Проверка: модуль ввода-вывода (SQ=6) должен быть активен
+            if (Sensor_array[6].Active != 1)
+            {
+                // Модуль ввода-вывода не активен - прерываем исполнение команды
+                status = CMD_STATUS_EXECUTION_ERROR;
+                break;
+            }
+            
+            // Устанавливаем бит _Stp (красная лампа СТОП) на 1 секунду
+            Model::DFR._Stp = 1;
+            bitTimers[TIMER_STP].expireTime = osKernelGetTickCount() + 1000;  // Сбросить через 1000 мс
             break;
             
         case PROG_CTRL_CMD_PAUSE:
@@ -730,21 +758,30 @@ void CommandReceiver_OnDataReceived(uint16_t receivedSize)
 }
 
 /*
- * Функция: CommandReceiver_ProcessWrkBitTimer
- * Описание: Проверяет и сбрасывает бит _Wrk по таймеру
+ * Функция: CommandReceiver_ProcessBitTimers
+ * Описание: Единый обработчик таймеров для битов DFR
+ *           Проверяет все таймеры и сбрасывает соответствующие биты по истечении времени
  */
-static void CommandReceiver_ProcessWrkBitTimer(void)
+static void CommandReceiver_ProcessBitTimers(void)
 {
-    // Проверяем, установлен ли таймер
-    if (WrkBitTimer > 0)
+    uint32_t currentTick = osKernelGetTickCount();
+    uint16_t *pDFR = (uint16_t*)&Model::DFR;  // Указатель на регистр DFR как на uint16_t
+    
+    // Проходим по всем таймерам
+    for (uint8_t i = 0; i < TIMER_COUNT; i++)
     {
-        uint32_t currentTick = osKernelGetTickCount();
-        
-        // Если время истекло, сбрасываем бит
-        if (currentTick >= WrkBitTimer)
+        // Проверяем, установлен ли таймер (expireTime > 0)
+        if (bitTimers[i].expireTime > 0)
         {
-            Model::DFR._Wrk = 0;
-            WrkBitTimer = 0;  // Отключаем таймер
+            // Если время истекло, сбрасываем соответствующий бит
+            if (currentTick >= bitTimers[i].expireTime)
+            {
+                // Сбрасываем бит в регистре DFR
+                *pDFR &= ~(1 << bitTimers[i].bitMask);
+                
+                // Отключаем таймер
+                bitTimers[i].expireTime = 0;
+            }
         }
     }
 }
@@ -762,8 +799,8 @@ void CommandReceiver_Task(void *argument)
     // Основной цикл задачи - ожидаем получения данных и обрабатываем их
     while (1)
     {
-        // Проверяем таймер бита _Wrk
-        CommandReceiver_ProcessWrkBitTimer();
+        // Проверяем таймеры битов DFR (единый обработчик для всех таймеров)
+        CommandReceiver_ProcessBitTimers();
         
         // Ждем семафор от прерывания о получении данных (с таймаутом для проверки таймера)
         osStatus_t semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100);
