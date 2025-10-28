@@ -29,8 +29,8 @@
 #include "CommandReceiver.hpp"
 #include "FreeRTOS.h"
 
-/* FreeRTOS Heap (64 КБ) размещен в CCMRAM для экономии основной RAM */
-__attribute__((section(".ccmram"))) __attribute__((aligned(8)))
+/* FreeRTOS Heap (64 КБ) размещен в основной SRAM (доступен для DMA) */
+__attribute__((aligned(8)))
 uint8_t ucHeap[65536];  // Явно указываем размер вместо configTOTAL_HEAP_SIZE
 
 /* USER CODE END Includes */

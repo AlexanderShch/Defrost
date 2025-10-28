@@ -729,7 +729,7 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 	double var = (1000 * 1000) / MB->UART->Init.BaudRate;
 	uint8_t pause = uint8_t (var);	// округляем паузу до целой части
 
-	// Проверяем состояние UART перед передачей (только для UART4)
+	// Проверяем состояние UART перед передачей на сервер (только для UART4)
 	if (MB->UART == &huart4)
 	{
 		// Ждем, пока UART не будет готов к передаче (нет активного приема)
