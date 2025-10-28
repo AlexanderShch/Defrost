@@ -24,8 +24,29 @@ static uint8_t RX_CMD_Buffer[CMD_MAX_LENGTH];
 static uint8_t TX_Response_Buffer[CMD_MAX_LENGTH];
 static volatile uint16_t RX_ReceivedSize = 0;  // Размер полученных данных
 
-// Таймер для бита _Wrk (время в мс, когда нужно сбросить бит)
-static volatile uint32_t WrkBitTimer = 0;
+// Тип функции-колбэка для сброса бита
+typedef void (*ResetBitCallback_t)(void);
+
+// Структура для управления таймерами битов
+typedef struct {
+    volatile uint32_t* timer;        // Указатель на переменную таймера
+    ResetBitCallback_t resetBit;     // Функция для сброса бита
+    const char* name;                // Название таймера (для отладки)
+} ControlBitTimer_t;
+
+// Таймеры для битов управления (время в мс, когда нужно сбросить бит)
+static volatile uint32_t WrkBitTimer = 0;  // Таймер для бита _Wrk (зелёная лампа РАБОТА)
+static volatile uint32_t StpBitTimer = 0;  // Таймер для бита _Stp (красная лампа СТОП)
+
+// Функции для сброса битов (обёртки для битовых полей)
+static void ResetWrkBit(void) { Model::DFR._Wrk = 0; }
+static void ResetStpBit(void) { Model::DFR._Stp = 0; }
+
+// Массив таймеров для централизованной обработки
+static ControlBitTimer_t controlBitTimers[] = {
+    { &WrkBitTimer, ResetWrkBit, "_Wrk" },
+    { &StpBitTimer, ResetStpBit, "_Stp" }
+};
 
 // Статистика работы модуля
 typedef struct {
@@ -133,18 +154,29 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     
     txLength += 2;
     
-    // Проверяем состояние UART перед передачей
-    // Ждем, пока UART не будет готов к передаче (нет активного приема)
-    uint32_t timeout = 100; // 100 мс таймаут
-    while (HAL_UART_GetState(&huart4) != HAL_UART_STATE_READY && timeout > 0)
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Проверяем состояние UART4 перед передачей (RS-485 Half Duplex)
+    // ═══════════════════════════════════════════════════════════════════════════
+    HAL_UART_StateTypeDef uartState = HAL_UART_GetState(&huart4);
+    
+    // Проверяем TX канал - если занят, ЖДЁМ завершения передачи через семафор
+    if ((uartState & HAL_UART_STATE_BUSY_TX) == HAL_UART_STATE_BUSY_TX)
     {
-        osDelay(1);
-        timeout--;
+        // Ждём семафор завершения передачи (его выдаст прерывание HAL_UART_TxCpltCallback)
+        osStatus_t semStatus = osSemaphoreAcquire(PR_TX_Compl_SemHandle, 100);
+        
+        if (semStatus != osOK)
+        {
+            // Не дождались завершения передачи
+            return;
+        }
     }
     
-    if (timeout == 0)
+    // Проверяем RX канал и ждём завершения активного приёма (если он идёт)
+    MB_Error_t rxCheckResult = CheckAndWaitForActiveReception(&huart4, &PR_RX_Compl_SemHandle);
+    if (rxCheckResult != MB_ERROR_NO)
     {
-        // Таймаут ожидания готовности UART
+        // Не удалось дождаться завершения приёма - отменяем передачу
         return;
     }
     
@@ -195,6 +227,20 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             
         case PROG_CTRL_CMD_STOP:
             // Остановка программы
+            // Проверка: модуль ввода-вывода (SQ=6) должен быть активен
+            if (Sensor_array[6].Active != 1)
+            {
+                // Модуль ввода-вывода не активен - прерываем исполнение команды
+                status = CMD_STATUS_EXECUTION_ERROR;
+                break;
+            }
+            
+            // Переключаемся в ручной режим работы
+            Model::Flag_DFR_manual = 1;  // Ручной режим
+            
+            // Устанавливаем бит _Stp (красная лампа СТОП) на 1 секунду
+            Model::DFR._Stp = 1;
+            StpBitTimer = osKernelGetTickCount() + 1000;  // Сбросить через 1000 мс
             break;
             
         case PROG_CTRL_CMD_PAUSE:
@@ -638,9 +684,9 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         return;
     }
     
-                    // Копируем данные
-                    if (receivedCommand.dataLength > 0)
-                    {
+    // Копируем данные
+    if (receivedCommand.dataLength > 0)
+    {
         memcpy(receivedCommand.data, &localBuffer[CMD_HEADER_SIZE], receivedCommand.dataLength);
     }
     
@@ -730,21 +776,32 @@ void CommandReceiver_OnDataReceived(uint16_t receivedSize)
 }
 
 /*
- * Функция: CommandReceiver_ProcessWrkBitTimer
- * Описание: Проверяет и сбрасывает бит _Wrk по таймеру
+ * Функция: CommandReceiver_ProcessControlBitTimers
+ * Описание: Проверяет и сбрасывает все биты управления по таймерам
+ * 
+ * Эта универсальная функция обрабатывает все таймеры битов управления
+ * (например, _Wrk, _Stp и т.д.) в едином цикле.
+ * Для добавления нового таймера достаточно добавить запись в массив controlBitTimers.
  */
-static void CommandReceiver_ProcessWrkBitTimer(void)
+static void CommandReceiver_ProcessControlBitTimers(void)
 {
-    // Проверяем, установлен ли таймер
-    if (WrkBitTimer > 0)
+    uint32_t currentTick = osKernelGetTickCount();
+    
+    // Количество таймеров в массиве
+    const size_t timerCount = sizeof(controlBitTimers) / sizeof(controlBitTimers[0]);
+    
+    // Проходим по всем таймерам
+    for (size_t i = 0; i < timerCount; i++)
     {
-        uint32_t currentTick = osKernelGetTickCount();
-        
-        // Если время истекло, сбрасываем бит
-        if (currentTick >= WrkBitTimer)
+        // Проверяем, установлен ли таймер
+        if (*(controlBitTimers[i].timer) > 0)
         {
-            Model::DFR._Wrk = 0;
-            WrkBitTimer = 0;  // Отключаем таймер
+            // Если время истекло, сбрасываем бит
+            if (currentTick >= *(controlBitTimers[i].timer))
+            {
+                controlBitTimers[i].resetBit();         // Вызываем функцию сброса бита
+                *(controlBitTimers[i].timer) = 0;       // Отключаем таймер
+            }
         }
     }
 }
@@ -762,10 +819,10 @@ void CommandReceiver_Task(void *argument)
     // Основной цикл задачи - ожидаем получения данных и обрабатываем их
     while (1)
     {
-        // Проверяем таймер бита _Wrk
-        CommandReceiver_ProcessWrkBitTimer();
+        // Проверяем все таймеры битов управления (_Wrk, _Stp, и т.д.)
+        CommandReceiver_ProcessControlBitTimers();
         
-        // Ждем семафор от прерывания о получении данных (с таймаутом для проверки таймера)
+        // Ждем семафор от прерывания о получении данных (с таймаутом для проверки таймеров)
         osStatus_t semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100);
         
         if (semStatus == osOK && RX_ReceivedSize > 0)

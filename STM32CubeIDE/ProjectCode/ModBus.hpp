@@ -142,7 +142,10 @@ MB_Error_t Sensor_Read_CORR(uint8_t SensIndex);
 MB_Error_t Sensor_Write_CORR(uint8_t SensIndex);
 MB_Error_t Sensor_CORR_Reset(uint8_t SensIndex);
 
-// CRC16 ������� ��� �������� ���������� (ModBus CRC16)
+// Проверка активного приёма данных (для RS-485 Half Duplex)
+MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreId_t *sem_rx);
+
+// CRC16 таблица для вычисления контрольной суммы (ModBus CRC16)
 extern const uint16_t crc16_table[];
 
 #endif /* MODBUS_HPP_ */

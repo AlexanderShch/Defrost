@@ -21,6 +21,7 @@ extern osSemaphoreId_t PR_RX_Compl_SemHandle;	// семафор окончани
 
 // Объявления функций CommandReceiver
 void CommandReceiver_OnDataReceived(uint16_t receivedSize);
+void CommandReceiver_RestartReception(void);
 
 extern unsigned int TimeFromStart;
 extern uint16_t RelayRegister;	// временная переменная, заменяющая регистр аппаратного управления устройствами
@@ -123,6 +124,7 @@ MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, MB_Reg_t ST
 //MB_Error_t Master_Read(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, MB_Reg_t START_REG, uint8_t DATA);
 MB_Error_t ScanSensor(MB_Active_t *MB);
 MB_Error_t WriteToSensor(MB_Active_t *PR);
+MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreId_t *sem_rx);
 // при чтении из датчика значение кол-ва переданных байт данных в Rx_Buffer[2] + всегда передаётся 5 байт
 #define CheckAnswerCRC (MB->Rx_Buffer[1] == CMD && MB_GetCRC(MB->Rx_Buffer, MB->Rx_Buffer[2] + 5) == 0)
 // при записи в датчик всегда передаётся 8 байт
@@ -156,7 +158,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 	MB_Active_t SW;						// формируем среду работы с датчиками
 
 	// Инициируем среду для работы датчика
-	SW.UART = &huart5;
+	SW.UART = &huart5;		// ← UART5 для датчиков! Master_Request НЕ блокируется для huart5
 	SW.PORT = MB_MASTER_DE_GPIO_Port;
 	SW.PORT_PIN = MB_MASTER_DE_Pin;
 	SW.Sem_Rx = &RX_Compl_SemHandle;
@@ -717,6 +719,62 @@ MB_ERROR_UART_SEND = 0x05,
 MB_ERROR_UART_RECIEVE = 0x06,
 MB_ERROR_DMA_RECIEVE = 0x07
 */
+/*
+ * Функция: CheckAndWaitForActiveReception
+ * Описание: Проверяет, идёт ли активный приём данных по UART, и ждёт его завершения
+ * Параметры:
+ *   - uart: указатель на UART handle
+ *   - sem_rx: указатель на семафор приёма
+ * Возвращает:
+ *   - MB_ERROR_NO: приём завершён или не был активен, можно передавать
+ *   - MB_ERROR_UART_SEND: не удалось дождаться завершения приёма
+ * 
+ * ВАЖНО: Эта функция критична для RS-485 (Half Duplex)!
+ * Она различает два состояния BUSY_RX:
+ *   1. Режим ожидания (IDLE) - можно прервать
+ *   2. Активный приём данных - НУЖНО дождаться завершения!
+ */
+MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreId_t *sem_rx)
+{
+	HAL_UART_StateTypeDef uartState = HAL_UART_GetState(uart);
+	
+	// Проверяем RX канал - КРИТИЧНО для RS-485!
+	// RS-485 = Half Duplex: если идёт приём, НЕЛЬЗЯ начинать передачу
+	if ((uartState & HAL_UART_STATE_BUSY_RX) == HAL_UART_STATE_BUSY_RX)
+	{
+		// Проверяем, идёт ли АКТИВНЫЙ приём данных (не просто режим ожидания)
+		// Считываем счётчик DMA дважды с небольшой задержкой
+		uint32_t dmaCounter1 = __HAL_DMA_GET_COUNTER(uart->hdmarx);
+		osDelay(5);  // 5 мс задержка
+		uint32_t dmaCounter2 = __HAL_DMA_GET_COUNTER(uart->hdmarx);
+		
+		// Если счётчик изменился - данные РЕАЛЬНО принимаются прямо сейчас!
+		if (dmaCounter1 != dmaCounter2)
+		{
+			// АКТИВНЫЙ ПРИЁМ ДАННЫХ!
+			// Ждём семафор завершения приёма (его выдаст прерывание HAL_UARTEx_RxEventCallback)
+			// Таймаут 100 мс - достаточно для приёма любого пакета
+			osStatus_t semStatus = osSemaphoreAcquire(*sem_rx, 100);
+			
+			// Если не дождались семафора - приём завис
+			if (semStatus != osOK)
+			{
+				// КРИТИЧНО: Лучше отменить передачу, чем потерять приём!
+				return MB_ERROR_UART_SEND;
+			}
+		}
+		else
+		{
+			// Счётчик не меняется = просто режим ожидания (IDLE)
+			// Можно безопасно прервать ожидание и начать передачу
+			HAL_UART_AbortReceive(uart);
+			osDelay(2);
+		}
+	}
+	
+	return MB_ERROR_NO;
+}
+
 /* Функция посылает запрос датчику и принимает ответ.
  * Параметры порта uart, GPIO, буферы и семафоры передачи и приёма передаются в структуре MB.
  * Возвращается статус обработки запроса к датчику.
@@ -729,20 +787,40 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 	double var = (1000 * 1000) / MB->UART->Init.BaudRate;
 	uint8_t pause = uint8_t (var);	// округляем паузу до целой части
 
-	// Проверяем состояние UART перед передачей на сервер (только для UART4)
-	if (MB->UART == &huart4)
+	// ═══════════════════════════════════════════════════════════════════════════
+	// ВАЖНО! Эта проверка выполняется ТОЛЬКО для UART4 (связь с сервером)
+	// Для UART5 (датчики) эта проверка НЕ выполняется - датчики работают независимо!
+	// ═══════════════════════════════════════════════════════════════════════════
+	// RS-485 сервер использует Half Duplex - один физический канал для приёма И передачи.
+	// Даже если UART полнодуплексный, RS-485 НЕ МОЖЕТ принимать и передавать одновременно.
+	if (MB->UART == &huart4)  // ← Проверка ТОЛЬКО для сервера!
 	{
-		// Ждем, пока UART не будет готов к передаче (нет активного приема)
-		uint32_t timeout = 100; // 100 мс таймаут
-		while (HAL_UART_GetState(MB->UART) != HAL_UART_STATE_READY && timeout > 0)
+		HAL_UART_StateTypeDef uartState = HAL_UART_GetState(MB->UART);
+		
+		// Проверяем TX канал - если занят, ЖДЁМ завершения передачи через семафор
+		if ((uartState & HAL_UART_STATE_BUSY_TX) == HAL_UART_STATE_BUSY_TX)
 		{
-			osDelay(1);
-			timeout--;
+			// Ждём семафор завершения передачи (его выдаст прерывание HAL_UART_TxCpltCallback)
+			// Таймаут 100 мс - достаточно для любой передачи
+			osStatus_t semStatus = osSemaphoreAcquire(*MB->Sem_Tx, 100);
+			
+			// Если не дождались семафора - передача зависла, возвращаем ошибку
+			if (semStatus != osOK)
+			{
+				return MB_ERROR_UART_SEND;
+			}
 		}
 		
-		if (timeout == 0)
+		// Проверяем RX канал и ждём завершения активного приёма (если он идёт)
+		MB_ERR = CheckAndWaitForActiveReception(MB->UART, MB->Sem_Rx);
+		if (MB_ERR != MB_ERROR_NO)
 		{
-			// Таймаут ожидания готовности UART
+			return MB_ERR;  // Не удалось дождаться завершения приёма
+		}
+		
+		// Финальная проверка: TX канал должен быть свободен
+		if ((HAL_UART_GetState(MB->UART) & HAL_UART_STATE_BUSY_TX) == HAL_UART_STATE_BUSY_TX)
+		{
 			return MB_ERROR_UART_SEND;
 		}
 	}
@@ -983,7 +1061,7 @@ void WriteToServer(uint8_t* Data, int length)
 	MB_Active_t MB;						// объявляем среду работы с шиной
 
 	// Инициируем среду для работы по шине программирования
-	MB.UART = &huart4;
+	MB.UART = &huart4;		// ← UART4 для сервера! Master_Request МОЖЕТ заблокироваться для huart4
 	MB.PORT = PROG_MASTER_DE_GPIO_Port;
 	MB.PORT_PIN = PROG_MASTER_DE_Pin;
 	MB.Sem_Rx = &PR_RX_Compl_SemHandle;
@@ -992,8 +1070,14 @@ void WriteToServer(uint8_t* Data, int length)
     memcpy(MB.Tx_Buffer, Data, length);
     // передаем данные в шину
 	result = Master_Request(&MB, length);
+	
+	// После передачи перезапускаем приём команд от сервера
+	// (он мог быть прерван в Master_Request для освобождения RS-485 линии)
+	// ВАЖНО для RS-485 (Half Duplex): после передачи возвращаемся в режим приёма
+	CommandReceiver_RestartReception();
+	
 	if (result != MB_ERROR_NO){
-
+		// Обработка ошибки передачи (можно добавить логирование)
 	}
 }
 

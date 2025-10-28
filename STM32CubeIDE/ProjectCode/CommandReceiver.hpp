@@ -22,6 +22,7 @@
 
 // Типы команд (CommandType)
 typedef enum {
+	CMD_TYPE_DATA_TYPE		= 0x00,	 // Тип данных: 0x00 = телеметрия
     CMD_TYPE_PROG_CONTROL   = 0x01,  // Команды управления программой (СТАРТ, СТОП и т.д.)
     CMD_TYPE_CONFIGURATION  = 0x02,  // Команды конфигурации
     CMD_TYPE_REQUEST        = 0x03,  // Команды запроса данных
