@@ -257,7 +257,7 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             
             // Устанавливаем бит _Wrk (зелёная лампа РАБОТА) на 3 секунды
             Model::DFR._Wrk = 1;
-            bitTimers[TIMER_WRK].expireTime = osKernelGetTickCount() + 3000;  // Сбросить через 3000 мс
+            WrkBitTimer = osKernelGetTickCount() + 3000;  // Сбросить через 3000 мс
             break;
             
         case PROG_CTRL_CMD_STOP:
@@ -272,7 +272,7 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             
             // Устанавливаем бит _Stp (красная лампа СТОП) на 3 секунды
             Model::DFR._Stp = 1;
-            bitTimers[TIMER_STP].expireTime = osKernelGetTickCount() + 3000;  // Сбросить через 3000 мс
+            StpBitTimer = osKernelGetTickCount() + 3000;  // Сбросить через 3000 мс
             break;
             
         case PROG_CTRL_CMD_PAUSE:
