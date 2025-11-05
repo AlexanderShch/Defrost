@@ -138,10 +138,11 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     memset(TX_Response_Buffer, 0, CMD_MAX_LENGTH);
     
     // Формируем буфер для отправки
-    TX_Response_Buffer[0] = response->commandType;
-    TX_Response_Buffer[1] = response->commandCode;
-    TX_Response_Buffer[2] = response->status;
-    TX_Response_Buffer[3] = response->dataLength;
+    // КРИТИЧНО: Записываем значения из структуры response в буфер
+    TX_Response_Buffer[0] = response->commandType;   // Type
+    TX_Response_Buffer[1] = response->commandCode;   // Code
+    TX_Response_Buffer[2] = response->status;        // Status
+    TX_Response_Buffer[3] = response->dataLength;    // DataLen
     
     // Копируем данные
     if (response->dataLength > 0 && response->dataLength <= CMD_MAX_DATA_LENGTH)
@@ -150,6 +151,11 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     }
     
     txLength = 4 + response->dataLength;
+    
+    // ОТЛАДКА: Проверяем, что записали в буфер
+    // Раскомментируйте для отладки:
+    // printf("TX: Type=0x%02X, Code=0x%02X, Status=0x%02X, Len=%d\n", 
+    //        TX_Response_Buffer[0], TX_Response_Buffer[1], TX_Response_Buffer[2], TX_Response_Buffer[3]);
     
     // Вычисляем CRC
     response->crc = CommandReceiver_CalculateCRC(TX_Response_Buffer, txLength);
@@ -696,6 +702,11 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     // чтобы защититься от перезаписи при следующем приеме
     memcpy(localBuffer, RX_CMD_Buffer, receivedSize);
     
+    // ОТЛАДКА: Выводим первые 3 байта (заголовок команды)
+    // Раскомментируйте для отладки:
+    // printf("RAW RX[0-2]: 0x%02X 0x%02X 0x%02X (size=%d)\n", 
+    //        localBuffer[0], localBuffer[1], localBuffer[2], receivedSize);
+    
     // Сразу очищаем буфер приема, чтобы минимизировать риск потери данных
     // при быстром следующем приеме (DMA уже перезапущен в прерывании)
     memset(RX_CMD_Buffer, 0, CMD_MAX_LENGTH);
@@ -714,6 +725,11 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     receivedCommand.commandType = localBuffer[0];
     receivedCommand.commandCode = localBuffer[1];
     receivedCommand.dataLength = localBuffer[2];
+    
+    // ОТЛАДКА: Выводим что получили
+    // Раскомментируйте для отладки:
+    // printf("RX: Type=0x%02X, Code=0x%02X, Len=%d\n", 
+    //        receivedCommand.commandType, receivedCommand.commandCode, receivedCommand.dataLength);
     
     // Проверяем корректность длины данных
     if (receivedCommand.dataLength > CMD_MAX_DATA_LENGTH)
@@ -760,6 +776,10 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     // так как обработчики могут модифицировать структуру receivedCommand
     uint8_t originalCommandType = receivedCommand.commandType;
     uint8_t originalCommandCode = receivedCommand.commandCode;
+    
+    // ОТЛАДКА: Выводим сохранённые значения
+    // Раскомментируйте для отладки:
+    // printf("SAVED: Type=0x%02X, Code=0x%02X\n", originalCommandType, originalCommandCode);
     
     // Обрабатываем команду
     cmdStatus = CommandReceiver_ProcessCommand(&receivedCommand);
