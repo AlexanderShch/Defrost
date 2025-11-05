@@ -133,6 +133,10 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
 {
     uint16_t txLength = 0;
     
+    // КРИТИЧНО: Очищаем буфер перед формированием нового ответа
+    // чтобы избежать отправки старых данных из предыдущего ответа
+    memset(TX_Response_Buffer, 0, CMD_MAX_LENGTH);
+    
     // Формируем буфер для отправки
     TX_Response_Buffer[0] = response->commandType;
     TX_Response_Buffer[1] = response->commandCode;
@@ -418,13 +422,15 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
     CommandStatus_t status = CMD_STATUS_OK;
     CommandResponse_t response;
     
+    // КРИТИЧНО: Инициализируем структуру ответа
+    memset(&response, 0, sizeof(CommandResponse_t));
+    
     // Подготовка базовой структуры ответа
     // Возвращаем тот же тип команды REQUEST, а не CMD_TYPE_RESPONSE
     response.commandType = CMD_TYPE_REQUEST;
     response.commandCode = cmd->commandCode;
     response.status = CMD_STATUS_OK;
     response.dataLength = 0;
-    memset(response.data, 0, CMD_MAX_DATA_LENGTH);
     
     switch (cmd->commandCode)
     {
@@ -682,6 +688,10 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     CommandStatus_t cmdStatus;
     static uint8_t localBuffer[CMD_MAX_LENGTH];  // Static для экономии стека
     
+    // КРИТИЧНО: Инициализируем структуру команды нулями
+    // чтобы избежать случайных значений в неиспользуемых полях
+    memset(&receivedCommand, 0, sizeof(Command_t));
+    
     // КРИТИЧНО: Копируем данные из RX_CMD_Buffer в локальный буфер
     // чтобы защититься от перезаписи при следующем приеме
     memcpy(localBuffer, RX_CMD_Buffer, receivedSize);
@@ -736,6 +746,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         
         // Отправляем ответ об ошибке CRC (с тем же типом команды)
         CommandResponse_t response;
+        memset(&response, 0, sizeof(CommandResponse_t));  // Инициализируем структуру
         response.commandType = receivedCommand.commandType;  // Возвращаем тот же тип команды
         response.commandCode = receivedCommand.commandCode;
         response.status = CMD_STATUS_CRC_ERROR;
@@ -760,6 +771,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
             receivedCommand.commandType == CMD_TYPE_CONFIGURATION)
         {
             CommandResponse_t response;
+            memset(&response, 0, sizeof(CommandResponse_t));  // Инициализируем структуру
             response.commandType = receivedCommand.commandType;  // Возвращаем тот же тип команды
             response.commandCode = receivedCommand.commandCode;
             response.status = cmdStatus;
