@@ -756,24 +756,29 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         return;
     }
     
+    // КРИТИЧНО: Сохраняем тип и код команды ДО обработки
+    // так как обработчики могут модифицировать структуру receivedCommand
+    uint8_t originalCommandType = receivedCommand.commandType;
+    uint8_t originalCommandCode = receivedCommand.commandCode;
+    
     // Обрабатываем команду
     cmdStatus = CommandReceiver_ProcessCommand(&receivedCommand);
     
     // Для команд, требующих подтверждения, отправляем ответ
     // TELEMETRY (0x00) не требует ответа, так как это уже ответ от сервера
     // REQUEST (0x03) не требует ответа здесь, так как отправляет свой ответ внутри обработчика
-    if (receivedCommand.commandType != CMD_TYPE_TELEMETRY &&
-        receivedCommand.commandType != CMD_TYPE_REQUEST)
+    if (originalCommandType != CMD_TYPE_TELEMETRY &&
+        originalCommandType != CMD_TYPE_REQUEST)
     {
         // Отправляем подтверждение для PROG_CONTROL, DEVICE_CONTROL, CONFIGURATION
-        if (receivedCommand.commandType == CMD_TYPE_PROG_CONTROL || 
-            receivedCommand.commandType == CMD_TYPE_DEVICE_CONTROL ||
-            receivedCommand.commandType == CMD_TYPE_CONFIGURATION)
+        if (originalCommandType == CMD_TYPE_PROG_CONTROL || 
+            originalCommandType == CMD_TYPE_DEVICE_CONTROL ||
+            originalCommandType == CMD_TYPE_CONFIGURATION)
         {
             CommandResponse_t response;
             memset(&response, 0, sizeof(CommandResponse_t));  // Инициализируем структуру
-            response.commandType = receivedCommand.commandType;  // Возвращаем тот же тип команды
-            response.commandCode = receivedCommand.commandCode;
+            response.commandType = originalCommandType;  // Используем СОХРАНЁННЫЙ тип команды
+            response.commandCode = originalCommandCode;  // Используем СОХРАНЁННЫЙ код команды
             response.status = cmdStatus;
             response.dataLength = 0;
             
@@ -782,8 +787,9 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     }
     
     // КРИТИЧНО: Проверяем команду сброса ПОСЛЕ отправки ответа
-    if (receivedCommand.commandType == CMD_TYPE_PROG_CONTROL && 
-        receivedCommand.commandCode == PROG_CTRL_CMD_RESET &&
+    // Используем оригинальные значения команды
+    if (originalCommandType == CMD_TYPE_PROG_CONTROL && 
+        originalCommandCode == PROG_CTRL_CMD_RESET &&
         cmdStatus == CMD_STATUS_OK)
     {
         // Даём время на завершение передачи ответа
