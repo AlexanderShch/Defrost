@@ -30,12 +30,17 @@ class DefrostCommandClient:
     """
     
     # Типы команд
+    CMD_TYPE_TELEMETRY = 0x00
     CMD_TYPE_PROG_CONTROL = 0x01
     CMD_TYPE_CONFIGURATION = 0x02
     CMD_TYPE_REQUEST = 0x03
     CMD_TYPE_DEVICE_CONTROL = 0x04
     CMD_TYPE_RESPONSE = 0x80
     
+    # Коды команд телеметрии (ответы сервера на телеметрию от контроллера)
+    TELEMETRY_DATA_OK = 0x01
+    TELEMETRY_DATA_FALSE = 0x02
+
     # Коды команд управления программой
     PROG_CTRL_CMD_START = 0x01
     PROG_CTRL_CMD_STOP = 0x02
@@ -274,6 +279,28 @@ class DefrostCommandClient:
             return mode
         return None
     
+    def send_telemetry_ok(self):
+        """Подтверждение приёма телеметрии"""
+        # Для ответов на телеметрию НЕ ожидаем ответа от контроллера
+        data_len = 0
+        packet = struct.pack('BBB', self.CMD_TYPE_TELEMETRY, self.TELEMETRY_DATA_OK, data_len)
+        crc = self.calculate_crc(packet)
+        packet += struct.pack('<H', crc)
+        self.serial.write(packet)
+        time.sleep(0.01)
+        # Не ждём ответа - это односторонняя команда
+    
+    def send_telemetry_error(self):
+        """Сообщение об ошибке в телеметрии"""
+        # Для ответов на телеметрию НЕ ожидаем ответа от контроллера
+        data_len = 0
+        packet = struct.pack('BBB', self.CMD_TYPE_TELEMETRY, self.TELEMETRY_DATA_FALSE, data_len)
+        crc = self.calculate_crc(packet)
+        packet += struct.pack('<H', crc)
+        self.serial.write(packet)
+        time.sleep(0.01)
+        # Не ждём ответа - это односторонняя команда
+    
     def close(self):
         """Закрытие соединения"""
         self.serial.close()
@@ -288,6 +315,14 @@ if __name__ == '__main__':
         # Запрос версии
         version = client.get_version()
         print(f"Версия прошивки: {version}")
+        
+        # Пример 1: Сервер получил телеметрию от контроллера
+        # После успешной проверки телеметрии отправляем подтверждение
+        print("Отправка подтверждения телеметрии...")
+        client.send_telemetry_ok()
+        
+        # Пример 2: Если обнаружена ошибка в телеметрии
+        # client.send_telemetry_error()
         
         # Запуск программы
         response = client.start_program()
@@ -330,11 +365,16 @@ namespace DefrostController
     public class DefrostCommandClient : IDisposable
     {
         // Типы команд
+        public const byte CMD_TYPE_TELEMETRY = 0x00;
         public const byte CMD_TYPE_PROG_CONTROL = 0x01;
         public const byte CMD_TYPE_CONFIGURATION = 0x02;
         public const byte CMD_TYPE_REQUEST = 0x03;
         public const byte CMD_TYPE_DEVICE_CONTROL = 0x04;
         public const byte CMD_TYPE_RESPONSE = 0x80;
+        
+        // Коды команд телеметрии (ответы сервера)
+        public const byte TELEMETRY_DATA_OK = 0x01;
+        public const byte TELEMETRY_DATA_FALSE = 0x02;
         
         // Коды команд управления программой
         public const byte PROG_CTRL_CMD_START = 0x01;
@@ -505,6 +545,36 @@ namespace DefrostController
             return null;
         }
         
+        public void SendTelemetryOk()
+        {
+            // Подтверждение приёма телеметрии
+            // Не ожидаем ответа от контроллера
+            byte[] packet = new byte[5];
+            packet[0] = CMD_TYPE_TELEMETRY;
+            packet[1] = TELEMETRY_DATA_OK;
+            packet[2] = 0; // data length
+            ushort crc = CalculateCRC(packet, 3);
+            packet[3] = (byte)(crc & 0xFF);
+            packet[4] = (byte)((crc >> 8) & 0xFF);
+            _serialPort.Write(packet, 0, 5);
+            Thread.Sleep(10);
+        }
+        
+        public void SendTelemetryError()
+        {
+            // Сообщение об ошибке в телеметрии
+            // Не ожидаем ответа от контроллера
+            byte[] packet = new byte[5];
+            packet[0] = CMD_TYPE_TELEMETRY;
+            packet[1] = TELEMETRY_DATA_FALSE;
+            packet[2] = 0; // data length
+            ushort crc = CalculateCRC(packet, 3);
+            packet[3] = (byte)(crc & 0xFF);
+            packet[4] = (byte)((crc >> 8) & 0xFF);
+            _serialPort.Write(packet, 0, 5);
+            Thread.Sleep(10);
+        }
+        
         public void Dispose()
         {
             _serialPort?.Close();
@@ -560,10 +630,15 @@ const SerialPort = require('serialport');
 
 class DefrostCommandClient {
     // Типы команд
+    static CMD_TYPE_TELEMETRY = 0x00;
     static CMD_TYPE_PROG_CONTROL = 0x01;
     static CMD_TYPE_CONFIGURATION = 0x02;
     static CMD_TYPE_REQUEST = 0x03;
     static CMD_TYPE_DEVICE_CONTROL = 0x04;
+    
+    // Коды команд телеметрии (ответы сервера)
+    static TELEMETRY_DATA_OK = 0x01;
+    static TELEMETRY_DATA_FALSE = 0x02;
     
     // Коды команд
     static PROG_CTRL_CMD_START = 0x01;
@@ -720,6 +795,28 @@ class DefrostCommandClient {
             return response.data.readUInt16LE(0);
         }
         return null;
+    }
+    
+    sendTelemetryOk() {
+        // Подтверждение приёма телеметрии (не ожидаем ответа)
+        const packet = Buffer.allocUnsafe(5);
+        packet.writeUInt8(DefrostCommandClient.CMD_TYPE_TELEMETRY, 0);
+        packet.writeUInt8(DefrostCommandClient.TELEMETRY_DATA_OK, 1);
+        packet.writeUInt8(0, 2); // data length
+        const crc = this.calculateCRC(packet.slice(0, 3));
+        packet.writeUInt16LE(crc, 3);
+        this.port.write(packet);
+    }
+    
+    sendTelemetryError() {
+        // Сообщение об ошибке в телеметрии (не ожидаем ответа)
+        const packet = Buffer.allocUnsafe(5);
+        packet.writeUInt8(DefrostCommandClient.CMD_TYPE_TELEMETRY, 0);
+        packet.writeUInt8(DefrostCommandClient.TELEMETRY_DATA_FALSE, 1);
+        packet.writeUInt8(0, 2); // data length
+        const crc = this.calculateCRC(packet.slice(0, 3));
+        packet.writeUInt16LE(crc, 3);
+        this.port.write(packet);
     }
     
     close() {

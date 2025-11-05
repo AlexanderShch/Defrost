@@ -22,6 +22,7 @@
 
 // Типы команд (CommandType)
 typedef enum {
+    CMD_TYPE_TELEMETRY      = 0x00,  // Ответы от сервера на телеметрию
     CMD_TYPE_PROG_CONTROL   = 0x01,  // Команды управления программой (СТАРТ, СТОП и т.д.)
     CMD_TYPE_CONFIGURATION  = 0x02,  // Команды конфигурации
     CMD_TYPE_REQUEST        = 0x03,  // Команды запроса данных
@@ -30,6 +31,13 @@ typedef enum {
 
 // Тип для ответов (используется внутри модуля)
 #define CMD_TYPE_RESPONSE       0x80   // Ответы от устройства
+
+// Коды команд телеметрии (TelemetryResponseCommand)
+// Ответы сервера на переданную контроллером телеметрию
+typedef enum {
+    TELEMETRY_DATA_OK     = 0x01,  // Сервер подтвердил приём телеметрии
+    TELEMETRY_DATA_FALSE  = 0x02   // Сервер сообщает об ошибке в данных телеметрии
+} TelemetryResponseCommand_t;
 
 // Коды команд управления программой (ProgControlCommand)
 typedef enum {
@@ -98,6 +106,7 @@ CommandStatus_t CommandReceiver_ProcessCommand(Command_t *cmd);
 void CommandReceiver_SendResponse(CommandResponse_t *response);
 
 // Обработчики команд по типам
+CommandStatus_t CommandReceiver_HandleTelemetry(Command_t *cmd);
 CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd);
 CommandStatus_t CommandReceiver_HandleConfiguration(Command_t *cmd);
 CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd);

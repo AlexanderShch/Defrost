@@ -180,6 +180,41 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
 }
 
 /*
+ * Функция: CommandReceiver_HandleTelemetry
+ * Описание: Обработчик ответов сервера на телеметрию (TELEMETRY)
+ * Параметры:
+ *   - cmd: указатель на структуру команды
+ * Возвращает: статус выполнения команды
+ */
+CommandStatus_t CommandReceiver_HandleTelemetry(Command_t *cmd)
+{
+    CommandStatus_t status = CMD_STATUS_OK;
+    
+    switch (cmd->commandCode)
+    {
+        case TELEMETRY_DATA_OK:
+            // Сервер подтвердил приём телеметрии
+            // TODO: Можно сбросить счётчик ошибок передачи
+            // TODO: Обновить статус связи с сервером
+            // TODO: Залогировать успешную передачу
+            break;
+            
+        case TELEMETRY_DATA_FALSE:
+            // Сервер сообщает об ошибке в данных телеметрии
+            // TODO: Повторить отправку телеметрии
+            // TODO: Инкрементировать счётчик ошибок
+            // TODO: Залогировать ошибку передачи
+            break;
+            
+        default:
+            status = CMD_STATUS_INVALID_CODE;
+            break;
+    }
+    
+    return status;
+}
+
+/*
  * Функция: CommandReceiver_HandleProgControl
  * Описание: Обработчик команд управления программой (PROG_CONTROL)
  * Параметры:
@@ -205,9 +240,9 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             // Активируем автоматический режим работы
             // Model::Flag_DFR_manual = 0;  // Автоматический режим
             
-            // Устанавливаем бит _Wrk (зелёная лампа РАБОТА) на 1 секунду
+            // Устанавливаем бит _Wrk (зелёная лампа РАБОТА) на 3 секунды
             Model::DFR._Wrk = 1;
-            bitTimers[TIMER_WRK].expireTime = osKernelGetTickCount() + 1000;  // Сбросить через 1000 мс
+            bitTimers[TIMER_WRK].expireTime = osKernelGetTickCount() + 3000;  // Сбросить через 3000 мс
             break;
             
         case PROG_CTRL_CMD_STOP:
@@ -220,9 +255,9 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
                 break;
             }
             
-            // Устанавливаем бит _Stp (красная лампа СТОП) на 1 секунду
+            // Устанавливаем бит _Stp (красная лампа СТОП) на 3 секунды
             Model::DFR._Stp = 1;
-            bitTimers[TIMER_STP].expireTime = osKernelGetTickCount() + 1000;  // Сбросить через 1000 мс
+            bitTimers[TIMER_STP].expireTime = osKernelGetTickCount() + 3000;  // Сбросить через 3000 мс
             break;
             
         case PROG_CTRL_CMD_PAUSE:
@@ -479,6 +514,10 @@ CommandStatus_t CommandReceiver_ProcessCommand(Command_t *cmd)
     // Обработка команды по типу
     switch (cmd->commandType)
     {
+        case CMD_TYPE_TELEMETRY:
+            status = CommandReceiver_HandleTelemetry(cmd);
+            break;
+            
         case CMD_TYPE_PROG_CONTROL:
             status = CommandReceiver_HandleProgControl(cmd);
             break;
@@ -665,18 +704,16 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         commandStats.invalidCommands++;
         return;
     }
-    
-                    // Копируем данные
-                    if (receivedCommand.dataLength > 0)
-                    {
+    // Копируем данные
+    if (receivedCommand.dataLength > 0)
+    {
         memcpy(receivedCommand.data, &localBuffer[CMD_HEADER_SIZE], receivedCommand.dataLength);
     }
-    
     // Извлекаем CRC
     receivedCommand.crc = localBuffer[CMD_HEADER_SIZE + receivedCommand.dataLength] | 
                           (localBuffer[CMD_HEADER_SIZE + receivedCommand.dataLength + 1] << 8);
                     
-                    // Проверяем CRC
+    // Проверяем CRC
     uint16_t totalLength = CMD_HEADER_SIZE + receivedCommand.dataLength;
     if (!CommandReceiver_ValidateCRC(localBuffer, totalLength, receivedCommand.crc))
     {
@@ -697,18 +734,25 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     cmdStatus = CommandReceiver_ProcessCommand(&receivedCommand);
     
     // Для команд, требующих подтверждения, отправляем ответ
-                        if (receivedCommand.commandType == CMD_TYPE_PROG_CONTROL || 
-                            receivedCommand.commandType == CMD_TYPE_DEVICE_CONTROL ||
-                            receivedCommand.commandType == CMD_TYPE_CONFIGURATION)
-                        {
-                            CommandResponse_t response;
-        response.commandType = receivedCommand.commandType;  // Возвращаем тот же тип команды
-                            response.commandCode = receivedCommand.commandCode;
-                            response.status = cmdStatus;
-                            response.dataLength = 0;
-                            
-                            CommandReceiver_SendResponse(&response);
-                        }
+    // TELEMETRY (0x00) не требует ответа, так как это уже ответ от сервера
+    // REQUEST (0x03) не требует ответа здесь, так как отправляет свой ответ внутри обработчика
+    if (receivedCommand.commandType != CMD_TYPE_TELEMETRY &&
+        receivedCommand.commandType != CMD_TYPE_REQUEST)
+    {
+        // Отправляем подтверждение для PROG_CONTROL, DEVICE_CONTROL, CONFIGURATION
+        if (receivedCommand.commandType == CMD_TYPE_PROG_CONTROL || 
+            receivedCommand.commandType == CMD_TYPE_DEVICE_CONTROL ||
+            receivedCommand.commandType == CMD_TYPE_CONFIGURATION)
+        {
+            CommandResponse_t response;
+            response.commandType = receivedCommand.commandType;  // Возвращаем тот же тип команды
+            response.commandCode = receivedCommand.commandCode;
+            response.status = cmdStatus;
+            response.dataLength = 0;
+            
+            CommandReceiver_SendResponse(&response);
+        }
+    }
     
     // КРИТИЧНО: Проверяем команду сброса ПОСЛЕ отправки ответа
     if (receivedCommand.commandType == CMD_TYPE_PROG_CONTROL && 
@@ -717,10 +761,8 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     {
         // Даём время на завершение передачи ответа
         osDelay(100);
-        
         // Теперь выполняем сброс
         HAL_NVIC_SystemReset();
-        // Эта строка никогда не выполнится
     }
 }
 

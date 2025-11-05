@@ -3,6 +3,7 @@
 	<name>STM32F429I-DISCO</name>
 	<comment/>
 	<projects>
+		<project>Project_Defrost-Anatoly</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
