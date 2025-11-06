@@ -278,7 +278,14 @@ int main(void)
   /* Call PreOsInit function */
   MX_TouchGFX_PreOSInit();
   /* USER CODE BEGIN 2 */
-
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // КРИТИЧНО: Гарантируем режим приёма (DE = 0) перед запуском RTOS
+  // Дополнительная защита на случай сбоев при инициализации
+  // ═══════════════════════════════════════════════════════════════════════════
+  HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
+  
   /* USER CODE END 2 */
 
   /* Init scheduler */

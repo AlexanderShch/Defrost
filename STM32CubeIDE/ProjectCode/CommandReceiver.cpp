@@ -104,15 +104,21 @@ uint8_t CommandReceiver_ValidateCRC(uint8_t *data, uint16_t length, uint16_t rec
  */
 void CommandReceiver_Init(void)
 {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // КРИТИЧНО: ПЕРВЫМ ДЕЙСТВИЕМ устанавливаем режим приёма (DE = 0)
+    // Это гарантирует правильное состояние после любого сброса системы
+    // ═══════════════════════════════════════════════════════════════════════════
+    HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
+    
+    // Небольшая задержка для стабилизации GPIO
+    HAL_Delay(1);
+    
     // Очистка буферов
     memset(RX_CMD_Buffer, 0, CMD_MAX_LENGTH);
     memset(TX_Response_Buffer, 0, CMD_MAX_LENGTH);
     
     // Сброс статистики
     memset(&commandStats, 0, sizeof(CommandStats_t));
-    
-    // Устанавливаем направление приема (DE = 0) - один раз при инициализации
-    HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
     
     // Запускаем первый цикл приема данных
     // После получения данных и IDLE, прерывание автоматически перезапустит прием
