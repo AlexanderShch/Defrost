@@ -794,7 +794,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOE, VSYNC_FREQ_Pin|RENDER_TIME_Pin|FRAME_RATE_Pin|MCU_ACTIVE_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, PROG_MASTER_DE_Pin|GPIO_PIN_3|MB_MASTER_DE_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, PROG_MASTER_DE_Pin|GPIO_PIN_2|GPIO_PIN_3|MB_MASTER_DE_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12|GPIO_PIN_13, GPIO_PIN_RESET);
@@ -809,8 +809,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PROG_MASTER_DE_Pin PC3 MB_MASTER_DE_Pin */
-  GPIO_InitStruct.Pin = PROG_MASTER_DE_Pin|GPIO_PIN_3|MB_MASTER_DE_Pin;
+  /*Configure GPIO pins : PROG_MASTER_DE_Pin PC2 PC3 MB_MASTER_DE_Pin */
+  GPIO_InitStruct.Pin = PROG_MASTER_DE_Pin|GPIO_PIN_2|GPIO_PIN_3|MB_MASTER_DE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
