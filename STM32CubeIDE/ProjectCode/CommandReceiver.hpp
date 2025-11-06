@@ -45,7 +45,7 @@ typedef enum {
     PROG_CTRL_CMD_STOP    = 0x02,  // Остановка программы
     PROG_CTRL_CMD_PAUSE   = 0x03,  // Приостановка программы
     PROG_CTRL_CMD_RESUME  = 0x04,  // Возобновление программы
-    PROG_CTRL_CMD_RESET   = 0x05   // Сброс программы
+    PROG_CTRL_CMD_RESET   = 0x05   // Сброс всех параметров программы
 } ProgControlCommand_t;
 
 // Коды команд управления устройствами (DeviceControlCommand)

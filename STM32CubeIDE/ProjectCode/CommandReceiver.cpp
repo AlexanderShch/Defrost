@@ -24,28 +24,28 @@ static uint8_t RX_CMD_Buffer[CMD_MAX_LENGTH];
 static uint8_t TX_Response_Buffer[CMD_MAX_LENGTH];
 static volatile uint16_t RX_ReceivedSize = 0;  // Размер полученных данных
 
-// Тип функции-колбэка для сброса бита
-typedef void (*ResetBitCallback_t)(void);
+// Тип функции-колбэка для действий с битом (сброс или установка)
+typedef void (*BitActionCallback_t)(void);
 
 // Структура для управления таймерами битов
 typedef struct {
     volatile uint32_t* timer;        // Указатель на переменную таймера
-    ResetBitCallback_t resetBit;     // Функция для сброса бита
+    BitActionCallback_t action;      // Функция действия (сброс/установка бита)
     const char* name;                // Название таймера (для отладки)
 } ControlBitTimer_t;
 
-// Таймеры для битов управления (время в мс, когда нужно сбросить бит)
+// Таймеры для битов управления (время в мс, когда нужно выполнить действие)
 static volatile uint32_t WrkBitTimer = 0;  // Таймер для бита _Wrk (зелёная лампа РАБОТА)
 static volatile uint32_t StpBitTimer = 0;  // Таймер для бита _Stp (красная лампа СТОП)
 
-// Функции для сброса битов (обёртки для битовых полей)
-static void ResetWrkBit(void) { Model::DFR._Wrk = 0; }
-static void ResetStpBit(void) { Model::DFR._Stp = 0; }
+// Функции для управления битами (обёртки для битовых полей)
+static void ResetWrkBit(void) { Model::DFR._Wrk = 0; }  // Сброс бита _Wrk
+static void SetStpBit(void) { Model::DFR._Stp = 1; }    // Установка бита _Stp
 
 // Массив таймеров для централизованной обработки
 static ControlBitTimer_t controlBitTimers[] = {
-    { &WrkBitTimer, ResetWrkBit, "_Wrk" },
-    { &StpBitTimer, ResetStpBit, "_Stp" }
+    { &WrkBitTimer, ResetWrkBit, "_Wrk" },  // _Wrk: включается на 3 сек, затем сбрасывается
+    { &StpBitTimer, SetStpBit, "_Stp" }     // _Stp: сбрасывается на 3 сек, затем восстанавливается
 };
 
 // Статистика работы модуля
@@ -112,6 +112,11 @@ void CommandReceiver_Init(void)
     
     // Небольшая задержка для стабилизации GPIO
     HAL_Delay(1);
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Инициализация битов управления
+    // ═══════════════════════════════════════════════════════════════════════════
+    Model::DFR._Stp = 1;  // Бит СТОП активен по умолчанию (кнопка СТОП нормально замкнута)
     
     // Очистка буферов
     memset(RX_CMD_Buffer, 0, CMD_MAX_LENGTH);
@@ -281,9 +286,10 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
                 break;
             }
             
-            // Устанавливаем бит _Stp (красная лампа СТОП) на 3 секунды
-            Model::DFR._Stp = 1;
-            StpBitTimer = osKernelGetTickCount() + 3000;  // Сбросить через 3000 мс
+            // СБРАСЫВАЕМ бит _Stp (красная лампа СТОП гаснет) на 3 секунды
+            // После окончания таймера бит автоматически вернется в 1 (лампа загорится снова)
+            Model::DFR._Stp = 0;
+            StpBitTimer = osKernelGetTickCount() + 3000;  // Восстановить в 1 через 3000 мс
             break;
             
         case PROG_CTRL_CMD_PAUSE:
@@ -860,10 +866,10 @@ static void CommandReceiver_ProcessControlBitTimers(void)
         // Проверяем, установлен ли таймер
         if (*(controlBitTimers[i].timer) > 0)
         {
-            // Если время истекло, сбрасываем бит
+            // Если время истекло, выполняем действие (сброс или установка)
             if (currentTick >= *(controlBitTimers[i].timer))
             {
-                controlBitTimers[i].resetBit();         // Вызываем функцию сброса бита
+                controlBitTimers[i].action();           // Вызываем функцию действия
                 *(controlBitTimers[i].timer) = 0;       // Отключаем таймер
             }
         }
