@@ -18,6 +18,7 @@ extern osSemaphoreId_t TX_Compl_SemHandle;		// семафор окончания
 extern osSemaphoreId_t RX_Compl_SemHandle;		// семафор окончания приёма от датчиков
 extern osSemaphoreId_t PR_TX_Compl_SemHandle;	// семафор окончания приёма при программировании
 extern osSemaphoreId_t PR_RX_Compl_SemHandle;	// семафор окончания передачи при программировании
+extern osMutexId_t UART4_MutexHandle;			// мьютекс для защиты доступа к UART4
 
 // Объявления функций CommandReceiver
 void CommandReceiver_OnDataReceived(uint16_t receivedSize);
@@ -120,6 +121,7 @@ typedef struct
 } MB_Active_t;										// среда работы датчика
 
 MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes);
+MB_Error_t Master_SendTelemetry(MB_Active_t *MB, int N_Bytes);
 MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, MB_Reg_t START_REG, uint16_t DATA, MultWR_t WR_Buf);
 //MB_Error_t Master_Read(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, MB_Reg_t START_REG, uint8_t DATA);
 MB_Error_t ScanSensor(MB_Active_t *MB);
@@ -457,6 +459,16 @@ void ProgrammingSensor()
 				// цикл будет повторяться, пока оператор не выберет датчик другого типа
 				while (Model::Type_of_sensor == TypeOfSens)
 				{ // цикл сканирования датчика
+					// ═══════════════════════════════════════════════════════════════
+					// ЗАХВАТ МЬЮТЕКСА UART4 перед работой с датчиком
+					// ═══════════════════════════════════════════════════════════════
+					osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
+					if (mutexStatus != osOK)
+					{
+						osDelay(10);
+						continue;  // Повторяем попытку
+					}
+					
 					result = ScanSensor(&PR);
 					OldBaudRate = Model::getCurrentBaudRate_PR();
 					OldAddress = Model::getCurrentAddress_PR();
@@ -476,6 +488,11 @@ void ProgrammingSensor()
 					osDelay(10); // таймаут
 					// если флаг записи (Model::Flag_WR_to_sensor) установлен, выполним запись данных в датчик
 					result = WriteToSensor(&PR);
+					
+					// ═══════════════════════════════════════════════════════════════
+					// ОСВОБОЖДЕНИЕ МЬЮТЕКСА UART4 после работы с датчиком
+					// ═══════════════════════════════════════════════════════════════
+					osMutexRelease(UART4_MutexHandle);
 				} // конец цикла сканирования и записи в датчик
 				break;
 			}
@@ -1054,27 +1071,143 @@ MB_Error_t Sensor_CORR_Reset(uint8_t SensIndex)
 	return result;
 }
 
+/*
+ * Функция: Master_SendTelemetry
+ * Описание: Отправка телеметрии на сервер БЕЗ ожидания ответа
+ * 
+ * КРИТИЧНО: Эта функция НЕ ЖДЁТ ответа от сервера!
+ * Ответ будет обработан асинхронно через CommandReceiver_Task
+ * 
+ * Параметры:
+ *   - MB: указатель на структуру среды работы с шиной
+ *   - N_Bytes: количество байт для отправки
+ * 
+ * Возвращает: MB_Error_t - результат операции передачи
+ * 
+ * ОТЛИЧИЕ ОТ Master_Request:
+ *   Master_Request: отправка → ожидание ответа → возврат
+ *   Master_SendTelemetry: отправка → возврат (ответ обработает CommandReceiver)
+ */
+MB_Error_t Master_SendTelemetry(MB_Active_t *MB, int N_Bytes)
+{
+	MB_Error_t MB_ERR = MB_ERROR_NO;
+	HAL_StatusTypeDef result;
+	osStatus_t resultSem;
+	
+	// Вычислим паузу для ожидания завершения передачи
+	double var = (1000 * 1000) / MB->UART->Init.BaudRate;
+	uint8_t pause = uint8_t (var);
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// Проверки для UART4 (RS-485 Half Duplex с сервером)
+	// ═══════════════════════════════════════════════════════════════════════════
+	if (MB->UART == &huart4)
+	{
+		HAL_UART_StateTypeDef uartState = HAL_UART_GetState(MB->UART);
+		
+		// Проверяем TX канал - если занят, ЖДЁМ завершения передачи
+		if ((uartState & HAL_UART_STATE_BUSY_TX) == HAL_UART_STATE_BUSY_TX)
+		{
+			osStatus_t semStatus = osSemaphoreAcquire(*MB->Sem_Tx, 100);
+			if (semStatus != osOK)
+			{
+				return MB_ERROR_UART_SEND;
+			}
+		}
+		
+		// Проверяем RX канал и ждём завершения активного приёма (если он идёт)
+		MB_ERR = CheckAndWaitForActiveReception(MB->UART, MB->Sem_Rx);
+		if (MB_ERR != MB_ERROR_NO)
+		{
+			return MB_ERR;
+		}
+		
+		// Финальная проверка: TX канал должен быть свободен
+		if ((HAL_UART_GetState(MB->UART) & HAL_UART_STATE_BUSY_TX) == HAL_UART_STATE_BUSY_TX)
+		{
+			return MB_ERROR_UART_SEND;
+		}
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// ПЕРЕДАЧА ДАННЫХ
+	// ═══════════════════════════════════════════════════════════════════════════
+	// Включим направление - передача
+	HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_SET);
+	osDelay(1);	// задержка перед стартовым битом
+
+	result = HAL_UART_Transmit_DMA(MB->UART, MB->Tx_Buffer, N_Bytes);
+	if (result == HAL_OK)
+	{
+		// Ждём завершения передачи
+		resultSem = osSemaphoreAcquire(*MB->Sem_Tx, pause/portTICK_RATE_MS);
+		if (resultSem != osOK)
+		{
+			MB_ERR = MB_ERROR_UART_SEND;
+			HAL_UART_AbortTransmit_IT(MB->UART);
+			// Включим направление - приём
+			HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_RESET);
+			return MB_ERR;
+		}
+		// Направление на приём включается в обработчике прерывания HAL_UART_TxCpltCallback
+		
+		// ═══════════════════════════════════════════════════════════════════════════
+		// КРИТИЧНО: НЕ ЗАПУСКАЕМ ПРИЁМ ЗДЕСЬ!
+		// Приём уже работает в CommandReceiver через HAL_UARTEx_ReceiveToIdle_DMA
+		// Ответ от сервера будет обработан асинхронно в CommandReceiver_Task
+		// ═══════════════════════════════════════════════════════════════════════════
+	}
+	else
+	{
+		MB_ERR = MB_ERROR_DMA_SEND;
+		HAL_UART_AbortTransmit_IT(MB->UART);
+		// Включим направление - приём
+		HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_RESET);
+	}
+	
+	return MB_ERR;
+}
+
 // Функция для передачи данных на сервер
 void WriteToServer(uint8_t* Data, int length)
 {
 	MB_Error_t result;
 	MB_Active_t MB;						// объявляем среду работы с шиной
 
+	// ═══════════════════════════════════════════════════════════════════════════
+	// ЗАХВАТ МЬЮТЕКСА UART4 - защита от конфликта с программированием датчиков
+	// ═══════════════════════════════════════════════════════════════════════════
+	osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
+	if (mutexStatus != osOK)
+	{
+		// Не удалось захватить мьютекс - критическая ошибка
+		return;
+	}
+
 	// Инициируем среду для работы по шине программирования
-	MB.UART = &huart4;		// ← UART4 для сервера! Master_Request МОЖЕТ заблокироваться для huart4
+	MB.UART = &huart4;		// ← UART4 для сервера
 	MB.PORT = PROG_MASTER_DE_GPIO_Port;
 	MB.PORT_PIN = PROG_MASTER_DE_Pin;
 	MB.Sem_Rx = &PR_RX_Compl_SemHandle;
 	MB.Sem_Tx = &PR_TX_Compl_SemHandle;
-	// копируем данные из структуры Data_TX_Server в буфер передачи
+	
+	// Копируем данные в буфер передачи
     memcpy(MB.Tx_Buffer, Data, length);
-    // передаем данные в шину
-	result = Master_Request(&MB, length);
+    
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ИСПОЛЬЗУЕМ Master_SendTelemetry вместо Master_Request!
+    // Это позволяет НЕ ЖДАТЬ ответа - ответ обработает CommandReceiver
+    // ═══════════════════════════════════════════════════════════════════════════
+	result = Master_SendTelemetry(&MB, length);
 	
 	// После передачи перезапускаем приём команд от сервера
-	// (он мог быть прерван в Master_Request для освобождения RS-485 линии)
-	// ВАЖНО для RS-485 (Half Duplex): после передачи возвращаемся в режим приёма
+	// ВАЖНО для RS-485 (Half Duplex): убеждаемся что приём активен
 	CommandReceiver_RestartReception();
+	
+	// ═══════════════════════════════════════════════════════════════════════════
+	// ОСВОБОЖДЕНИЕ МЬЮТЕКСА UART4
+	// ═══════════════════════════════════════════════════════════════════════════
+	osMutexRelease(UART4_MutexHandle);
 	
 	if (result != MB_ERROR_NO){
 		// Обработка ошибки передачи (можно добавить логирование)

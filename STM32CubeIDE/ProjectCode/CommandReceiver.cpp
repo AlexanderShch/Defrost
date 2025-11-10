@@ -728,6 +728,14 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     receivedCommand.commandCode = localBuffer[1];
     receivedCommand.dataLength = localBuffer[2];
     
+    // КРИТИЧНО: Проверяем недопустимую комбинацию Type=0x00 и Code=0x00
+    // Это артефакт из-за обработки пустого буфера при ложном IDLE
+    if (receivedCommand.commandType == 0x00 && receivedCommand.commandCode == 0x00)
+    {
+        commandStats.invalidCommands++;
+        return;  // Игнорируем фантомную команду, не отправляем ответ
+    }
+    
     // Проверяем корректность длины данных
     if (receivedCommand.dataLength > CMD_MAX_DATA_LENGTH)
     {
