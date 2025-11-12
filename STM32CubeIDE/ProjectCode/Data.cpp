@@ -6,6 +6,7 @@
  */
 #include <Data.hpp>
 #include "main.h"
+#include <string.h>
 
 
 #include <gui\model\model.hpp>
@@ -283,6 +284,32 @@ void InitData()
 
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ХРАНЕНИЕ ПОСЛЕДНИХ ОТПРАВЛЕННЫХ ДАННЫХ ТЕЛЕМЕТРИИ
+// ═══════════════════════════════════════════════════════════════════════════
+static MSGQUEUE_OBJ_t LastSentTelemetry = {};  // Последние отправленные данные
+static uint32_t TelemetryErrorCount = 0;       // Счётчик ошибок отправки телеметрии
+
+/*
+ * Функция: ResendLastTelemetry
+ * Описание: Повторная отправка последних данных телеметрии
+ * 
+ * Используется когда сервер сообщает об ошибке в данных телеметрии (DATA_FALSE)
+ * Отправляет последние сохранённые данные без изменений
+ */
+void ResendLastTelemetry(void)
+{
+	// Проверяем, есть ли сохранённые данные для повторной отправки
+	if (LastSentTelemetry.DataType == 0x00)
+	{
+		// Отправляем сохранённые данные (CRC уже рассчитан)
+		WriteToServer((uint8_t*)&LastSentTelemetry, (int) sizeof(LastSentTelemetry));
+		
+		// Инкрементируем счётчик ошибок
+		TelemetryErrorCount++;
+	}
+}
+
 // 4. Передача данных серверу работает в потоке TX_To_Server
 void TX_ToServer()
 {
@@ -295,6 +322,13 @@ void TX_ToServer()
 		// сделаем расчёт CRC для структуры Data_TX_Server,
 		// но без учёта последних двух байт структуры, занятых CRC
 		Data_TX_Server.CRC_SUM = MB_GetCRC((uint8_t*)&Data_TX_Server, sizeof(Data_TX_Server)-2);
+		
+		// ═══════════════════════════════════════════════════════════════════════════
+		// СОХРАНЯЕМ данные телеметрии перед отправкой
+		// Это позволит повторить отправку при ошибке (DATA_FALSE от сервера)
+		// ═══════════════════════════════════════════════════════════════════════════
+		memcpy(&LastSentTelemetry, &Data_TX_Server, sizeof(MSGQUEUE_OBJ_t));
+		
 		WriteToServer((uint8_t*)&Data_TX_Server, (int) sizeof(Data_TX_Server));
 		if (result == MB_ERROR_NO)
 		{

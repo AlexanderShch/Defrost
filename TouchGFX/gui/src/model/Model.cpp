@@ -1,5 +1,6 @@
 #include <gui/model/Model.hpp>
 #include <gui/model/ModelListener.hpp>
+#include "version.h"
 
 Model::Model() : modelListener(0)
 {
@@ -87,6 +88,16 @@ int8_t Model::getFlagCurrentVal_PR_Chng(void)
 void Model::ValUpdateModel()
 {
 	modelListener->ValUpdatePresenter();
+}
+
+/*
+ * Функция: getFirmwareVersion
+ * Описание: Возвращает строку с версией прошивки
+ * Возвращает: указатель на строку FW_VERSION_STRING из version.h
+ */
+const char* Model::getFirmwareVersion()
+{
+	return FW_VERSION_STRING;
 }
 //*****************************************************
 

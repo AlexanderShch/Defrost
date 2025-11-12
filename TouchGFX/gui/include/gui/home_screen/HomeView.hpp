@@ -14,6 +14,9 @@ public:
 
     virtual void Val_T_3UpdateView(int val);
     virtual void Val_T_4UpdateView(int val);
+    
+    // Установка версии прошивки на экране
+    void updateVersionDisplay();
 protected:
 };
 

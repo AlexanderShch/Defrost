@@ -72,6 +72,9 @@ public:
 
     void tick();
     void ValUpdateModel();
+    
+    // Получение версии прошивки
+    static const char* getFirmwareVersion();
 
     static void setCurrentVal_T(int8_t SensNumber, short Val);
     static short getCurrentVal_T(int8_t SensNumber);

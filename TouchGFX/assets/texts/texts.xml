@@ -371,7 +371,14 @@
         <Translation Language="GB">&lt;value&gt;°</Translation>
       </Text>
     </TextGroup>
-    <TextGroup Id="Unsorted" />
+    <TextGroup Id="Unsorted">
+      <Text Id="VersionValue" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">0.0.0</Translation>
+      </Text>
+      <Text Id="LabelVerID" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">v &lt;value&gt;</Translation>
+      </Text>
+    </TextGroup>
   </Texts>
   <Typographies>
     <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="B,D,H,I,R,L,M,N,O,S,T,C,b,d,e,f,g,h,i,l,n,o,p,r,t,u,&amp;" WildcardCharacterRanges="0-9,0x2D" />

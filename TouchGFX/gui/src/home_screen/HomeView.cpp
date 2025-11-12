@@ -1,4 +1,6 @@
 #include <gui/home_screen/HomeView.hpp>
+#include <gui/model/Model.hpp>
+#include <touchgfx/Unicode.hpp>
 
 HomeView::HomeView()
 {
@@ -8,6 +10,9 @@ HomeView::HomeView()
 void HomeView::setupScreen()
 {
     HomeViewBase::setupScreen();
+    
+    // Устанавливаем версию прошивки при инициализации экрана
+    updateVersionDisplay();
 }
 
 void HomeView::tearDownScreen()
@@ -27,4 +32,23 @@ void HomeView::Val_T_4UpdateView(int Val)
 {
 	Unicode::snprintfFloat(ValueCoreT2Buffer, sizeof(ValueCoreT2Buffer), "%.1f", (float)Val/10);
 	ValueCoreT2.invalidate();
+}
+
+/*
+ * Функция: updateVersionDisplay
+ * Описание: Устанавливает текущую версию прошивки в wildcard VersionValue
+ * 
+ * Элемент LabelVersion сгенерирован TouchGFX Designer
+ * Буфер: LabelVersionBuffer[LABELVERSION_SIZE]
+ */
+void HomeView::updateVersionDisplay()
+{
+    // Получаем версию прошивки из Model
+    const char* version = Model::getFirmwareVersion();
+    
+    // Преобразуем строку версии в Unicode и записываем в буфер wildcard
+    Unicode::strncpy(LabelVersionBuffer, version, LABELVERSION_SIZE);
+    
+    // Обновляем отображение на экране
+    LabelVersion.invalidate();
 }

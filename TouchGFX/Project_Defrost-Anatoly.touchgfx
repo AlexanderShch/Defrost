@@ -281,6 +281,22 @@
             },
             "TextRotation": "0",
             "Preset": "alternate_theme\\presets\\button\\regular\\height_36\\small_round_normal.json"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelVersion",
+            "X": 3,
+            "Y": 282,
+            "Width": 72,
+            "Height": 24,
+            "TextId": "LabelVerID",
+            "TextRotation": "0",
+            "AutoSize": true,
+            "Wildcard1": {
+              "TextId": "VersionValue",
+              "UseBuffer": true,
+              "BufferSize": 15
+            }
           }
         ],
         "Interactions": [

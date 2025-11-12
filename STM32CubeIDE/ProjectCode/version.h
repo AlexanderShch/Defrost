@@ -11,11 +11,11 @@
 
 // Версия прошивки (Semantic Versioning: MAJOR.MINOR.PATCH)
 #define FW_VERSION_MAJOR    1   // несовместимые изменения API
-#define FW_VERSION_MINOR    0   // новая функциональность, обратно совместимая
+#define FW_VERSION_MINOR    1   // новая функциональность, обратно совместимая
 #define FW_VERSION_PATCH    0   // исправления багов, обратно совместимые
 
 // Строковое представление версии
-#define FW_VERSION_STRING   "1.0.0"		// корректировать вручную, вместе с минор, мажор и патч
+#define FW_VERSION_STRING   "1.1.0"		// корректировать вручную, вместе с минор, мажор и патч
 
 // Дата сборки (автоматически подставляется компилятором)
 #define FW_BUILD_DATE       __DATE__

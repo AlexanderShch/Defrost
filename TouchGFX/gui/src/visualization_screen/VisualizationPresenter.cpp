@@ -14,9 +14,28 @@ VisualizationPresenter::VisualizationPresenter(VisualizationView& v)
 
 void VisualizationPresenter::activate()
 {
-	// Инициализация отображения работы устройств
-	uint16_t *pDFR_chng_flag = (uint16_t*) &Model::DFR_chng_flag;	// указатель на регистр DFR_chng_flag
+	// ═══════════════════════════════════════════════════════════════════════════
+	// ИНИЦИАЛИЗАЦИЯ ОТОБРАЖЕНИЯ ПРИ ОТКРЫТИИ ЭКРАНА
+	// ═══════════════════════════════════════════════════════════════════════════
+	
+	// Устанавливаем флаги изменения для ВСЕХ датчиков температуры и влажности
+	// Это заставит отобразить текущие значения сразу при открытии экрана
+	for (int sensNum = 0; sensNum < SQ; ++sensNum)
+	{
+		// Получаем текущие значения из Model
+		short currentT = Model::getCurrentVal_T(sensNum);
+		short currentH = Model::getCurrentVal_H(sensNum);
+		
+		// Устанавливаем значения с установкой флагов
+		Model::setCurrentVal_T(sensNum, currentT);
+		Model::setCurrentVal_H(sensNum, currentH);
+	}
+	
+	// Инициализация отображения работы устройств (оборудование)
+	uint16_t *pDFR_chng_flag = (uint16_t*) &Model::DFR_chng_flag;
 	*pDFR_chng_flag = 0b1111111111111111;
+	
+	// Обновляем отображение всех значений
 	VisualizationPresenter::ValUpdatePresenter();
 }
 

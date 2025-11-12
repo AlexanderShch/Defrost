@@ -31,5 +31,8 @@ protected:
 	static int H[TQ][SQ];			// humidity
 };
 
+// Функция повторной отправки последних данных телеметрии
+void ResendLastTelemetry(void);
+
 #endif /* DATA_HPP_ */
 
