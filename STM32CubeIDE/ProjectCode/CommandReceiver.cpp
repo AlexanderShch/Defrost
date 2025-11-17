@@ -39,8 +39,15 @@ static volatile uint32_t WrkBitTimer = 0;  // Таймер для бита _Wrk 
 static volatile uint32_t StpBitTimer = 0;  // Таймер для бита _Stp (красная лампа СТОП)
 
 // Функции для управления битами (обёртки для битовых полей)
-static void ResetWrkBit(void) { Model::DFR._Wrk = 0; }  // Сброс бита _Wrk
-static void SetStpBit(void) { Model::DFR._Stp = 1; }    // Установка бита _Stp
+// Работают с обоими регистрами: DFR (автоматический режим) и DFR_manual (ручной режим)
+static void ResetWrkBit(void) { 
+    Model::DFR._Wrk = 0; 
+    Model::DFR_manual._Wrk = 0; 
+}  // Сброс бита _Wrk
+static void SetStpBit(void) { 
+    Model::DFR._Stp = 1; 
+    Model::DFR_manual._Stp = 1; 
+}    // Установка бита _Stp
 
 // Массив таймеров для централизованной обработки
 static ControlBitTimer_t controlBitTimers[] = {
@@ -114,9 +121,9 @@ void CommandReceiver_Init(void)
     HAL_Delay(1);
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // Инициализация битов управления
+    // ПРИМЕЧАНИЕ: Инициализация битов управления DFR._Stp и DFR_manual._Stp
+    // выполняется в ReadDataFunc() (Data.cpp) после обнуления регистров
     // ═══════════════════════════════════════════════════════════════════════════
-    Model::DFR._Stp = 1;  // Бит СТОП активен по умолчанию (кнопка СТОП нормально замкнута)
     
     // Очистка буферов
     memset(RX_CMD_Buffer, 0, CMD_MAX_LENGTH);
@@ -282,7 +289,9 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             Model::Flag_DFR_manual = 0;  // Автоматический режим
             
             // Устанавливаем бит _Wrk (зелёная лампа РАБОТА) на 3 секунды
+            // Устанавливаем в обоих регистрах для синхронизации состояния
             Model::DFR._Wrk = 1;
+            Model::DFR_manual._Wrk = 1;
             WrkBitTimer = osKernelGetTickCount() + 3000;  // Сбросить через 3000 мс
             break;
             
@@ -298,7 +307,9 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             
             // СБРАСЫВАЕМ бит _Stp (красная лампа СТОП гаснет) на 3 секунды
             // После окончания таймера бит автоматически вернется в 1 (лампа загорится снова)
+            // Сбрасываем в обоих регистрах для синхронизации состояния
             Model::DFR._Stp = 0;
+            Model::DFR_manual._Stp = 0;
             StpBitTimer = osKernelGetTickCount() + 3000;  // Восстановить в 1 через 3000 мс
             break;
             
