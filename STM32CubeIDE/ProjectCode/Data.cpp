@@ -309,8 +309,11 @@ void ResendLastTelemetry(void)
 	// Проверяем, есть ли сохранённые данные для повторной отправки
 	if (LastSentTelemetry.DataType == 0x00)
 	{
-		// Отправляем сохранённые данные (CRC уже рассчитан)
-		WriteToServer((uint8_t*)&LastSentTelemetry, (int) sizeof(LastSentTelemetry));
+		// ═══════════════════════════════════════════════════════════════════════════
+		// ОТПРАВКА С SYNC-МАРКЕРАМИ (v1.1.0+)
+		// Формат: [AA 55][Type + 42 байта + CRC][55 AA] = 52 байта
+		// ═══════════════════════════════════════════════════════════════════════════
+		WriteToServerWithSync((uint8_t*)&LastSentTelemetry, (int) sizeof(LastSentTelemetry));
 		
 		// Инкрементируем счётчик ошибок
 		TelemetryErrorCount++;
@@ -336,7 +339,11 @@ void TX_ToServer()
 		// ═══════════════════════════════════════════════════════════════════════════
 		memcpy(&LastSentTelemetry, &Data_TX_Server, sizeof(MSGQUEUE_OBJ_t));
 		
-		WriteToServer((uint8_t*)&Data_TX_Server, (int) sizeof(Data_TX_Server));
+		// ═══════════════════════════════════════════════════════════════════════════
+		// ОТПРАВКА С SYNC-МАРКЕРАМИ (v1.1.0+)
+		// Формат: [AA 55][Type + 42 байта + CRC][55 AA] = 52 байта
+		// ═══════════════════════════════════════════════════════════════════════════
+		WriteToServerWithSync((uint8_t*)&Data_TX_Server, (int) sizeof(Data_TX_Server));
 		if (result == MB_ERROR_NO)
 		{
 			// данные приняты - проверяем достоверность и сохраняем принятые данные в переменные

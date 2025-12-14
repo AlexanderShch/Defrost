@@ -178,43 +178,10 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     txLength += 2;
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // Проверяем состояние UART4 перед передачей (RS-485 Half Duplex)
+    // ОТПРАВКА С SYNC-МАРКЕРАМИ (v1.1.0+)
+    // Формат: [AA 55][Type + Code + Status + DataLen + Data + CRC][55 AA]
     // ═══════════════════════════════════════════════════════════════════════════
-    HAL_UART_StateTypeDef uartState = HAL_UART_GetState(&huart4);
-    
-    // Проверяем TX канал - если занят, ЖДЁМ завершения передачи через семафор
-    if ((uartState & HAL_UART_STATE_BUSY_TX) == HAL_UART_STATE_BUSY_TX)
-    {
-        // Ждём семафор завершения передачи (его выдаст прерывание HAL_UART_TxCpltCallback)
-        osStatus_t semStatus = osSemaphoreAcquire(PR_TX_Compl_SemHandle, 100);
-        
-        if (semStatus != osOK)
-        {
-            // Не дождались завершения передачи
-            return;
-        }
-    }
-    
-    // Проверяем RX канал и ждём завершения активного приёма (если он идёт)
-    MB_Error_t rxCheckResult = CheckAndWaitForActiveReception(&huart4, &PR_RX_Compl_SemHandle);
-    if (rxCheckResult != MB_ERROR_NO)
-    {
-        // Не удалось дождаться завершения приёма - отменяем передачу
-        return;
-    }
-    
-    // Отправляем через UART4
-    // Включаем направление передачи
-    HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_SET);
-    osDelay(1);  // Задержка перед стартовым битом
-    
-    HAL_StatusTypeDef result = HAL_UART_Transmit_DMA(&huart4, TX_Response_Buffer, txLength);
-    
-    if (result == HAL_OK)
-    {
-        // Ждем завершения передачи
-        osSemaphoreAcquire(PR_TX_Compl_SemHandle, 100);
-    }
+    WriteToServerWithSync(TX_Response_Buffer, txLength);
 }
 
 /*

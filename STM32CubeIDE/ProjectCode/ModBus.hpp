@@ -148,6 +148,17 @@ MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreI
 // CRC16 таблица для вычисления контрольной суммы (ModBus CRC16)
 extern const uint16_t crc16_table[];
 
+// ═══════════════════════════════════════════════════════════════════════════
+// SYNC-МАРКЕРЫ для пакетов (v1.1.0+)
+// ═══════════════════════════════════════════════════════════════════════════
+#define SYNC_START_1  0xAA
+#define SYNC_START_2  0x55
+#define SYNC_END_1    0x55
+#define SYNC_END_2    0xAA
+
+// Функция отправки пакета с sync-маркерами
+void WriteToServerWithSync(uint8_t* Data, int length);
+
 #endif /* MODBUS_HPP_ */
 
 

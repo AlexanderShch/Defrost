@@ -1214,3 +1214,88 @@ void WriteToServer(uint8_t* Data, int length)
 	}
 }
 
+/*
+ * Функция: WriteToServerWithSync
+ * Описание: Отправка пакета на сервер с SYNC-маркерами (v1.1.0+)
+ * 
+ * ФОРМАТ ПАКЕТА:
+ *   [AA 55] [Данные] [55 AA]
+ *   └─┬──┘  └───┬──┘ └──┬──┘
+ *   START    Data     END
+ * 
+ * Параметры:
+ *   - Data: указатель на данные пакета (с CRC)
+ *   - length: длина данных (без sync-маркеров)
+ * 
+ * ВАЖНО: CRC должен быть уже рассчитан в Data!
+ * 
+ * Примеры:
+ *   Телеметрия: [AA 55][Type + 42 байта + CRC][55 AA] = 52 байта
+ *   Ответ:      [AA 55][Type + Code + Status + DataLen + Data + CRC][55 AA]
+ */
+void WriteToServerWithSync(uint8_t* Data, int length)
+{
+	MB_Error_t result;
+	MB_Active_t MB;
+	static uint8_t TxBufferWithSync[MAX_MB_BUFSIZE + 4];  // +4 байта для sync-маркеров
+	
+	// Проверка размера буфера
+	if ((size_t)(length + 4) > sizeof(TxBufferWithSync))
+	{
+		// Пакет слишком большой - отправляем без sync (обратная совместимость)
+		WriteToServer(Data, length);
+		return;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// ЗАХВАТ МЬЮТЕКСА UART4
+	// ═══════════════════════════════════════════════════════════════════════════
+	osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
+	if (mutexStatus != osOK)
+	{
+		return;
+	}
+
+	// ═══════════════════════════════════════════════════════════════════════════
+	// ФОРМИРОВАНИЕ ПАКЕТА С SYNC-МАРКЕРАМИ
+	// ═══════════════════════════════════════════════════════════════════════════
+	// Структура: [AA 55] [Data] [55 AA]
+	
+	TxBufferWithSync[0] = SYNC_START_1;  // 0xAA
+	TxBufferWithSync[1] = SYNC_START_2;  // 0x55
+	
+	// Копируем данные (Type + payload + CRC)
+	memcpy(&TxBufferWithSync[2], Data, length);
+	
+	TxBufferWithSync[2 + length] = SYNC_END_1;  // 0x55
+	TxBufferWithSync[3 + length] = SYNC_END_2;  // 0xAA
+	
+	// Инициируем среду для работы по шине
+	MB.UART = &huart4;
+	MB.PORT = PROG_MASTER_DE_GPIO_Port;
+	MB.PORT_PIN = PROG_MASTER_DE_Pin;
+	MB.Sem_Rx = &PR_RX_Compl_SemHandle;
+	MB.Sem_Tx = &PR_TX_Compl_SemHandle;
+	
+	// Копируем в буфер передачи (весь пакет с sync-маркерами)
+	memcpy(MB.Tx_Buffer, TxBufferWithSync, length + 4);
+	
+	// ═══════════════════════════════════════════════════════════════════════════
+	// ОТПРАВКА С SYNC-МАРКЕРАМИ
+	// ═══════════════════════════════════════════════════════════════════════════
+	result = Master_SendTelemetry(&MB, length + 4);
+	
+	// После передачи перезапускаем приём команд
+	CommandReceiver_RestartReception();
+	
+	// ═══════════════════════════════════════════════════════════════════════════
+	// ОСВОБОЖДЕНИЕ МЬЮТЕКСА UART4
+	// ═══════════════════════════════════════════════════════════════════════════
+	osMutexRelease(UART4_MutexHandle);
+	
+	if (result != MB_ERROR_NO)
+	{
+		// Обработка ошибки передачи
+	}
+}
+
