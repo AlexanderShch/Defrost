@@ -159,6 +159,10 @@ extern const uint16_t crc16_table[];
 // Функция отправки пакета с sync-маркерами
 void WriteToServerWithSync(uint8_t* Data, int length);
 
+// High-priority variant intended for CommandReceiver context (command responses, telemetry resend).
+// This bypasses low-priority gating that prevents telemetry TX from blocking command handling.
+void WriteToServerWithSyncHighPriority(uint8_t* Data, int length);
+
 #endif /* MODBUS_HPP_ */
 
 

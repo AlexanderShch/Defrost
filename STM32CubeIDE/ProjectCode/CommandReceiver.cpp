@@ -18,11 +18,26 @@ extern UART_HandleTypeDef huart4;  // UART для связи с сервером
 extern osSemaphoreId_t PR_RX_Compl_SemHandle;  // Семафор приема
 extern osSemaphoreId_t PR_TX_Compl_SemHandle;  // Семафор передачи
 extern SENSOR_typedef_t Sensor_array[SQ];  // Массив датчиков и модулей
+extern unsigned int TimeFromStart;  // Device time base used by telemetry (seconds since boot)
 
 // Буферы для приема команд
 static uint8_t RX_CMD_Buffer[CMD_MAX_LENGTH];
 static uint8_t TX_Response_Buffer[CMD_MAX_LENGTH];
 static volatile uint16_t RX_ReceivedSize = 0;  // Размер полученных данных
+
+// Guard for prioritizing command handling over low-priority telemetry transmissions.
+static volatile uint8_t g_commandReceiverHandling = 0;
+
+// Last command audit (server diagnostic).
+static volatile uint8_t g_lastCmdType = 0;
+static volatile uint8_t g_lastCmdCode = 0;
+static volatile uint16_t g_lastCmdDeviceTimeSec = 0;
+static volatile uint8_t g_lastCmdAckSent = 0;
+static volatile uint8_t g_lastCmdStatus = CMD_STATUS_OK;
+
+static volatile uint8_t g_currentCmdType = 0;
+static volatile uint8_t g_currentCmdCode = 0;
+static volatile uint8_t g_currentCmdSkipAudit = 0;
 
 // Тип функции-колбэка для действий с битом (сброс или установка)
 typedef void (*BitActionCallback_t)(void);
@@ -181,7 +196,13 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     // ОТПРАВКА С SYNC-МАРКЕРАМИ (v1.1.0+)
     // Формат: [AA 55][Type + Code + Status + DataLen + Data + CRC][55 AA]
     // ═══════════════════════════════════════════════════════════════════════════
-    WriteToServerWithSync(TX_Response_Buffer, txLength);
+    WriteToServerWithSyncHighPriority(TX_Response_Buffer, txLength);
+
+    if (g_currentCmdSkipAudit == 0)
+    {
+        g_lastCmdAckSent = 1;
+        g_lastCmdStatus = response->status;
+    }
 }
 
 /*
@@ -483,6 +504,27 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
             CommandReceiver_SendResponse(&response);
             break;
         }
+
+        
+        case REQ_CMD_GET_CMD_INFO:
+        {
+            uint8_t lastCmdType = g_lastCmdType;
+            uint8_t lastCmdCode = g_lastCmdCode;
+            uint16_t lastCmdTimeSec = g_lastCmdDeviceTimeSec;
+            uint8_t ackSent = g_lastCmdAckSent;
+            uint8_t lastCmdStatus = g_lastCmdStatus;
+
+            response.data[0] = lastCmdType;
+            response.data[1] = lastCmdCode;
+            response.data[2] = (uint8_t)(lastCmdTimeSec & 0xFF);
+            response.data[3] = (uint8_t)((lastCmdTimeSec >> 8) & 0xFF);
+            response.data[4] = ackSent;
+            response.data[5] = lastCmdStatus;
+            response.dataLength = 6;
+
+            CommandReceiver_SendResponse(&response);
+            break;
+        }
         
         case REQ_CMD_GET_BUILD_INFO:
         {
@@ -688,6 +730,9 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     Command_t receivedCommand;
     CommandStatus_t cmdStatus;
     static uint8_t localBuffer[CMD_MAX_LENGTH];  // Static для экономии стека
+
+    g_commandReceiverHandling = 1;
+    g_currentCmdSkipAudit = 0;
     
     // КРИТИЧНО: Инициализируем структуру команды нулями
     // чтобы избежать случайных значений в неиспользуемых полях
@@ -708,6 +753,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     if (receivedSize < CMD_HEADER_SIZE + CMD_CRC_SIZE)
     {
         commandStats.invalidCommands++;
+        g_commandReceiverHandling = 0;
         return;
     }
     
@@ -715,12 +761,18 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     receivedCommand.commandType = localBuffer[0];
     receivedCommand.commandCode = localBuffer[1];
     receivedCommand.dataLength = localBuffer[2];
+
+    g_currentCmdType = receivedCommand.commandType;
+    g_currentCmdCode = receivedCommand.commandCode;
+    g_currentCmdSkipAudit = (receivedCommand.commandType == CMD_TYPE_REQUEST &&
+                             receivedCommand.commandCode == REQ_CMD_GET_CMD_INFO) ? 1 : 0;
     
     // КРИТИЧНО: Проверяем недопустимую комбинацию Type=0x00 и Code=0x00
     // Это артефакт из-за обработки пустого буфера при ложном IDLE
     if (receivedCommand.commandType == 0x00 && receivedCommand.commandCode == 0x00)
     {
         commandStats.invalidCommands++;
+        g_commandReceiverHandling = 0;
         return;  // Игнорируем фантомную команду, не отправляем ответ
     }
     
@@ -728,6 +780,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     if (receivedCommand.dataLength > CMD_MAX_DATA_LENGTH)
     {
         commandStats.invalidCommands++;
+        g_commandReceiverHandling = 0;
         return;
     }
     
@@ -736,6 +789,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     if (receivedSize != expectedLength)
     {
         commandStats.invalidCommands++;
+        g_commandReceiverHandling = 0;
         return;
     }
     // Копируем данные
@@ -747,6 +801,15 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     receivedCommand.crc = localBuffer[CMD_HEADER_SIZE + receivedCommand.dataLength] | 
                           (localBuffer[CMD_HEADER_SIZE + receivedCommand.dataLength + 1] << 8);
                     
+    if (g_currentCmdSkipAudit == 0)
+    {
+        g_lastCmdType = receivedCommand.commandType;
+        g_lastCmdCode = receivedCommand.commandCode;
+        g_lastCmdDeviceTimeSec = (uint16_t)TimeFromStart;
+        g_lastCmdAckSent = 0;
+        g_lastCmdStatus = CMD_STATUS_OK;
+    }
+
     // Проверяем CRC
     uint16_t totalLength = CMD_HEADER_SIZE + receivedCommand.dataLength;
     if (!CommandReceiver_ValidateCRC(localBuffer, totalLength, receivedCommand.crc))
@@ -762,6 +825,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         response.dataLength = 0;
         
         CommandReceiver_SendResponse(&response);
+        g_commandReceiverHandling = 0;
         return;
     }
     
@@ -806,6 +870,13 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         // Теперь выполняем сброс
         HAL_NVIC_SystemReset();
     }
+
+    g_commandReceiverHandling = 0;
+}
+
+uint8_t CommandReceiver_IsHandling(void)
+{
+    return g_commandReceiverHandling;
 }
 
 /*

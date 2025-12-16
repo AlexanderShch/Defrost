@@ -2,6 +2,7 @@
 #include "cmsis_os.h"
 #include "ModBus.hpp"
 #include "Data.hpp"
+#include "CommandReceiver.hpp"
 #include "stdio.h"
 #include "task.h"
 #include "string.h"
@@ -10,7 +11,7 @@
 
 //#include "usb_host.h"
 
-#define  MAX_MB_BUFSIZE 48						// определяется размер буфера для обмена по UART
+#define  MAX_MB_BUFSIZE 64						// max UART4 packet size (telemetry+sync and command responses must fit)
 
 extern UART_HandleTypeDef huart4;				// для программирования датчиков
 extern UART_HandleTypeDef huart5;				// для считывания данных с датчиков
@@ -18,6 +19,7 @@ extern osSemaphoreId_t TX_Compl_SemHandle;		// семафор окончания
 extern osSemaphoreId_t RX_Compl_SemHandle;		// семафор окончания приёма от датчиков
 extern osSemaphoreId_t PR_TX_Compl_SemHandle;	// семафор окончания приёма при программировании
 extern osSemaphoreId_t PR_RX_Compl_SemHandle;	// семафор окончания передачи при программировании
+extern osSemaphoreId_t UART4_RX_Event_SemHandle; // UART4 RX-to-IDLE event (dedicated, must not be shared with CommandReceiver)
 extern osMutexId_t UART4_MutexHandle;			// мьютекс для защиты доступа к UART4
 
 // Объявления функций CommandReceiver
@@ -287,6 +289,10 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 	}
 	else if (huart == &huart4)	// приём команд от сервера
 	{
+		// Dedicated signal for TX-side "wait until current RX frame completes".
+		// This must be separate from CommandReceiver signaling to avoid token stealing.
+		osSemaphoreRelease(UART4_RX_Event_SemHandle);
+
 		// Быстро уведомляем поток о получении данных
 		// Обработка будет происходить в потоке RX_From_ServerHandle
 		CommandReceiver_OnDataReceived(Size);
@@ -792,6 +798,51 @@ MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreI
 	return MB_ERROR_NO;
 }
 
+static void DrainBinarySemaphore(osSemaphoreId_t sem)
+{
+	// Ensure the next wait observes a fresh RX event, not a stale token.
+	while (osSemaphoreAcquire(sem, 0) == osOK)
+	{
+	}
+}
+
+static MB_Error_t WaitUntilUART4RxFrameCompletes(void)
+{
+	// This helper is only valid for UART4 RX-to-IDLE DMA mode used with the server link.
+	HAL_UART_StateTypeDef uartState = HAL_UART_GetState(&huart4);
+	if ((uartState & HAL_UART_STATE_BUSY_RX) != HAL_UART_STATE_BUSY_RX)
+	{
+		return MB_ERROR_NO;
+	}
+
+	// Detect whether bytes are actively arriving or UART is just idling in RX mode.
+	uint32_t dmaCounter1 = __HAL_DMA_GET_COUNTER(huart4.hdmarx);
+	osDelay(5);
+	uint32_t dmaCounter2 = __HAL_DMA_GET_COUNTER(huart4.hdmarx);
+
+	if (dmaCounter1 != dmaCounter2)
+	{
+		DrainBinarySemaphore(UART4_RX_Event_SemHandle);
+		osStatus_t semStatus = osSemaphoreAcquire(UART4_RX_Event_SemHandle, 100);
+		return (semStatus == osOK) ? MB_ERROR_NO : MB_ERROR_UART_SEND;
+	}
+	return MB_ERROR_NO;
+}
+
+static uint8_t UART4_IsReceivingBytesNow(void)
+{
+	HAL_UART_StateTypeDef uartState = HAL_UART_GetState(&huart4);
+	if ((uartState & HAL_UART_STATE_BUSY_RX) != HAL_UART_STATE_BUSY_RX)
+	{
+		return 0;
+	}
+
+	uint32_t dmaCounter1 = __HAL_DMA_GET_COUNTER(huart4.hdmarx);
+	osDelay(5);
+	uint32_t dmaCounter2 = __HAL_DMA_GET_COUNTER(huart4.hdmarx);
+	return (dmaCounter1 != dmaCounter2) ? 1 : 0;
+}
+
 /* Функция посылает запрос датчику и принимает ответ.
  * Параметры порта uart, GPIO, буферы и семафоры передачи и приёма передаются в структуре MB.
  * Возвращается статус обработки запроса к датчику.
@@ -1174,21 +1225,58 @@ void WriteToServer(uint8_t* Data, int length)
 	MB_Error_t result;
 	MB_Active_t MB;						// объявляем среду работы с шиной
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// ЗАХВАТ МЬЮТЕКСА UART4 - защита от конфликта с программированием датчиков
-	// ═══════════════════════════════════════════════════════════════════════════
-	osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
-	if (mutexStatus != osOK)
+	// Low-priority telemetry must never block command reception/response.
+	while (CommandReceiver_IsHandling() != 0)
 	{
-		// Не удалось захватить мьютекс - критическая ошибка
-		return;
+		osDelay(1);
+	}
+
+	for (;;)
+	{
+		// If a server command frame is arriving right now, wait for it to complete without holding the UART4 mutex.
+		result = WaitUntilUART4RxFrameCompletes();
+		if (result != MB_ERROR_NO)
+		{
+			return;
+		}
+
+		// ═══════════════════════════════════════════════════════════════════════════
+		// ЗАХВАТ МЬЮТЕКСА UART4 - защита от конфликта с программированием датчиков
+		// ═══════════════════════════════════════════════════════════════════════════
+		osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
+		if (mutexStatus != osOK)
+		{
+			// Не удалось захватить мьютекс - критическая ошибка
+			return;
+		}
+
+		// Re-check after locking: if CommandReceiver started handling, yield immediately.
+		if (CommandReceiver_IsHandling() != 0)
+		{
+			osMutexRelease(UART4_MutexHandle);
+			osDelay(1);
+			continue;
+		}
+
+		// If bytes are currently arriving, do not hold the mutex while waiting.
+		if (UART4_IsReceivingBytesNow() != 0)
+		{
+			osMutexRelease(UART4_MutexHandle);
+			osDelay(1);
+			continue;
+		}
+
+		// Ensure RX DMA is stopped before switching RS-485 direction to TX.
+		HAL_UART_AbortReceive(&huart4);
+		osDelay(2);
+		break;
 	}
 
 	// Инициируем среду для работы по шине программирования
 	MB.UART = &huart4;		// ← UART4 для сервера
 	MB.PORT = PROG_MASTER_DE_GPIO_Port;
 	MB.PORT_PIN = PROG_MASTER_DE_Pin;
-	MB.Sem_Rx = &PR_RX_Compl_SemHandle;
+	MB.Sem_Rx = &UART4_RX_Event_SemHandle;
 	MB.Sem_Tx = &PR_TX_Compl_SemHandle;
 	
 	// Копируем данные в буфер передачи
@@ -1237,7 +1325,7 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 {
 	MB_Error_t result;
 	MB_Active_t MB;
-	static uint8_t TxBufferWithSync[MAX_MB_BUFSIZE + 4];  // +4 байта для sync-маркеров
+	static uint8_t TxBufferWithSync[MAX_MB_BUFSIZE];
 	
 	// Проверка размера буфера
 	if ((size_t)(length + 4) > sizeof(TxBufferWithSync))
@@ -1247,13 +1335,50 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 		return;
 	}
 
-	// ═══════════════════════════════════════════════════════════════════════════
-	// ЗАХВАТ МЬЮТЕКСА UART4
-	// ═══════════════════════════════════════════════════════════════════════════
-	osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
-	if (mutexStatus != osOK)
+	// Low-priority telemetry must never block command reception/response.
+	while (CommandReceiver_IsHandling() != 0)
 	{
-		return;
+		osDelay(1);
+	}
+
+	for (;;)
+	{
+		// If a server command frame is arriving right now, wait for it to complete without holding the UART4 mutex.
+		result = WaitUntilUART4RxFrameCompletes();
+		if (result != MB_ERROR_NO)
+		{
+			return;
+		}
+
+		// ═══════════════════════════════════════════════════════════════════════════
+		// ЗАХВАТ МЬЮТЕКСА UART4
+		// ═══════════════════════════════════════════════════════════════════════════
+		osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
+		if (mutexStatus != osOK)
+		{
+			return;
+		}
+
+		// Re-check after locking: if CommandReceiver started handling, yield immediately.
+		if (CommandReceiver_IsHandling() != 0)
+		{
+			osMutexRelease(UART4_MutexHandle);
+			osDelay(1);
+			continue;
+		}
+
+		// If bytes are currently arriving, do not hold the mutex while waiting.
+		if (UART4_IsReceivingBytesNow() != 0)
+		{
+			osMutexRelease(UART4_MutexHandle);
+			osDelay(1);
+			continue;
+		}
+
+		// Ensure RX DMA is stopped before switching RS-485 direction to TX.
+		HAL_UART_AbortReceive(&huart4);
+		osDelay(2);
+		break;
 	}
 
 	// ═══════════════════════════════════════════════════════════════════════════
@@ -1274,7 +1399,7 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 	MB.UART = &huart4;
 	MB.PORT = PROG_MASTER_DE_GPIO_Port;
 	MB.PORT_PIN = PROG_MASTER_DE_Pin;
-	MB.Sem_Rx = &PR_RX_Compl_SemHandle;
+	MB.Sem_Rx = &UART4_RX_Event_SemHandle;
 	MB.Sem_Tx = &PR_TX_Compl_SemHandle;
 	
 	// Копируем в буфер передачи (весь пакет с sync-маркерами)
@@ -1296,6 +1421,109 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 	if (result != MB_ERROR_NO)
 	{
 		// Обработка ошибки передачи
+	}
+}
+
+void WriteToServerWithSyncHighPriority(uint8_t* Data, int length)
+{
+	MB_Error_t result;
+	MB_Active_t MB;
+	static uint8_t TxBufferWithSync[MAX_MB_BUFSIZE];
+
+	if ((size_t)(length + 4) > sizeof(TxBufferWithSync))
+	{
+		// Fallback: send without sync markers, but keep high-priority semantics.
+		for (;;)
+		{
+			result = WaitUntilUART4RxFrameCompletes();
+			if (result != MB_ERROR_NO)
+			{
+				return;
+			}
+
+			osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
+			if (mutexStatus != osOK)
+			{
+				return;
+			}
+
+			if (UART4_IsReceivingBytesNow() != 0)
+			{
+				osMutexRelease(UART4_MutexHandle);
+				osDelay(1);
+				continue;
+			}
+
+			HAL_UART_AbortReceive(&huart4);
+			osDelay(2);
+			break;
+		}
+
+		MB.UART = &huart4;
+		MB.PORT = PROG_MASTER_DE_GPIO_Port;
+		MB.PORT_PIN = PROG_MASTER_DE_Pin;
+		MB.Sem_Rx = &UART4_RX_Event_SemHandle;
+		MB.Sem_Tx = &PR_TX_Compl_SemHandle;
+		memcpy(MB.Tx_Buffer, Data, length);
+
+		result = Master_SendTelemetry(&MB, length);
+		CommandReceiver_RestartReception();
+		osMutexRelease(UART4_MutexHandle);
+
+		if (result != MB_ERROR_NO)
+		{
+		}
+
+		return;
+	}
+
+	for (;;)
+	{
+		// If a server frame is currently arriving, wait for it to complete.
+		result = WaitUntilUART4RxFrameCompletes();
+		if (result != MB_ERROR_NO)
+		{
+			return;
+		}
+
+		osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
+		if (mutexStatus != osOK)
+		{
+			return;
+		}
+
+		if (UART4_IsReceivingBytesNow() != 0)
+		{
+			osMutexRelease(UART4_MutexHandle);
+			osDelay(1);
+			continue;
+		}
+
+		HAL_UART_AbortReceive(&huart4);
+		osDelay(2);
+		break;
+	}
+
+	TxBufferWithSync[0] = SYNC_START_1;
+	TxBufferWithSync[1] = SYNC_START_2;
+	memcpy(&TxBufferWithSync[2], Data, length);
+	TxBufferWithSync[2 + length] = SYNC_END_1;
+	TxBufferWithSync[3 + length] = SYNC_END_2;
+
+	MB.UART = &huart4;
+	MB.PORT = PROG_MASTER_DE_GPIO_Port;
+	MB.PORT_PIN = PROG_MASTER_DE_Pin;
+	MB.Sem_Rx = &UART4_RX_Event_SemHandle;
+	MB.Sem_Tx = &PR_TX_Compl_SemHandle;
+	memcpy(MB.Tx_Buffer, TxBufferWithSync, length + 4);
+
+	result = Master_SendTelemetry(&MB, length + 4);
+	CommandReceiver_RestartReception();
+
+	osMutexRelease(UART4_MutexHandle);
+
+	if (result != MB_ERROR_NO)
+	{
 	}
 }
 

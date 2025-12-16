@@ -156,6 +156,12 @@ const osSemaphoreAttr_t PR_RX_Compl_Sem_attributes = {
   .name = "PR_RX_Compl_Sem"
 };
 
+/* Definitions for UART4_RX_Event_Sem */
+osSemaphoreId_t UART4_RX_Event_SemHandle;
+const osSemaphoreAttr_t UART4_RX_Event_Sem_attributes = {
+  .name = "UART4_RX_Event_Sem"
+};
+
 /* Definitions for UART4_Mutex */
 osMutexId_t UART4_MutexHandle;
 const osMutexAttr_t UART4_Mutex_attributes = {
@@ -313,6 +319,9 @@ int main(void)
 
   /* creation of PR_RX_Compl_Sem */
   PR_RX_Compl_SemHandle = osSemaphoreNew(1, 0, &PR_RX_Compl_Sem_attributes);
+
+  /* creation of UART4_RX_Event_Sem */
+  UART4_RX_Event_SemHandle = osSemaphoreNew(1, 0, &UART4_RX_Event_Sem_attributes);
 
   /* creation of UART4_Mutex */
   UART4_MutexHandle = osMutexNew(&UART4_Mutex_attributes);
