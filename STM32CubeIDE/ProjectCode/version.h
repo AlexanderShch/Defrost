@@ -12,10 +12,12 @@
 // Версия прошивки (Semantic Versioning: MAJOR.MINOR.PATCH)
 #define FW_VERSION_MAJOR    1   // несовместимые изменения API
 #define FW_VERSION_MINOR    2   // новая функциональность, обратно совместимая
-#define FW_VERSION_PATCH    0   // исправления багов, обратно совместимые
+#define FW_VERSION_PATCH    1   // исправления багов, обратно совместимые
 
-// Строковое представление версии
-#define FW_VERSION_STRING   "1.2.0"		// корректировать вручную, вместе с минор, мажор и патч
+// String representation is derived from numeric parts to avoid manual mismatches.
+#define FW_VERSION_STRINGIFY_IMPL(x)  #x
+#define FW_VERSION_STRINGIFY(x)       FW_VERSION_STRINGIFY_IMPL(x)
+#define FW_VERSION_STRING             FW_VERSION_STRINGIFY(FW_VERSION_MAJOR) "." FW_VERSION_STRINGIFY(FW_VERSION_MINOR) "." FW_VERSION_STRINGIFY(FW_VERSION_PATCH)
 
 // Дата сборки (автоматически подставляется компилятором)
 #define FW_BUILD_DATE       __DATE__
@@ -30,3 +32,14 @@
 
 #endif /* VERSION_H_ */
 
+/*
+v 1.2.1 (Dec 16 2025 14:30:00)
+- добавлена команда REQ_CMD_GET_CMD_INFO (03 04) для получения информации о последней команде
+- откорректирована передача информации на сервер:
+пересечение было возможно: передача могла «съедать» события приёма, потому что PR_RX_Compl_SemHandle 
+использовался и для CommandReceiver, и для ожиданий перед TX.
+Сейчас пересечение исключено:
+приём команд и ожидание “RX кадр завершён” разведены на разные семафоры (PR_RX_Compl_SemHandle и UART4_RX_Event_SemHandle);
+перед любым TX по UART4 выполняется ожидание завершения активного приёма (если реально идут байты), а приём останавливается (AbortReceive) только непосредственно перед передачей под UART4_Mutex;
+ответы на команды/повтор телеметрии идут через high-priority отправку и не блокируются телеметрией.
+*/

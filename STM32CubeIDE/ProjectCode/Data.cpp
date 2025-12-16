@@ -313,7 +313,7 @@ void ResendLastTelemetry(void)
 		// ОТПРАВКА С SYNC-МАРКЕРАМИ (v1.1.0+)
 		// Формат: [AA 55][Type + 42 байта + CRC][55 AA] = 52 байта
 		// ═══════════════════════════════════════════════════════════════════════════
-		WriteToServerWithSync((uint8_t*)&LastSentTelemetry, (int) sizeof(LastSentTelemetry));
+		WriteToServerWithSyncHighPriority((uint8_t*)&LastSentTelemetry, (int) sizeof(LastSentTelemetry));
 		
 		// Инкрементируем счётчик ошибок
 		TelemetryErrorCount++;
