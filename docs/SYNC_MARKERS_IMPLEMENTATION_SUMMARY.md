@@ -387,3 +387,4 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 **Автор**: AI Assistant (Claude)  
 **Дата**: 28 ноября 2025
 
+
