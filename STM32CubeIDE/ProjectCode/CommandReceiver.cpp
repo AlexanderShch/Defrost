@@ -768,8 +768,12 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
 
     g_currentCmdType = receivedCommand.commandType;
     g_currentCmdCode = receivedCommand.commandCode;
-    g_currentCmdSkipAudit = (receivedCommand.commandType == CMD_TYPE_REQUEST &&
-                             receivedCommand.commandCode == REQ_CMD_GET_CMD_INFO) ? 1 : 0;
+    // Skip audit for:
+    // 1. CMD_TYPE_TELEMETRY (0x00) - server responses to telemetry (DATA_TRUE/DATA_FALSE)
+    // 2. REQ_CMD_GET_CMD_INFO - to avoid overwriting audit info by the query itself
+    g_currentCmdSkipAudit = (receivedCommand.commandType == CMD_TYPE_TELEMETRY ||
+                             (receivedCommand.commandType == CMD_TYPE_REQUEST &&
+                              receivedCommand.commandCode == REQ_CMD_GET_CMD_INFO)) ? 1 : 0;
     
     // КРИТИЧНО: Проверяем недопустимую комбинацию Type=0x00 и Code=0x00
     // Это артефакт из-за обработки пустого буфера при ложном IDLE

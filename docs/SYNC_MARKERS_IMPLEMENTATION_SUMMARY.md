@@ -55,3 +55,4 @@ CRC16 считается по `[Type][Len][Code][Status][DataLen][Data...]`.
   - `WriteToServerWithSync*` отправляет `AA55 + Data` (без `55AA`)
 
 
+
