@@ -149,14 +149,13 @@ MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreI
 extern const uint16_t crc16_table[];
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SYNC-МАРКЕРЫ для пакетов (v1.1.0+)
+// Маркер начала кадра для пакетов к серверу
+// Формат кадра: [AA 55][Type][Len][Payload...][CRC16] (без маркера конца)
 // ═══════════════════════════════════════════════════════════════════════════
 #define SYNC_START_1  0xAA
 #define SYNC_START_2  0x55
-#define SYNC_END_1    0x55
-#define SYNC_END_2    0xAA
 
-// Функция отправки пакета с sync-маркерами
+// Функция отправки пакета с маркером начала (AA 55)
 void WriteToServerWithSync(uint8_t* Data, int length);
 
 // High-priority variant intended for CommandReceiver context (command responses, telemetry resend).

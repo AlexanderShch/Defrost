@@ -170,20 +170,24 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     // чтобы избежать отправки старых данных из предыдущего ответа
     memset(TX_Response_Buffer, 0, CMD_MAX_LENGTH);
     
-    // Формируем буфер для отправки
-    // КРИТИЧНО: Записываем значения из структуры response в буфер
+    // Формируем буфер для отправки в НОВОМ формате:
+    // [Type][Len][Code][Status][DataLen][Data...][CRC16]
+    // Где:
+    // - Len = длина полезной части после Len и до CRC: (Code + Status + DataLen + Data)
+    // - CRC16 считается по блоку [Type][Len][Code][Status][DataLen][Data...]
     TX_Response_Buffer[0] = response->commandType;   // Type
-    TX_Response_Buffer[1] = response->commandCode;   // Code
-    TX_Response_Buffer[2] = response->status;        // Status
-    TX_Response_Buffer[3] = response->dataLength;    // DataLen
+    TX_Response_Buffer[1] = (uint8_t)(3 + response->dataLength); // Len
+    TX_Response_Buffer[2] = response->commandCode;   // Code
+    TX_Response_Buffer[3] = response->status;        // Status
+    TX_Response_Buffer[4] = response->dataLength;    // DataLen
     
     // Копируем данные
     if (response->dataLength > 0 && response->dataLength <= CMD_MAX_DATA_LENGTH)
     {
-        memcpy(&TX_Response_Buffer[4], response->data, response->dataLength);
+        memcpy(&TX_Response_Buffer[5], response->data, response->dataLength);
     }
     
-    txLength = 4 + response->dataLength;
+    txLength = 5 + response->dataLength;
     
     // Вычисляем CRC
     response->crc = CommandReceiver_CalculateCRC(TX_Response_Buffer, txLength);
@@ -193,8 +197,8 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     txLength += 2;
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // ОТПРАВКА С SYNC-МАРКЕРАМИ (v1.1.0+)
-    // Формат: [AA 55][Type + Code + Status + DataLen + Data + CRC][55 AA]
+    // ОТПРАВКА С МАРКЕРОМ НАЧАЛА (без маркера конца)
+    // Формат: [AA 55][Type][Len][Code + Status + DataLen + Data][CRC16]
     // ═══════════════════════════════════════════════════════════════════════════
     WriteToServerWithSyncHighPriority(TX_Response_Buffer, txLength);
 

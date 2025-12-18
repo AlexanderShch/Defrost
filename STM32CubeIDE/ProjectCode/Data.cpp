@@ -45,12 +45,13 @@ int Sensor::H[TQ][SQ] = {{0}};		// humidity
 typedef struct __attribute__((packed))   // object data for Server type
 {
     uint8_t DataType;			// Байт типа передаваемых данных (0x00 для телеметрии)
+    uint8_t Len;               // Длина полезной части после Len и до CRC (в байтах), включается в CRC
     uint16_t Time;				// Количество секунд с момента включения
     uint8_t SensorQuantity;		// Количество сенсоров
     uint8_t SensorType[SQ];		// Тип сенсора
     uint8_t Active[SQ];			// Активность сенсора
-    uint16_t T[SQ];				// Значение 1 сенсора (температура)
-    uint16_t H[SQ];				// Значение 2 сенсора (влажность)
+    int16_t T[SQ];				// Значение 1 сенсора (температура)
+    int16_t H[SQ];				// Значение 2 сенсора (влажность)
     uint16_t CRC_SUM;			// Контрольное значение
 } MSGQUEUE_OBJ_t;
 // !!! ВНИМАНИЕ! Если меняется структура, надо поменять и размер буфера MAX_MB_BUFSIZE в ModBus.cpp
@@ -224,14 +225,17 @@ void ReadDataFunc() {
 		// формирование данных для сервера
 		DataToServer = {};
 		DataToServer.DataType = 0x00;	// Тип данных: 0x00 = телеметрия
+		// Длина полезной части после Len и до CRC:
+		// Time(2) + SensorQuantity(1) + SensorType(7) + Active(7) + T(14) + H(14) = 45 байт
+		DataToServer.Len = 45;
 		DataToServer.Time = TimeFromStart;
 		DataToServer.SensorQuantity = SQ;
 		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
 		{
 			DataToServer.SensorType[SensorIndex] = Sensor_array[SensorIndex].TypeOfSensor;
 			DataToServer.Active[SensorIndex] = Sensor_array[SensorIndex].Active;
-			DataToServer.T[SensorIndex] = Sensor::GetData(TimeFromStart, SensorIndex, 2);
-			DataToServer.H[SensorIndex] = Sensor::GetData(TimeFromStart, SensorIndex, 3);
+			DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 2);
+			DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
 		}
 		// запись в очередь передачи данных в удалённый компьютер
 		osMessageQueuePut(Data_QueueHandle, &DataToServer, 0U, 0U);
@@ -310,8 +314,8 @@ void ResendLastTelemetry(void)
 	if (LastSentTelemetry.DataType == 0x00)
 	{
 		// ═══════════════════════════════════════════════════════════════════════════
-		// ОТПРАВКА С SYNC-МАРКЕРАМИ (v1.1.0+)
-		// Формат: [AA 55][Type + 42 байта + CRC][55 AA] = 52 байта
+		// ОТПРАВКА В НОВОМ ФОРМАТЕ (без маркера конца)
+		// Формат: [AA 55][Type][Len][Payload...][CRC16]
 		// ═══════════════════════════════════════════════════════════════════════════
 		WriteToServerWithSyncHighPriority((uint8_t*)&LastSentTelemetry, (int) sizeof(LastSentTelemetry));
 		
@@ -340,8 +344,8 @@ void TX_ToServer()
 		memcpy(&LastSentTelemetry, &Data_TX_Server, sizeof(MSGQUEUE_OBJ_t));
 		
 		// ═══════════════════════════════════════════════════════════════════════════
-		// ОТПРАВКА С SYNC-МАРКЕРАМИ (v1.1.0+)
-		// Формат: [AA 55][Type + 42 байта + CRC][55 AA] = 52 байта
+		// ОТПРАВКА В НОВОМ ФОРМАТЕ (без маркера конца)
+		// Формат: [AA 55][Type][Len][Payload...][CRC16]
 		// ═══════════════════════════════════════════════════════════════════════════
 		WriteToServerWithSync((uint8_t*)&Data_TX_Server, (int) sizeof(Data_TX_Server));
 		if (result == MB_ERROR_NO)
