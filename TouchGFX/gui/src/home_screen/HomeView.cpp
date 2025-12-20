@@ -38,17 +38,17 @@ void HomeView::Val_T_4UpdateView(int Val)
  * Функция: updateVersionDisplay
  * Описание: Устанавливает текущую версию прошивки в wildcard VersionValue
  * 
- * Элемент LabelVersion сгенерирован TouchGFX Designer
- * Буфер: LabelVersionBuffer[LABELVERSION_SIZE]
+ * Почему: используем сгенерированные LabelVersion/LabelVersionBuffer из TouchGFX Designer.
  */
 void HomeView::updateVersionDisplay()
 {
     // Получаем версию прошивки из Model
     const char* version = Model::getFirmwareVersion();
     
-    // Преобразуем строку версии в Unicode и записываем в буфер wildcard
+    // Преобразуем строку версии в Unicode и записываем в буфер wildcard.
     Unicode::strncpy(LabelVersionBuffer, version, LABELVERSION_SIZE);
-    
-    // Обновляем отображение на экране
+    LabelVersionBuffer[LABELVERSION_SIZE - 1] = 0;
+
+    // Обновляем отображение на экране.
     LabelVersion.invalidate();
 }

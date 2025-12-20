@@ -390,11 +390,11 @@ CommandStatus_t CommandReceiver_HandleConfiguration(Command_t *cmd)
             // Ожидаем 2 байта с uint16_t значением интервала в секундах
             if (cmd->dataLength == 2)
             {
-                // uint16_t interval;
-                // memcpy(&interval, cmd->data, sizeof(uint16_t));
-                
-                // Установить интервал измерений
-                // Можно изменить DataRead_ShiftCounter
+                uint16_t intervalSeconds = 0;
+                memcpy(&intervalSeconds, cmd->data, sizeof(uint16_t));
+
+                // Установить интервал отправки телеметрии на сервер (сек).
+                Telemetry_SetIntervalSeconds(intervalSeconds);
             }
             else
             {

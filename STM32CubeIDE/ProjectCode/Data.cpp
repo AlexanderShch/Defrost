@@ -22,7 +22,23 @@ uint32_t flags;				// flags for waiting event
 int8_t SensorNumber;
 uint16_t CirStop = 0b0001111000000000;	// стоповое слово, из которого будет выполняться перенос "бегущей единицы"
 uint8_t CirNum= 4;						// счётчик паузы для цикла "бегущей единицы"
-uint8_t ShiftCounter = DataRead_ShiftCounter;		// Счётчик 1 сек периодов между считываниями данных
+
+// Текущий интервал отправки телеметрии на сервер (сек).
+// Почему: интервал меняется командой CFG_CMD_SET_INTERVAL и должен применяться без перезагрузки.
+volatile uint16_t g_TelemetryIntervalSeconds = TELEMETRY_INTERVAL_DEFAULT_SEC;
+
+static volatile uint16_t ShiftCounter = TELEMETRY_INTERVAL_DEFAULT_SEC;	// Счётчик 1-сек периодов между отправками/считываниями
+
+void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
+{
+	// Почему: защищаемся от нулевого интервала (зависание в постоянной отправке).
+	if (intervalSeconds == 0)
+	{
+		intervalSeconds = TELEMETRY_INTERVAL_DEFAULT_SEC;
+	}
+	g_TelemetryIntervalSeconds = intervalSeconds;
+	ShiftCounter = intervalSeconds;
+}
 
 /* Регистр аппаратного управления устройствами загружается в модуль ввода-вывода,
  * который содержит реле, переключающие устройства дефростера.
@@ -115,9 +131,12 @@ int Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned 
 void DataTimerFunc()
 {
 	// Здесь установка флага события для запуска задачи по считыванию данных
-	--ShiftCounter;
+	if (ShiftCounter > 0)
+	{
+		--ShiftCounter;
+	}
 	if (ShiftCounter == 0) {
-		ShiftCounter = DataRead_ShiftCounter;
+		ShiftCounter = g_TelemetryIntervalSeconds;
 		osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
 	};
 	// моргнём светодиодом
