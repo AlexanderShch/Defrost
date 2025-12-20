@@ -11,8 +11,8 @@
 
 // Версия прошивки (Semantic Versioning: MAJOR.MINOR.PATCH)
 #define FW_VERSION_MAJOR    1   // несовместимые изменения API
-#define FW_VERSION_MINOR    3   // новая функциональность, обратно совместимая
-#define FW_VERSION_PATCH    1   // исправления багов, обратно совместимые
+#define FW_VERSION_MINOR    4   // новая функциональность, обратно совместимая
+#define FW_VERSION_PATCH    0   // исправления багов, обратно совместимые
 
 // String representation is derived from numeric parts to avoid manual mismatches.
 #define FW_VERSION_STRINGIFY_IMPL(x)  #x
@@ -33,6 +33,8 @@
 #endif /* VERSION_H_ */
 
 /*
+v 1.4.0 добавлен функционал алгоритма управления
+
 v 1.3.1 (Dec 20 2025 14:30:00)
 - добавлена обработка команды CFG_CMD_SET_INTERVAL (02 03) для установки интервала отправки телеметрии на сервер.
 
