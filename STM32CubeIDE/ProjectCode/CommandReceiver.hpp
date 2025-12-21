@@ -1,9 +1,9 @@
 /*
  * CommandReceiver.hpp
  *
- *  Created on: October 23, 2025
- *      Author: System
- *  Description: Модуль приема и обработки команд от сервера через COM-порт
+ *  Создан: October 23, 2025
+ *  Автор: System
+ *  Описание: Модуль приема и обработки команд от сервера через COM-порт
  */
 
 #ifndef COMMANDRECEIVER_HPP_
@@ -65,7 +65,7 @@ typedef enum {
     REQ_CMD_GET_STATUS     = 0x01,  // Запросить текущий статус устройства
     REQ_CMD_GET_VERSION    = 0x02,  // Запросить версию прошивки (MAJOR.MINOR.PATCH)
     REQ_CMD_GET_CONFIG     = 0x03,  // Запросить текущую конфигурацию
-    REQ_CMD_GET_CMD_INFO   = 0x04,  // Request last received command audit (last command + device time + ack flag + status)
+    REQ_CMD_GET_CMD_INFO   = 0x04,  // Запросить аудит последней команды (тип+код+время+флаг ответа+статус)
     REQ_CMD_GET_BUILD_INFO = 0x05   // Запросить информацию о сборке (версия + дата)
 } RequestCommand_t;
 
@@ -121,8 +121,8 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize);
 void CommandReceiver_RestartReception(void);
 void CommandReceiver_OnDataReceived(uint16_t receivedSize);
 
-// Returns 1 while a server frame is being handled in CommandReceiver_Task.
-// Used to prevent low-priority telemetry TX from blocking command responses.
+// Возвращает 1, пока в CommandReceiver_Task обрабатывается кадр от сервера.
+// Нужна, чтобы низкоприоритетная телеметрия не блокировала ответы на команды.
 uint8_t CommandReceiver_IsHandling(void);
 
 #ifdef __cplusplus

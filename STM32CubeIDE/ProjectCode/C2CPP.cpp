@@ -1,8 +1,8 @@
 /*
  * C2CPP.cpp
  *
- *  Created on: Aug 13, 2023
- *      Author: alsh1
+ *  Создан: Aug 13, 2023
+ *  Автор: alsh1
  */
 
 #include "C2CPP.hpp"
@@ -10,15 +10,15 @@
 
 extern "C"
 {
-	void DataTimerFunc_C()	// start from osTimer 1 sec
+	void DataTimerFunc_C()	// запуск из osTimer с периодом 1 сек
 	{
 		DataTimerFunc();
 	}
-	void ReadDataFunc_C()	// start ReadData after timer
+	void ReadDataFunc_C()	// запуск ReadData после таймера
 	{
 		ReadDataFunc();
 	}
-	void DataFunc_C()		// start DataAnalysis
+	void DataFunc_C()		// запуск DataAnalysis
 	{
 		DataFunc();
 	}

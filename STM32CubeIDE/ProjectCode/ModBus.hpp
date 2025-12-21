@@ -1,15 +1,15 @@
 /*
  * ModBus.hpp
  *
- *  Created on: Aug 1, 2023
- *      Author: gdr
+ *  Создан: Aug 1, 2023
+ *  Автор: gdr
  */
 
 /*
  * defrost.h
  *
- *  Created on: Jun 27, 2023
- *      Author: nickn
+ *  Создан: Jun 27, 2023
+ *  Автор: nickn
  */
 
 #ifndef MODBUS_HPP_
@@ -30,8 +30,8 @@ typedef struct {
 } SENSOR_Type_t;
 
 typedef struct {
-uint8_t Address;			// ModBus address
-uint8_t BaudRate;			// ModBus baud rate
+uint8_t Address;			// адрес ModBus
+uint8_t BaudRate;			// скорость ModBus
 uint8_t Active;				// флаг активности датчика
 uint8_t TypeOfSensor;		// тип датчика: 1 - совмещённый датчик температуры и влажности
 char PositionName[11];	// наименование позиции датчика
@@ -57,7 +57,7 @@ uint16_t RxErrorCnt;		// счётчик ошибок приёма данных, 
 //	int16_t		DFR_Hum_Prod_Right;	// Влажность продукта правая		9
 //	int16_t		DFR_Temp_Prod_Right;// Температура продукта правая		10
 
-// Modbus request frame
+// Кадр запроса ModBus
 typedef struct {
 	uint8_t Address;
 	uint8_t Command;
@@ -68,16 +68,16 @@ typedef struct {
 
 typedef enum
 {
-   // Holding registers
+	// Регистры хранения
 	MB_CMD_READ_REGS = 0x03,
     MB_CMD_WRITE_REG = 0x06,
     MB_CMD_WRITE_REGS = 0x10,
-	// Output coil registers
-	MB_CMD_READ_COILS = 0x01,		// Read the value of one or more coil registers
-    MB_CMD_WRITE_COIL = 0x05,		// Write a coil register value
-    MB_CMD_WRITE_COILS = 0x0F,		// Write the value of one or more coil registers
-	// Discrete input register
-	MB_CMD_READ_INPUT = 0x02,		// Read input discrete
+	// Регистры катушек (Coils)
+	MB_CMD_READ_COILS = 0x01,		// чтение одного или нескольких coil-регистров
+    MB_CMD_WRITE_COIL = 0x05,		// запись одного coil-регистра
+    MB_CMD_WRITE_COILS = 0x0F,		// запись одного или нескольких coil-регистров
+	// Дискретные входы (Discrete inputs)
+	MB_CMD_READ_INPUT = 0x02,		// чтение дискретных входов
 }MB_Command_t;
 
 // Ошибки работы с шиной ModBus
@@ -118,10 +118,10 @@ typedef enum
 	Type4_Addr = 0x0002,		// 1 (default) ... 247
 	Type4_Baud = 0x0003,		// 1(4800), 2(9600) default, 3(19200), 4(38400), 5(57600), 6(115200)
 	Type4_CheckDigit = 0x0004,	// 1 (no check) default, 2 (odd check), 3 (even check)
-	Type4_TimeSet = 0x0005,		// disconnection protection function
-	/* If set to> = 1800, the network disconnection protection function will be cancelled.
-	0-1799S range is the network disconnection protection time, do output reset beyond this range */
-	Tipe4_Version = 0x0006,		// Year + month + day
+	Type4_TimeSet = 0x0005,		// функция защиты от разрыва связи
+	/* Если установить >= 1800, функция защиты от разрыва связи будет отключена.
+	   Диапазон 0..1799 сек — время защиты от разрыва связи; за пределами диапазона выполняется сброс выходов. */
+	Tipe4_Version = 0x0006,		// год + месяц + день
 	Type4_DI = 0x0000,
 	Type4_DO = 0x0000,
 
@@ -158,8 +158,8 @@ extern const uint16_t crc16_table[];
 // Функция отправки пакета с маркером начала (AA 55)
 void WriteToServerWithSync(uint8_t* Data, int length);
 
-// High-priority variant intended for CommandReceiver context (command responses, telemetry resend).
-// This bypasses low-priority gating that prevents telemetry TX from blocking command handling.
+// Вариант высокого приоритета для контекста CommandReceiver (ответы на команды, повтор телеметрии).
+// Обходит низкоприоритетные ограничения, чтобы телеметрия не блокировала обработку команд.
 void WriteToServerWithSyncHighPriority(uint8_t* Data, int length);
 
 #endif /* MODBUS_HPP_ */

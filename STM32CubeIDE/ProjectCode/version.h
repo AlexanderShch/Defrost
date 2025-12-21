@@ -1,20 +1,20 @@
 /*
  * version.h
  *
- *  Created on: October 25, 2025
- *      Author: System
- *  Description: Версия прошивки устройства
+ *  Создан: October 25, 2025
+ *  Автор: System
+ *  Описание: Версия прошивки устройства
  */
 
 #ifndef VERSION_H_
 #define VERSION_H_
 
-// Версия прошивки (Semantic Versioning: MAJOR.MINOR.PATCH)
+// Версия прошивки (семантическое версионирование: MAJOR.MINOR.PATCH)
 #define FW_VERSION_MAJOR    1   // несовместимые изменения API
 #define FW_VERSION_MINOR    4   // новая функциональность, обратно совместимая
-#define FW_VERSION_PATCH    0   // исправления багов, обратно совместимые
+#define FW_VERSION_PATCH    1   // исправления багов, обратно совместимые
 
-// String representation is derived from numeric parts to avoid manual mismatches.
+// Строковое представление строится из числовых частей, чтобы не допустить расхождений при ручном редактировании.
 #define FW_VERSION_STRINGIFY_IMPL(x)  #x
 #define FW_VERSION_STRINGIFY(x)       FW_VERSION_STRINGIFY_IMPL(x)
 #define FW_VERSION_STRING             FW_VERSION_STRINGIFY(FW_VERSION_MAJOR) "." FW_VERSION_STRINGIFY(FW_VERSION_MINOR) "." FW_VERSION_STRINGIFY(FW_VERSION_PATCH)
@@ -33,16 +33,20 @@
 #endif /* VERSION_H_ */
 
 /*
-v 1.4.0 добавлен функционал алгоритма управления
+Версия 1.4.1 (Dec 21 2025 14:30:00)
+- исправлена ошибка в алгоритме опроса датчиков: интервал отправки данных на сервер
+не должен влиять на интервал опроса датчиков.
 
-v 1.3.1 (Dec 20 2025 14:30:00)
+Версия 1.4.0 добавлен функционал алгоритма управления
+
+Версия 1.3.1 (Dec 20 2025 14:30:00)
 - добавлена обработка команды CFG_CMD_SET_INTERVAL (02 03) для установки интервала отправки телеметрии на сервер.
 
-v 1.3.0 (Dec 18 2025 14:30:00)
+Версия 1.3.0 (Dec 18 2025 14:30:00)
 - изменена структура кадра данных, поступающих от контроллера. Новый формат без маркера конца и содержит длину кадра: 
 AA 55 + Type + Len + Data[Len] + CRC16, где CRC считается по Type+Len+Data. 
 
-v 1.2.1 (Dec 16 2025 14:30:00)
+Версия 1.2.1 (Dec 16 2025 14:30:00)
 - добавлена команда REQ_CMD_GET_CMD_INFO (03 04) для получения информации о последней команде
 - добавлена команда REQ_CMD_GET_CMD_INFO (03 04) для получения информации о последней команде. В аудит 
 команды записываются только команды, но не ответы по телеметрии.

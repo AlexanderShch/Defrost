@@ -1,8 +1,8 @@
 /*
  * Data.c
  *
- *  Created on: Jul 3, 2023
- *      Author: gdr
+ *  Создан: Jul 3, 2023
+ *  Автор: gdr
  */
 #include <Data.hpp>
 #include "main.h"
@@ -11,14 +11,14 @@
 
 #include <gui\model\model.hpp>
 
-// ReadDataEventHandle was defined in main.c
+// ReadDataEventHandle определён в main.c
 extern osEventFlagsId_t ReadDataEventHandle;
 extern osEventFlagsId_t Start_TX_EventHandle;
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osThreadId_t TouchGFX_Task;
 extern osMessageQueueId_t Data_QueueHandle;
 
-uint32_t flags;				// flags for waiting event
+uint32_t flags;				// флаги для ожидания событий
 int8_t SensorNumber;
 uint16_t CirStop = 0b0001111000000000;	// стоповое слово, из которого будет выполняться перенос "бегущей единицы"
 uint8_t CirNum= 4;						// счётчик паузы для цикла "бегущей единицы"
@@ -27,7 +27,8 @@ uint8_t CirNum= 4;						// счётчик паузы для цикла "бегу
 // Почему: интервал меняется командой CFG_CMD_SET_INTERVAL и должен применяться без перезагрузки.
 volatile uint16_t g_TelemetryIntervalSeconds = TELEMETRY_INTERVAL_DEFAULT_SEC;
 
-static volatile uint16_t ShiftCounter = TELEMETRY_INTERVAL_DEFAULT_SEC;	// Счётчик 1-сек периодов между отправками/считываниями
+static volatile uint16_t ShiftCounter = TELEMETRY_INTERVAL_DEFAULT_SEC;	// Счётчик 1-сек периодов между отправками телеметрии
+static volatile uint8_t TelemetrySendPending = 0;						// Флаг: пора отправлять телеметрию (выставляет таймер 1 Гц)
 
 void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
 {
@@ -38,6 +39,7 @@ void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
 	}
 	g_TelemetryIntervalSeconds = intervalSeconds;
 	ShiftCounter = intervalSeconds;
+	TelemetrySendPending = 0;
 }
 
 /* Регистр аппаратного управления устройствами загружается в модуль ввода-вывода,
@@ -51,14 +53,14 @@ uint16_t RelayRegister = 0;				// Объявление регистра аппа
 
 MB_Error_t result;
 
-// definition of static variable. Member function definitions belong in the scope where the class is defined.
-// current number of measure
+// Определение статических переменных.
+// Текущее количество измерений (секунд от старта).
 unsigned int TimeFromStart = 0;
-unsigned int Sensor::Time[TQ][SQ] = {{0}};	// number of time quantum measuring
-int Sensor::T[TQ][SQ] = {{0}};		// temperature
-int Sensor::H[TQ][SQ] = {{0}};		// humidity
+unsigned int Sensor::Time[TQ][SQ] = {{0}};	// номер такта измерения
+int Sensor::T[TQ][SQ] = {{0}};		// температура
+int Sensor::H[TQ][SQ] = {{0}};		// влажность
 
-typedef struct __attribute__((packed))   // object data for Server type
+typedef struct __attribute__((packed))   // формат данных для сервера
 {
     uint8_t DataType;			// Байт типа передаваемых данных (0x00 для телеметрии)
     uint8_t Len;               // Длина полезной части после Len и до CRC (в байтах), включается в CRC
@@ -130,19 +132,22 @@ int Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned 
 // 1. Operating system timer 1 sec will start this function
 void DataTimerFunc()
 {
-	// Здесь установка флага события для запуска задачи по считыванию данных
+	// Датчики должны считываться строго 1 раз в секунду.
+	osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
+
+	// Интервал телеметрии влияет только на постановку данных в очередь отправки.
 	if (ShiftCounter > 0)
 	{
 		--ShiftCounter;
 	}
-	if (ShiftCounter == 0) {
+	if (ShiftCounter == 0)
+	{
 		ShiftCounter = g_TelemetryIntervalSeconds;
-		osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
-	};
+		TelemetrySendPending = 1;
+	}
 	// моргнём светодиодом
 	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
-	osDelay(100);
-	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
+	// Нельзя блокироваться внутри callback таймера RTOS: это добавляет джиттер и может задерживать другие таймеры.
 }
 
 /* 2. The task ReadData reading data from sensors
@@ -241,23 +246,29 @@ void ReadDataFunc() {
 			}
 		}	// конец цикла опроса датчиков
 
-		// формирование данных для сервера
-		DataToServer = {};
-		DataToServer.DataType = 0x00;	// Тип данных: 0x00 = телеметрия
-		// Длина полезной части после Len и до CRC:
-		// Time(2) + SensorQuantity(1) + SensorType(7) + Active(7) + T(14) + H(14) = 45 байт
-		DataToServer.Len = 45;
-		DataToServer.Time = TimeFromStart;
-		DataToServer.SensorQuantity = SQ;
-		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
+		// Телеметрия отправляется с интервалом g_TelemetryIntervalSeconds.
+		if (TelemetrySendPending != 0)
 		{
-			DataToServer.SensorType[SensorIndex] = Sensor_array[SensorIndex].TypeOfSensor;
-			DataToServer.Active[SensorIndex] = Sensor_array[SensorIndex].Active;
-			DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 2);
-			DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
+			TelemetrySendPending = 0;
+
+			// формирование данных для сервера
+			DataToServer = {};
+			DataToServer.DataType = 0x00;	// Тип данных: 0x00 = телеметрия
+			// Длина полезной части после Len и до CRC:
+			// Time(2) + SensorQuantity(1) + SensorType(7) + Active(7) + T(14) + H(14) = 45 байт
+			DataToServer.Len = 45;
+			DataToServer.Time = TimeFromStart;
+			DataToServer.SensorQuantity = SQ;
+			for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
+			{
+				DataToServer.SensorType[SensorIndex] = Sensor_array[SensorIndex].TypeOfSensor;
+				DataToServer.Active[SensorIndex] = Sensor_array[SensorIndex].Active;
+				DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 2);
+				DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
+			}
+			// запись в очередь передачи данных в удалённый компьютер
+			osMessageQueuePut(Data_QueueHandle, &DataToServer, 0U, 0U);
 		}
-		// запись в очередь передачи данных в удалённый компьютер
-		osMessageQueuePut(Data_QueueHandle, &DataToServer, 0U, 0U);
 
 		// проверим не активные датчики на активность
 		MB_Master_Init();

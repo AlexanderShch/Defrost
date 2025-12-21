@@ -11,7 +11,7 @@
 
 //#include "usb_host.h"
 
-#define  MAX_MB_BUFSIZE 64						// max UART4 packet size (telemetry+sync and command responses must fit)
+#define  MAX_MB_BUFSIZE 64						// максимальный размер пакета UART4 (телеметрия+SYNC и ответы на команды должны помещаться)
 
 extern UART_HandleTypeDef huart4;				// для программирования датчиков
 extern UART_HandleTypeDef huart5;				// для считывания данных с датчиков
@@ -19,7 +19,7 @@ extern osSemaphoreId_t TX_Compl_SemHandle;		// семафор окончания
 extern osSemaphoreId_t RX_Compl_SemHandle;		// семафор окончания приёма от датчиков
 extern osSemaphoreId_t PR_TX_Compl_SemHandle;	// семафор окончания приёма при программировании
 extern osSemaphoreId_t PR_RX_Compl_SemHandle;	// семафор окончания передачи при программировании
-extern osSemaphoreId_t UART4_RX_Event_SemHandle; // UART4 RX-to-IDLE event (dedicated, must not be shared with CommandReceiver)
+extern osSemaphoreId_t UART4_RX_Event_SemHandle; // событие UART4 RX-to-IDLE (отдельное, нельзя разделять с CommandReceiver)
 extern osMutexId_t UART4_MutexHandle;			// мьютекс для защиты доступа к UART4
 
 // Объявления функций CommandReceiver
@@ -289,8 +289,8 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 	}
 	else if (huart == &huart4)	// приём команд от сервера
 	{
-		// Dedicated signal for TX-side "wait until current RX frame completes".
-		// This must be separate from CommandReceiver signaling to avoid token stealing.
+		// Отдельный сигнал для TX-части: "дождаться завершения текущего RX-кадра".
+		// Должен быть отдельным от сигнализации CommandReceiver, чтобы не красть токены семафора.
 		osSemaphoreRelease(UART4_RX_Event_SemHandle);
 
 		// Быстро уведомляем поток о получении данных
@@ -499,6 +499,20 @@ void ProgrammingSensor()
 					// ОСВОБОЖДЕНИЕ МЬЮТЕКСА UART4 после работы с датчиком
 					// ═══════════════════════════════════════════════════════════════
 					osMutexRelease(UART4_MutexHandle);
+
+					// Нельзя засыпать, удерживая UART4 mutex, иначе ответы на команды могут задерживаться.
+					osDelay(10);
+
+					// If write was requested by UI, perform it as a separate critical section.
+					if (Model::Flag_WR_to_sensor == 1)
+					{
+						osStatus_t writeMutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
+						if (writeMutexStatus == osOK)
+						{
+							result = WriteToSensor(&PR);
+							osMutexRelease(UART4_MutexHandle);
+						}
+					}
 				} // конец цикла сканирования и записи в датчик
 				break;
 			}
@@ -768,7 +782,7 @@ MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreI
 		// Проверяем, идёт ли АКТИВНЫЙ приём данных (не просто режим ожидания)
 		// Считываем счётчик DMA дважды с небольшой задержкой
 		uint32_t dmaCounter1 = __HAL_DMA_GET_COUNTER(uart->hdmarx);
-		osDelay(5);  // 5 мс задержка
+		osDelay(1);  // Минимальная задержка для детекта активного RX без заметного влияния на задержку ответа
 		uint32_t dmaCounter2 = __HAL_DMA_GET_COUNTER(uart->hdmarx);
 		
 		// Если счётчик изменился - данные РЕАЛЬНО принимаются прямо сейчас!
@@ -791,7 +805,7 @@ MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreI
 			// Счётчик не меняется = просто режим ожидания (IDLE)
 			// Можно безопасно прервать ожидание и начать передачу
 			HAL_UART_AbortReceive(uart);
-			osDelay(2);
+			osDelay(1);
 		}
 	}
 	
@@ -817,7 +831,7 @@ static MB_Error_t WaitUntilUART4RxFrameCompletes(void)
 
 	// Detect whether bytes are actively arriving or UART is just idling in RX mode.
 	uint32_t dmaCounter1 = __HAL_DMA_GET_COUNTER(huart4.hdmarx);
-	osDelay(5);
+	osDelay(1);
 	uint32_t dmaCounter2 = __HAL_DMA_GET_COUNTER(huart4.hdmarx);
 
 	if (dmaCounter1 != dmaCounter2)
@@ -838,7 +852,7 @@ static uint8_t UART4_IsReceivingBytesNow(void)
 	}
 
 	uint32_t dmaCounter1 = __HAL_DMA_GET_COUNTER(huart4.hdmarx);
-	osDelay(5);
+	osDelay(1);
 	uint32_t dmaCounter2 = __HAL_DMA_GET_COUNTER(huart4.hdmarx);
 	return (dmaCounter1 != dmaCounter2) ? 1 : 0;
 }
@@ -1225,7 +1239,7 @@ void WriteToServer(uint8_t* Data, int length)
 	MB_Error_t result;
 	MB_Active_t MB;						// объявляем среду работы с шиной
 
-	// Low-priority telemetry must never block command reception/response.
+	// Телеметрия (низкий приоритет) не должна блокировать приём/ответ команд.
 	while (CommandReceiver_IsHandling() != 0)
 	{
 		osDelay(1);
@@ -1335,7 +1349,7 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 		return;
 	}
 
-	// Low-priority telemetry must never block command reception/response.
+	// Телеметрия (низкий приоритет) не должна блокировать приём/ответ команд.
 	while (CommandReceiver_IsHandling() != 0)
 	{
 		osDelay(1);
@@ -1429,7 +1443,7 @@ void WriteToServerWithSyncHighPriority(uint8_t* Data, int length)
 
 	if ((size_t)(length + 2) > sizeof(TxBufferWithSync))
 	{
-		// Fallback: send without sync markers, but keep high-priority semantics.
+		// Резервный вариант: отправить без SYNC-маркеров, но сохранить семантику "высокого приоритета".
 		for (;;)
 		{
 			result = WaitUntilUART4RxFrameCompletes();

@@ -126,7 +126,7 @@ osThreadId_t RX_From_ServerHandle;
 const osThreadAttr_t RX_From_Server_attributes = {
   .name = "RX_From_Server",
   .stack_size = 320 * 4,  // Уменьшено с 384 до 320 (экономия 256 байт)
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityAboveNormal,
 };
 
 // ТАЙМЕРЫ

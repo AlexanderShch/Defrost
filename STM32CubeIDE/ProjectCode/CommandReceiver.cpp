@@ -1,9 +1,9 @@
 /*
  * CommandReceiver.cpp
  *
- *  Created on: October 23, 2025
- *      Author: System
- *  Description: Реализация модуля приема и обработки команд от сервера
+ *  Создан: October 23, 2025
+ *  Автор: System
+ *  Описание: Реализация модуля приема и обработки команд от сервера
  */
 
 #include "CommandReceiver.hpp"
@@ -18,17 +18,17 @@ extern UART_HandleTypeDef huart4;  // UART для связи с сервером
 extern osSemaphoreId_t PR_RX_Compl_SemHandle;  // Семафор приема
 extern osSemaphoreId_t PR_TX_Compl_SemHandle;  // Семафор передачи
 extern SENSOR_typedef_t Sensor_array[SQ];  // Массив датчиков и модулей
-extern unsigned int TimeFromStart;  // Device time base used by telemetry (seconds since boot)
+extern unsigned int TimeFromStart;  // время устройства (секунды от старта), используется в телеметрии
 
 // Буферы для приема команд
 static uint8_t RX_CMD_Buffer[CMD_MAX_LENGTH];
 static uint8_t TX_Response_Buffer[CMD_MAX_LENGTH];
 static volatile uint16_t RX_ReceivedSize = 0;  // Размер полученных данных
 
-// Guard for prioritizing command handling over low-priority telemetry transmissions.
+// Защита: при обработке команды приоритизируем команды над низкоприоритетной телеметрией.
 static volatile uint8_t g_commandReceiverHandling = 0;
 
-// Last command audit (server diagnostic).
+// Аудит последней команды (диагностика для сервера).
 static volatile uint8_t g_lastCmdType = 0;
 static volatile uint8_t g_lastCmdCode = 0;
 static volatile uint16_t g_lastCmdDeviceTimeSec = 0;
@@ -38,6 +38,21 @@ static volatile uint8_t g_lastCmdStatus = CMD_STATUS_OK;
 static volatile uint8_t g_currentCmdType = 0;
 static volatile uint8_t g_currentCmdCode = 0;
 static volatile uint8_t g_currentCmdSkipAudit = 0;
+
+static void WaitForUart4TxLineIdle(uint32_t timeoutMs)
+{
+    // Для PROG_CTRL_CMD_RESET нельзя делать сброс, пока UART ещё физически передаёт байты.
+    // Это минимальное ожидание нужно, чтобы не обрезать ответ на RS-485.
+    uint32_t start = osKernelGetTickCount();
+    while (__HAL_UART_GET_FLAG(&huart4, UART_FLAG_TC) == RESET)
+    {
+        if ((osKernelGetTickCount() - start) >= timeoutMs)
+        {
+            break;
+        }
+        osDelay(1);
+    }
+}
 
 // Тип функции-колбэка для действий с битом (сброс или установка)
 typedef void (*BitActionCallback_t)(void);
@@ -132,9 +147,6 @@ void CommandReceiver_Init(void)
     // ═══════════════════════════════════════════════════════════════════════════
     HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
     
-    // Небольшая задержка для стабилизации GPIO
-    HAL_Delay(1);
-    
     // ═══════════════════════════════════════════════════════════════════════════
     // ПРИМЕЧАНИЕ: Инициализация битов управления DFR._Stp и DFR_manual._Stp
     // выполняется в ReadDataFunc() (Data.cpp) после обнуления регистров
@@ -147,9 +159,9 @@ void CommandReceiver_Init(void)
     // Сброс статистики
     memset(&commandStats, 0, sizeof(CommandStats_t));
     
-    // Запускаем первый цикл приема данных
-    // После получения данных и IDLE, прерывание автоматически перезапустит прием
-    // Это создает непрерывный цикл: прием → IDLE → прерывание → перезапуск → прием...
+    // Запускаем первый цикл приёма данных.
+    // После получения данных и события IDLE прерывание автоматически перезапустит приём.
+    // Получается непрерывный цикл: приём → IDLE → прерывание → перезапуск → приём.
     HAL_UARTEx_ReceiveToIdle_DMA(&huart4, RX_CMD_Buffer, CMD_MAX_LENGTH);
     
     // Отключаем прерывание половины приема
@@ -175,11 +187,11 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     // Где:
     // - Len = длина полезной части после Len и до CRC: (Code + Status + DataLen + Data)
     // - CRC16 считается по блоку [Type][Len][Code][Status][DataLen][Data...]
-    TX_Response_Buffer[0] = response->commandType;   // Type
-    TX_Response_Buffer[1] = (uint8_t)(3 + response->dataLength); // Len
-    TX_Response_Buffer[2] = response->commandCode;   // Code
-    TX_Response_Buffer[3] = response->status;        // Status
-    TX_Response_Buffer[4] = response->dataLength;    // DataLen
+    TX_Response_Buffer[0] = response->commandType;   // тип
+    TX_Response_Buffer[1] = (uint8_t)(3 + response->dataLength); // длина полезной части
+    TX_Response_Buffer[2] = response->commandCode;   // код
+    TX_Response_Buffer[3] = response->status;        // статус
+    TX_Response_Buffer[4] = response->dataLength;    // длина данных
     
     // Копируем данные
     if (response->dataLength > 0 && response->dataLength <= CMD_MAX_DATA_LENGTH)
@@ -191,8 +203,8 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     
     // Вычисляем CRC
     response->crc = CommandReceiver_CalculateCRC(TX_Response_Buffer, txLength);
-    TX_Response_Buffer[txLength] = response->crc & 0xFF;        // CRC Lo
-    TX_Response_Buffer[txLength + 1] = (response->crc >> 8) & 0xFF;  // CRC Hi
+    TX_Response_Buffer[txLength] = response->crc & 0xFF;        // CRC (младший байт)
+    TX_Response_Buffer[txLength + 1] = (response->crc >> 8) & 0xFF;  // CRC (старший байт)
     
     txLength += 2;
     
@@ -768,9 +780,9 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
 
     g_currentCmdType = receivedCommand.commandType;
     g_currentCmdCode = receivedCommand.commandCode;
-    // Skip audit for:
-    // 1. CMD_TYPE_TELEMETRY (0x00) - server responses to telemetry (DATA_TRUE/DATA_FALSE)
-    // 2. REQ_CMD_GET_CMD_INFO - to avoid overwriting audit info by the query itself
+    // Пропускаем аудит для:
+    // 1. CMD_TYPE_TELEMETRY (0x00) - ответы сервера на телеметрию (DATA_TRUE/DATA_FALSE)
+    // 2. REQ_CMD_GET_CMD_INFO - чтобы запрос не затирал аудит сам по себе
     g_currentCmdSkipAudit = (receivedCommand.commandType == CMD_TYPE_TELEMETRY ||
                              (receivedCommand.commandType == CMD_TYPE_REQUEST &&
                               receivedCommand.commandCode == REQ_CMD_GET_CMD_INFO)) ? 1 : 0;
@@ -873,8 +885,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         originalCommandCode == PROG_CTRL_CMD_RESET &&
         cmdStatus == CMD_STATUS_OK)
     {
-        // Даём время на завершение передачи ответа
-        osDelay(100);
+        WaitForUart4TxLineIdle(50);
         // Теперь выполняем сброс
         HAL_NVIC_SystemReset();
     }

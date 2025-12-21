@@ -1,8 +1,8 @@
 /*
  * C2CPP.hpp
  *
- *  Created on: Aug 13, 2023
- *      Author: alsh1
+ *  Создан: Aug 13, 2023
+ *  Автор: alsh1
  */
 
 #ifndef C2CPP_HPP_
