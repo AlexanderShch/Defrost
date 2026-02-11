@@ -90,6 +90,50 @@ void Model::ValUpdateModel()
 	modelListener->ValUpdatePresenter();
 }
 
+void Model::setDefrostManualGroupEnabled(uint8_t groupIndex1to4, bool enabled)
+{
+	if (groupIndex1to4 < 1 || groupIndex1to4 > 4)
+	{
+		return;
+	}
+
+	const uint8_t bit = static_cast<uint8_t>(1u << (groupIndex1to4 - 1));
+	if (enabled)
+	{
+		DefrostManualGroupMask |= bit;
+	}
+	else
+	{
+		DefrostManualGroupMask &= static_cast<uint8_t>(~bit);
+	}
+
+	const bool manualModeEnabled = (DefrostManualGroupMask != 0);
+	Flag_DFR_manual = manualModeEnabled ? 1 : 0;
+
+	if (!manualModeEnabled)
+	{
+		// Почему: чтобы при повторном входе в ручной режим не применились "залипшие" ручные выходы.
+		uint16_t* pDFRManual = (uint16_t*)&DFR_manual;
+		*pDFRManual = 0;
+	}
+}
+
+bool Model::isDefrostManualModeEnabled()
+{
+	return Flag_DFR_manual != 0;
+}
+
+bool Model::isDefrostManualGroupEnabled(uint8_t groupIndex1to4)
+{
+	if (groupIndex1to4 < 1 || groupIndex1to4 > 4)
+	{
+		return false;
+	}
+
+	const uint8_t bit = static_cast<uint8_t>(1u << (groupIndex1to4 - 1));
+	return (DefrostManualGroupMask & bit) != 0;
+}
+
 /*
  * Функция: getFirmwareVersion
  * Описание: Возвращает строку с версией прошивки
@@ -114,6 +158,7 @@ uint8_t Model::Flag_Alert = 0;
 uint8_t Model::BaudRate_PR_sensor = 0;
 uint8_t Model::Address_PR_sensor = 0;
 uint8_t Model::FlagCurrentValue_PR_sensor = 0;
+uint8_t Model::DefrostManualGroupMask = 0;
 uint8_t Model::Flag_DFR_manual = 0;
 DFR_REGISTERS_t Model::DFR;				// Регистр состояния управления устройствами
 DFR_REGISTERS_t Model::DFR_current;		// Регистр текущего отображения состояния управления устройствами

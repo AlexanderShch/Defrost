@@ -986,7 +986,7 @@
             "Action": {
               "Type": "ActionGotoScreen",
               "ScreenTransitionType": "ScreenTransitionNone",
-              "ActionComponent": "Settings5"
+              "ActionComponent": "Settings4"
             }
           },
           {
@@ -2061,6 +2061,28 @@
               "Type": "ActionCustom",
               "FunctionName": "BTNFanControl2Clicked"
             }
+          },
+          {
+            "InteractionName": "BTNHeatControl1Clicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNHeatControl1"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNHeatControl1Clicked"
+            }
+          },
+          {
+            "InteractionName": "BTNHeatControl2Clicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNHeatControl2"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNHeatControl2Clicked"
+            }
           }
         ]
       },
@@ -2502,6 +2524,28 @@
             "Action": {
               "Type": "ActionCustom",
               "FunctionName": "BTNFanControl4Clicked"
+            }
+          },
+          {
+            "InteractionName": "BTNHeatControl3Clicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNHeatControl3"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNHeatControl3Clicked"
+            }
+          },
+          {
+            "InteractionName": "BTNHeatControl4Clicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNHeatControl4"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNHeatControl4Clicked"
             }
           }
         ]

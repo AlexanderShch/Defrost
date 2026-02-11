@@ -91,6 +91,10 @@ public:
     static void clearFlagCurrentVal_PR_Chng();							// очистить флаг изменения значения адреса и скорости программируемого датчика
     static int8_t getFlagCurrentVal_PR_Chng();							// получить флаг изменения значения адреса и скорости программируемого датчика
 
+    static void setDefrostManualGroupEnabled(uint8_t groupIndex1to4, bool enabled);
+    static bool isDefrostManualModeEnabled();
+    static bool isDefrostManualGroupEnabled(uint8_t groupIndex1to4);
+
     // программирование
     static int BaudRate_WR_to_sensor;		// скорость для записи в датчик
     static uint8_t Type_of_sensor;			// установленное значение типа датчика
@@ -126,6 +130,8 @@ protected:
     static uint8_t BaudRate_PR_sensor;			// скорость программируемого датчика
     static uint8_t Address_PR_sensor;			// адрес программируемого датчика
     static uint8_t FlagCurrentValue_PR_sensor;	// флаг изменения текущих значений программирования Т и Н для вывода на экран
+
+    static uint8_t DefrostManualGroupMask;      // биты 0..3 => группы 1..4
 };
 
 #endif // MODEL_HPP

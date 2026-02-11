@@ -15,6 +15,8 @@ public:
     virtual void BTNManual4Clicked();
     virtual void BTNFanControl3Clicked();
     virtual void BTNFanControl4Clicked();
+    virtual void BTNHeatControl3Clicked();
+    virtual void BTNHeatControl4Clicked();
 protected:
 };
 

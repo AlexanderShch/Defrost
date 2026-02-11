@@ -105,39 +105,39 @@ void VisualizationPresenter::ValUpdatePresenter()
 	// Проверим флаги смены состояния и передадим флаг состояния во view
 	if (Model::DFR_chng_flag.Ten1_Left == 1)
 	{
-	    view.Val_Ten1_Left_UpdateView(Model::DFR.Ten1_Left);
+	    view.Val_Ten1_Left_UpdateView(Model::DFR_current.Ten1_Left);
 	};
     if (Model::DFR_chng_flag.Ten2_Left == 1)
 	{
-    	view.Val_Ten2_Left_UpdateView(Model::DFR.Ten2_Left);
+    	view.Val_Ten2_Left_UpdateView(Model::DFR_current.Ten2_Left);
 	};
     if (Model::DFR_chng_flag.Ten1_Right == 1)
 	{
-    	view.Val_Ten1_Right_UpdateView(Model::DFR.Ten1_Right);
+    	view.Val_Ten1_Right_UpdateView(Model::DFR_current.Ten1_Right);
 	};
     if (Model::DFR_chng_flag.Ten2_Right == 1)
 	{
-    	view.Val_Ten2_Right_UpdateView(Model::DFR.Ten2_Right);
+    	view.Val_Ten2_Right_UpdateView(Model::DFR_current.Ten2_Right);
 	};
     if (Model::DFR_chng_flag.Vent1_Left == 1)
 	{
-    	view.Val_Vent1_Left_UpdateView(Model::DFR.Vent1_Left);
+    	view.Val_Vent1_Left_UpdateView(Model::DFR_current.Vent1_Left);
  	};
     if (Model::DFR_chng_flag.Vent2_Left == 1)
 	{
-    	view.Val_Vent2_Left_UpdateView(Model::DFR.Vent2_Left);
+    	view.Val_Vent2_Left_UpdateView(Model::DFR_current.Vent2_Left);
  	};
     if (Model::DFR_chng_flag.Vent1_Right == 1)
 	{
-    	view.Val_Vent1_Right_UpdateView(Model::DFR.Vent1_Right);
+    	view.Val_Vent1_Right_UpdateView(Model::DFR_current.Vent1_Right);
   	};
     if (Model::DFR_chng_flag.Vent2_Right == 1)
 	{
-    	view.Val_Vent2_Right_UpdateView(Model::DFR.Vent2_Right);
+    	view.Val_Vent2_Right_UpdateView(Model::DFR_current.Vent2_Right);
 	};
     if (Model::DFR_chng_flag.Water_Flap == 1)
 	{
-    	view.Val_Water_Flap_UpdateView(Model::DFR.Water_Flap);
+    	view.Val_Water_Flap_UpdateView(Model::DFR_current.Water_Flap);
  	};
 
 //	DFR_chng_flag.Vent1_Left = 1;

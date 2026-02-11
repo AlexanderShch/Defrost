@@ -69,7 +69,6 @@ typedef struct {
 
 // Таймеры для битов управления (время в мс, когда нужно выполнить действие)
 static volatile uint32_t WrkBitTimer = 0;  // Таймер для бита _Wrk (зелёная лампа РАБОТА)
-static volatile uint32_t StpBitTimer = 0;  // Таймер для бита _Stp (красная лампа СТОП)
 
 // Функции для управления битами (обёртки для битовых полей)
 // Работают с обоими регистрами: DFR (автоматический режим) и DFR_manual (ручной режим)
@@ -77,15 +76,10 @@ static void ResetWrkBit(void) {
     Model::DFR._Wrk = 0; 
     Model::DFR_manual._Wrk = 0; 
 }  // Сброс бита _Wrk
-static void SetStpBit(void) { 
-    Model::DFR._Stp = 1; 
-    Model::DFR_manual._Stp = 1; 
-}    // Установка бита _Stp
 
 // Массив таймеров для централизованной обработки
 static ControlBitTimer_t controlBitTimers[] = {
-    { &WrkBitTimer, ResetWrkBit, "_Wrk" },  // _Wrk: включается на 3 сек, затем сбрасывается
-    { &StpBitTimer, SetStpBit, "_Stp" }     // _Stp: сбрасывается на 3 сек, затем восстанавливается
+    { &WrkBitTimer, ResetWrkBit, "_Wrk" }  // _Wrk: включается на 3 сек, затем сбрасывается
 };
 
 // Статистика работы модуля
@@ -151,8 +145,7 @@ void CommandReceiver_Init(void)
     HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // ПРИМЕЧАНИЕ: Инициализация битов управления DFR._Stp и DFR_manual._Stp
-    // выполняется в ReadDataFunc() (Data.cpp) после обнуления регистров
+    // ПРИМЕЧАНИЕ: бит _Stp больше не используется и не инициализируется
     // ═══════════════════════════════════════════════════════════════════════════
     
     // Очистка буферов
@@ -312,13 +305,6 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
                 status = CMD_STATUS_EXECUTION_ERROR;
                 break;
             }
-            
-            // СБРАСЫВАЕМ бит _Stp (красная лампа СТОП гаснет) на 3 секунды
-            // После окончания таймера бит автоматически вернется в 1 (лампа загорится снова)
-            // Сбрасываем в обоих регистрах для синхронизации состояния
-            Model::DFR._Stp = 0;
-            Model::DFR_manual._Stp = 0;
-            StpBitTimer = osKernelGetTickCount() + 3000;  // Восстановить в 1 через 3000 мс
             break;
             
         case PROG_CTRL_CMD_PAUSE:
