@@ -72,11 +72,11 @@ typedef enum
 	MB_CMD_READ_REGS = 0x03,
     MB_CMD_WRITE_REG = 0x06,
     MB_CMD_WRITE_REGS = 0x10,
-	// Регистры катушек (Coils)
-	MB_CMD_READ_COILS = 0x01,		// чтение одного или нескольких coil-регистров
-    MB_CMD_WRITE_COIL = 0x05,		// запись одного coil-регистра
-    MB_CMD_WRITE_COILS = 0x0F,		// запись одного или нескольких coil-регистров
-	// Дискретные входы (Discrete inputs)
+	// Регистры катушек
+	MB_CMD_READ_COILS = 0x01,		// чтение одного или нескольких регистров катушек
+    MB_CMD_WRITE_COIL = 0x05,		// запись одного регистра катушки
+    MB_CMD_WRITE_COILS = 0x0F,		// запись одного или нескольких регистров катушек
+	// Дискретные входы
 	MB_CMD_READ_INPUT = 0x02,		// чтение дискретных входов
 }MB_Command_t;
 
@@ -115,9 +115,9 @@ typedef enum
 	Type2_Baud = 0x00FE,
 	Type2_Parity = 0x00FF,
 
-	Type4_Addr = 0x0002,		// 1 (default) ... 247
-	Type4_Baud = 0x0003,		// 1(4800), 2(9600) default, 3(19200), 4(38400), 5(57600), 6(115200)
-	Type4_CheckDigit = 0x0004,	// 1 (no check) default, 2 (odd check), 3 (even check)
+	Type4_Addr = 0x0002,		// 1 (по умолчанию) ... 247
+	Type4_Baud = 0x0003,		// 1(4800), 2(9600) по умолчанию, 3(19200), 4(38400), 5(57600), 6(115200)
+	Type4_CheckDigit = 0x0004,	// 1 (без проверки) по умолчанию, 2 (нечётная), 3 (чётная)
 	Type4_TimeSet = 0x0005,		// функция защиты от разрыва связи
 	/* Если установить >= 1800, функция защиты от разрыва связи будет отключена.
 	   Диапазон 0..1799 сек — время защиты от разрыва связи; за пределами диапазона выполняется сброс выходов. */
@@ -137,6 +137,18 @@ void ProgrammingSensor(void);
 void PR_UART4_Init(int BaudRateValue);
 void WriteToServer(uint8_t* Data, int length);
 uint16_t MB_GetCRC(volatile uint8_t* buf, uint16_t len);
+
+// Арбитраж UART4 между связью с сервером и программированием датчиков.
+// Экспортируем как C-символы, чтобы вызывать из C и C++ модулей.
+#ifdef __cplusplus
+extern "C" {
+#endif
+void UART4_SetOwner_Server(void);
+void UART4_SetOwner_Programming(void);
+uint8_t UART4_IsOwner_Programming(void);
+#ifdef __cplusplus
+}
+#endif
 
 MB_Error_t Sensor_Read_CORR(uint8_t SensIndex);
 MB_Error_t Sensor_Write_CORR(uint8_t SensIndex);

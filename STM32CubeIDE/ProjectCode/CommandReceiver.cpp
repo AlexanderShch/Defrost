@@ -1,8 +1,8 @@
 /*
  * CommandReceiver.cpp
  *
- *  Создан: October 23, 2025
- *  Автор: System
+ *  Создан: 23 октября 2025
+ *  Автор: Система
  *  Описание: Реализация модуля приема и обработки команд от сервера
  */
 
@@ -13,12 +13,15 @@
 #include <string.h>
 #include <gui/model/model.hpp>
 
-// Внешние переменные и ресурсы
+// Внешние переменные/ресурсы определены в C-модулях (main.c).
+// Используем C-линковку, чтобы избежать манглинга имён символов в C++ и сделать линковку детерминированной.
+extern "C" {
 extern UART_HandleTypeDef huart4;  // UART для связи с сервером
-extern osSemaphoreId_t PR_RX_Compl_SemHandle;  // Семафор приема
-extern osSemaphoreId_t PR_TX_Compl_SemHandle;  // Семафор передачи
-extern SENSOR_typedef_t Sensor_array[SQ];  // Массив датчиков и модулей
-extern unsigned int TimeFromStart;  // время устройства (секунды от старта), используется в телеметрии
+extern osSemaphoreId_t PR_TX_Compl_SemHandle;  // завершение передачи (UART4)
+extern osSemaphoreId_t UART4_CMD_RX_SemHandle;  // завершение приёма сервера (UART4)
+extern SENSOR_typedef_t Sensor_array[SQ];  // массив датчиков
+extern unsigned int TimeFromStart;  // время устройства в секундах
+}
 
 // Буферы для приема команд
 static uint8_t RX_CMD_Buffer[CMD_MAX_LENGTH];
@@ -162,6 +165,7 @@ void CommandReceiver_Init(void)
     // Запускаем первый цикл приёма данных.
     // После получения данных и события IDLE прерывание автоматически перезапустит приём.
     // Получается непрерывный цикл: приём → IDLE → прерывание → перезапуск → приём.
+    UART4_SetOwner_Server();
     HAL_UARTEx_ReceiveToIdle_DMA(&huart4, RX_CMD_Buffer, CMD_MAX_LENGTH);
     
     // Отключаем прерывание половины приема
@@ -661,7 +665,7 @@ CommandStatus_t CommandReceiver_ReceiveCommand(Command_t *cmd)
     }
     
     // Ждем получения заголовка
-    semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 1000); // 1 секунда на заголовок
+    semStatus = osSemaphoreAcquire(UART4_CMD_RX_SemHandle, 1000); // 1 секунда на заголовок
     
     if (semStatus != osOK)
     {
@@ -692,7 +696,7 @@ CommandStatus_t CommandReceiver_ReceiveCommand(Command_t *cmd)
         }
         
         // Ждем получения данных
-        semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 2000); // 2 секунды на данные
+        semStatus = osSemaphoreAcquire(UART4_CMD_RX_SemHandle, 2000); // 2 секунды на данные
         
         if (semStatus != osOK)
         {
@@ -713,7 +717,7 @@ CommandStatus_t CommandReceiver_ReceiveCommand(Command_t *cmd)
     }
     
     // Ждем получения CRC
-    semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 1000); // 1 секунда на CRC
+    semStatus = osSemaphoreAcquire(UART4_CMD_RX_SemHandle, 1000); // 1 секунда на CRC
     
     if (semStatus != osOK)
     {
@@ -745,7 +749,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
 {
     Command_t receivedCommand;
     CommandStatus_t cmdStatus;
-    static uint8_t localBuffer[CMD_MAX_LENGTH];  // Static для экономии стека
+    static uint8_t localBuffer[CMD_MAX_LENGTH];  // static для экономии стека
 
     g_commandReceiverHandling = 1;
     g_currentCmdSkipAudit = 0;
@@ -925,7 +929,7 @@ void CommandReceiver_OnDataReceived(uint16_t receivedSize)
     RX_ReceivedSize = receivedSize;
     
     // Освобождаем семафор для уведомления потока
-    osSemaphoreRelease(PR_RX_Compl_SemHandle);
+    osSemaphoreRelease(UART4_CMD_RX_SemHandle);
     
     // Перезапускаем прием для следующего сообщения
     CommandReceiver_RestartReception();
@@ -979,7 +983,7 @@ void CommandReceiver_Task(void *argument)
         CommandReceiver_ProcessControlBitTimers();
         
         // Ждем семафор от прерывания о получении данных (с таймаутом для проверки таймеров)
-        osStatus_t semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100);
+        osStatus_t semStatus = osSemaphoreAcquire(UART4_CMD_RX_SemHandle, 100);
         
         if (semStatus == osOK && RX_ReceivedSize > 0)
         {

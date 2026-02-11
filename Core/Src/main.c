@@ -17,32 +17,32 @@
   ******************************************************************************
   */
 /* USER CODE END Header */
-/* Includes ------------------------------------------------------------------*/
+/* Подключаемые заголовки ----------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
 #include "app_touchgfx.h"
 
-/* Private includes ----------------------------------------------------------*/
+/* Локальные заголовки -------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Components/ili9341/ili9341.h"
 #include "C2CPP.hpp"
 #include "CommandReceiver.hpp"
 #include "FreeRTOS.h"
 
-/* FreeRTOS Heap (64 КБ) размещен в основной SRAM (доступен для DMA) */
+/* Куча FreeRTOS (64 КБ) размещена в основной SRAM (доступна для DMA) */
 __attribute__((aligned(8)))
 uint8_t ucHeap[65536];  // Явно указываем размер вместо configTOTAL_HEAP_SIZE
 
 /* USER CODE END Includes */
 
-/* Private typedef -----------------------------------------------------------*/
+/* Локальные типы ------------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
 
-/* Private define ------------------------------------------------------------*/
+/* Локальные определения -----------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define REFRESH_COUNT           ((uint32_t)1386)   /* SDRAM refresh counter */
+#define REFRESH_COUNT           ((uint32_t)1386)   /* счётчик обновления SDRAM */
 #define SDRAM_TIMEOUT           ((uint32_t)0xFFFF)
 
 /**
@@ -60,19 +60,19 @@ uint8_t ucHeap[65536];  // Явно указываем размер вместо
 #define SDRAM_MODEREG_WRITEBURST_MODE_PROGRAMMED ((uint16_t)0x0000)
 #define SDRAM_MODEREG_WRITEBURST_MODE_SINGLE     ((uint16_t)0x0200)
 
-#define I2C3_TIMEOUT_MAX                    0x3000 /*<! The value of the maximal timeout for I2C waiting loops */
+#define I2C3_TIMEOUT_MAX                    0x3000 /*<! максимальный таймаут ожидания в циклах I2C */
 #define SPI5_TIMEOUT_MAX                    0x1000
 
-#define MSGQUEUE_OBJECTS        6       // number of Message Queue Objects
-#define MSGQUEUE_OBJECT_SIZE	80		// size of one object in queue
+#define MSGQUEUE_OBJECTS        6       // количество объектов в очереди сообщений
+#define MSGQUEUE_OBJECT_SIZE	80		// размер одного объекта в очереди
 /* USER CODE END PD */
 
-/* Private macro -------------------------------------------------------------*/
+/* Локальные макросы ---------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
 /* USER CODE END PM */
 
-/* Private variables ---------------------------------------------------------*/
+/* Локальные переменные ------------------------------------------------------*/
 CRC_HandleTypeDef hcrc;
 
 DMA2D_HandleTypeDef hdma2d;
@@ -93,35 +93,35 @@ DMA_HandleTypeDef hdma_uart5_tx;
 SDRAM_HandleTypeDef hsdram1;
 
 // ПОТОКИ
-/* Definitions for defaultTask */
+/* Описания для defaultTask */
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for GUI_Task */
+/* Описания для GUI_Task */
 osThreadId_t GUI_TaskHandle;
 const osThreadAttr_t GUI_Task_attributes = {
   .name = "GUI_Task",
   .stack_size = 4736 * 4,  // Уменьшено с 5632 до 4736 (экономия ~3.5 КБ для решения проблемы RAM)
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Definitions for DataProcessing */
+/* Описания для DataProcessing */
 osThreadId_t DataProcessingHandle;
 const osThreadAttr_t DataProcessing_attributes = {
   .name = "DataProcessing",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for ReadData */
+/* Описания для ReadData */
 osThreadId_t ReadDataHandle;
 const osThreadAttr_t ReadData_attributes = {
   .name = "ReadData",
   .stack_size = 320 * 4,  // Уменьшено с 384 до 320 (экономия 256 байт)
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for RX_From_Server */
+/* Описания для RX_From_Server */
 osThreadId_t RX_From_ServerHandle;
 const osThreadAttr_t RX_From_Server_attributes = {
   .name = "RX_From_Server",
@@ -130,44 +130,50 @@ const osThreadAttr_t RX_From_Server_attributes = {
 };
 
 // ТАЙМЕРЫ
-/* Definitions for DataTimer */
+/* Описания для DataTimer */
 osTimerId_t DataTimerHandle;
 const osTimerAttr_t DataTimer_attributes = {
   .name = "DataTimer"
 };
-/* Definitions for TX_Compl_Sem */
+/* Описания для TX_Compl_Sem */
 osSemaphoreId_t TX_Compl_SemHandle;
 const osSemaphoreAttr_t TX_Compl_Sem_attributes = {
   .name = "TX_Compl_Sem"
 };
-/* Definitions for RX_Compl_Sem */
+/* Описания для RX_Compl_Sem */
 osSemaphoreId_t RX_Compl_SemHandle;
 const osSemaphoreAttr_t RX_Compl_Sem_attributes = {
   .name = "RX_Compl_Sem"
 };
-/* Definitions for PR_TX_Compl_Sem */
+/* Описания для PR_TX_Compl_Sem */
 osSemaphoreId_t PR_TX_Compl_SemHandle;
 const osSemaphoreAttr_t PR_TX_Compl_Sem_attributes = {
   .name = "PR_TX_Compl_Sem"
 };
-/* Definitions for PR_RX_Compl_Sem */
+/* Описания для PR_RX_Compl_Sem */
 osSemaphoreId_t PR_RX_Compl_SemHandle;
 const osSemaphoreAttr_t PR_RX_Compl_Sem_attributes = {
   .name = "PR_RX_Compl_Sem"
 };
 
-/* Definitions for UART4_RX_Event_Sem */
+/* Описания для UART4_CMD_RX_Sem */
+osSemaphoreId_t UART4_CMD_RX_SemHandle;
+const osSemaphoreAttr_t UART4_CMD_RX_Sem_attributes = {
+  .name = "UART4_CMD_RX_Sem"
+};
+
+/* Описания для UART4_RX_Event_Sem */
 osSemaphoreId_t UART4_RX_Event_SemHandle;
 const osSemaphoreAttr_t UART4_RX_Event_Sem_attributes = {
   .name = "UART4_RX_Event_Sem"
 };
 
-/* Definitions for UART4_Mutex */
+/* Описания для UART4_Mutex */
 osMutexId_t UART4_MutexHandle;
 const osMutexAttr_t UART4_Mutex_attributes = {
   .name = "UART4_Mutex"
 };
-/* Definitions for ReadDataEvent */
+/* Описания для ReadDataEvent */
 osEventFlagsId_t ReadDataEventHandle;
 const osEventFlagsAttr_t ReadDataEvent_attributes = {
   .name = "ReadDataEvent"
@@ -175,7 +181,7 @@ const osEventFlagsAttr_t ReadDataEvent_attributes = {
 
 /* USER CODE BEGIN PV */
 
-/* Definitions for TX_To_Server */
+/* Описания для TX_To_Server */
 osThreadId_t TX_To_ServerHandle;
 const osThreadAttr_t TX_To_Server_attributes = {
   .name = "TX_To_Server",
@@ -183,7 +189,7 @@ const osThreadAttr_t TX_To_Server_attributes = {
   .priority = (osPriority_t) osPriorityLow,
 };
 
-/* Definitions for Data_Queue */
+/* Описания для Data_Queue */
 osMessageQueueId_t Data_QueueHandle;
 const osMessageQueueAttr_t Data_Queue_attributes = {
   .name = "Data_Queue"
@@ -191,7 +197,7 @@ const osMessageQueueAttr_t Data_Queue_attributes = {
 
 /* USER CODE END PV */
 
-/* Private function prototypes -----------------------------------------------*/
+/* Прототипы локальных функций ----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
@@ -219,19 +225,19 @@ static uint8_t            I2C3_ReadData(uint8_t Addr, uint8_t Reg);
 static void               I2C3_WriteData(uint8_t Addr, uint8_t Reg, uint8_t Value);
 static uint8_t            I2C3_ReadBuffer(uint8_t Addr, uint8_t Reg, uint8_t *pBuffer, uint16_t Length);
 
-/* SPIx bus function */
+/* Функции шины SPIx */
 static void               SPI5_Write(uint16_t Value);
 static uint32_t           SPI5_Read(uint8_t ReadSize);
 static void               SPI5_Error(void);
 
-/* Link function for LCD peripheral */
+/* Связующие функции для LCD периферии */
 void                      LCD_IO_Init(void);
 void                      LCD_IO_WriteData(uint16_t RegValue);
 void                      LCD_IO_WriteReg(uint8_t Reg);
 uint32_t                  LCD_IO_ReadData(uint16_t RegValue, uint8_t ReadSize);
 void                      LCD_Delay(uint32_t delay);
 
-/* IOExpander IO functions */
+/* IO-функции расширителя ввода-вывода */
 void                      IOE_Init(void);
 void                      IOE_ITConfig(void);
 void                      IOE_Delay(uint32_t Delay);
@@ -241,12 +247,12 @@ uint16_t                  IOE_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *p
 
 /* USER CODE END PFP */
 
-/* Private user code ---------------------------------------------------------*/
+/* Пользовательский код ------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 static LCD_DrvTypeDef* LcdDrv;
 
-uint32_t I2c3Timeout = I2C3_TIMEOUT_MAX; /*<! Value of Timeout when I2C communication fails */
-uint32_t Spi5Timeout = SPI5_TIMEOUT_MAX; /*<! Value of Timeout when SPI communication fails */
+uint32_t I2c3Timeout = I2C3_TIMEOUT_MAX; /*<! таймаут при сбое обмена по I2C */
+uint32_t Spi5Timeout = SPI5_TIMEOUT_MAX; /*<! таймаут при сбое обмена по SPI */
 /* USER CODE END 0 */
 
 /**
@@ -259,23 +265,23 @@ int main(void)
 
   /* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+  /* Конфигурация MCU --------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  /* Сброс всех периферийных блоков, инициализация Flash и SysTick. */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
 
-  /* Configure the system clock */
+  /* Настройка системной частоты */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
+  /* Инициализация всех настроенных периферийных блоков */
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_CRC_Init();
@@ -287,7 +293,7 @@ int main(void)
   MX_UART5_Init();
   MX_UART4_Init();
   MX_TouchGFX_Init();
-  /* Call PreOsInit function */
+  /* Вызов функции PreOsInit */
   MX_TouchGFX_PreOSInit();
   /* USER CODE BEGIN 2 */
   
@@ -300,14 +306,14 @@ int main(void)
   
   /* USER CODE END 2 */
 
-  /* Init scheduler */
+  /* Инициализация планировщика */
   osKernelInitialize();
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
-  /* Create the semaphores(s) */
+  /* Создание семафоров */
   /* creation of TX_Compl_Sem */
   TX_Compl_SemHandle = osSemaphoreNew(1, 0, &TX_Compl_Sem_attributes);
 
@@ -320,6 +326,9 @@ int main(void)
   /* creation of PR_RX_Compl_Sem */
   PR_RX_Compl_SemHandle = osSemaphoreNew(1, 0, &PR_RX_Compl_Sem_attributes);
 
+  /* creation of UART4_CMD_RX_Sem */
+  UART4_CMD_RX_SemHandle = osSemaphoreNew(1, 0, &UART4_CMD_RX_Sem_attributes);
+
   /* creation of UART4_RX_Event_Sem */
   UART4_RX_Event_SemHandle = osSemaphoreNew(1, 0, &UART4_RX_Event_Sem_attributes);
 
@@ -330,7 +339,7 @@ int main(void)
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
-  /* Create the timer(s) */
+  /* Создание таймеров */
   /* creation of DataTimer */
   DataTimerHandle = osTimerNew(Callback01, osTimerPeriodic, NULL, &DataTimer_attributes);
 
@@ -340,12 +349,12 @@ int main(void)
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
-  /* Create the queue(s) */
+  /* Создание очередей */
   /* creation of Data_Queue */
   Data_QueueHandle = osMessageQueueNew (MSGQUEUE_OBJECTS, MSGQUEUE_OBJECT_SIZE, &Data_Queue_attributes);
   /* USER CODE END RTOS_QUEUES */
 
-  /* Create the thread(s) */
+  /* Создание потоков */
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
   /* creation of GUI_Task */
@@ -362,18 +371,18 @@ int main(void)
   RX_From_ServerHandle = osThreadNew(CommandReceiver_Task_C, NULL, &RX_From_Server_attributes);
   /* USER CODE END RTOS_THREADS */
 
-  /* Create the event(s) */
+  /* Создание событий */
 
   /* USER CODE BEGIN RTOS_EVENTS */
   /* creation of ReadDataEvent */
   ReadDataEventHandle = osEventFlagsNew(&ReadDataEvent_attributes);
   /* USER CODE END RTOS_EVENTS */
 
-  /* Start scheduler */
+  /* Запуск планировщика */
   osKernelStart();
 
-  /* We should never get here as control is now taken by the scheduler */
-  /* Infinite loop */
+  /* Сюда не должны попадать: управление передано планировщику */
+  /* Бесконечный цикл */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
@@ -863,7 +872,7 @@ static void BSP_SDRAM_Initialization_Sequence(SDRAM_HandleTypeDef *hsdram, FMC_S
 {
  __IO uint32_t tmpmrd =0;
 
-  /* Step 1:  Configure a clock configuration enable command */
+  /* Шаг 1: включение тактирования SDRAM */
   Command->CommandMode             = FMC_SDRAM_CMD_CLK_ENABLE;
   Command->CommandTarget           = FMC_SDRAM_CMD_TARGET_BANK2;
   Command->AutoRefreshNumber       = 1;
@@ -872,11 +881,11 @@ static void BSP_SDRAM_Initialization_Sequence(SDRAM_HandleTypeDef *hsdram, FMC_S
   /* Send the command */
   HAL_SDRAM_SendCommand(hsdram, Command, SDRAM_TIMEOUT);
 
-  /* Step 2: Insert 100 us minimum delay */
+  /* Шаг 2: минимальная задержка 100 мкс */
   /* Inserted delay is equal to 1 ms due to systick time base unit (ms) */
   HAL_Delay(1);
 
-  /* Step 3: Configure a PALL (precharge all) command */
+  /* Шаг 3: команда PALL (предзаряд всех банков) */
   Command->CommandMode             = FMC_SDRAM_CMD_PALL;
   Command->CommandTarget           = FMC_SDRAM_CMD_TARGET_BANK2;
   Command->AutoRefreshNumber       = 1;
@@ -885,7 +894,7 @@ static void BSP_SDRAM_Initialization_Sequence(SDRAM_HandleTypeDef *hsdram, FMC_S
   /* Send the command */
   HAL_SDRAM_SendCommand(hsdram, Command, SDRAM_TIMEOUT);
 
-  /* Step 4: Configure an Auto Refresh command */
+  /* Шаг 4: команда Auto Refresh */
   Command->CommandMode             = FMC_SDRAM_CMD_AUTOREFRESH_MODE;
   Command->CommandTarget           = FMC_SDRAM_CMD_TARGET_BANK2;
   Command->AutoRefreshNumber       = 4;
@@ -894,7 +903,7 @@ static void BSP_SDRAM_Initialization_Sequence(SDRAM_HandleTypeDef *hsdram, FMC_S
   /* Send the command */
   HAL_SDRAM_SendCommand(hsdram, Command, SDRAM_TIMEOUT);
 
-  /* Step 5: Program the external memory mode register */
+  /* Шаг 5: программирование регистра режима внешней памяти */
   tmpmrd = (uint32_t)SDRAM_MODEREG_BURST_LENGTH_1          |
                      SDRAM_MODEREG_BURST_TYPE_SEQUENTIAL   |
                      SDRAM_MODEREG_CAS_LATENCY_3           |
@@ -909,34 +918,32 @@ static void BSP_SDRAM_Initialization_Sequence(SDRAM_HandleTypeDef *hsdram, FMC_S
   /* Send the command */
   HAL_SDRAM_SendCommand(hsdram, Command, SDRAM_TIMEOUT);
 
-  /* Step 6: Set the refresh rate counter */
-  /* Set the device refresh rate */
+  /* Шаг 6: установка счётчика обновления */
+  /* Установка частоты обновления устройства */
   HAL_SDRAM_ProgramRefreshRate(hsdram, REFRESH_COUNT);
 }
 
 /**
-  * @brief  IOE Low Level Initialization.
+  * @brief  Низкоуровневая инициализация IOE.
   */
 void IOE_Init(void)
 {
-  //Dummy function called when initializing to stmpe811 to setup the i2c.
-  //This is done with cubmx and is therfore not done here.
+  // Пустая функция: инициализация STMPE811 для I2C выполняется в CubeMX, поэтому здесь не требуется.
 }
 
 /**
-  * @brief  IOE Low Level Interrupt configuration.
+  * @brief  Низкоуровневая настройка прерываний IOE.
   */
 void IOE_ITConfig(void)
 {
-  //Dummy function called when initializing to stmpe811 to setup interupt for the i2c.
-  //The interupt is not used in our case, therefore nothing is done here.
+  // Пустая функция: настройка прерываний STMPE811 не используется в этом проекте.
 }
 
 /**
-  * @brief  IOE Writes single data operation.
-  * @param  Addr: I2C Address
-  * @param  Reg: Reg Address
-  * @param  Value: Data to be written
+  * @brief  IOE: запись одного байта данных.
+  * @param  Addr: адрес I2C
+  * @param  Reg: адрес регистра
+  * @param  Value: записываемые данные
   */
 void IOE_Write(uint8_t Addr, uint8_t Reg, uint8_t Value)
 {
@@ -944,10 +951,10 @@ void IOE_Write(uint8_t Addr, uint8_t Reg, uint8_t Value)
 }
 
 /**
-  * @brief  IOE Reads single data.
-  * @param  Addr: I2C Address
-  * @param  Reg: Reg Address
-  * @retval The read data
+  * @brief  IOE: чтение одного байта данных.
+  * @param  Addr: адрес I2C
+  * @param  Reg: адрес регистра
+  * @retval прочитанные данные
   */
 uint8_t IOE_Read(uint8_t Addr, uint8_t Reg)
 {
@@ -955,12 +962,12 @@ uint8_t IOE_Read(uint8_t Addr, uint8_t Reg)
 }
 
 /**
-  * @brief  IOE Reads multiple data.
-  * @param  Addr: I2C Address
-  * @param  Reg: Reg Address
-  * @param  pBuffer: pointer to data buffer
-  * @param  Length: length of the data
-  * @retval 0 if no problems to read multiple data
+  * @brief  IOE: чтение нескольких байт данных.
+  * @param  Addr: адрес I2C
+  * @param  Reg: адрес регистра
+  * @param  pBuffer: указатель на буфер данных
+  * @param  Length: длина данных
+  * @retval 0 при успешном чтении
   */
 uint16_t IOE_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *pBuffer, uint16_t Length)
 {
@@ -968,8 +975,8 @@ uint16_t IOE_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *pBuffer, uint16_t 
 }
 
 /**
-  * @brief  IOE Delay.
-  * @param  Delay in ms
+  * @brief  Задержка IOE.
+  * @param  Delay задержка в мс
   */
 void IOE_Delay(uint32_t Delay)
 {
@@ -977,10 +984,10 @@ void IOE_Delay(uint32_t Delay)
 }
 
 /**
-  * @brief  Writes a value in a register of the device through BUS.
-  * @param  Addr: Device address on BUS Bus.
-  * @param  Reg: The target register address to write
-  * @param  Value: The target register value to be written
+  * @brief  Запись значения в регистр устройства по шине.
+  * @param  Addr: адрес устройства на шине
+  * @param  Reg: адрес регистра для записи
+  * @param  Value: значение для записи
   */
 static void I2C3_WriteData(uint8_t Addr, uint8_t Reg, uint8_t Value)
 {
@@ -988,19 +995,19 @@ static void I2C3_WriteData(uint8_t Addr, uint8_t Reg, uint8_t Value)
 
   status = HAL_I2C_Mem_Write(&hi2c3, Addr, (uint16_t)Reg, I2C_MEMADD_SIZE_8BIT, &Value, 1, I2c3Timeout);
 
-  /* Check the communication status */
+  /* Проверка статуса обмена */
   if(status != HAL_OK)
   {
-    /* Re-Initialize the BUS */
+    /* Переинициализация шины */
     //I2Cx_Error();
   }
 }
 
 /**
-  * @brief  Reads a register of the device through BUS.
-  * @param  Addr: Device address on BUS Bus.
-  * @param  Reg: The target register address to write
-  * @retval Data read at register address
+  * @brief  Чтение регистра устройства по шине.
+  * @param  Addr: адрес устройства на шине
+  * @param  Reg: адрес регистра
+  * @retval данные, прочитанные по адресу регистра
   */
 static uint8_t I2C3_ReadData(uint8_t Addr, uint8_t Reg)
 {
@@ -1009,10 +1016,10 @@ static uint8_t I2C3_ReadData(uint8_t Addr, uint8_t Reg)
 
   status = HAL_I2C_Mem_Read(&hi2c3, Addr, Reg, I2C_MEMADD_SIZE_8BIT, &value, 1, I2c3Timeout);
 
-  /* Check the communication status */
+  /* Проверка статуса обмена */
   if(status != HAL_OK)
   {
-    /* Re-Initialize the BUS */
+    /* Переинициализация шины */
     //I2Cx_Error();
 
   }
@@ -1020,12 +1027,12 @@ static uint8_t I2C3_ReadData(uint8_t Addr, uint8_t Reg)
 }
 
 /**
-  * @brief  Reads multiple data on the BUS.
-  * @param  Addr: I2C Address
-  * @param  Reg: Reg Address
-  * @param  pBuffer: pointer to read data buffer
-  * @param  Length: length of the data
-  * @retval 0 if no problems to read multiple data
+  * @brief  Чтение нескольких байт по шине.
+  * @param  Addr: адрес I2C
+  * @param  Reg: адрес регистра
+  * @param  pBuffer: указатель на буфер для чтения
+  * @param  Length: длина данных
+  * @retval 0 при успешном чтении
   */
 static uint8_t I2C3_ReadBuffer(uint8_t Addr, uint8_t Reg, uint8_t *pBuffer, uint16_t Length)
 {
@@ -1033,14 +1040,14 @@ static uint8_t I2C3_ReadBuffer(uint8_t Addr, uint8_t Reg, uint8_t *pBuffer, uint
 
   status = HAL_I2C_Mem_Read(&hi2c3, Addr, (uint16_t)Reg, I2C_MEMADD_SIZE_8BIT, pBuffer, Length, I2c3Timeout);
 
-  /* Check the communication status */
+  /* Проверка статуса обмена */
   if(status == HAL_OK)
   {
     return 0;
   }
   else
   {
-    /* Re-Initialize the BUS */
+    /* Переинициализация шины */
     //I2Cx_Error();
 
     return 1;
@@ -1049,9 +1056,9 @@ static uint8_t I2C3_ReadBuffer(uint8_t Addr, uint8_t Reg, uint8_t *pBuffer, uint
 
 
 /**
-  * @brief  Reads 4 bytes from device.
-  * @param  ReadSize: Number of bytes to read (max 4 bytes)
-  * @retval Value read on the SPI
+  * @brief  Чтение 4 байт с устройства.
+  * @param  ReadSize: количество байт для чтения (макс. 4)
+  * @retval значение, прочитанное по SPI
   */
 static uint32_t SPI5_Read(uint8_t ReadSize)
 {
@@ -1060,10 +1067,10 @@ static uint32_t SPI5_Read(uint8_t ReadSize)
 
   status = HAL_SPI_Receive(&hspi5, (uint8_t*) &readvalue, ReadSize, Spi5Timeout);
 
-  /* Check the communication status */
+  /* Проверка статуса обмена */
   if(status != HAL_OK)
   {
-    /* Re-Initialize the BUS */
+    /* Переинициализация шины */
     SPI5_Error();
   }
 
@@ -1071,8 +1078,8 @@ static uint32_t SPI5_Read(uint8_t ReadSize)
 }
 
 /**
-  * @brief  Writes a byte to device.
-  * @param  Value: value to be written
+  * @brief  Запись байта в устройство.
+  * @param  Value: значение для записи
   */
 static void SPI5_Write(uint16_t Value)
 {
@@ -1080,62 +1087,62 @@ static void SPI5_Write(uint16_t Value)
 
   status = HAL_SPI_Transmit(&hspi5, (uint8_t*) &Value, 1, Spi5Timeout);
 
-  /* Check the communication status */
+  /* Проверка статуса обмена */
   if(status != HAL_OK)
   {
-    /* Re-Initialize the BUS */
+    /* Переинициализация шины */
     SPI5_Error();
   }
 }
 
 /**
-  * @brief  SPI5 error treatment function.
+  * @brief  Обработка ошибки SPI5.
   */
 static void SPI5_Error(void)
 {
-  /* De-initialize the SPI communication BUS */
+  /* Деинициализация шины SPI */
   //HAL_SPI_DeInit(&SpiHandle);
 
-  /* Re- Initialize the SPI communication BUS */
+  /* Переинициализация шины SPI */
   //SPIx_Init();
 }
 
 void LCD_IO_Init(void)
 {
-  /* Set or Reset the control line */
+  /* Установить/сбросить управляющую линию */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
 }
 
 /**
-  * @brief  Writes register value.
+  * @brief  Запись значения регистра.
   */
 void LCD_IO_WriteData(uint16_t RegValue)
 {
-  /* Set WRX to send data */
+  /* Установить WRX для передачи данных */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_SET);
 
-  /* Reset LCD control line(/CS) and Send data */
+  /* Сбросить линию управления LCD (/CS) и передать данные */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
   SPI5_Write(RegValue);
 
-  /* Deselect: Chip Select high */
+  /* Снять выбор: CS в 1 */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
 }
 
 /**
-  * @brief  Writes register address.
+  * @brief  Запись адреса регистра.
   */
 void LCD_IO_WriteReg(uint8_t Reg)
 {
-  /* Reset WRX to send command */
+  /* Сбросить WRX для передачи команды */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, GPIO_PIN_RESET);
 
-  /* Reset LCD control line(/CS) and Send command */
+  /* Сбросить линию управления LCD (/CS) и передать команду */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
   SPI5_Write(Reg);
 
-  /* Deselect: Chip Select high */
+  /* Снять выбор: CS в 1 */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
 }
 

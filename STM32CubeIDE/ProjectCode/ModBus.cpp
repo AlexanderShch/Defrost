@@ -13,14 +13,39 @@
 
 #define  MAX_MB_BUFSIZE 64						// максимальный размер пакета UART4 (телеметрия+SYNC и ответы на команды должны помещаться)
 
-extern UART_HandleTypeDef huart4;				// для программирования датчиков
-extern UART_HandleTypeDef huart5;				// для считывания данных с датчиков
-extern osSemaphoreId_t TX_Compl_SemHandle;		// семафор окончания передачи датчикам
-extern osSemaphoreId_t RX_Compl_SemHandle;		// семафор окончания приёма от датчиков
-extern osSemaphoreId_t PR_TX_Compl_SemHandle;	// семафор окончания приёма при программировании
-extern osSemaphoreId_t PR_RX_Compl_SemHandle;	// семафор окончания передачи при программировании
-extern osSemaphoreId_t UART4_RX_Event_SemHandle; // событие UART4 RX-to-IDLE (отдельное, нельзя разделять с CommandReceiver)
-extern osMutexId_t UART4_MutexHandle;			// мьютекс для защиты доступа к UART4
+extern "C" {
+extern UART_HandleTypeDef huart4;				// UART4: программирование датчиков и связь с сервером
+extern UART_HandleTypeDef huart5;				// UART5: опрос датчиков в рабочем режиме
+extern osSemaphoreId_t TX_Compl_SemHandle;		// завершение передачи к датчикам
+extern osSemaphoreId_t RX_Compl_SemHandle;		// завершение приёма от датчиков
+extern osSemaphoreId_t PR_TX_Compl_SemHandle;	// завершение передачи UART4 (общий)
+extern osSemaphoreId_t PR_RX_Compl_SemHandle;	// завершение приёма UART4 в режиме программирования
+extern osSemaphoreId_t UART4_RX_Event_SemHandle; // событие UART4 RX-to-IDLE (для арбитража с сервером)
+extern osMutexId_t UART4_MutexHandle;			// защита переходов владения UART4
+}
+
+typedef enum
+{
+	UART4_OWNER_SERVER = 0,
+	UART4_OWNER_PROGRAMMING = 1
+} UART4_Owner_t;
+
+static volatile UART4_Owner_t g_uart4Owner = UART4_OWNER_SERVER;
+
+extern "C" void UART4_SetOwner_Server(void)
+{
+	g_uart4Owner = UART4_OWNER_SERVER;
+}
+
+extern "C" void UART4_SetOwner_Programming(void)
+{
+	g_uart4Owner = UART4_OWNER_PROGRAMMING;
+}
+
+extern "C" uint8_t UART4_IsOwner_Programming(void)
+{
+	return (g_uart4Owner == UART4_OWNER_PROGRAMMING) ? 1 : 0;
+}
 
 // Объявления функций CommandReceiver
 void CommandReceiver_OnDataReceived(uint16_t receivedSize);
@@ -28,12 +53,12 @@ void CommandReceiver_RestartReception(void);
 
 extern unsigned int TimeFromStart;
 extern uint16_t RelayRegister;	// временная переменная, заменяющая регистр аппаратного управления устройствами
-												// volatile - может изменяться другими потоками
+												// volatile: может изменяться другими потоками
 
 uint8_t MB_MasterTx_Buffer[MAX_MB_BUFSIZE] = {0};
 uint8_t MB_MasterRx_Buffer[MAX_MB_BUFSIZE] = {0};
-using MultWR_t = int8_t[8];						// Тип данных - Буфер для данных mult команд записи в устройство ModBus
-MultWR_t WR_Buffer = {0};						// Обявление буфера для mult команд
+using MultWR_t = int8_t[8];						// Тип данных - буфер для данных множественных команд записи в устройство ModBus
+MultWR_t WR_Buffer = {0};						// Объявление буфера для множественных команд
 
 uint16_t master_rec_byte_count = 0;
 uint8_t FrameDelay1 = 30;						// Задержка между фреймами рабочая
@@ -46,12 +71,12 @@ uint8_t FrameDelay1 = 30;						// Задержка между фреймами �
 */
 
 uint16_t MB_TransactionHandler();
-osStatus_t resultSem;			/* status семафора:  	osOK: токен получен, и количество токенов уменьшено.
+osStatus_t resultSem;			/* статус семафора:  	osOK: токен получен, и количество токенов уменьшено.
 														osErrorTimeout: не удалось получить токен в заданное время.
 														osErrorResource: не удалось получить токен, если не был указан тайм-аут.
 														osErrorParameter: параметр semaphore_id имеет значение NULL или недопустим */
 
-/*CRC16-CITT tables*/
+/*Таблицы CRC16-CITT*/
 const uint16_t crc16_table[] =
   {
     0x0000, 0xc0c1, 0xc181, 0x0140, 0xc301, 0x03c0, 0x0280, 0xc241,0xc601, 0x06c0, 0x0780, 0xc741, 0x0500, 0xc5c1, 0xc481, 0x0440,
@@ -80,17 +105,17 @@ SENSOR_Type_t Sensor_type[STQ] =
 		{0, "Null"},			// 0 - нет датчика
 		{1, "Double T&H"},		// 1 - совмещенный температура и влажность GL-TH04-MT
 		{2, "Single T"},		// 2 - датчик температуры РТ100 с RS485
-		{3, "BT T"},			// 3 - датчик температуры BlueTooth
+		{3, "BT T"},			// 3 - датчик температуры Bluetooth
 		{4, "MB IO"}			// 4 - модуль ввода-вывода MB 16DI-16RO
 };
 
 SENSOR_typedef_t Sensor_array[SQ] =
 {
-		{101,3,0,1,"Left def", 0,0,0,0},		// 0 - defroster left, 	GL-TH04-MT
-		{102,3,0,1,"Right def",0,0,0,0},		// 1 - defroster right,	GL-TH04-MT
-		{103,3,0,1,"Center def",0,0,0,0},		// 2 - defroster center,GL-TH04-MT
-		{104,3,0,2,"Left prod",0,0,0,0},		// 3 - fish left, 		РТ100 с RS485
-		{105,3,0,2,"Right prod",0,0,0,0},		// 4 - fish right,		РТ100 с RS485
+		{101,3,0,1,"Left def", 0,0,0,0},		// 0 - дефростер левый, 	GL-TH04-MT
+		{102,3,0,1,"Right def",0,0,0,0},		// 1 - дефростер правый,	GL-TH04-MT
+		{103,3,0,1,"Center def",0,0,0,0},		// 2 - дефростер центральный, GL-TH04-MT
+		{104,3,0,2,"Left prod",0,0,0,0},		// 3 - продукт левый, 		РТ100 с RS485
+		{105,3,0,2,"Right prod",0,0,0,0},		// 4 - продукт правый,		РТ100 с RS485
 		{106,3,0,2,"Body def",0,0,0,0},			// 5 - Т корпуса дефростера,	РТ100 с RS485
 		{002,3,0,4,"MB 16IO",0,0,0,0}			// 6 - модуль ввода-вывода с RS485, диапазон адресов: 2 и 3
 };
@@ -287,14 +312,18 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 		// Открыть семафор окончания приёма, продолжится задача ReadData
 		osSemaphoreRelease(RX_Compl_SemHandle);
 	}
-	else if (huart == &huart4)	// приём команд от сервера
+	else if (huart == &huart4)
 	{
-		// Отдельный сигнал для TX-части: "дождаться завершения текущего RX-кадра".
-		// Должен быть отдельным от сигнализации CommandReceiver, чтобы не красть токены семафора.
-		osSemaphoreRelease(UART4_RX_Event_SemHandle);
+		if (UART4_IsOwner_Programming() != 0)
+		{
+			// Во время программирования датчиков UART4 RX-to-IDLE принадлежит ModBus-транзакциям.
+			// Приём сервера должен быть выключен, чтобы не конкурировать за DMA-буферы и семафоры.
+			osSemaphoreRelease(PR_RX_Compl_SemHandle);
+			return;
+		}
 
-		// Быстро уведомляем поток о получении данных
-		// Обработка будет происходить в потоке RX_From_ServerHandle
+		// Связь с сервером: сигналим и "RX кадр завершён" (для арбитража half-duplex), и CommandReceiver.
+		osSemaphoreRelease(UART4_RX_Event_SemHandle);
 		CommandReceiver_OnDataReceived(Size);
 	}
 }
@@ -318,7 +347,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *Uart) {
 
 /***************************************************************************************/
 
-/*Error handler*/
+/*Обработчик ошибок*/
 uint16_t MB_ErrorHandler(volatile uint8_t * frame, MB_Error_t error) {
     uint16_t txLen = 3;
 //    frame[1] |= 0x80;
@@ -332,11 +361,11 @@ uint16_t MB_ErrorHandler(volatile uint8_t * frame, MB_Error_t error) {
 #define MB_MIN_FRAME_LEN 5
 
 
-/*Handle Received frame*/
+/*Обработка принятого кадра*/
 uint16_t MB_TransactionHandler()
 {
 	uint16_t txLen = 0;
-//	/*Check frame length*/
+//	/*Проверка длины кадра*/
 //	if (len < MB_MIN_FRAME_LEN) return txLen;
 //	uint8_t Adderss = MB_Slave_Buffer[0];
 //	uint8_t Command = MB_Slave_Buffer[1];
@@ -344,7 +373,7 @@ uint16_t MB_TransactionHandler()
 //	uint16_t RegNum = MB_Slave_Buffer[5] | MB_Slave_Buffer[4]<<8;
 //	uint16_t CRC_Sum = MB_Slave_Buffer[6] | MB_Slave_Buffer[7]<<8;
 //	if (Adderss != (uint8_t) MB_SLAVE_ADDRESS) return txLen;
-//	/*Check frame CRC*/
+//	/*Проверка CRC кадра*/
 //	if (CRC_Sum != MB_GetCRC(MB_Slave_Buffer, 6)) return txLen;
 //	switch (Command) {
 //		case MB_CMD_READ_REGS:
@@ -362,24 +391,24 @@ uint16_t MB_TransactionHandler()
 
 /******************* ОБОРУДОВАНИЕ ***********************************/
 /********************************************************************/
-/*Handle Read Registers command*/
+/*Обработчик команды Read Registers*/
 uint16_t MB_ReadRegsHandler(uint16_t StartReg, uint16_t RegNum) {
 //	MB_Error_t error = MB_ERROR_NO;
 	uint16_t txLen = 0;
 //
-//	/*Check address range*/
+//	/*Проверка диапазона адресов*/
 //	if ((StartReg + RegNum) > MB_SLAVE_REG_COUNT)
 //		error = MB_ERROR_WRONG_ADDRESS;
-//	/*Check max regs to read*/
+//	/*Проверка максимального количества регистров для чтения*/
 //	if (RegNum > 126)
 //		error = MB_ERROR_WRONG_VALUE;
 //	if (error == MB_ERROR_NO) {
-//		uint8_t Bytes = RegNum << 1; /* number of bytes*/
+//		uint8_t Bytes = RegNum << 1; /* количество байт */
 //		MB_Slave_Buffer[2] = Bytes;
-//		/*Copy data from memory to frame*/
+//		/*Копирование данных из памяти в кадр*/
 //		memcpy(&MB_Slave_Buffer[3], &(((uint16_t*) &DFR_Reg)[StartReg]), (int) Bytes);
 //		txLen = Bytes + 3;
-//		/*Calculate CRC*/
+//		/*Расчёт CRC*/
 //		uint16_t FrameCRC = MB_GetCRC(MB_Slave_Buffer, txLen);
 //		MB_Slave_Buffer[txLen++] = FrameCRC;
 //		MB_Slave_Buffer[txLen++] = (FrameCRC >> 8);
@@ -449,18 +478,24 @@ void ProgrammingSensor()
 // тип 0 - датчика нет, тип датчика не назначен
 			case 0:
 				break;
-// тип 3 - это датчик температуры BlueTooth
+// тип 3 - это датчик температуры Bluetooth
 			case 3:
 			{
 
 				break;
 			}
-// default  -  к нему относятся:
+// по умолчанию - сюда относятся:
 			// тип 1 - это датчик совмещенного типа Т и Н GL-TH04-MT
 			// тип 2 - это датчик температуры РТ100 с RS485
 			// тип 4 - это модуль ввода-вывода
 			default:
 			{
+				// UART4 общий с сервером. В программировании меняется baud и RX DMA-буфер,
+				// поэтому серверный RX нужно приостановить на всё время программирования.
+				UART4_SetOwner_Programming();
+				HAL_UART_AbortReceive(&huart4);
+				osDelay(2);
+
 				uint8_t TypeOfSens = Model::Type_of_sensor;
 				// цикл будет повторяться, пока оператор не выберет датчик другого типа
 				while (Model::Type_of_sensor == TypeOfSens)
@@ -503,7 +538,7 @@ void ProgrammingSensor()
 					// Нельзя засыпать, удерживая UART4 mutex, иначе ответы на команды могут задерживаться.
 					osDelay(10);
 
-					// If write was requested by UI, perform it as a separate critical section.
+					// Если UI запросил запись, выполняем её отдельной критической секцией.
 					if (Model::Flag_WR_to_sensor == 1)
 					{
 						osStatus_t writeMutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
@@ -514,6 +549,11 @@ void ProgrammingSensor()
 						}
 					}
 				} // конец цикла сканирования и записи в датчик
+
+				// Возвращаем UART4 к настройкам сервера и возобновляем приём команд.
+				PR_UART4_Init(19200);
+				UART4_SetOwner_Server();
+				CommandReceiver_RestartReception();
 				break;
 			}
 		}	// конец оператора switch
@@ -814,7 +854,7 @@ MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreI
 
 static void DrainBinarySemaphore(osSemaphoreId_t sem)
 {
-	// Ensure the next wait observes a fresh RX event, not a stale token.
+	// Гарантируем, что следующее ожидание увидит новое событие, а не "залежавшийся" токен.
 	while (osSemaphoreAcquire(sem, 0) == osOK)
 	{
 	}
@@ -822,14 +862,14 @@ static void DrainBinarySemaphore(osSemaphoreId_t sem)
 
 static MB_Error_t WaitUntilUART4RxFrameCompletes(void)
 {
-	// This helper is only valid for UART4 RX-to-IDLE DMA mode used with the server link.
+	// Хелпер актуален только для UART4 RX-to-IDLE DMA режима, используемого со связью с сервером.
 	HAL_UART_StateTypeDef uartState = HAL_UART_GetState(&huart4);
 	if ((uartState & HAL_UART_STATE_BUSY_RX) != HAL_UART_STATE_BUSY_RX)
 	{
 		return MB_ERROR_NO;
 	}
 
-	// Detect whether bytes are actively arriving or UART is just idling in RX mode.
+	// Определяем, идут ли байты прямо сейчас или UART просто "висит" в режиме ожидания RX.
 	uint32_t dmaCounter1 = __HAL_DMA_GET_COUNTER(huart4.hdmarx);
 	osDelay(1);
 	uint32_t dmaCounter2 = __HAL_DMA_GET_COUNTER(huart4.hdmarx);
@@ -864,10 +904,16 @@ static uint8_t UART4_IsReceivingBytesNow(void)
 MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 {
 	MB_Error_t MB_ERR = MB_ERROR_NO;
-	HAL_StatusTypeDef result;		// status HAL: HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT
-//	Вычислим паузу 1000 бит в миллисекундах для ожидания ответа датчика на шине после запроса
-	double var = (1000 * 1000) / MB->UART->Init.BaudRate;
-	uint8_t pause = uint8_t (var);	// округляем паузу до целой части
+	HAL_StatusTypeDef result;		// статус HAL: HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT
+	// Рассчитываем таймаут примерно на 1000 бит для текущего baud.
+	// Важно: переполнение uint8_t на низких скоростях укорачивает ожидание и даёт ложные таймауты.
+	const uint32_t baud = (uint32_t)MB->UART->Init.BaudRate;
+	const uint32_t pauseMs = (baud == 0u) ? 100u : ((1000000u + baud - 1u) / baud);
+
+	// Гарантируем, что каждая транзакция ждёт новое событие завершения.
+	// "Залежавшийся" токен приведёт к мгновенному выходу из ожидания и разбору пустого/частичного буфера.
+	DrainBinarySemaphore(*MB->Sem_Tx);
+	DrainBinarySemaphore(*MB->Sem_Rx);
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// ВАЖНО! Эта проверка выполняется ТОЛЬКО для UART4 (связь с сервером)
@@ -918,7 +964,7 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 	{
 		// ПЕРЕДАЧА UART ***************************
 		// Ждём, пока UART всё передаст в шину и обработчик прерывания HAL_UART_TxCpltCallback выдаст токен семафора
-		resultSem = osSemaphoreAcquire(*MB->Sem_Tx, pause/portTICK_RATE_MS);
+		resultSem = osSemaphoreAcquire(*MB->Sem_Tx, pauseMs);
 		if (resultSem != osOK)
 		{	// обработка ошибки передачи по UART
 			MB_ERR = MB_ERROR_UART_SEND;
@@ -941,7 +987,7 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 			// последнее значение в очереди = 0, ждём прерывание приёма по IDLE
 			// Ждём, когда приём закончится и прерывание выдаст токен семафора
 			//ответ должен нормально уложиться в 11 байт (1200 -> 9.1 ms на байт, всего на фрейм 72,8 ms), это время функция ждёт токен семафора в состоянии блокировки
-		resultSem = osSemaphoreAcquire(*MB->Sem_Rx, pause/portTICK_RATE_MS);
+		resultSem = osSemaphoreAcquire(*MB->Sem_Rx, pauseMs);
 		if (resultSem != osOK)
 			{	// прерывания не случилось, семафора не дождались, вышли по тайм-ауту
 				MB_ERR = MB_ERROR_UART_RECIEVE;
@@ -1239,6 +1285,12 @@ void WriteToServer(uint8_t* Data, int length)
 	MB_Error_t result;
 	MB_Active_t MB;						// объявляем среду работы с шиной
 
+	if (UART4_IsOwner_Programming() != 0)
+	{
+		// UART4 changes baud rate during programming; server traffic must be suspended.
+		return;
+	}
+
 	// Телеметрия (низкий приоритет) не должна блокировать приём/ответ команд.
 	while (CommandReceiver_IsHandling() != 0)
 	{
@@ -1247,7 +1299,7 @@ void WriteToServer(uint8_t* Data, int length)
 
 	for (;;)
 	{
-		// If a server command frame is arriving right now, wait for it to complete without holding the UART4 mutex.
+		// Если прямо сейчас приходит кадр от сервера, ждём его завершения, не удерживая мьютекс UART4.
 		result = WaitUntilUART4RxFrameCompletes();
 		if (result != MB_ERROR_NO)
 		{
@@ -1264,7 +1316,7 @@ void WriteToServer(uint8_t* Data, int length)
 			return;
 		}
 
-		// Re-check after locking: if CommandReceiver started handling, yield immediately.
+		// Повторная проверка после захвата: если CommandReceiver начал обработку, сразу уступаем.
 		if (CommandReceiver_IsHandling() != 0)
 		{
 			osMutexRelease(UART4_MutexHandle);
@@ -1272,7 +1324,7 @@ void WriteToServer(uint8_t* Data, int length)
 			continue;
 		}
 
-		// If bytes are currently arriving, do not hold the mutex while waiting.
+		// Если байты приходят прямо сейчас, не удерживаем мьютекс во время ожидания.
 		if (UART4_IsReceivingBytesNow() != 0)
 		{
 			osMutexRelease(UART4_MutexHandle);
@@ -1280,7 +1332,7 @@ void WriteToServer(uint8_t* Data, int length)
 			continue;
 		}
 
-		// Ensure RX DMA is stopped before switching RS-485 direction to TX.
+		// Перед переключением направления RS-485 в TX гарантируем остановку RX DMA.
 		HAL_UART_AbortReceive(&huart4);
 		osDelay(2);
 		break;
@@ -1340,6 +1392,12 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 	MB_Error_t result;
 	MB_Active_t MB;
 	static uint8_t TxBufferWithSync[MAX_MB_BUFSIZE];
+
+	if (UART4_IsOwner_Programming() != 0)
+	{
+		// Во время программирования меняется baud UART4, поэтому серверный трафик нужно приостановить.
+		return;
+	}
 	
 	// Проверка размера буфера
 	if ((size_t)(length + 2) > sizeof(TxBufferWithSync))
@@ -1373,7 +1431,7 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 			return;
 		}
 
-		// Re-check after locking: if CommandReceiver started handling, yield immediately.
+		// Повторная проверка после захвата: если CommandReceiver начал обработку, сразу уступаем.
 		if (CommandReceiver_IsHandling() != 0)
 		{
 			osMutexRelease(UART4_MutexHandle);
@@ -1381,7 +1439,7 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 			continue;
 		}
 
-		// If bytes are currently arriving, do not hold the mutex while waiting.
+		// Если байты приходят прямо сейчас, не удерживаем мьютекс во время ожидания.
 		if (UART4_IsReceivingBytesNow() != 0)
 		{
 			osMutexRelease(UART4_MutexHandle);
@@ -1389,7 +1447,7 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 			continue;
 		}
 
-		// Ensure RX DMA is stopped before switching RS-485 direction to TX.
+		// Перед переключением направления RS-485 в TX гарантируем остановку RX DMA.
 		HAL_UART_AbortReceive(&huart4);
 		osDelay(2);
 		break;
@@ -1441,6 +1499,12 @@ void WriteToServerWithSyncHighPriority(uint8_t* Data, int length)
 	MB_Active_t MB;
 	static uint8_t TxBufferWithSync[MAX_MB_BUFSIZE];
 
+	if (UART4_IsOwner_Programming() != 0)
+	{
+		// UART4 changes baud rate during programming; server traffic must be suspended.
+		return;
+	}
+
 	if ((size_t)(length + 2) > sizeof(TxBufferWithSync))
 	{
 		// Резервный вариант: отправить без SYNC-маркеров, но сохранить семантику "высокого приоритета".
@@ -1490,7 +1554,7 @@ void WriteToServerWithSyncHighPriority(uint8_t* Data, int length)
 
 	for (;;)
 	{
-		// If a server frame is currently arriving, wait for it to complete.
+		// Если прямо сейчас приходит кадр от сервера, ждём его завершения.
 		result = WaitUntilUART4RxFrameCompletes();
 		if (result != MB_ERROR_NO)
 		{
