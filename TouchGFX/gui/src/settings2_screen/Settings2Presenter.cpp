@@ -16,3 +16,9 @@ void Settings2Presenter::deactivate()
 {
 
 }
+
+void Settings2Presenter::ValUpdatePresenter()
+{
+	// Обновляем индикацию ворот на экране, если он активен.
+	view.UpdateGateIndicators();
+}

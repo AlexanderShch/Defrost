@@ -34,7 +34,7 @@ typedef struct
 	unsigned _Inj:1;     		// 9 Водяную форсунку включить
 	unsigned Water_Flap:1;		// 10 Закрыть защитную заслонку вытяжного вентилятора
 	unsigned Gate_Up:1;			// 11 Поднять ворота
-	unsigned Gate_Stop:1;		// 12 Остановить движение ворот
+	unsigned Gate_Dbl:1;		// 12 Разблокировать управление воротами
 	unsigned Gate_Down:1;		// 13 Опустить ворота
 	unsigned _Wrk:1;     		// 14 Включить зелёную лампу РАБОТА
 	unsigned _Stp:1;     		// 15 Включить красную лампу СТОП
@@ -92,8 +92,16 @@ public:
     static int8_t getFlagCurrentVal_PR_Chng();							// получить флаг изменения значения адреса и скорости программируемого датчика
 
     static void setDefrostManualGroupEnabled(uint8_t groupIndex1to4, bool enabled);
+    static void setDefrostManualModeEnabled(bool enabled);
     static bool isDefrostManualModeEnabled();
     static bool isDefrostManualGroupEnabled(uint8_t groupIndex1to4);
+
+    // Состояние ворот от модуля ввода-вывода (входные сигналы)
+    static uint8_t Gate_Open;   // бит 13: ворота открыты
+    static uint8_t Gate_Close;  // бит 12: ворота закрыты
+    static uint8_t Gate_Alarm;  // флаг аварийного режима ворот
+    static uint8_t Gate_PosTop;    // флаг конечного положения "ворота вверху" (для аварийного режима)
+    static uint8_t Gate_PosBottom; // флаг конечного положения "ворота внизу" (для аварийного режима)
 
     // программирование
     static int BaudRate_WR_to_sensor;		// скорость для записи в датчик
@@ -132,6 +140,7 @@ protected:
     static uint8_t FlagCurrentValue_PR_sensor;	// флаг изменения текущих значений программирования Т и Н для вывода на экран
 
     static uint8_t DefrostManualGroupMask;      // биты 0..3 => группы 1..4
+    static uint8_t DefrostManualGlobalEnabled;  // переключатель ручного режима (BTN_Manual)
 };
 
 #endif // MODEL_HPP

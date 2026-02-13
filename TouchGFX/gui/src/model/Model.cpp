@@ -107,7 +107,7 @@ void Model::setDefrostManualGroupEnabled(uint8_t groupIndex1to4, bool enabled)
 		DefrostManualGroupMask &= static_cast<uint8_t>(~bit);
 	}
 
-	const bool manualModeEnabled = (DefrostManualGroupMask != 0);
+	const bool manualModeEnabled = (DefrostManualGlobalEnabled != 0) || (DefrostManualGroupMask != 0);
 	Flag_DFR_manual = manualModeEnabled ? 1 : 0;
 
 	if (!manualModeEnabled)
@@ -115,6 +115,32 @@ void Model::setDefrostManualGroupEnabled(uint8_t groupIndex1to4, bool enabled)
 		// Почему: чтобы при повторном входе в ручной режим не применились "залипшие" ручные выходы.
 		uint16_t* pDFRManual = (uint16_t*)&DFR_manual;
 		*pDFRManual = 0;
+	}
+}
+
+void Model::setDefrostManualModeEnabled(bool enabled)
+{
+	DefrostManualGlobalEnabled = enabled ? 1 : 0;
+
+	// Если ручной режим выключен глобально, выключаем и все группы.
+	if (!enabled)
+	{
+		DefrostManualGroupMask = 0;
+		Gate_Alarm = 0;
+		Gate_PosTop = 0;
+		Gate_PosBottom = 0;
+	}
+
+	const bool manualModeEnabled = (DefrostManualGlobalEnabled != 0) || (DefrostManualGroupMask != 0);
+	Flag_DFR_manual = manualModeEnabled ? 1 : 0;
+
+	if (!manualModeEnabled)
+	{
+		uint16_t* pDFRManual = (uint16_t*)&DFR_manual;
+		*pDFRManual = 0;
+		Gate_Alarm = 0;
+		Gate_PosTop = 0;
+		Gate_PosBottom = 0;
 	}
 }
 
@@ -155,10 +181,16 @@ int Model::BaudRate_WR_to_sensor = 0;
 uint8_t Model::Address_WR_to_sensor = 0;
 uint8_t Model::Flag_WR_to_sensor = 0;
 uint8_t Model::Flag_Alert = 0;
+uint8_t Model::Gate_Open = 0;
+uint8_t Model::Gate_Close = 0;
+uint8_t Model::Gate_Alarm = 0;
+uint8_t Model::Gate_PosTop = 0;
+uint8_t Model::Gate_PosBottom = 0;
 uint8_t Model::BaudRate_PR_sensor = 0;
 uint8_t Model::Address_PR_sensor = 0;
 uint8_t Model::FlagCurrentValue_PR_sensor = 0;
 uint8_t Model::DefrostManualGroupMask = 0;
+uint8_t Model::DefrostManualGlobalEnabled = 0;
 uint8_t Model::Flag_DFR_manual = 0;
 DFR_REGISTERS_t Model::DFR;				// Регистр состояния управления устройствами
 DFR_REGISTERS_t Model::DFR_current;		// Регистр текущего отображения состояния управления устройствами

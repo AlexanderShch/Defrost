@@ -1356,6 +1356,21 @@
           },
           {
             "Type": "TextArea",
+            "Name": "LabelGateAlarm",
+            "X": 38,
+            "Y": 136,
+            "Width": 165,
+            "Height": 24,
+            "Visible": false,
+            "TextId": "LabelGateAlarm",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 255
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
             "Name": "LabelGate",
             "X": 84,
             "Y": 136,
@@ -1384,7 +1399,7 @@
           {
             "Type": "TextArea",
             "Name": "LabelSprayOn",
-            "X": 63,
+            "X": 161,
             "Y": 278,
             "Width": 21,
             "Height": 12,
@@ -1395,7 +1410,7 @@
           {
             "Type": "TextArea",
             "Name": "LabelSprayOff",
-            "X": 156,
+            "X": 48,
             "Y": 278,
             "Width": 30,
             "Height": 12,

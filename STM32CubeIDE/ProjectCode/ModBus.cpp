@@ -246,6 +246,15 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			Sensor::PutData(TimeFromStart, SensIndex, 1, TimeFromStart);
 			Sensor::PutData(TimeFromStart, SensIndex, 2, SW.Read_Data_2);	// запись Т
 			Sensor::PutData(TimeFromStart, SensIndex, 3, SW.Read_Data_1);	// запись Н
+
+			// Почему: состояние ворот нужно обновлять сразу после чтения из модуля ввода-вывода.
+			// Модуль ввода-вывода имеет индекс 6 (SQ=7), входы лежат в Read_Data_2 (T).
+			// Gate_Close = бит 12, Gate_Open = бит 13.
+			if (SensIndex == 6 && Sensor_array[SensIndex].TypeOfSensor == 4)
+			{
+				Model::Gate_Close = (uint8_t)((SW.Read_Data_2 >> 12) & 0x1u);
+				Model::Gate_Open = (uint8_t)((SW.Read_Data_2 >> 13) & 0x1u);
+			}
 			break;
 		case MB_ERROR_DMA_SEND:
 			Sensor_array[SensIndex].TxErrorCnt++;

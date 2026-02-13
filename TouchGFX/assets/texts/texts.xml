@@ -258,7 +258,7 @@
         <Translation Language="GB">ВНИЗ</Translation>
       </Text>
       <Text Id="BTN_GateSTOP" Alignment="Center" TypographyId="Small">
-        <Translation Language="GB">СТОП</Translation>
+        <Translation Language="GB">ДЕБЛОК</Translation>
       </Text>
       <Text Id="BTN_GateUP" Alignment="Center" TypographyId="Small">
         <Translation Language="GB">ВВЕРХ</Translation>
@@ -372,6 +372,9 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Unsorted">
+      <Text Id="LabelGateAlarm" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Ворота - ALARM</Translation>
+      </Text>
       <Text Id="VersionValue" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">0.0.0</Translation>
       </Text>
@@ -381,7 +384,7 @@
     </TextGroup>
   </Texts>
   <Typographies>
-    <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="B,D,H,I,R,L,M,N,O,S,T,C,b,d,e,f,g,h,i,l,n,o,p,r,t,u,&amp;" WildcardCharacterRanges="0-9,0x2D" />
+    <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="A,B,D,H,I,R,L,M,N,O,S,T,C,b,d,e,f,g,h,i,l,n,o,p,r,t,u,y,&amp;" WildcardCharacterRanges="0-9,0x2D" />
     <Typography Id="LargeHighlight" Font="verdanab.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacterRanges="0-9" />
     <Typography Id="Large" Font="verdana.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" />
     <Typography Id="Small" Font="verdana.ttf" Size="10" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="." WildcardCharacterRanges="0-9" />

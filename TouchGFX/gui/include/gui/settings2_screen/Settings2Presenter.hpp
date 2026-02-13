@@ -25,6 +25,8 @@ public:
      */
     virtual void deactivate();
 
+    virtual void ValUpdatePresenter();
+
     virtual ~Settings2Presenter() {};
 
 private:

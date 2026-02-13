@@ -1,10 +1,33 @@
 #include <gui/settings2_screen/Settings2View.hpp>
 #include <gui/model/Model.hpp>
 
+#include <touchgfx/Color.hpp>
 #include <touchgfx/utils.hpp>
 #include <iostream>
 uint8_t MinAlpha = 50;
 uint16_t *pDFR_manual = (uint16_t*) &Model::DFR_manual;	// указатель на регистр DFR_manual
+
+namespace
+{
+	bool isToggleOn(const touchgfx::ToggleButton& button)
+	{
+		// Почему: в проекте перепутаны визуальные состояния ON/OFF (Pressed показывает OFF, Released показывает ON).
+		return button.getState() == 0;
+	}
+
+	void setToggleOn(touchgfx::ToggleButton& button, bool on)
+	{
+		// Почему: чтобы соответствие UI-состояния и смысла ON/OFF было задано в одном месте.
+		button.forceState(!on);
+		button.invalidate();
+	}
+
+	void setLatchedColor(touchgfx::ButtonWithLabel& button, bool latched, touchgfx::colortype latchedColor)
+	{
+		button.setLabelColor(latched ? latchedColor : touchgfx::Color::getColorFromRGB(255, 255, 255));
+		button.invalidate();
+	}
+}
 
 
 Settings2View::Settings2View()
@@ -15,6 +38,17 @@ Settings2View::Settings2View()
 void Settings2View::setupScreen()
 {
     Settings2ViewBase::setupScreen();
+
+	// Синхронизация положения переключателя с текущим режимом.
+	setToggleOn(BTN_Manual, Model::isDefrostManualModeEnabled());
+
+	// В ручном режиме элементы активны, в автоматическом — приглушены.
+	Settings2View::SetAlpha(Model::isDefrostManualModeEnabled() ? 255 : MinAlpha);
+
+	// Синхронизация положения форсунки с регистром ручного управления.
+	setToggleOn(BTN_Spray, Model::DFR_manual._Inj != 0);
+
+	UpdateGateIndicators();
 }
 
 void Settings2View::tearDownScreen()
@@ -24,32 +58,32 @@ void Settings2View::tearDownScreen()
 
 void Settings2View::BTNManualClicked()
 {
-   if (BTN_Manual.getState() == 1)
-    {
-	   // Ручной режим ВКЛ, автоматический режим ВЫКЛ
-	   Model::Flag_DFR_manual = 1;
-       //When BTNManual clicked show BTNGateControl
-       //Show BTNGateControl
-	   Settings2View::SetAlpha(255);
-    }
-    else
-    {
-    	// Автоматический режим ВКЛ, ручной режим ВЫКЛ
- 	    Model::Flag_DFR_manual = 0;
- 	    *pDFR_manual = 0;
- 	    //hide button
-    	Settings2View::SetAlpha(MinAlpha);
-    }
+	const bool manualEnabled = isToggleOn(BTN_Manual);
+	Model::setDefrostManualModeEnabled(manualEnabled);
+
+	// Визуально включаем/выключаем элементы ручного управления на странице.
+	Settings2View::SetAlpha(manualEnabled ? 255 : MinAlpha);
+
+	UpdateGateIndicators();
 }
 
 void Settings2View::SetAlpha(uint8_t MinAlhpa)
 {
-   	BTN_GateUP.setAlpha(MinAlpha);
-   	BTN_GateDOWN.setAlpha(MinAlpha);
-   	BTN_GateSTOP.setAlpha(MinAlpha);
-	BTN_Spray.setAlpha(MinAlpha);
-	LabelSprayOn.setAlpha(MinAlpha);
-	LabelSprayOff.setAlpha(MinAlpha);
+	const bool enabled = (MinAlhpa == 255);
+
+   	BTN_GateUP.setAlpha(MinAlhpa);
+   	BTN_GateDOWN.setAlpha(MinAlhpa);
+   	BTN_GateSTOP.setAlpha(MinAlhpa);
+	BTN_Spray.setAlpha(MinAlhpa);
+	LabelSprayOn.setAlpha(MinAlhpa);
+	LabelSprayOff.setAlpha(MinAlhpa);
+
+	// Почему: в "приглушённом" состоянии элементы должны быть неактивными для нажатия.
+	BTN_GateUP.setTouchable(enabled);
+	BTN_GateDOWN.setTouchable(enabled);
+	BTN_GateSTOP.setTouchable(enabled);
+	BTN_Spray.setTouchable(enabled);
+
 	BTN_GateUP.invalidate();
 	BTN_GateDOWN.invalidate();
 	BTN_GateSTOP.invalidate();
@@ -60,44 +94,147 @@ void Settings2View::SetAlpha(uint8_t MinAlhpa)
 
 void Settings2View::BTNSprayClicked()
 {
-    if (BTN_Spray.getState() == 1)
-    {
-    	// Включим бит управления водным клапаном
-    	Model::DFR_manual.Water_Flap = 1;
-    }else{
-    	Model::DFR_manual.Water_Flap = 0;
-     }
+	if (!Model::isDefrostManualModeEnabled())
+	{
+		return;
+	}
+
+	// Форсунка воды: бит 9 (_Inj).
+	Model::DFR_manual._Inj = isToggleOn(BTN_Spray) ? 1 : 0;
+}
+
+void Settings2View::UpdateGateIndicators()
+{
+	const auto white = touchgfx::Color::getColorFromRGB(255, 255, 255);
+	const auto green = touchgfx::Color::getColorFromRGB(41, 227, 20);
+	const auto red = touchgfx::Color::getColorFromRGB(227, 14, 14);
+
+	// Состояние сигналов движения ворот/разблокировки (команды ручного управления)
+	const bool cmdUp = (Model::DFR_manual.Gate_Up != 0);
+	const bool cmdDown = (Model::DFR_manual.Gate_Down != 0);
+	const bool cmdDbl = (Model::DFR_manual.Gate_Dbl != 0);
+
+	const bool manualEnabled = Model::isDefrostManualModeEnabled();
+
+	const bool gateAlarm = (Model::Gate_Alarm != 0);
+
+	// В аварийном режиме используем флаги конечного положения вместо входных сигналов.
+	const bool gateOpen = gateAlarm ? (Model::Gate_PosTop != 0) : (Model::Gate_Open != 0);
+	const bool gateClose = gateAlarm ? (Model::Gate_PosBottom != 0) : (Model::Gate_Close != 0);
+
+	// Надпись режима ворот.
+	LabelGate.setVisible(!gateAlarm);
+	LabelGateAlarm.setVisible(gateAlarm);
+	LabelGate.invalidate();
+	LabelGateAlarm.invalidate();
+
+	// Блокировка кнопок по состоянию ворот:
+	// - если ворота открыты, "ВВЕРХ" блокирована
+	// - если ворота закрыты, "ВНИЗ" блокирована
+	BTN_GateUP.setTouchable(manualEnabled && !gateOpen);
+	BTN_GateDOWN.setTouchable(manualEnabled && !gateClose);
+	BTN_GateSTOP.setTouchable(manualEnabled);
+
+	// Почему: деактивированные кнопки должны выглядеть "дымчатыми",
+	// как при выключенном ручном управлении.
+	BTN_GateUP.setAlpha((manualEnabled && !gateOpen) ? 255 : MinAlpha);
+	BTN_GateDOWN.setAlpha((manualEnabled && !gateClose) ? 255 : MinAlpha);
+	BTN_GateUP.invalidate();
+	BTN_GateDOWN.invalidate();
+
+	if (gateAlarm)
+	{
+		// В аварии подсвечиваем зелёным активное движение до конца движения/тайм-аута.
+		// Если движения нет, подсвечиваем красным зафиксированное конечное положение.
+		const bool posTop = (Model::Gate_PosTop != 0);
+		const bool posBottom = (Model::Gate_PosBottom != 0);
+		BTN_GateUP.setLabelColor(cmdUp ? green : (posTop ? red : white));
+		BTN_GateDOWN.setLabelColor(cmdDown ? green : (posBottom ? red : white));
+		BTN_GateUP.invalidate();
+		BTN_GateDOWN.invalidate();
+	}
+	else
+	{
+		// Почему: зелёный цвет нужен только пока команда активна.
+		// Состояние Gate_Open/Gate_Close используется для блокировки кнопок, а не для подсветки.
+		setLatchedColor(BTN_GateUP, cmdUp, green);
+		setLatchedColor(BTN_GateDOWN, cmdDown, green);
+	}
+
+	setLatchedColor(BTN_GateSTOP, cmdDbl, red);
+
+	// Дополнительно: если ручной режим выключен, визуально возвращаем базовый цвет.
+	if (!manualEnabled)
+	{
+		BTN_GateUP.setLabelColor(white);
+		BTN_GateDOWN.setLabelColor(white);
+		BTN_GateSTOP.setLabelColor(white);
+		BTN_GateUP.invalidate();
+		BTN_GateDOWN.invalidate();
+		BTN_GateSTOP.invalidate();
+	}
 }
 void Settings2View::BTNGateUpClicked()
 {
-    if (BTN_GateUP.getPressedState() == 1)
-    {
-    	// Включим бит управления поднять ворота
-    	Model::DFR_manual.Gate_Up = 1;
-    }else{
-    	// Включим бит управления опустить ворота
-    	Model::DFR_manual.Gate_Up = 0;
-     }
+	if (!Model::isDefrostManualModeEnabled())
+	{
+		return;
+	}
+
+	const bool newState = (Model::DFR_manual.Gate_Up == 0);
+
+	// Почему: в аварийном режиме сначала снимаем фиксацию конечного положения в противоположном направлении,
+	// затем включаем движение, чтобы не было "мигания" цветов (красный -> зелёный -> белый).
+	if (newState && Model::Gate_Alarm != 0)
+	{
+		Model::Gate_PosBottom = 0;
+	}
+
+	Model::DFR_manual.Gate_Up = newState ? 1 : 0;
+	if (newState)
+	{
+		Model::DFR_manual.Gate_Down = 0;
+		Model::DFR_manual.Gate_Dbl = 0;
+	}
+	UpdateGateIndicators();
 }
 void Settings2View::BTNGateStopClicked()
 {
-    if (BTN_GateSTOP.getPressedState() == 1)
-    {
-    	// Включим бит управления поднять ворота
-    	Model::DFR_manual.Gate_Stop = 1;
-    }else{
-    	// Включим бит управления опустить ворота
-    	Model::DFR_manual.Gate_Stop = 0;
-     }
+	if (!Model::isDefrostManualModeEnabled())
+	{
+		return;
+	}
+
+	const bool newState = (Model::DFR_manual.Gate_Dbl == 0);
+	Model::DFR_manual.Gate_Dbl = newState ? 1 : 0;
+	if (newState)
+	{
+		Model::DFR_manual.Gate_Up = 0;
+		Model::DFR_manual.Gate_Down = 0;
+	}
+	UpdateGateIndicators();
 }
 void Settings2View::BTNGateDownClicked()
 {
-    if (BTN_GateDOWN.getPressedState() == 1)
-    {
-    	// Включим бит управления поднять ворота
-    	Model::DFR_manual.Gate_Down = 1;
-    }else{
-    	// Включим бит управления опустить ворота
-    	Model::DFR_manual.Gate_Down = 0;
-     }
+	if (!Model::isDefrostManualModeEnabled())
+	{
+		return;
+	}
+
+	const bool newState = (Model::DFR_manual.Gate_Down == 0);
+
+	// Почему: в аварийном режиме сначала снимаем фиксацию конечного положения в противоположном направлении,
+	// затем включаем движение, чтобы не было "мигания" цветов (красный -> зелёный -> белый).
+	if (newState && Model::Gate_Alarm != 0)
+	{
+		Model::Gate_PosTop = 0;
+	}
+
+	Model::DFR_manual.Gate_Down = newState ? 1 : 0;
+	if (newState)
+	{
+		Model::DFR_manual.Gate_Up = 0;
+		Model::DFR_manual.Gate_Dbl = 0;
+	}
+	UpdateGateIndicators();
 }

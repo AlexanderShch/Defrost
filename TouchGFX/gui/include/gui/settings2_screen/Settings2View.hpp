@@ -18,6 +18,7 @@ public:
     virtual void BTNGateDownClicked();
 
     virtual void SetAlpha(uint8_t MinAlhpa);
+    void UpdateGateIndicators();
 
 protected:
 };
