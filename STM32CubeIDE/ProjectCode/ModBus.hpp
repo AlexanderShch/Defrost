@@ -40,6 +40,7 @@ uint16_t OkCnt;				// счётчик ответов
 uint16_t ErrCnt;			// счётчик неответов
 uint16_t TxErrorCnt;		// счётчик ошибок передачи данных, CRC
 uint16_t RxErrorCnt;		// счётчик ошибок приёма данных, CRC
+uint8_t UseInDefrost;      // 1=использовать датчик в алгоритме дефростации, 0=игнорировать
 } SENSOR_typedef_t;
 
 #define SwapBytes(data) ( (((data) >> 8) & 0x00FF) | (((data) << 8) & 0xFF00) )

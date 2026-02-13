@@ -1018,7 +1018,7 @@
             "Type": "BoxWithBorder",
             "Name": "BoxCoreT",
             "X": 34,
-            "Y": 186,
+            "Y": 182,
             "Width": 173,
             "Height": 67,
             "Color": {
@@ -1071,7 +1071,7 @@
           {
             "Type": "TextArea",
             "Name": "LabelCoreTSensors_1",
-            "X": 34,
+            "X": 35,
             "Y": 148,
             "Width": 171,
             "Height": 24,
@@ -1140,7 +1140,7 @@
             "X": 97,
             "Y": 195,
             "Width": 47,
-            "Height": 49,
+            "Height": 41,
             "TextId": "ValueCoreTSet",
             "TextRotation": "0",
             "Color": {
@@ -1173,17 +1173,6 @@
             "Preset": "alternate_theme\\presets\\button\\regular\\height_36\\tiny_rounded_normal.json"
           },
           {
-            "Type": "ToggleButton",
-            "Name": "BTNCoreTSensorsState",
-            "X": 51,
-            "Y": 84,
-            "Width": 138,
-            "Height": 50,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_dark.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded_text.json"
-          },
-          {
             "Type": "ButtonWithIcon",
             "Name": "BTNCoreTSetDecrease",
             "X": 130,
@@ -1199,6 +1188,58 @@
             "IconHeight": 50,
             "IconWidth": 50,
             "Preset": "alternate_theme\\presets\\button\\regular\\height_36\\tiny_rounded_normal.json"
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTNCoreTSensorRight",
+            "X": 144,
+            "Y": 98,
+            "Width": 62,
+            "Height": 34,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_action.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_dark.png"
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTNCoreTSensorLeft",
+            "X": 34,
+            "Y": 98,
+            "Width": 62,
+            "Height": 34,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_action.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_dark.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "textArea1",
+            "X": 47,
+            "Y": 84,
+            "Width": 37,
+            "Height": 12,
+            "TextId": "__SingleUse_QAV4",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "textArea2",
+            "X": 153,
+            "Y": 84,
+            "Width": 45,
+            "Height": 12,
+            "TextId": "__SingleUse_5U0Z",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
           }
         ],
         "Interactions": [

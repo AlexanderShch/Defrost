@@ -372,6 +372,12 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Unsorted">
+      <Text Id="__SingleUse_5U0Z" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">ПРАВЫЙ</Translation>
+      </Text>
+      <Text Id="__SingleUse_QAV4" Alignment="Left" TypographyId="Small">
+        <Translation Language="GB">ЛЕВЫЙ</Translation>
+      </Text>
       <Text Id="LabelGateAlarm" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Ворота - ALARM</Translation>
       </Text>

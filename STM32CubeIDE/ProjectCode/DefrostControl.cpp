@@ -22,9 +22,12 @@
  
  #include "Data.hpp"                 // индексы датчиков SQ
  #include <gui\model\model.hpp>      // Model::getCurrentVal_* и битовый регистр Model::DFR
+ #include "ModBus.hpp"
  
  namespace
  {
+     extern SENSOR_typedef_t Sensor_array[SQ];
+
      // ─────────────────────────────────────────────────────────────────────────────
      // Привязка индексов датчиков к физическим точкам.
      // Почему: алгоритму нужна явная карта "канал телеметрии → физическая точка".
@@ -88,14 +91,14 @@
          {
              case Phase::WarmUp:
                  return Limits{
-                     /*fishHotMax_C*/       2.0f,
+                    /*fishHotMax_C*/       20.0f,
                      /*fishHotRateMax_Cps*/ 0.020f,  // 1.2°C/min
                      /*fishDeltaMax_C*/     6.0f,
                      /*supplyMax_C*/        35.0f,
                  };
              case Phase::Plateau:
                  return Limits{
-                     /*fishHotMax_C*/       3.0f,
+                    /*fishHotMax_C*/       20.0f,
                      /*fishHotRateMax_Cps*/ 0.015f,  // 0.9°C/min
                      /*fishDeltaMax_C*/     5.0f,
                      /*supplyMax_C*/        30.0f,
@@ -103,7 +106,7 @@
              case Phase::Finish:
              default:
                  return Limits{
-                     /*fishHotMax_C*/       4.0f,
+                    /*fishHotMax_C*/       20.0f,
                      /*fishHotRateMax_Cps*/ 0.010f,  // 0.6°C/min
                      /*fishDeltaMax_C*/     4.0f,
                      /*supplyMax_C*/        26.0f,
@@ -345,12 +348,43 @@
  
          const float fish1_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensFish1_T));
          const float fish2_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensFish2_T));
- 
-         const float fishHot_C  = (fish1_C >= fish2_C) ? fish1_C : fish2_C;
-         const float fishCold_C = (fish1_C <  fish2_C) ? fish1_C : fish2_C;
-         const float fishDelta_C = fishHot_C - fishCold_C;
- 
-         const Phase phase = SelectPhase(fishCold_C);
+
+         const bool fish1Enabled = (Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0);
+         const bool fish2Enabled = (Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0);
+
+         float fishHot_C = 0.0f;
+         float fishCold_C = 0.0f;
+         float fishDelta_C = 0.0f;
+         uint8_t haveFish_C = 0;
+
+         if (fish1Enabled && fish2Enabled)
+         {
+             fishHot_C = (fish1_C >= fish2_C) ? fish1_C : fish2_C;
+             fishCold_C = (fish1_C < fish2_C) ? fish1_C : fish2_C;
+             fishDelta_C = fishHot_C - fishCold_C;
+             haveFish_C = 1;
+         }
+         else if (fish1Enabled)
+         {
+             fishHot_C = fish1_C;
+             fishCold_C = fish1_C;
+             fishDelta_C = 0.0f;
+             haveFish_C = 1;
+         }
+         else if (fish2Enabled)
+         {
+             fishHot_C = fish2_C;
+             fishCold_C = fish2_C;
+             fishDelta_C = 0.0f;
+             haveFish_C = 1;
+         }
+         else
+         {
+             // Почему: без обратной связи по температуре в теле продукта алгоритм должен быть безопасным (без нагрева).
+             g.haveLastFishHot = 0;
+         }
+
+         const Phase phase = (haveFish_C != 0) ? SelectPhase(fishCold_C) : Phase::WarmUp;
          const Limits lim = GetLimits(phase);
          const Targets tgt = GetTargets(phase);
  
@@ -363,6 +397,11 @@
          // Почему: ТЭНы мощные, продукт инерционный — проактивное ограничение предотвращает "перелёт".
          // ─────────────────────────────────────────────────────────────────────────
          float heatScale01 = 1.0f;
+
+         if (haveFish_C == 0)
+         {
+             heatScale01 = 0.0f;
+         }
  
          // Жёсткий потолок температуры "горячей" точки продукта.
          if (fishHot_C >= lim.fishHotMax_C)

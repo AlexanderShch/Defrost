@@ -4,6 +4,9 @@
 #include <gui_generated/settings1_screen/Settings1ViewBase.hpp>
 #include <gui/settings1_screen/Settings1Presenter.hpp>
 
+#include "ModBus.hpp"
+#include <touchgfx/Callback.hpp>
+
 class Settings1View : public Settings1ViewBase
 {
 public:
@@ -15,6 +18,9 @@ public:
     virtual void BTNCoreTSetDecreaseClicked();
 protected:
     char  CoreTSet = 6;
+
+    touchgfx::Callback<Settings1View, const touchgfx::AbstractButton&> coreTSensorToggleCallback;
+    void coreTSensorToggleCallbackHandler(const touchgfx::AbstractButton& src);
 };
 
 #endif // SETTINGS1VIEW_HPP
