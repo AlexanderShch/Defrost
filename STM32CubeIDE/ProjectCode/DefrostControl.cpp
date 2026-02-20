@@ -258,24 +258,30 @@
  
      struct ControllerState
      {
+         // Флаг включения(1)/выключения(0) автоматического управления контроллером
          uint8_t enabled = 0;
- 
+         // Структура с параметрами ПИ-регулирования
          PI piSupplyCommon;
-         float leftRightTrimGain = 0.08f;  // (TEN equivalents) per °C supply imbalance
+         // (эквивалент ТЭНа) на °C дисбаланса Т входящего потока воздуха
+         float leftRightTrimGain = 0.08f;
  
          // Влажность: мёртвая зона нужна, чтобы не "драться" форсунке и вытяжке.
          float wDeadband_kgkg = 0.0008f;   // ~0.8 г/кг сухого воздуха
+         // Структура с параметрами ШИМ-модулятора форсунки
          SigmaDeltaPWM injPwm;
+         // Структура с параметрами времени удержания форсунки
          HoldSwitch injHold;
  
-         // Вытяжка: медленный дискретный актуатор с гистерезисом.
+         // Вытяжка: включение(1) / выключение (0)
          uint8_t outOn = 0;
+         // Счётчик времени удержания вытяжки в текущем состоянии (включена/выключена) для предотвращения частых переключений
          uint16_t outHold_s = 0;
- 
+         // Структуры ШИМ-управления левой и правой группами ТЭНов
          SideActuators left;
          SideActuators right;
- 
+         // Последняя зафиксированная самая высокая Т продукта
          float lastFishHot_C = 0.0f;
+         // Флаг, указывающий на наличие предыдущего измерения температуры самой горячей точки продукта
          uint8_t haveLastFishHot = 0;
      };
  
@@ -285,22 +291,22 @@
      {
          // Почему: при (пере)запуске нужны предсказуемые состояния без "хвоста" интегратора/ШИМ-памяти.
          g.piSupplyCommon = PI{ /*kp*/ 0.18f, /*ki*/ 0.02f, /*i*/ 0.0f }; // стартовые; настройка обязательна
-         g.leftRightTrimGain = 0.08f;
-         g.wDeadband_kgkg = 0.0008f;
-         g.injPwm.Reset();
-         g.injHold.Reset(0);
-         g.outOn = 0;
-         g.outHold_s = 0;
-         g.left.ten1.Reset();
-         g.left.ten2.Reset();
-         g.left.ten1Hold.Reset(0);
-         g.left.ten2Hold.Reset(0);
-         g.right.ten1.Reset();
-         g.right.ten2.Reset();
-         g.right.ten1Hold.Reset(0);
-         g.right.ten2Hold.Reset(0);
-         g.lastFishHot_C = 0.0f;
-         g.haveLastFishHot = 0;
+         g.leftRightTrimGain = 0.08f;   // коэффициент балансировки лево/право по разности температур потоков подачи.
+         g.wDeadband_kgkg = 0.0008f;    // мёртвая зона для влажности.
+         g.injPwm.Reset();              // сброс ШИМ-памяти для форсунки.
+         g.injHold.Reset(0);            // сброс времени удержания форсунки.
+         g.outOn = 0;                   // флаг отключения вытяжки.
+         g.outHold_s = 0;               // время удержания вытяжки.
+         g.left.ten1.Reset();           // сброс ШИМ-памяти для левого ТЭНа 1.
+         g.left.ten2.Reset();           // сброс ШИМ-памяти для левого ТЭНа 2.
+         g.left.ten1Hold.Reset(0);      // сброс времени удержания левого ТЭНа 1.
+         g.left.ten2Hold.Reset(0);      // сброс времени удержания левого ТЭНа 2.
+         g.right.ten1.Reset();          // сброс ШИМ-памяти для правого ТЭНа 1.
+         g.right.ten2.Reset();          // сброс ШИМ-памяти для правого ТЭНа 2.
+         g.right.ten1Hold.Reset(0);     // сброс времени удержания правого ТЭНа 1.
+         g.right.ten2Hold.Reset(0);     // сброс времени удержания правого ТЭНа 2.
+         g.lastFishHot_C = 0.0f;        // последняя измеренная температура продукта.
+         g.haveLastFishHot = 0;         // флаг отсутствия последней измеренной температуры продукта.    
      }
  
      static float DeciToC(int16_t deciC)  { return (float)deciC * kDeciToUnit; }
@@ -349,9 +355,14 @@
          const float fish1_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensFish1_T));
          const float fish2_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensFish2_T));
 
+         // Почему: проверяем, что датчик активен и используется в алгоритме разморозки.
          const bool fish1Enabled = (Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0);
          const bool fish2Enabled = (Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0);
 
+         // Переменная haveFish_C является флагом, указывающим на наличие активных датчиков температуры продукта. 
+         // Она принимает значения:
+         // 0 - если нет активных датчиков температуры продукта (fish1 и fish2 отключены или не используются)
+         // 1 - если хотя бы один датчик температуры продукта активен и используется в алгоритме
          float fishHot_C = 0.0f;
          float fishCold_C = 0.0f;
          float fishDelta_C = 0.0f;
@@ -381,9 +392,13 @@
          else
          {
              // Почему: без обратной связи по температуре в теле продукта алгоритм должен быть безопасным (без нагрева).
+             // флаг отсутствия последней измеренной температуры продукта.
+             // 0 - отсутствует последняя измеренная температура продукта.
+             // 1 - присутствует последняя измеренная температура продукта.
              g.haveLastFishHot = 0;
          }
 
+         // Почему: выбираем фазу разморозки на основе температуры самой холодной точки продукта.
          const Phase phase = (haveFish_C != 0) ? SelectPhase(fishCold_C) : Phase::WarmUp;
          const Limits lim = GetLimits(phase);
          const Targets tgt = GetTargets(phase);
@@ -396,8 +411,11 @@
          // Ограничитель безопасности: уменьшаем нагрев при приближении к ограничениям качества продукта.
          // Почему: ТЭНы мощные, продукт инерционный — проактивное ограничение предотвращает "перелёт".
          // ─────────────────────────────────────────────────────────────────────────
+         // Переменная heatScale01 используется как ограничитель мощности нагрева для защиты качества продукта. 
+         // Она представляет собой коэффициент (от 0.0 до 1.0), который умножается на расчётную мощность ТЭНов.
          float heatScale01 = 1.0f;
 
+         // Если нет активных датчиков температуры продукта, то отключаем нагрев
          if (haveFish_C == 0)
          {
              heatScale01 = 0.0f;
@@ -411,33 +429,34 @@
          else
          {
              // Мягкое снижение мощности в зоне ниже лимита.
+             // Если осталось менее 0.6C до лимита, то снижаем мощность нагрева.
              const float margin_C = 0.6f;
-             const float x = (lim.fishHotMax_C - fishHot_C) / margin_C; // 1..0
-             heatScale01 = Clamp(x, 0.0f, 1.0f);
+             const float x = (lim.fishHotMax_C - fishHot_C) / margin_C; // коэффициент удалённости от лимита
+             heatScale01 = Clamp(x, 0.0f, 1.0f); // ограничиваем значение от 0 до 1
          }
  
-         // Ограничение по скорости прогрева "горячей" точки (нужна предыдущая выборка).
+         // Ограничение по скорости прогрева "горячей" точки (только при наличии предыдущей температуры продукта).
          if (g.haveLastFishHot != 0)
          {
-             const float rate_Cps = (fishHot_C - g.lastFishHot_C) / kDt_s;
-             if (rate_Cps > lim.fishHotRateMax_Cps)
+             const float rate_Cps = (fishHot_C - g.lastFishHot_C) / kDt_s; // скорость прогрева "горячей" точки, град/сек
+             if (rate_Cps > lim.fishHotRateMax_Cps) // если скорость прогрева превышает максимально допустимую
              {
                  // Пропорционально снижаем; защищаемся от полного "затыка" из-за шума.
-                 const float s = lim.fishHotRateMax_Cps / Clamp(rate_Cps, lim.fishHotRateMax_Cps, 1.0f);
-                 heatScale01 = Clamp(heatScale01 * s, 0.0f, 1.0f);
+                const float s = lim.fishHotRateMax_Cps / Clamp(rate_Cps, 0.01f, rate_Cps); // коэффициент снижения мощности нагрева
+                heatScale01 = Clamp(heatScale01 * s, 0.0f, 1.0f); // ограничиваем значение от 0 до 1
              }
          }
          g.lastFishHot_C = fishHot_C;
          g.haveLastFishHot = 1;
  
-         // Ограничение по неравномерности прогрева (горячая-холодная).
+         // Ограничение по неравномерности прогрева (Т поверхности - Т сердцевины).
          if (fishDelta_C > lim.fishDeltaMax_C)
          {
-             // Почему: большой градиент означает, что поверхность греется значительно быстрее сердцевины.
-             heatScale01 = 0.0f;
+             // Почему: большой градиент означает, что поверхность греется быстрее сердцевины.
+             heatScale01 = 0.0f; // отключаем нагрев
          }
  
-         // Ограничение по температуре подачи, чтобы не получить слишком горячие струи.
+         // Ограничение по температуре подачи, чтобы не получить слишком горячие струи воздуха.
          if (T_supL_C > lim.supplyMax_C || T_supR_C > lim.supplyMax_C)
          {
              heatScale01 = 0.0f;
