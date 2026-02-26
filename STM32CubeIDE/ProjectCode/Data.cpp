@@ -4,12 +4,14 @@
  *  Создан: Jul 3, 2023
  *  Автор: gdr
  */
-#include <Data.hpp>
+#include "Data.hpp"
+#include "GateControl.hpp"
+#include "DefrostControl.h"
 #include "main.h"
 #include <string.h>
 
 
-#include <gui\model\model.hpp>
+#include <gui/model/Model.hpp>
 
 // ReadDataEventHandle определён в main.c
 extern osEventFlagsId_t ReadDataEventHandle;
@@ -240,107 +242,10 @@ void ReadDataFunc() {
 			}
 		}	// конец цикла опроса датчиков
 
-		/****************************************************************
-		 * Ворота: обработка входных сигналов и аварийного тайм-аута 10 сек
-		 ****************************************************************/
-		{
-			// Gate_Open/Gate_Close обновляются сразу после чтения DI в ModBus.cpp.
-			static uint8_t gateUpElapsedSec = 0;
-			static uint8_t gateDownElapsedSec = 0;
-			static uint8_t prevCmdUp = 0;
-			static uint8_t prevCmdDown = 0;
-			static uint8_t prevGateOpen = 0;
-			static uint8_t prevGateClose = 0;
-
-			const bool cmdUp = (Model::DFR_manual.Gate_Up != 0);
-			const bool cmdDown = (Model::DFR_manual.Gate_Down != 0);
-
-			// Почему: сигнал Gate_Open/Gate_Close может быть "залипшим" в 1.
-			// Завершение движения считаем только по фронту 0->1 после начала движения.
-			const uint8_t gateOpen = (Model::Gate_Open != 0) ? 1 : 0;
-			const uint8_t gateClose = (Model::Gate_Close != 0) ? 1 : 0;
-			const bool gateOpenEdge = (gateOpen != 0) && (prevGateOpen == 0);
-			const bool gateCloseEdge = (gateClose != 0) && (prevGateClose == 0);
-
-			// Начало движения в противоположном направлении сбрасывает флаг конечного положения в аварийном режиме.
-			if (cmdUp && !prevCmdUp)
-			{
-				Model::Gate_PosBottom = 0;
-			}
-			if (cmdDown && !prevCmdDown)
-			{
-				Model::Gate_PosTop = 0;
-			}
-			prevCmdUp = cmdUp ? 1 : 0;
-			prevCmdDown = cmdDown ? 1 : 0;
-
-			// Подъём ворот.
-			if (cmdUp)
-			{
-				if (gateOpenEdge)
-				{
-					Model::DFR_manual.Gate_Up = 0;
-					gateUpElapsedSec = 0;
-					Model::Gate_Alarm = 0;
-					Model::Gate_PosTop = 1;
-					Model::Gate_PosBottom = 0;
-				}
-				else
-				{
-					if (gateUpElapsedSec < 10)
-					{
-						++gateUpElapsedSec;
-					}
-					if (gateUpElapsedSec >= 10)
-					{
-						Model::DFR_manual.Gate_Up = 0;
-						gateUpElapsedSec = 0;
-						Model::Gate_Alarm = 1;
-						Model::Gate_PosTop = 1;
-						Model::Gate_PosBottom = 0;
-					}
-				}
-			}
-			else
-			{
-				gateUpElapsedSec = 0;
-			}
-
-			// Опускание ворот.
-			if (cmdDown)
-			{
-				if (gateCloseEdge)
-				{
-					Model::DFR_manual.Gate_Down = 0;
-					gateDownElapsedSec = 0;
-					Model::Gate_Alarm = 0;
-					Model::Gate_PosBottom = 1;
-					Model::Gate_PosTop = 0;
-				}
-				else
-				{
-					if (gateDownElapsedSec < 10)
-					{
-						++gateDownElapsedSec;
-					}
-					if (gateDownElapsedSec >= 10)
-					{
-						Model::DFR_manual.Gate_Down = 0;
-						gateDownElapsedSec = 0;
-						Model::Gate_Alarm = 1;
-						Model::Gate_PosBottom = 1;
-						Model::Gate_PosTop = 0;
-					}
-				}
-			}
-			else
-			{
-				gateDownElapsedSec = 0;
-			}
-
-			prevGateOpen = gateOpen;
-			prevGateClose = gateClose;
-		}
+		// Сначала обновляем состояние ворот (концевики/тайм-ауты),
+		// затем шаг автоматики, чтобы автоматика видела актуальное состояние ворот в этом же такте.
+		GateControl_Update1s();
+		DefrostControl_Update1s();
 
 		// Телеметрия отправляется с интервалом g_TelemetryIntervalSeconds.
 		if (TelemetrySendPending != 0)

@@ -13,58 +13,6 @@
             "RelativeFilename": "__generated\\alternate_theme_images_backgrounds_240x320_gradient_light.png"
           },
           {
-            "Type": "FlexButton",
-            "Name": "BTNStart",
-            "Y": 158,
-            "Width": 240,
-            "Height": 51,
-            "ButtonTrigger": {
-              "Type": "ToggleButtonTrigger"
-            },
-            "ButtonStyles": [
-              {
-                "Type": "TextButtonStyle",
-                "Y": 12,
-                "TextId": "Start",
-                "TextRotation": "0",
-                "ColorReleased": {
-                  "Red": 52,
-                  "Green": 94,
-                  "Blue": 116
-                },
-                "ColorPressed": {
-                  "Red": 232,
-                  "Green": 246,
-                  "Blue": 251
-                }
-              },
-              {
-                "Type": "BoxWithBorderButtonStyle",
-                "Width": 240,
-                "Height": 51,
-                "LockToFlexButtonSize": true,
-                "BorderSize": 5,
-                "ColorReleased": {
-                  "Red": 182,
-                  "Green": 255,
-                  "Blue": 156
-                },
-                "ColorPressed": {
-                  "Red": 50,
-                  "Green": 130
-                },
-                "ColorBorderReleased": {
-                  "Red": 50,
-                  "Green": 130
-                },
-                "ColorBorderPressed": {
-                  "Red": 50,
-                  "Green": 130
-                }
-              }
-            ]
-          },
-          {
             "Type": "ButtonWithIcon",
             "Name": "BTNGoToSettings1",
             "X": 173,
@@ -80,56 +28,6 @@
             "IconHeight": 50,
             "IconWidth": 50,
             "Preset": "alternate_theme\\presets\\button\\icon\\rounded\\tiny_outline_disabled.json"
-          },
-          {
-            "Type": "FlexButton",
-            "Name": "BTNStop",
-            "Y": 217,
-            "Width": 240,
-            "Height": 50,
-            "ButtonTrigger": {
-              "Type": "ToggleButtonTrigger",
-              "InitalStatePressed": true
-            },
-            "ButtonStyles": [
-              {
-                "Type": "TextButtonStyle",
-                "Y": 12,
-                "TextId": "Stop",
-                "TextRotation": "0",
-                "ColorReleased": {
-                  "Red": 52,
-                  "Green": 94,
-                  "Blue": 116
-                },
-                "ColorPressed": {
-                  "Red": 232,
-                  "Green": 246,
-                  "Blue": 251
-                }
-              },
-              {
-                "Type": "BoxWithBorderButtonStyle",
-                "Width": 240,
-                "Height": 50,
-                "LockToFlexButtonSize": true,
-                "BorderSize": 5,
-                "ColorReleased": {
-                  "Red": 247,
-                  "Green": 139,
-                  "Blue": 139
-                },
-                "ColorPressed": {
-                  "Red": 181
-                },
-                "ColorBorderReleased": {
-                  "Red": 181
-                },
-                "ColorBorderPressed": {
-                  "Red": 181
-                }
-              }
-            ]
           },
           {
             "Type": "BoxWithBorder",
@@ -227,9 +125,9 @@
           {
             "Type": "TextArea",
             "Name": "LabelPRGTimeLeft",
-            "X": 11,
-            "Y": 87,
-            "Width": 219,
+            "X": 55,
+            "Y": 88,
+            "Width": 121,
             "Height": 24,
             "TextId": "LabelPRGTimeLeft",
             "TextRotation": "0",
@@ -242,9 +140,9 @@
           },
           {
             "Type": "TextArea",
-            "Name": "ValuePRGTimeLeft",
-            "X": 11,
-            "Y": 112,
+            "Name": "ValuePRGTimeWrk",
+            "X": 101,
+            "Y": 111,
             "Width": 39,
             "Height": 24,
             "TextId": "ValuePRGTimeLeft",
@@ -297,6 +195,32 @@
               "UseBuffer": true,
               "BufferSize": 15
             }
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTNStart",
+            "X": 39,
+            "Y": 199,
+            "Width": 170,
+            "Height": 60,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_large_rounded_text_on_action.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_large_rounded_text_off_normal.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "textArea1",
+            "X": 85,
+            "Y": 160,
+            "Width": 70,
+            "Height": 24,
+            "TextId": "__SingleUse_O02S",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
           }
         ],
         "Interactions": [

@@ -21,13 +21,14 @@
  #include <stdint.h>
  
  #include "Data.hpp"                 // индексы датчиков SQ
- #include <gui\model\model.hpp>      // Model::getCurrentVal_* и битовый регистр Model::DFR
+ #include "GateControl.hpp"
+ #include <gui/model/Model.hpp>      // Model::getCurrentVal_* и битовый регистр Model::DFR
  #include "ModBus.hpp"
+
+extern SENSOR_typedef_t Sensor_array[SQ];
  
  namespace
  {
-     extern SENSOR_typedef_t Sensor_array[SQ];
-
      // ─────────────────────────────────────────────────────────────────────────────
      // Привязка индексов датчиков к физическим точкам.
      // Почему: алгоритму нужна явная карта "канал телеметрии → физическая точка".
@@ -260,6 +261,7 @@
      {
          // Флаг включения(1)/выключения(0) автоматического управления контроллером
          uint8_t enabled = 0;
+        uint32_t runtimeSeconds = 0;
          // Структура с параметрами ПИ-регулирования
          PI piSupplyCommon;
          // (эквивалент ТЭНа) на °C дисбаланса Т входящего потока воздуха
@@ -282,6 +284,11 @@
         uint16_t outDamperTimer_s = 0;  // таймер открытия заслонки
         uint16_t outFanDelay_s = 5;     // задержка включения вентилятора после открытия заслонки
         uint8_t outFanOn = 0;           // состояние вентилятора вытяжки
+        uint16_t shutdownOutFanRemain_s = 0; // остаток времени работы вытяжки после остановки алгоритма
+
+        uint8_t startupGateClosing = 0; // при старте: 1 если нужно закрыть ворота через API GateControl
+        uint8_t shutdownActive = 0;     // при остановке: 1 пока выполняется последовательность остановки
+        uint8_t shutdownGateOpening = 0; // при остановке: 1 если открытие ворот выполняется через API GateControl
          // Структуры ШИМ-управления левой и правой группами ТЭНов
          SideActuators left;
          SideActuators right;
@@ -296,6 +303,7 @@
      static void ResetState()
      {
          // Почему: при (пере)запуске нужны предсказуемые состояния без "хвоста" интегратора/ШИМ-памяти.
+        g.runtimeSeconds = 0;
          g.piSupplyCommon = PI{ /*kp*/ 0.18f, /*ki*/ 0.02f, /*i*/ 0.0f }; // стартовые; настройка обязательна
          g.leftRightTrimGain = 0.08f;   // коэффициент балансировки лево/право по разности температур потоков подачи.
          g.wDeadband_kgkg = 0.0008f;    // мёртвая зона для влажности.
@@ -307,6 +315,10 @@
         g.outDamperTimer_s = 0;        // таймер открытия заслонки.
         g.outFanDelay_s = 5;           // задержка включения вентилятора.
         g.outFanOn = 0;                // вентилятор вытяжки выключен.
+        g.shutdownOutFanRemain_s = 0;  // остаток времени работы вытяжки после остановки алгоритма
+       g.startupGateClosing = 0;      // при старте: 1 если нужно закрыть ворота
+       g.shutdownActive = 0;          // при остановке: 1 пока выполняется последовательность остановки
+       g.shutdownGateOpening = 0;
          g.left.ten1.Reset();           // сброс ШИМ-памяти для левого ТЭНа 1.
          g.left.ten2.Reset();           // сброс ШИМ-памяти для левого ТЭНа 2.
          g.left.ten1Hold.Reset(0);      // сброс времени удержания левого ТЭНа 1.
@@ -349,6 +361,39 @@
  
      static void ControlStep1s()
      {
+        // В рабочем автоматическом режиме клапан вытяжки держим закрытым.
+        // Он открывается только в последовательности остановки.
+        Model::DFR.Water_Flap = 1;
+
+        if (g.startupGateClosing != 0)
+        {
+            // Закрытие ворот выполняется через API GateControl:
+            // там учитываются фронты концевика и аварийный тайм-аут 10 секунд.
+            if (GateControl_IsCommandActive(GateControlCommand::Close) == 0)
+            {
+                g.startupGateClosing = 0;
+            }
+            else
+            {
+                ApplyOutputs(
+                    /*ventLeftOn*/  0,
+                    /*ventRightOn*/ 0,
+                    /*ten1LeftOn*/  0,
+                    /*ten2LeftOn*/  0,
+                    /*ten1RightOn*/ 0,
+                    /*ten2RightOn*/ 0,
+                    /*injOn*/       0,
+                    /*outOn*/       0);
+                return;
+            }
+        }
+
+       // В автоматическом режиме воротами управляет только GateControl.
+       // Здесь принудительно снимаем команды, чтобы не оставалось "залипших" битов.
+       GateControl_SetCommand(GateControlCommand::Open, 0);
+       GateControl_SetCommand(GateControlCommand::Close, 0);
+       GateControl_SetCommand(GateControlCommand::Deblock, 0);
+
          // Читаем последние значения из Model.
          const float T_supL_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensSupLeft_T_H));
          const float RH_supL  = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupLeft_T_H));
@@ -607,6 +652,41 @@
      }
  } // namespace
  
+ static void ShutdownSequence()
+{
+    // Безопасное выключение всех исполнительных механизмов при остановке алгоритма
+
+    // ТЭНы: отключить все нагреватели
+    Model::DFR.Ten1_Left = 0;
+    Model::DFR.Ten2_Left = 0;
+    Model::DFR.Ten1_Right = 0;
+    Model::DFR.Ten2_Right = 0;
+
+    // Вентиляторы: отключить все вентиляторы подачи воздуха
+    Model::DFR.Vent1_Left = 0;
+    Model::DFR.Vent2_Left = 0;
+    Model::DFR.Vent1_Right = 0;
+    Model::DFR.Vent2_Right = 0;
+
+    // Форсунки: отключить увлажнение
+    Model::DFR._Inj = 0;
+
+    // Ворота: открываем через тот же алгоритм GateControl в текущем режиме.
+    GateControl_SetCommand(GateControlCommand::Open, 1);
+    g.shutdownGateOpening = 1;
+
+    // Вытяжка: сначала открыть клапан, затем включить вентилятор на 5 минут.
+    // Water_Flap: 1 = клапан закрыт, 0 = клапан открыт.
+    Model::DFR.Water_Flap = 0;
+    g.outDamperState = 1;             // клапан открывается
+    g.outDamperTimer_s = 10;          // время полного открытия клапана
+    g.outFanOn = 0;                   // до открытия клапана вентилятор выключен
+    g.outOn = 0;
+    Model::DFR._Out = 0;
+    g.shutdownOutFanRemain_s = 300;   // 5 минут после открытия клапана
+    g.shutdownActive = 1;
+}
+
  extern "C"
  {
      void DefrostControl_Init(void)
@@ -617,13 +697,52 @@
      void DefrostControl_SetEnabled(uint8_t enabled)
      {
          // Почему: отдельный флаг enabled позволяет безопасно вводить алгоритм, не ломая существующую логику авто/ручного режима.
-         g.enabled = enabled ? 1 : 0;
-         if (g.enabled == 0)
+        const uint8_t newEnabled = enabled ? 1 : 0;
+
+        if (newEnabled != 0)
+        {
+            ResetState();
+           // Почему: запуск автоматического алгоритма должен выполняться именно в автоматическом режиме.
+           // Иначе на реле будет отправляться ручной регистр, а счётчик runtime не будет увеличиваться.
+           GateControl_SetManualMode(0);
+
+            // На старте авто-режима, если ворота открыты, закрываем их.
+            if (GateControl_IsOpenPosition() != 0)
+            {
+                GateControl_SetCommand(GateControlCommand::Close, 1);
+                g.startupGateClosing = 1;
+            }
+            else
+            {
+                g.startupGateClosing = 0;
+                GateControl_SetCommand(GateControlCommand::Close, 0);
+            }
+
+            g.shutdownActive = 0;
+            g.shutdownOutFanRemain_s = 0;
+            g.enabled = 1;
+            return;
+        }
+
+        g.enabled = 0;
+        if (g.enabled == 0)
          {
-             ResetState();
-             // При выключении алгоритма выходы не трогаем: внешний код может захотеть оставить ручное управление как есть.
-         }
-     }
+             ShutdownSequence();  // Безопасное выключение всех элементов
+            g.runtimeSeconds = 0; // Время работы алгоритма обнуляется при остановке
+        }
+    }
+
+    uint32_t DefrostControl_GetRuntimeSeconds(void)
+    {
+        return g.runtimeSeconds;
+    }
+
+    uint8_t DefrostControl_IsEnabled(void)
+    {
+        // Почему: в HOME нужен признак именно активного автоматического режима,
+        // а не просто факт, что алгоритм ранее был запущен.
+        return (g.enabled != 0 && GateControl_GetManualMode() == 0) ? 1 : 0;
+    }
  
      void DefrostControl_Update1s(void)
      {
@@ -631,14 +750,73 @@
          // Почему: ручной режим должен быть главным; алгоритм не должен "бороться" с оператором.
          if (g.enabled == 0)
          {
+            if (g.shutdownActive != 0)
+             {
+                // Открытие ворот выполняем через API GateControl.
+                if (g.shutdownGateOpening != 0)
+                {
+                    if (GateControl_IsCommandActive(GateControlCommand::Open) == 0)
+                    {
+                        g.shutdownGateOpening = 0;
+                    }
+                }
+                else
+                {
+                    GateControl_SetCommand(GateControlCommand::Open, 0);
+                    GateControl_SetCommand(GateControlCommand::Close, 0);
+                    GateControl_SetCommand(GateControlCommand::Deblock, 0);
+                }
+
+                Model::DFR.Water_Flap = 0;
+
+                if (g.outDamperState == 1)
+                {
+                    if (g.outDamperTimer_s > 0)
+                    {
+                        g.outDamperTimer_s--;
+                    }
+                    else
+                    {
+                        g.outDamperState = 2;
+                        g.outFanOn = 1;
+                        g.shutdownOutFanRemain_s = 300;
+                    }
+                }
+
+                if (g.outFanOn != 0 && g.shutdownOutFanRemain_s > 0)
+                {
+                    g.shutdownOutFanRemain_s--;
+                    if (g.shutdownOutFanRemain_s == 0)
+                    {
+                        g.outFanOn = 0;
+                    }
+                }
+
+                Model::DFR._Out = g.outFanOn ? 1 : 0;
+
+                if (g.outFanOn == 0 && g.outDamperState == 2 && g.shutdownOutFanRemain_s == 0)
+                 {
+                    g.shutdownActive = 0;
+                    GateControl_SetCommand(GateControlCommand::Open, 0);
+                    GateControl_SetCommand(GateControlCommand::Close, 0);
+                    GateControl_SetCommand(GateControlCommand::Deblock, 0);
+                 }
+             }
              return;
-         }
-         if (Model::Flag_DFR_manual != 0)
-         {
-             return;
-         }
- 
-         ControlStep1s();
+         }         
+
+        // В ручном режиме автоматический алгоритм и счётчик времени не должны выполняться.
+        if (GateControl_GetManualMode() != 0)
+        {
+            return;
+        }
+
+        ControlStep1s();
+
+        if (g.runtimeSeconds < UINT32_MAX)
+        {
+            g.runtimeSeconds++;
+        }
      }
  }
 

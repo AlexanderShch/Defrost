@@ -347,7 +347,7 @@
         <Translation Language="GB">Датчики Т° в теле</Translation>
       </Text>
       <Text Id="LabelPRGTimeLeft" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">Ост. программы, мин</Translation>
+        <Translation Language="GB">Отработано</Translation>
       </Text>
       <Text Id="LabelCoreT" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Т° ядра 1/2</Translation>
@@ -372,6 +372,9 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Unsorted">
+      <Text Id="__SingleUse_O02S" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Работа</Translation>
+      </Text>
       <Text Id="__SingleUse_5U0Z" Alignment="Left" TypographyId="Small">
         <Translation Language="GB">ПРАВЫЙ</Translation>
       </Text>
@@ -390,7 +393,7 @@
     </TextGroup>
   </Texts>
   <Typographies>
-    <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="A,B,D,H,I,R,L,M,N,O,S,T,C,b,d,e,f,g,h,i,l,n,o,p,r,t,u,y,&amp;" WildcardCharacterRanges="0-9,0x2D" />
+    <Typography Id="Default" Font="verdana.ttf" Size="20" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="A,B,D,H,I,R,L,M,N,O,S,T,C,b,d,e,f,g,h,i,l,n,o,p,r,t,u,y,&amp;,:" WildcardCharacterRanges="0-9,0x2D" />
     <Typography Id="LargeHighlight" Font="verdanab.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacterRanges="0-9" />
     <Typography Id="Large" Font="verdana.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" />
     <Typography Id="Small" Font="verdana.ttf" Size="10" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="." WildcardCharacterRanges="0-9" />

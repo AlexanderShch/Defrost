@@ -1,15 +1,18 @@
 #include <gui/home_screen/HomeView.hpp>
 #include <gui/home_screen/HomePresenter.hpp>
+#include "DefrostControl.h"
 
 HomePresenter::HomePresenter(HomeView& v)
-    : view(v)
+    : view(v),
+      lastRuntimeSeconds(0)
 {
 
 }
 
 void HomePresenter::activate()
 {
-
+    lastRuntimeSeconds = 0;
+    view.updateProgramRuntimeView(0);
 }
 
 void HomePresenter::deactivate()
@@ -49,4 +52,25 @@ void HomePresenter::ValUpdatePresenter()
 			}
 		}
 	}
+
+    const uint32_t runtimeSeconds = DefrostControl_GetRuntimeSeconds();
+    if (runtimeSeconds != lastRuntimeSeconds)
+    {
+        lastRuntimeSeconds = runtimeSeconds;
+        view.updateProgramRuntimeView(runtimeSeconds);
+    }
+}
+
+void HomePresenter::startDefrostRequested()
+{
+	DefrostControl_SetEnabled(1);
+    lastRuntimeSeconds = 0;
+    view.updateProgramRuntimeView(0);
+}
+
+void HomePresenter::stopDefrostRequested()
+{
+	DefrostControl_SetEnabled(0);
+    lastRuntimeSeconds = 0;
+    view.updateProgramRuntimeView(0);
 }

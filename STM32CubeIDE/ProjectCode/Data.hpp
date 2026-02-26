@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Data.hpp
  *
  *  Создан: Jul 3, 2023
@@ -8,6 +8,7 @@
 #ifndef DATA_HPP_
 #define DATA_HPP_
 
+#include <stdint.h>
 #include "cmsis_os.h"
 #include "ModBus.hpp"
 

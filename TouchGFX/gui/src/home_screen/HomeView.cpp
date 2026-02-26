@@ -1,6 +1,7 @@
 #include <gui/home_screen/HomeView.hpp>
 #include <gui/model/Model.hpp>
 #include <touchgfx/Unicode.hpp>
+#include "DefrostControl.h"
 
 HomeView::HomeView()
 {
@@ -10,9 +11,29 @@ HomeView::HomeView()
 void HomeView::setupScreen()
 {
     HomeViewBase::setupScreen();
-    
+
+    // Привязка нажатия BTNStart к запуску алгоритма разморозки.
+    startButtonCallback = touchgfx::Callback<HomeView, const touchgfx::AbstractButton&>(this, &HomeView::onBTNStartClicked);
+    BTNStart.setAction(startButtonCallback);
+    // Синхронизируем переключатель с текущим состоянием автоматического режима.
+    BTNStart.forceState(DefrostControl_IsEnabled() != 0);
+    BTNStart.invalidate();
+
+    ValuePRGTimeWrk.setWildcard(ValuePRGTimeWrkBuffer);
+    ValuePRGTimeWrk.setPosition(0, 111, 240, 24);
+    updateProgramRuntimeView(0);
+
     // Устанавливаем версию прошивки при инициализации экрана
     updateVersionDisplay();
+}
+
+void HomeView::onBTNStartClicked(const touchgfx::AbstractButton&)
+{
+    // Pressed — запуск разморозки, Release — остановка (состояние переключателя уже обновлено).
+    if (BTNStart.getState())
+        presenter->startDefrostRequested();
+    else
+        presenter->stopDefrostRequested();
 }
 
 void HomeView::tearDownScreen()
@@ -32,6 +53,22 @@ void HomeView::Val_T_4UpdateView(int Val)
 {
 	Unicode::snprintfFloat(ValueCoreT2Buffer, sizeof(ValueCoreT2Buffer), "%.1f", (float)Val/10);
 	ValueCoreT2.invalidate();
+}
+
+void HomeView::updateProgramRuntimeView(uint32_t runtimeSeconds)
+{
+    const uint32_t hours = (runtimeSeconds / 3600u) % 100u;
+    const uint32_t minutes = (runtimeSeconds / 60u) % 60u;
+    const uint32_t seconds = runtimeSeconds % 60u;
+
+    Unicode::snprintf(ValuePRGTimeWrkBuffer, PRGTIMEWRK_SIZE, "%02u:%02u:%02u",
+                      static_cast<unsigned int>(hours),
+                      static_cast<unsigned int>(minutes),
+                      static_cast<unsigned int>(seconds));
+
+    ValuePRGTimeWrk.resizeToCurrentText();
+    ValuePRGTimeWrk.setX((240 - ValuePRGTimeWrk.getWidth()) / 2);
+    ValuePRGTimeWrk.invalidate();
 }
 
 /*

@@ -3,6 +3,7 @@
 
 #include <gui/model/ModelListener.hpp>
 #include <mvp/Presenter.hpp>
+#include <stdint.h>
 
 using namespace touchgfx;
 
@@ -29,10 +30,16 @@ public:
 
     virtual void ValUpdatePresenter();
 
+    /** Вызывается при запросе пользователя на запуск разморозки (BTNStart в состоянии Pressed). */
+    void startDefrostRequested();
+    /** Вызывается при отпускании BTNStart — остановка алгоритма разморозки (состояние Release). */
+    void stopDefrostRequested();
+
 private:
     HomePresenter();
 
     HomeView& view;
+    uint32_t lastRuntimeSeconds;
 };
 
 #endif // HOMEPRESENTER_HPP

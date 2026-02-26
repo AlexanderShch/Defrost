@@ -1,11 +1,11 @@
 #include <gui/settings2_screen/Settings2View.hpp>
 #include <gui/model/Model.hpp>
+#include "GateControl.hpp"
 
 #include <touchgfx/Color.hpp>
 #include <touchgfx/utils.hpp>
-#include <iostream>
+#include <stdint.h>
 uint8_t MinAlpha = 50;
-uint16_t *pDFR_manual = (uint16_t*) &Model::DFR_manual;	// указатель на регистр DFR_manual
 
 namespace
 {
@@ -110,17 +110,16 @@ void Settings2View::UpdateGateIndicators()
 	const auto red = touchgfx::Color::getColorFromRGB(227, 14, 14);
 
 	// Состояние сигналов движения ворот/разблокировки (команды ручного управления)
-	const bool cmdUp = (Model::DFR_manual.Gate_Up != 0);
-	const bool cmdDown = (Model::DFR_manual.Gate_Down != 0);
-	const bool cmdDbl = (Model::DFR_manual.Gate_Dbl != 0);
+	const bool cmdUp = (GateControl_IsCommandActive(GateControlCommand::Open) != 0);
+	const bool cmdDown = (GateControl_IsCommandActive(GateControlCommand::Close) != 0);
+	const bool cmdDbl = (GateControl_IsCommandActive(GateControlCommand::Deblock) != 0);
 
 	const bool manualEnabled = Model::isDefrostManualModeEnabled();
 
-	const bool gateAlarm = (Model::Gate_Alarm != 0);
+	const bool gateAlarm = (GateControl_IsAlarm() != 0);
 
-	// В аварийном режиме используем флаги конечного положения вместо входных сигналов.
-	const bool gateOpen = gateAlarm ? (Model::Gate_PosTop != 0) : (Model::Gate_Open != 0);
-	const bool gateClose = gateAlarm ? (Model::Gate_PosBottom != 0) : (Model::Gate_Close != 0);
+	const bool gateOpen = (GateControl_IsOpenPosition() != 0);
+	const bool gateClose = (GateControl_IsClosedPosition() != 0);
 
 	// Надпись режима ворот.
 	LabelGate.setVisible(!gateAlarm);
@@ -181,21 +180,8 @@ void Settings2View::BTNGateUpClicked()
 		return;
 	}
 
-	const bool newState = (Model::DFR_manual.Gate_Up == 0);
-
-	// Почему: в аварийном режиме сначала снимаем фиксацию конечного положения в противоположном направлении,
-	// затем включаем движение, чтобы не было "мигания" цветов (красный -> зелёный -> белый).
-	if (newState && Model::Gate_Alarm != 0)
-	{
-		Model::Gate_PosBottom = 0;
-	}
-
-	Model::DFR_manual.Gate_Up = newState ? 1 : 0;
-	if (newState)
-	{
-		Model::DFR_manual.Gate_Down = 0;
-		Model::DFR_manual.Gate_Dbl = 0;
-	}
+	const bool newState = (GateControl_IsCommandActive(GateControlCommand::Open) == 0);
+	GateControl_SetCommand(GateControlCommand::Open, newState ? 1 : 0);
 	UpdateGateIndicators();
 }
 void Settings2View::BTNGateStopClicked()
@@ -205,13 +191,8 @@ void Settings2View::BTNGateStopClicked()
 		return;
 	}
 
-	const bool newState = (Model::DFR_manual.Gate_Dbl == 0);
-	Model::DFR_manual.Gate_Dbl = newState ? 1 : 0;
-	if (newState)
-	{
-		Model::DFR_manual.Gate_Up = 0;
-		Model::DFR_manual.Gate_Down = 0;
-	}
+	const bool newState = (GateControl_IsCommandActive(GateControlCommand::Deblock) == 0);
+	GateControl_SetCommand(GateControlCommand::Deblock, newState ? 1 : 0);
 	UpdateGateIndicators();
 }
 void Settings2View::BTNGateDownClicked()
@@ -221,20 +202,7 @@ void Settings2View::BTNGateDownClicked()
 		return;
 	}
 
-	const bool newState = (Model::DFR_manual.Gate_Down == 0);
-
-	// Почему: в аварийном режиме сначала снимаем фиксацию конечного положения в противоположном направлении,
-	// затем включаем движение, чтобы не было "мигания" цветов (красный -> зелёный -> белый).
-	if (newState && Model::Gate_Alarm != 0)
-	{
-		Model::Gate_PosTop = 0;
-	}
-
-	Model::DFR_manual.Gate_Down = newState ? 1 : 0;
-	if (newState)
-	{
-		Model::DFR_manual.Gate_Up = 0;
-		Model::DFR_manual.Gate_Dbl = 0;
-	}
+	const bool newState = (GateControl_IsCommandActive(GateControlCommand::Close) == 0);
+	GateControl_SetCommand(GateControlCommand::Close, newState ? 1 : 0);
 	UpdateGateIndicators();
 }
