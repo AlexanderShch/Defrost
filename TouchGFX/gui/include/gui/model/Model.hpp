@@ -60,6 +60,31 @@ typedef struct
 
 } DFR_REGISTERS_t;
 
+// Регистр входных сигналов дефростера, считанных с модуля ввода-вывода.
+typedef union
+{
+	uint16_t Raw;
+	struct
+	{
+		unsigned DI0:1;
+		unsigned DI1:1;
+		unsigned DI2:1;
+		unsigned DI3:1;
+		unsigned DI4:1;
+		unsigned DI5:1;
+		unsigned DI6:1;
+		unsigned DI7:1;
+		unsigned DI8:1;
+		unsigned DI9:1;
+		unsigned DI10:1;
+		unsigned DI11:1;
+		unsigned Gate_Close:1; // бит 12: ворота закрыты
+		unsigned Gate_Open:1;  // бит 13: ворота открыты
+		unsigned DI14:1;
+		unsigned DI15:1;
+	} Bits;
+} DI_DFR_REGISTERS_t;
+
 class Model
 {
 public:
@@ -123,6 +148,7 @@ public:
     static int16_t CORR_H_sensor;			// значение H для корректировки
     static int16_t CORR_R_sensor;			// значение R для корректировки
     // регистры управления устройствами
+    static DI_DFR_REGISTERS_t DI_DFR;		// Регистр входных сигналов дефростера
     static DFR_REGISTERS_t DFR;				// Объявление регистра состояния управления устройствами
     static DFR_REGISTERS_t DFR_current;		// Объявление регистра текущего отображения состояния управления устройствами
     static DFR_REGISTERS_t DFR_chng_flag;	// Объявление регистра флагов изменения состояния управления устройствами

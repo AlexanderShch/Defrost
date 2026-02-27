@@ -247,13 +247,13 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			Sensor::PutData(TimeFromStart, SensIndex, 2, SW.Read_Data_2);	// запись Т
 			Sensor::PutData(TimeFromStart, SensIndex, 3, SW.Read_Data_1);	// запись Н
 
-			// Почему: состояние ворот нужно обновлять сразу после чтения из модуля ввода-вывода.
+			// Почему: состояние входов дефростера нужно обновлять сразу после чтения из модуля ввода-вывода.
 			// Модуль ввода-вывода имеет индекс 6 (SQ=7), входы лежат в Read_Data_2 (T).
-			// Gate_Close = бит 12, Gate_Open = бит 13.
 			if (SensIndex == 6 && Sensor_array[SensIndex].TypeOfSensor == 4)
 			{
-				Model::Gate_Close = (uint8_t)((SW.Read_Data_2 >> 12) & 0x1u);
-				Model::Gate_Open = (uint8_t)((SW.Read_Data_2 >> 13) & 0x1u);
+				Model::DI_DFR.Raw = SW.Read_Data_2;
+				Model::Gate_Close = Model::DI_DFR.Bits.Gate_Close ? 1 : 0;
+				Model::Gate_Open = Model::DI_DFR.Bits.Gate_Open ? 1 : 0;
 			}
 			break;
 		case MB_ERROR_DMA_SEND:

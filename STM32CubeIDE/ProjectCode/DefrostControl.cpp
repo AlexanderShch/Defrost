@@ -289,6 +289,15 @@ extern SENSOR_typedef_t Sensor_array[SQ];
         uint8_t startupGateClosing = 0; // при старте: 1 если нужно закрыть ворота через API GateControl
         uint8_t shutdownActive = 0;     // при остановке: 1 пока выполняется последовательность остановки
         uint8_t shutdownGateOpening = 0; // при остановке: 1 если открытие ворот выполняется через API GateControl
+        uint8_t startupActuatorDelay_s = 0; // пауза между последовательными включениями вентиляторов и ТЭНов
+        uint8_t stagedVent1LeftOn = 0;
+        uint8_t stagedVent2LeftOn = 0;
+        uint8_t stagedVent1RightOn = 0;
+        uint8_t stagedVent2RightOn = 0;
+        uint8_t stagedTen1LeftOn = 0;
+        uint8_t stagedTen2LeftOn = 0;
+        uint8_t stagedTen1RightOn = 0;
+        uint8_t stagedTen2RightOn = 0;
          // Структуры ШИМ-управления левой и правой группами ТЭНов
          SideActuators left;
          SideActuators right;
@@ -319,6 +328,15 @@ extern SENSOR_typedef_t Sensor_array[SQ];
        g.startupGateClosing = 0;      // при старте: 1 если нужно закрыть ворота
        g.shutdownActive = 0;          // при остановке: 1 пока выполняется последовательность остановки
        g.shutdownGateOpening = 0;
+       g.startupActuatorDelay_s = 0;
+       g.stagedVent1LeftOn = 0;
+       g.stagedVent2LeftOn = 0;
+       g.stagedVent1RightOn = 0;
+       g.stagedVent2RightOn = 0;
+       g.stagedTen1LeftOn = 0;
+       g.stagedTen2LeftOn = 0;
+       g.stagedTen1RightOn = 0;
+       g.stagedTen2RightOn = 0;
          g.left.ten1.Reset();           // сброс ШИМ-памяти для левого ТЭНа 1.
          g.left.ten2.Reset();           // сброс ШИМ-памяти для левого ТЭНа 2.
          g.left.ten1Hold.Reset(0);      // сброс времени удержания левого ТЭНа 1.
@@ -344,16 +362,54 @@ extern SENSOR_typedef_t Sensor_array[SQ];
          uint8_t injOn,
          uint8_t outOn)
      {
-         // Почему: побочные эффекты (изменение общего Model::DFR) держим в одном месте для простого аудита.
-         Model::DFR.Vent1_Left  = ventLeftOn ? 1 : 0;
-         Model::DFR.Vent2_Left  = ventLeftOn ? 1 : 0;
-         Model::DFR.Vent1_Right = ventRightOn ? 1 : 0;
-         Model::DFR.Vent2_Right = ventRightOn ? 1 : 0;
- 
-         Model::DFR.Ten1_Left   = ten1LeftOn ? 1 : 0;
-         Model::DFR.Ten2_Left   = ten2LeftOn ? 1 : 0;
-         Model::DFR.Ten1_Right  = ten1RightOn ? 1 : 0;
-         Model::DFR.Ten2_Right  = ten2RightOn ? 1 : 0;
+        // Почему: чтобы снизить пусковые токи, включаем вентиляторы и ТЭНы по одному каналу
+        // с интервалом 2 секунды между включениями. Выключение оставляем мгновенным.
+        const uint8_t kStartupInterval_s = 2;
+        if (g.startupActuatorDelay_s > 0)
+        {
+            g.startupActuatorDelay_s--;
+        }
+
+        bool switchedOnThisTick = false;
+        auto stageActuator = [&](uint8_t desiredOn, uint8_t& stagedOn)
+        {
+            if (desiredOn == 0)
+            {
+                stagedOn = 0;
+                return;
+            }
+            if (stagedOn != 0)
+            {
+                return;
+            }
+            if (!switchedOnThisTick && g.startupActuatorDelay_s == 0)
+            {
+                stagedOn = 1;
+                switchedOnThisTick = true;
+                g.startupActuatorDelay_s = kStartupInterval_s;
+            }
+        };
+
+        // Вентиляторы запускаем раньше ТЭНов.
+        stageActuator(ventLeftOn,  g.stagedVent1LeftOn);
+        stageActuator(ventLeftOn,  g.stagedVent2LeftOn);
+        stageActuator(ventRightOn, g.stagedVent1RightOn);
+        stageActuator(ventRightOn, g.stagedVent2RightOn);
+        stageActuator(ten1LeftOn,  g.stagedTen1LeftOn);
+        stageActuator(ten2LeftOn,  g.stagedTen2LeftOn);
+        stageActuator(ten1RightOn, g.stagedTen1RightOn);
+        stageActuator(ten2RightOn, g.stagedTen2RightOn);
+
+        // Почему: побочные эффекты (изменение общего Model::DFR) держим в одном месте для простого аудита.
+        Model::DFR.Vent1_Left  = g.stagedVent1LeftOn ? 1 : 0;
+        Model::DFR.Vent2_Left  = g.stagedVent2LeftOn ? 1 : 0;
+        Model::DFR.Vent1_Right = g.stagedVent1RightOn ? 1 : 0;
+        Model::DFR.Vent2_Right = g.stagedVent2RightOn ? 1 : 0;
+
+        Model::DFR.Ten1_Left   = g.stagedTen1LeftOn ? 1 : 0;
+        Model::DFR.Ten2_Left   = g.stagedTen2LeftOn ? 1 : 0;
+        Model::DFR.Ten1_Right  = g.stagedTen1RightOn ? 1 : 0;
+        Model::DFR.Ten2_Right  = g.stagedTen2RightOn ? 1 : 0;
  
          Model::DFR._Inj        = injOn ? 1 : 0;
          Model::DFR._Out        = outOn ? 1 : 0;
@@ -706,8 +762,25 @@ extern SENSOR_typedef_t Sensor_array[SQ];
            // Иначе на реле будет отправляться ручной регистр, а счётчик runtime не будет увеличиваться.
            GateControl_SetManualMode(0);
 
-            // На старте авто-режима, если ворота открыты, закрываем их.
-            if (GateControl_IsOpenPosition() != 0)
+           // При повторном старте во время post-shutdown вытяжки немедленно останавливаем
+           // вентилятор вытяжки и закрываем заслонку, не дожидаясь следующего тика 1 Гц.
+           g.shutdownActive = 0;
+           g.shutdownGateOpening = 0;
+           g.shutdownOutFanRemain_s = 0;
+           g.outFanOn = 0;
+           g.outOn = 0;
+           g.outDamperState = 0;
+           g.outDamperTimer_s = 0;
+           Model::DFR._Out = 0;
+           Model::DFR.Water_Flap = 1;
+
+           // Сбрасываем команды ворот перед формированием команды на старт.
+           GateControl_SetCommand(GateControlCommand::Open, 0);
+           GateControl_SetCommand(GateControlCommand::Close, 0);
+           GateControl_SetCommand(GateControlCommand::Deblock, 0);
+
+            // На старте авто-режима закрываем ворота, если они не в нижнем положении.
+            if (GateControl_IsClosedPosition() == 0)
             {
                 GateControl_SetCommand(GateControlCommand::Close, 1);
                 g.startupGateClosing = 1;

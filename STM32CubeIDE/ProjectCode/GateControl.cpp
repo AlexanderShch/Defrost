@@ -102,7 +102,7 @@ uint8_t GateControl_IsOpenPosition(void)
 	{
 		return (Model::Gate_PosTop != 0) ? 1 : 0;
 	}
-	return (Model::Gate_Open != 0) ? 1 : 0;
+	return (Model::DI_DFR.Bits.Gate_Open != 0) ? 1 : 0;
 }
 
 uint8_t GateControl_IsClosedPosition(void)
@@ -111,7 +111,7 @@ uint8_t GateControl_IsClosedPosition(void)
 	{
 		return (Model::Gate_PosBottom != 0) ? 1 : 0;
 	}
-	return (Model::Gate_Close != 0) ? 1 : 0;
+	return (Model::DI_DFR.Bits.Gate_Close != 0) ? 1 : 0;
 }
 
 uint8_t GateControl_IsAlarm(void)
@@ -127,8 +127,8 @@ void GateControl_Update1s(void)
 
 	// Почему: сигнал Gate_Open/Gate_Close может быть "залипшим" в 1.
 	// Завершение движения считаем только по фронту 0->1 после начала движения.
-	const uint8_t gateOpen = (Model::Gate_Open != 0) ? 1 : 0;
-	const uint8_t gateClose = (Model::Gate_Close != 0) ? 1 : 0;
+	const uint8_t gateOpen = (Model::DI_DFR.Bits.Gate_Open != 0) ? 1 : 0;
+	const uint8_t gateClose = (Model::DI_DFR.Bits.Gate_Close != 0) ? 1 : 0;
 	const bool gateOpenEdge = (gateOpen != 0) && (prevGateOpen == 0);
 	const bool gateCloseEdge = (gateClose != 0) && (prevGateClose == 0);
 

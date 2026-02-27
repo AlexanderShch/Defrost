@@ -192,6 +192,7 @@ uint8_t Model::FlagCurrentValue_PR_sensor = 0;
 uint8_t Model::DefrostManualGroupMask = 0;
 uint8_t Model::DefrostManualGlobalEnabled = 0;
 uint8_t Model::Flag_DFR_manual = 0;
+DI_DFR_REGISTERS_t Model::DI_DFR = {};
 DFR_REGISTERS_t Model::DFR;				// Регистр состояния управления устройствами
 DFR_REGISTERS_t Model::DFR_current;		// Регистр текущего отображения состояния управления устройствами
 DFR_REGISTERS_t Model::DFR_chng_flag;	// Регистр флагов изменения состояния управления устройствами
