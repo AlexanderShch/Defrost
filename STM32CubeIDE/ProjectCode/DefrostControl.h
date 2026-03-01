@@ -25,21 +25,29 @@ typedef enum {
 } DefrostParamType_t;
 
 typedef struct {
-    float fishHotMax_C[DEFROST_PHASE_COUNT];
-    float fishHotRateMax_Cps[DEFROST_PHASE_COUNT];
-    float fishDeltaMax_C[DEFROST_PHASE_COUNT];
-    float supplySet_C[DEFROST_PHASE_COUNT];
-    float supplyMax_C[DEFROST_PHASE_COUNT];
-    float returnTargetRH_percent[DEFROST_PHASE_COUNT];
-    float leftRightTrimGain;
-    float leftRightTrimMaxEq;
-    float wDeadband_kgkg;
-    uint16_t outDamperTimer_s;
-    uint16_t outFanDelay_s;
-    uint16_t outHold_s;
-    uint16_t tenMinHold_s;
-    uint16_t injMinHold_s;
-    uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT];
+    /* Ограничения по температуре продукта и подачи [фаза 0=WarmUp, 1=Plateau, 2=Finish] */
+    float fishHotMax_C[DEFROST_PHASE_COUNT];         /* потолок температуры самой тёплой точки продукта, °C */
+    float fishHotRateMax_Cps[DEFROST_PHASE_COUNT];   /* потолок скорости прогрева «горячей» точки, °C/с */
+    float fishDeltaMax_C[DEFROST_PHASE_COUNT];       /* потолок разницы горячая–холодная точка продукта, °C */
+    float supplySet_C[DEFROST_PHASE_COUNT];         /* уставка температуры воздуха подачи, °C */
+    float supplyMax_C[DEFROST_PHASE_COUNT];         /* потолок температуры воздуха в потоках подачи, °C */
+    float returnTargetRH_percent[DEFROST_PHASE_COUNT]; /* уставка относительной влажности в возврате, % */
+    /* Балансировка левый/правый поток */
+    float leftRightTrimGain;   /* коэффициент подстройки по разности температур подачи лево/право */
+    float leftRightTrimMaxEq;   /* макс. эквивалент ТЭНа для коррекции дисбаланса (0..2) */
+    /* ПИ-регулятор температуры подачи */
+    float piKp;                /* пропорциональный коэффициент */
+    float piKi;                /* интегральный коэффициент */
+    /* Влажность: форсунка и мёртвая зона */
+    float wDeadband_kgkg;       /* мёртвая зона по абсолютной влажности, кг/кг (чтобы не дёргать форсунку и вытяжку) */
+    float injGain;              /* коэффициент форсунки: скважность на (кг/кг) по ошибке влажности */
+    /* Тайминги вытяжки и актуаторов, с */
+    uint16_t outDamperTimer_s;  /* время полного открытия заслонки вытяжки */
+    uint16_t outFanDelay_s;     /* задержка включения вентилятора вытяжки после открытия заслонки */
+    uint16_t outHold_s;         /* минимальное время удержания состояния вытяжки (вкл/выкл) */
+    uint16_t tenMinHold_s;      /* минимальное время удержания состояния ТЭНов (вкл/выкл) */
+    uint16_t injMinHold_s;      /* минимальное время удержания состояния форсунки (вкл/выкл) */
+    uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT]; /* 1=использовать датчик в дефросте, 0=игнорировать */
 } DefrostParams_t;
 
 typedef struct {

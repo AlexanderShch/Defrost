@@ -128,7 +128,10 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         p->returnTargetRH_percent[2] = 85.0f;
         p->leftRightTrimGain = 0.08f;
         p->leftRightTrimMaxEq = 0.6f;
+        p->piKp = 0.18f;
+        p->piKi = 0.02f;
         p->wDeadband_kgkg = 0.0008f;
+        p->injGain = 900.0f;
         p->outDamperTimer_s = 10u;
         p->outFanDelay_s = 5u;
         p->outHold_s = 15u;
@@ -361,7 +364,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
      {
          // Почему: при (пере)запуске нужны предсказуемые состояния без "хвоста" интегратора/ШИМ-памяти.
         g.runtimeSeconds = 0;
-         g.piSupplyCommon = PI{ /*kp*/ 0.18f, /*ki*/ 0.02f, /*i*/ 0.0f }; // стартовые; настройка обязательна
+         g.piSupplyCommon = PI{ g_defrostParams.piKp, g_defrostParams.piKi, 0.0f };
         g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
         g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
          g.injPwm.Reset();              // сброс ШИМ-памяти для форсунки.
@@ -701,8 +704,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          float injDuty = 0.0f;
          if (wErr > g.wDeadband_kgkg)
          {
-             const float k = 900.0f; // скважность на (кг/кг); стартовое значение, требует настройки
-             injDuty = Clamp(k * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
+             injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
          }
  
         // Вытяжка: последовательное управление заслонкой и вентилятором для предотвращения частых переключений.
@@ -820,7 +822,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
     // Water_Flap: 1 = клапан закрыт, 0 = клапан открыт.
     Model::DFR.Water_Flap = 0;
     g.outDamperState = 1;             // клапан открывается
-    g.outDamperTimer_s = 10;          // время полного открытия клапана
+    g.outDamperTimer_s = g_defrostParams.outDamperTimer_s;
     g.outFanOn = 0;                   // до открытия клапана вентилятор выключен
     g.outOn = 0;
     Model::DFR._Out = 0;
@@ -889,6 +891,18 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
                 outValue->value.f32 = g_defrostParams.leftRightTrimMaxEq;
                 return 1;
             }
+            if (paramId == 17)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.piKp;
+                return 1;
+            }
+            if (paramId == 18)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.piKi;
+                return 1;
+            }
             return 0;
 
         case DEFROST_PARAM_GROUP_HUMIDITY:
@@ -914,6 +928,12 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
             {
                 outValue->valueType = DEFROST_PARAM_TYPE_U16;
                 outValue->value.u16 = g_defrostParams.outFanDelay_s;
+                return 1;
+            }
+            if (paramId == 6)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.injGain;
                 return 1;
             }
             return 0;
@@ -1003,6 +1023,16 @@ static uint8_t DefrostControl_SetParamInternal(uint8_t groupId, uint8_t paramId,
                 g_defrostParams.leftRightTrimMaxEq = Clamp(inValue->value.f32, 0.0f, 2.0f);
                 return 1;
             }
+            if (paramId == 17)
+            {
+                g_defrostParams.piKp = Clamp(inValue->value.f32, 0.01f, 2.0f);
+                return 1;
+            }
+            if (paramId == 18)
+            {
+                g_defrostParams.piKi = Clamp(inValue->value.f32, 0.001f, 0.5f);
+                return 1;
+            }
             return 0;
 
         case DEFROST_PARAM_GROUP_HUMIDITY:
@@ -1029,6 +1059,11 @@ static uint8_t DefrostControl_SetParamInternal(uint8_t groupId, uint8_t paramId,
             {
                 g_defrostParams.outFanDelay_s = inValue->value.u16;
                 g.outFanDelay_s = g_defrostParams.outFanDelay_s;
+                return 1;
+            }
+            if (paramId == 6 && inValue->valueType == DEFROST_PARAM_TYPE_F32)
+            {
+                g_defrostParams.injGain = Clamp(inValue->value.f32, 100.0f, 2000.0f);
                 return 1;
             }
             return 0;
