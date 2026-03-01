@@ -9,6 +9,7 @@
 #include "CommandReceiver.hpp"
 #include "ModBus.hpp"
 #include "Data.hpp"
+#include "DefrostControl.h"
 #include "version.h"
 #include <string.h>
 #include <gui/model/model.hpp>
@@ -429,6 +430,61 @@ CommandStatus_t CommandReceiver_HandleConfiguration(Command_t *cmd)
             }
             break;
         }
+
+        case CFG_CMD_SET_DEFROST_PARAM:
+        {
+            // Формат payload: [groupId][paramId][valueType][value...]
+            if (cmd->dataLength < 4)
+            {
+                status = CMD_STATUS_INVALID_LENGTH;
+                break;
+            }
+
+            DefrostParamValue_t value;
+            memset(&value, 0, sizeof(value));
+            const uint8_t groupId = cmd->data[0];
+            const uint8_t paramId = cmd->data[1];
+            value.valueType = cmd->data[2];
+
+            if (value.valueType == DEFROST_PARAM_TYPE_U8)
+            {
+                if (cmd->dataLength != 4)
+                {
+                    status = CMD_STATUS_INVALID_LENGTH;
+                    break;
+                }
+                value.value.u8 = cmd->data[3];
+            }
+            else if (value.valueType == DEFROST_PARAM_TYPE_U16)
+            {
+                if (cmd->dataLength != 5)
+                {
+                    status = CMD_STATUS_INVALID_LENGTH;
+                    break;
+                }
+                memcpy(&value.value.u16, &cmd->data[3], sizeof(uint16_t));
+            }
+            else if (value.valueType == DEFROST_PARAM_TYPE_F32)
+            {
+                if (cmd->dataLength != 7)
+                {
+                    status = CMD_STATUS_INVALID_LENGTH;
+                    break;
+                }
+                memcpy(&value.value.f32, &cmd->data[3], sizeof(float));
+            }
+            else
+            {
+                status = CMD_STATUS_INVALID_LENGTH;
+                break;
+            }
+
+            if (DefrostControl_SetParam(groupId, paramId, &value) == 0u)
+            {
+                status = CMD_STATUS_EXECUTION_ERROR;
+            }
+            break;
+        }
         
         default:
             status = CMD_STATUS_INVALID_CODE;
@@ -554,6 +610,88 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
             }
             
             // Отправляем ответ
+            CommandReceiver_SendResponse(&response);
+            break;
+        }
+
+        case REQ_CMD_GET_DEFROST_PARAM:
+        {
+            // Запрос: [groupId][paramId]
+            if (cmd->dataLength != 2)
+            {
+                status = CMD_STATUS_INVALID_LENGTH;
+                response.status = status;
+                CommandReceiver_SendResponse(&response);
+                break;
+            }
+
+            DefrostParamValue_t value;
+            memset(&value, 0, sizeof(value));
+            const uint8_t groupId = cmd->data[0];
+            const uint8_t paramId = cmd->data[1];
+
+            if (DefrostControl_GetParam(groupId, paramId, &value) == 0u)
+            {
+                status = CMD_STATUS_EXECUTION_ERROR;
+                response.status = status;
+                CommandReceiver_SendResponse(&response);
+                break;
+            }
+
+            response.data[0] = groupId;
+            response.data[1] = paramId;
+            response.data[2] = value.valueType;
+            if (value.valueType == DEFROST_PARAM_TYPE_U8)
+            {
+                response.data[3] = value.value.u8;
+                response.dataLength = 4;
+            }
+            else if (value.valueType == DEFROST_PARAM_TYPE_U16)
+            {
+                memcpy(&response.data[3], &value.value.u16, sizeof(uint16_t));
+                response.dataLength = 5;
+            }
+            else if (value.valueType == DEFROST_PARAM_TYPE_F32)
+            {
+                memcpy(&response.data[3], &value.value.f32, sizeof(float));
+                response.dataLength = 7;
+            }
+            else
+            {
+                status = CMD_STATUS_EXECUTION_ERROR;
+                response.status = status;
+            }
+
+            CommandReceiver_SendResponse(&response);
+            break;
+        }
+
+        case REQ_CMD_GET_DEFROST_GROUP:
+        {
+            // Запрос: [groupId][page]
+            if (cmd->dataLength != 2)
+            {
+                status = CMD_STATUS_INVALID_LENGTH;
+                response.status = status;
+                CommandReceiver_SendResponse(&response);
+                break;
+            }
+
+            const uint8_t groupId = cmd->data[0];
+            const uint8_t page = cmd->data[1];
+            uint8_t payloadLen = 0;
+
+            response.data[0] = groupId;
+            response.data[1] = page;
+            if (DefrostControl_GetGroup(groupId, page, &response.data[2], CMD_MAX_DATA_LENGTH - 2, &payloadLen) == 0u)
+            {
+                status = CMD_STATUS_EXECUTION_ERROR;
+                response.status = status;
+                CommandReceiver_SendResponse(&response);
+                break;
+            }
+
+            response.dataLength = (uint8_t)(payloadLen + 2);
             CommandReceiver_SendResponse(&response);
             break;
         }

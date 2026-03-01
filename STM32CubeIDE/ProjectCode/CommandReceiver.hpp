@@ -57,7 +57,8 @@ typedef enum {
 typedef enum {
     CFG_CMD_SET_TEMPERATURE = 0x01,  // Установить целевую температуру
     CFG_CMD_SET_INTERVAL    = 0x02,  // Установить интервал измерений
-    CFG_CMD_SET_MODE        = 0x03   // Установить режим работы
+    CFG_CMD_SET_MODE        = 0x03,  // Установить режим работы
+    CFG_CMD_SET_DEFROST_PARAM = 0x04 // Установить параметр авто-дефроста
 } ConfigCommand_t;
 
 // Коды команд запроса (RequestCommand)
@@ -66,7 +67,9 @@ typedef enum {
     REQ_CMD_GET_VERSION    = 0x02,  // Запросить версию прошивки (MAJOR.MINOR.PATCH)
     REQ_CMD_GET_CONFIG     = 0x03,  // Запросить текущую конфигурацию
     REQ_CMD_GET_CMD_INFO   = 0x04,  // Запросить аудит последней команды (тип+код+время+флаг ответа+статус)
-    REQ_CMD_GET_BUILD_INFO = 0x05   // Запросить информацию о сборке (версия + дата)
+    REQ_CMD_GET_BUILD_INFO = 0x05,  // Запросить информацию о сборке (версия + дата)
+    REQ_CMD_GET_DEFROST_PARAM = 0x06, // Запрос одного параметра авто-дефроста
+    REQ_CMD_GET_DEFROST_GROUP = 0x07  // Запрос пачки параметров группы
 } RequestCommand_t;
 
 // Статусы обработки команд

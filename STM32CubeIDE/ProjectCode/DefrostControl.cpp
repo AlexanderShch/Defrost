@@ -19,13 +19,26 @@
  
  #include <math.h>
  #include <stdint.h>
+#include <string.h>
  
  #include "Data.hpp"                 // индексы датчиков SQ
+#include "DefrostControl.h"
  #include "GateControl.hpp"
  #include <gui/model/Model.hpp>      // Model::getCurrentVal_* и битовый регистр Model::DFR
  #include "ModBus.hpp"
 
 extern SENSOR_typedef_t Sensor_array[SQ];
+
+typedef struct {
+    uint16_t version;
+    uint16_t payloadCrc;
+    DefrostParams_t params;
+} DefrostParamsStorage_t;
+
+static DefrostParams_t g_defrostParams;
+static DefrostParamsStorage_t g_defrostParamsStorage;
+static const uint16_t kDefrostParamsVersion = 1;
+static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ : DEFROST_MAX_SENSOR_COUNT;
  
  namespace
  {
@@ -69,6 +82,69 @@ extern SENSOR_typedef_t Sensor_array[SQ];
          float supplySet_C;             // основная уставка температуры подачи (на обе стороны)
          float returnTargetRH_percent;  // уставка влажности как RH при T возврата (далее переводится в абсолютную влажность)
      };
+
+    static uint16_t ParamsCrc16(const uint8_t *data, uint32_t size)
+    {
+        uint16_t crc = 0xFFFFu;
+        for (uint32_t i = 0; i < size; ++i)
+        {
+            crc ^= data[i];
+            for (uint8_t b = 0; b < 8; ++b)
+            {
+                if ((crc & 1u) != 0u)
+                {
+                    crc = (crc >> 1) ^ 0xA001u;
+                }
+                else
+                {
+                    crc >>= 1;
+                }
+            }
+        }
+        return crc;
+    }
+
+    static void LoadDefaultParams(DefrostParams_t *p)
+    {
+        memset(p, 0, sizeof(DefrostParams_t));
+
+        p->fishHotMax_C[0] = 20.0f;
+        p->fishHotMax_C[1] = 20.0f;
+        p->fishHotMax_C[2] = 20.0f;
+        p->fishHotRateMax_Cps[0] = 0.020f;
+        p->fishHotRateMax_Cps[1] = 0.015f;
+        p->fishHotRateMax_Cps[2] = 0.010f;
+        p->fishDeltaMax_C[0] = 6.0f;
+        p->fishDeltaMax_C[1] = 5.0f;
+        p->fishDeltaMax_C[2] = 4.0f;
+        p->supplySet_C[0] = 30.0f;
+        p->supplySet_C[1] = 26.0f;
+        p->supplySet_C[2] = 22.0f;
+        p->supplyMax_C[0] = 35.0f;
+        p->supplyMax_C[1] = 30.0f;
+        p->supplyMax_C[2] = 26.0f;
+        p->returnTargetRH_percent[0] = 85.0f;
+        p->returnTargetRH_percent[1] = 92.0f;
+        p->returnTargetRH_percent[2] = 85.0f;
+        p->leftRightTrimGain = 0.08f;
+        p->leftRightTrimMaxEq = 0.6f;
+        p->wDeadband_kgkg = 0.0008f;
+        p->outDamperTimer_s = 10u;
+        p->outFanDelay_s = 5u;
+        p->outHold_s = 15u;
+        p->tenMinHold_s = 10u;
+        p->injMinHold_s = 5u;
+
+        for (uint8_t i = 0; i < kDefrostSensorCount; i++)
+        {
+            p->sensorUseInDefrost[i] = Sensor_array[i].UseInDefrost;
+        }
+    }
+
+    static uint8_t IsPhaseIndexValid(uint8_t phaseIndex)
+    {
+        return (phaseIndex < DEFROST_PHASE_COUNT) ? 1u : 0u;
+    }
  
      enum class Phase : uint8_t
      {
@@ -87,56 +163,28 @@ extern SENSOR_typedef_t Sensor_array[SQ];
  
      static Limits GetLimits(Phase p)
      {
-         // Почему: консервативные значения снижают риск агрессивного нагрева около/выше 0°C, где чаще портится поверхность.
-         switch (p)
-         {
-             case Phase::WarmUp:
-                 return Limits{
-                    /*fishHotMax_C*/       20.0f,
-                     /*fishHotRateMax_Cps*/ 0.020f,  // 1.2°C/min
-                     /*fishDeltaMax_C*/     6.0f,
-                     /*supplyMax_C*/        35.0f,
-                 };
-             case Phase::Plateau:
-                 return Limits{
-                    /*fishHotMax_C*/       20.0f,
-                     /*fishHotRateMax_Cps*/ 0.015f,  // 0.9°C/min
-                     /*fishDeltaMax_C*/     5.0f,
-                     /*supplyMax_C*/        30.0f,
-                 };
-             case Phase::Finish:
-             default:
-                 return Limits{
-                    /*fishHotMax_C*/       20.0f,
-                     /*fishHotRateMax_Cps*/ 0.010f,  // 0.6°C/min
-                     /*fishDeltaMax_C*/     4.0f,
-                     /*supplyMax_C*/        26.0f,
-                 };
-         }
+        uint8_t idx = 0;
+        if (p == Phase::Plateau) idx = 1;
+        else if (p == Phase::Finish) idx = 2;
+
+        return Limits{
+            g_defrostParams.fishHotMax_C[idx],
+            g_defrostParams.fishHotRateMax_Cps[idx],
+            g_defrostParams.fishDeltaMax_C[idx],
+            g_defrostParams.supplyMax_C[idx]
+        };
      }
  
      static Targets GetTargets(Phase p)
      {
-         // Почему: повышенная влажность около 0°C снижает пересушивание и может улучшать теплопередачу.
-         switch (p)
-         {
-             case Phase::WarmUp:
-                 return Targets{
-                     /*supplySet_C*/            30.0f,
-                     /*returnTargetRH_percent*/ 85.0f,
-                 };
-             case Phase::Plateau:
-                 return Targets{
-                     /*supplySet_C*/            26.0f,
-                     /*returnTargetRH_percent*/ 92.0f,
-                 };
-             case Phase::Finish:
-             default:
-                 return Targets{
-                     /*supplySet_C*/            22.0f,
-                     /*returnTargetRH_percent*/ 85.0f,
-                 };
-         }
+        uint8_t idx = 0;
+        if (p == Phase::Plateau) idx = 1;
+        else if (p == Phase::Finish) idx = 2;
+
+        return Targets{
+            g_defrostParams.supplySet_C[idx],
+            g_defrostParams.returnTargetRH_percent[idx]
+        };
      }
  
      static float Clamp(float x, float lo, float hi)
@@ -314,15 +362,15 @@ extern SENSOR_typedef_t Sensor_array[SQ];
          // Почему: при (пере)запуске нужны предсказуемые состояния без "хвоста" интегратора/ШИМ-памяти.
         g.runtimeSeconds = 0;
          g.piSupplyCommon = PI{ /*kp*/ 0.18f, /*ki*/ 0.02f, /*i*/ 0.0f }; // стартовые; настройка обязательна
-         g.leftRightTrimGain = 0.08f;   // коэффициент балансировки лево/право по разности температур потоков подачи.
-         g.wDeadband_kgkg = 0.0008f;    // мёртвая зона для влажности.
+        g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
+        g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
          g.injPwm.Reset();              // сброс ШИМ-памяти для форсунки.
          g.injHold.Reset(0);            // сброс времени удержания форсунки.
         g.outOn = 0;                   // флаг отключения вытяжки.
-        g.outHold_s = 0;               // время удержания вытяжки.
+       g.outHold_s = 0;               // время удержания вытяжки.
         g.outDamperState = 0;          // заслонка закрыта.
         g.outDamperTimer_s = 0;        // таймер открытия заслонки.
-        g.outFanDelay_s = 5;           // задержка включения вентилятора.
+       g.outFanDelay_s = g_defrostParams.outFanDelay_s;
         g.outFanOn = 0;                // вентилятор вытяжки выключен.
         g.shutdownOutFanRemain_s = 0;  // остаток времени работы вытяжки после остановки алгоритма
        g.startupGateClosing = 0;      // при старте: 1 если нужно закрыть ворота
@@ -352,6 +400,30 @@ extern SENSOR_typedef_t Sensor_array[SQ];
      static float DeciToC(int16_t deciC)  { return (float)deciC * kDeciToUnit; }
      static float DeciToRH(int16_t deciRH){ return (float)deciRH * kDeciToUnit; }
  
+    enum class LampModeState : uint8_t
+    {
+        AutoActive = 0,
+        StoppedOrManual = 1
+    };
+
+    static void ApplyModeLamps(LampModeState modeState)
+    {
+        // Why: централизуем правила индикации режима, чтобы исключить расхождения между ветками auto/manual/stop.
+        if (modeState == LampModeState::AutoActive)
+        {
+            Model::DFR._Wrk = 1;
+            Model::DFR._Stp = 0;
+            Model::DFR_manual._Wrk = 0;
+            Model::DFR_manual._Stp = 1;
+            return;
+        }
+
+        Model::DFR._Wrk = 0;
+        Model::DFR._Stp = 1;
+        Model::DFR_manual._Wrk = 0;
+        Model::DFR_manual._Stp = 1;
+    }
+
      static void ApplyOutputs(
          uint8_t ventLeftOn,
          uint8_t ventRightOn,
@@ -413,6 +485,7 @@ extern SENSOR_typedef_t Sensor_array[SQ];
  
          Model::DFR._Inj        = injOn ? 1 : 0;
          Model::DFR._Out        = outOn ? 1 : 0;
+        ApplyModeLamps(LampModeState::AutoActive);
      }
  
      static void ControlStep1s()
@@ -587,8 +660,8 @@ extern SENSOR_typedef_t Sensor_array[SQ];
  
          // Балансировка лево/право по разности температур потоков подачи.
          const float eT_diff = (T_supL_C - T_supR_C); // цель: 0
-         float trim_TEN = g.leftRightTrimGain * eT_diff;
-         trim_TEN = Clamp(trim_TEN, -0.6f, 0.6f);
+        float trim_TEN = g.leftRightTrimGain * eT_diff;
+        trim_TEN = Clamp(trim_TEN, -g_defrostParams.leftRightTrimMaxEq, g_defrostParams.leftRightTrimMaxEq);
  
          float uLeft_TEN  = Clamp(uCommon_TEN - trim_TEN, 0.0f, 2.0f);
          float uRight_TEN = Clamp(uCommon_TEN + trim_TEN, 0.0f, 2.0f);
@@ -606,7 +679,7 @@ extern SENSOR_typedef_t Sensor_array[SQ];
  
          // Почему: защита от слишком частого щёлканья реле ТЭНов.
          //         Значение minHold нужно подбирать под силовую часть (реле/контактор/SSR).
-         const uint16_t kTenMinHold_s = 10;
+        const uint16_t kTenMinHold_s = g_defrostParams.tenMinHold_s;
          const uint8_t ten1L_on = g.left.ten1Hold.Step(ten1L_desired, kTenMinHold_s);
          const uint8_t ten2L_on = g.left.ten2Hold.Step(ten2L_desired, kTenMinHold_s);
          const uint8_t ten1R_on = g.right.ten1Hold.Step(ten1R_desired, kTenMinHold_s);
@@ -649,9 +722,9 @@ extern SENSOR_typedef_t Sensor_array[SQ];
                 {
                     // Начинаем открытие заслонки
                     g.outDamperState = 1;      // состояние: открывается
-                    g.outDamperTimer_s = 10;   // время полного открытия заслонки (настраивается)
+                    g.outDamperTimer_s = g_defrostParams.outDamperTimer_s;
                     g.outFanOn = 0;            // вентилятор пока выключен
-                    g.outHold_s = 15;          // общее время удержания
+                    g.outHold_s = g_defrostParams.outHold_s;
                 }
             }
             else if (wErr > 0.0f)
@@ -660,7 +733,7 @@ extern SENSOR_typedef_t Sensor_array[SQ];
                 g.outDamperState = 0;          // заслонка закрыта
                 g.outDamperTimer_s = 0;        // сброс таймера
                 g.outFanOn = 0;                // выключить вентилятор
-                g.outHold_s = 15;              // время удержания в выключенном состоянии
+                g.outHold_s = g_defrostParams.outHold_s;
             }
         }
 
@@ -674,9 +747,21 @@ extern SENSOR_typedef_t Sensor_array[SQ];
             }
             else
             {
-                // Заслонка полностью открыта, можно включать вентилятор
-                g.outDamperState = 2;  // состояние: открыта
-                g.outFanOn = 1;        // включить вентилятор вытяжки
+                // Заслонка открылась: ждём настраиваемую задержку перед включением вентилятора.
+                g.outDamperState = 2;
+                g.outDamperTimer_s = g_defrostParams.outFanDelay_s;
+            }
+        }
+        else if (g.outDamperState == 2)
+        {
+            if (g.outDamperTimer_s > 0)
+            {
+                g.outDamperTimer_s--;
+            }
+            else
+            {
+                g.outDamperState = 3;
+                g.outFanOn = 1;
             }
         }
 
@@ -692,7 +777,7 @@ extern SENSOR_typedef_t Sensor_array[SQ];
  
          const uint8_t inj_desired = g.injPwm.Step(injDuty);
          // Почему: форсунка (клапан/насос) тоже не любит слишком частые переключения.
-         const uint16_t kInjMinHold_s = 5;
+        const uint16_t kInjMinHold_s = g_defrostParams.injMinHold_s;
          const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
          const uint8_t out_on = g.outOn ? 1 : 0;
  
@@ -743,10 +828,282 @@ extern SENSOR_typedef_t Sensor_array[SQ];
     g.shutdownActive = 1;
 }
 
+static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId, DefrostParamValue_t *outValue)
+{
+    if (outValue == nullptr)
+    {
+        return 0;
+    }
+
+    switch (groupId)
+    {
+        case DEFROST_PARAM_GROUP_SENSORS:
+            if (paramId < kDefrostSensorCount)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_U8;
+                outValue->value.u8 = g_defrostParams.sensorUseInDefrost[paramId];
+                return 1;
+            }
+            return 0;
+
+        case DEFROST_PARAM_GROUP_TEMPERATURE:
+            if (paramId <= 2 && IsPhaseIndexValid(paramId))
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.fishHotMax_C[paramId];
+                return 1;
+            }
+            if (paramId >= 3 && paramId <= 5 && IsPhaseIndexValid((uint8_t)(paramId - 3)))
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.supplySet_C[paramId - 3];
+                return 1;
+            }
+            if (paramId >= 6 && paramId <= 8 && IsPhaseIndexValid((uint8_t)(paramId - 6)))
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.supplyMax_C[paramId - 6];
+                return 1;
+            }
+            if (paramId >= 9 && paramId <= 11 && IsPhaseIndexValid((uint8_t)(paramId - 9)))
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.fishDeltaMax_C[paramId - 9];
+                return 1;
+            }
+            if (paramId >= 12 && paramId <= 14 && IsPhaseIndexValid((uint8_t)(paramId - 12)))
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.fishHotRateMax_Cps[paramId - 12];
+                return 1;
+            }
+            if (paramId == 15)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.leftRightTrimGain;
+                return 1;
+            }
+            if (paramId == 16)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.leftRightTrimMaxEq;
+                return 1;
+            }
+            return 0;
+
+        case DEFROST_PARAM_GROUP_HUMIDITY:
+            if (paramId <= 2 && IsPhaseIndexValid(paramId))
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.returnTargetRH_percent[paramId];
+                return 1;
+            }
+            if (paramId == 3)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.wDeadband_kgkg;
+                return 1;
+            }
+            if (paramId == 4)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_U16;
+                outValue->value.u16 = g_defrostParams.outDamperTimer_s;
+                return 1;
+            }
+            if (paramId == 5)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_U16;
+                outValue->value.u16 = g_defrostParams.outFanDelay_s;
+                return 1;
+            }
+            return 0;
+
+        case DEFROST_PARAM_GROUP_PWM:
+            if (paramId == 0)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_U16;
+                outValue->value.u16 = g_defrostParams.tenMinHold_s;
+                return 1;
+            }
+            if (paramId == 1)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_U16;
+                outValue->value.u16 = g_defrostParams.injMinHold_s;
+                return 1;
+            }
+            if (paramId == 2)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_U16;
+                outValue->value.u16 = g_defrostParams.outHold_s;
+                return 1;
+            }
+            return 0;
+
+        default:
+            return 0;
+    }
+}
+
+static uint8_t DefrostControl_SetParamInternal(uint8_t groupId, uint8_t paramId, const DefrostParamValue_t *inValue)
+{
+    if (inValue == nullptr)
+    {
+        return 0;
+    }
+
+    switch (groupId)
+    {
+        case DEFROST_PARAM_GROUP_SENSORS:
+            if (paramId < kDefrostSensorCount && inValue->valueType == DEFROST_PARAM_TYPE_U8)
+            {
+                g_defrostParams.sensorUseInDefrost[paramId] = (inValue->value.u8 != 0u) ? 1u : 0u;
+                Sensor_array[paramId].UseInDefrost = g_defrostParams.sensorUseInDefrost[paramId];
+                return 1;
+            }
+            return 0;
+
+        case DEFROST_PARAM_GROUP_TEMPERATURE:
+            if (inValue->valueType != DEFROST_PARAM_TYPE_F32)
+            {
+                return 0;
+            }
+            if (paramId <= 2 && IsPhaseIndexValid(paramId))
+            {
+                g_defrostParams.fishHotMax_C[paramId] = Clamp(inValue->value.f32, 0.0f, 50.0f);
+                return 1;
+            }
+            if (paramId >= 3 && paramId <= 5 && IsPhaseIndexValid((uint8_t)(paramId - 3)))
+            {
+                g_defrostParams.supplySet_C[paramId - 3] = Clamp(inValue->value.f32, 0.0f, 50.0f);
+                return 1;
+            }
+            if (paramId >= 6 && paramId <= 8 && IsPhaseIndexValid((uint8_t)(paramId - 6)))
+            {
+                g_defrostParams.supplyMax_C[paramId - 6] = Clamp(inValue->value.f32, 0.0f, 70.0f);
+                return 1;
+            }
+            if (paramId >= 9 && paramId <= 11 && IsPhaseIndexValid((uint8_t)(paramId - 9)))
+            {
+                g_defrostParams.fishDeltaMax_C[paramId - 9] = Clamp(inValue->value.f32, 0.0f, 30.0f);
+                return 1;
+            }
+            if (paramId >= 12 && paramId <= 14 && IsPhaseIndexValid((uint8_t)(paramId - 12)))
+            {
+                g_defrostParams.fishHotRateMax_Cps[paramId - 12] = Clamp(inValue->value.f32, 0.0001f, 1.0f);
+                return 1;
+            }
+            if (paramId == 15)
+            {
+                g_defrostParams.leftRightTrimGain = Clamp(inValue->value.f32, 0.0f, 1.0f);
+                g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
+                return 1;
+            }
+            if (paramId == 16)
+            {
+                g_defrostParams.leftRightTrimMaxEq = Clamp(inValue->value.f32, 0.0f, 2.0f);
+                return 1;
+            }
+            return 0;
+
+        case DEFROST_PARAM_GROUP_HUMIDITY:
+            if (paramId <= 3 && inValue->valueType == DEFROST_PARAM_TYPE_F32)
+            {
+                if (paramId <= 2 && IsPhaseIndexValid(paramId))
+                {
+                    g_defrostParams.returnTargetRH_percent[paramId] = Clamp(inValue->value.f32, 10.0f, 100.0f);
+                    return 1;
+                }
+                if (paramId == 3)
+                {
+                    g_defrostParams.wDeadband_kgkg = Clamp(inValue->value.f32, 0.0001f, 0.0100f);
+                    g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
+                    return 1;
+                }
+            }
+            if (paramId == 4 && inValue->valueType == DEFROST_PARAM_TYPE_U16)
+            {
+                g_defrostParams.outDamperTimer_s = inValue->value.u16;
+                return 1;
+            }
+            if (paramId == 5 && inValue->valueType == DEFROST_PARAM_TYPE_U16)
+            {
+                g_defrostParams.outFanDelay_s = inValue->value.u16;
+                g.outFanDelay_s = g_defrostParams.outFanDelay_s;
+                return 1;
+            }
+            return 0;
+
+        case DEFROST_PARAM_GROUP_PWM:
+            if (inValue->valueType != DEFROST_PARAM_TYPE_U16)
+            {
+                return 0;
+            }
+            if (paramId == 0)
+            {
+                g_defrostParams.tenMinHold_s = inValue->value.u16;
+                return 1;
+            }
+            if (paramId == 1)
+            {
+                g_defrostParams.injMinHold_s = inValue->value.u16;
+                return 1;
+            }
+            if (paramId == 2)
+            {
+                g_defrostParams.outHold_s = inValue->value.u16;
+                return 1;
+            }
+            return 0;
+
+        default:
+            return 0;
+    }
+}
+
+static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *value, uint8_t *outData, uint8_t capacity, uint8_t *inOutOffset)
+{
+    if (value == nullptr || outData == nullptr || inOutOffset == nullptr)
+    {
+        return 0;
+    }
+
+    uint8_t valueSize = 0;
+    if (value->valueType == DEFROST_PARAM_TYPE_U8) valueSize = 1;
+    else if (value->valueType == DEFROST_PARAM_TYPE_U16) valueSize = 2;
+    else if (value->valueType == DEFROST_PARAM_TYPE_F32) valueSize = 4;
+    else return 0;
+
+    const uint8_t needed = (uint8_t)(3 + valueSize);
+    if ((uint8_t)(capacity - *inOutOffset) < needed)
+    {
+        return 0;
+    }
+
+    uint8_t *p = &outData[*inOutOffset];
+    p[0] = paramId;
+    p[1] = value->valueType;
+    p[2] = valueSize;
+    if (value->valueType == DEFROST_PARAM_TYPE_U8)
+    {
+        p[3] = value->value.u8;
+    }
+    else if (value->valueType == DEFROST_PARAM_TYPE_U16)
+    {
+        memcpy(&p[3], &value->value.u16, 2);
+    }
+    else
+    {
+        memcpy(&p[3], &value->value.f32, 4);
+    }
+    *inOutOffset = (uint8_t)(*inOutOffset + needed);
+    return 1;
+}
+
  extern "C"
  {
      void DefrostControl_Init(void)
      {
+        DefrostControl_LoadParams();
          ResetState();
      }
  
@@ -779,6 +1136,9 @@ extern SENSOR_typedef_t Sensor_array[SQ];
            GateControl_SetCommand(GateControlCommand::Close, 0);
            GateControl_SetCommand(GateControlCommand::Deblock, 0);
 
+          // Автоматический режим: зелёная лампа включена, красная выключена.
+          ApplyModeLamps(LampModeState::AutoActive);
+
             // На старте авто-режима закрываем ворота, если они не в нижнем положении.
             if (GateControl_IsClosedPosition() == 0)
             {
@@ -802,6 +1162,8 @@ extern SENSOR_typedef_t Sensor_array[SQ];
          {
              ShutdownSequence();  // Безопасное выключение всех элементов
             g.runtimeSeconds = 0; // Время работы алгоритма обнуляется при остановке
+            // Останов: зелёная лампа выключена, красная включена.
+            ApplyModeLamps(LampModeState::StoppedOrManual);
         }
     }
 
@@ -816,6 +1178,123 @@ extern SENSOR_typedef_t Sensor_array[SQ];
         // а не просто факт, что алгоритм ранее был запущен.
         return (g.enabled != 0 && GateControl_GetManualMode() == 0) ? 1 : 0;
     }
+
+    uint8_t DefrostControl_GetParam(uint8_t groupId, uint8_t paramId, DefrostParamValue_t *outValue)
+    {
+        return DefrostControl_GetParamInternal(groupId, paramId, outValue);
+    }
+
+    uint8_t DefrostControl_SetParam(uint8_t groupId, uint8_t paramId, const DefrostParamValue_t *inValue)
+    {
+        const uint8_t ok = DefrostControl_SetParamInternal(groupId, paramId, inValue);
+        if (ok != 0u)
+        {
+            DefrostControl_SaveParams();
+        }
+        return ok;
+    }
+
+    uint8_t DefrostControl_GetGroup(uint8_t groupId, uint8_t page, uint8_t *outData, uint8_t outCapacity, uint8_t *outLength)
+    {
+        (void)page;
+        if (outData == nullptr || outLength == nullptr)
+        {
+            return 0;
+        }
+
+        uint8_t offset = 0;
+        DefrostParamValue_t value;
+        memset(&value, 0, sizeof(value));
+
+        if (groupId == DEFROST_PARAM_GROUP_SENSORS)
+        {
+            for (uint8_t id = 0; id < kDefrostSensorCount; ++id)
+            {
+                if (DefrostControl_GetParamInternal(groupId, id, &value) == 0u ||
+                    SerializeParamEntry(id, &value, outData, outCapacity, &offset) == 0u)
+                {
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for (uint8_t id = 0; id < 32; ++id)
+            {
+                if (DefrostControl_GetParamInternal(groupId, id, &value) == 0u)
+                {
+                    continue;
+                }
+                if (SerializeParamEntry(id, &value, outData, outCapacity, &offset) == 0u)
+                {
+                    break;
+                }
+            }
+        }
+
+        *outLength = offset;
+        return 1;
+    }
+
+    void DefrostControl_GetParams(DefrostParams_t *outParams)
+    {
+        if (outParams == nullptr)
+        {
+            return;
+        }
+        memcpy(outParams, &g_defrostParams, sizeof(DefrostParams_t));
+    }
+
+    uint8_t DefrostControl_SetParams(const DefrostParams_t *inParams)
+    {
+        if (inParams == nullptr)
+        {
+            return 0;
+        }
+
+        memcpy(&g_defrostParams, inParams, sizeof(DefrostParams_t));
+        for (uint8_t i = 0; i < kDefrostSensorCount; ++i)
+        {
+            Sensor_array[i].UseInDefrost = (g_defrostParams.sensorUseInDefrost[i] != 0u) ? 1u : 0u;
+        }
+        g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
+        g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
+        g.outFanDelay_s = g_defrostParams.outFanDelay_s;
+        DefrostControl_SaveParams();
+        return 1;
+    }
+
+    void DefrostControl_SaveParams(void)
+    {
+        g_defrostParamsStorage.version = kDefrostParamsVersion;
+        memcpy(&g_defrostParamsStorage.params, &g_defrostParams, sizeof(DefrostParams_t));
+        g_defrostParamsStorage.payloadCrc = ParamsCrc16(
+            (const uint8_t *)&g_defrostParamsStorage.params,
+            sizeof(DefrostParams_t));
+    }
+
+    void DefrostControl_LoadParams(void)
+    {
+        const uint16_t crc = ParamsCrc16(
+            (const uint8_t *)&g_defrostParamsStorage.params,
+            sizeof(DefrostParams_t));
+
+        if (g_defrostParamsStorage.version == kDefrostParamsVersion &&
+            g_defrostParamsStorage.payloadCrc == crc)
+        {
+            memcpy(&g_defrostParams, &g_defrostParamsStorage.params, sizeof(DefrostParams_t));
+        }
+        else
+        {
+            LoadDefaultParams(&g_defrostParams);
+            DefrostControl_SaveParams();
+        }
+
+        for (uint8_t i = 0; i < kDefrostSensorCount; ++i)
+        {
+            Sensor_array[i].UseInDefrost = (g_defrostParams.sensorUseInDefrost[i] != 0u) ? 1u : 0u;
+        }
+    }
  
      void DefrostControl_Update1s(void)
      {
@@ -823,6 +1302,9 @@ extern SENSOR_typedef_t Sensor_array[SQ];
          // Почему: ручной режим должен быть главным; алгоритм не должен "бороться" с оператором.
          if (g.enabled == 0)
          {
+            // В режиме останова всегда показываем красную лампу.
+            ApplyModeLamps(LampModeState::StoppedOrManual);
+
             if (g.shutdownActive != 0)
              {
                 // Открытие ворот выполняем через API GateControl.
@@ -867,7 +1349,7 @@ extern SENSOR_typedef_t Sensor_array[SQ];
 
                 Model::DFR._Out = g.outFanOn ? 1 : 0;
 
-                if (g.outFanOn == 0 && g.outDamperState == 2 && g.shutdownOutFanRemain_s == 0)
+                if (g.outFanOn == 0 && g.outDamperState >= 2 && g.shutdownOutFanRemain_s == 0)
                  {
                     g.shutdownActive = 0;
                     GateControl_SetCommand(GateControlCommand::Open, 0);
@@ -881,6 +1363,8 @@ extern SENSOR_typedef_t Sensor_array[SQ];
         // В ручном режиме автоматический алгоритм и счётчик времени не должны выполняться.
         if (GateControl_GetManualMode() != 0)
         {
+            // В ручном режиме горит красная лампа.
+            ApplyModeLamps(LampModeState::StoppedOrManual);
             return;
         }
 

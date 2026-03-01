@@ -1,0 +1,6 @@
+root = true
+
+[*.{c,cc,cpp,cxx,h,hpp,cs,py,js,ts,tsx,jsx,json,xml,resx,sln,vcxproj,filters,props,targets,md,txt,yml,yaml,ini,cfg,bat,cmd,ps1,sql,html,css}]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
