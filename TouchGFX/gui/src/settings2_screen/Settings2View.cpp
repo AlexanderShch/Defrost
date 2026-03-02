@@ -121,7 +121,7 @@ void Settings2View::UpdateGateIndicators()
 	const bool gateOpen = (GateControl_IsOpenPosition() != 0);
 	const bool gateClose = (GateControl_IsClosedPosition() != 0);
 
-	// Надпись режима ворот.
+	// Надпись режима ворот: при аварии показываем LabelGateAlarm, иначе — LabelGate.
 	LabelGate.setVisible(!gateAlarm);
 	LabelGateAlarm.setVisible(gateAlarm);
 	LabelGate.invalidate();

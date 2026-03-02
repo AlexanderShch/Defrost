@@ -19,6 +19,7 @@ void HomeView::setupScreen()
     BTNStart.forceState(DefrostControl_IsEnabled() != 0);
     BTNStart.invalidate();
 
+    // Счётчик отработанного времени (ValuePRGTimeWrk): подключаем свой буфер и выводим 00:00:00.
     ValuePRGTimeWrk.setWildcard(ValuePRGTimeWrkBuffer);
     ValuePRGTimeWrk.setPosition(0, 111, 240, 24);
     updateProgramRuntimeView(0);
@@ -29,8 +30,8 @@ void HomeView::setupScreen()
 
 void HomeView::onBTNStartClicked(const touchgfx::AbstractButton&)
 {
-    // Pressed — запуск разморозки, Release — остановка (состояние переключателя уже обновлено).
-    if (BTNStart.getState())
+    // Состояние переключателя уже обновлено: нажато = запуск, отжато = остановка.
+    if (BTNStart.getPressedState())
         presenter->startDefrostRequested();
     else
         presenter->stopDefrostRequested();

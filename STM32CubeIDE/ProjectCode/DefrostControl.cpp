@@ -37,7 +37,7 @@ typedef struct {
 
 static DefrostParams_t g_defrostParams;
 static DefrostParamsStorage_t g_defrostParamsStorage;
-static const uint16_t kDefrostParamsVersion = 1;
+static const uint16_t kDefrostParamsVersion = 2;
 static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ : DEFROST_MAX_SENSOR_COUNT;
  
  namespace
@@ -137,6 +137,9 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         p->outHold_s = 15u;
         p->tenMinHold_s = 10u;
         p->injMinHold_s = 5u;
+        p->airOnlyPhaseWarmUp_s = 600u;   /* 10 мин */
+        p->airOnlyPhasePlateau_s = 1800u; /* 30 мин от старта */
+        p->maxRuntime_s = 7200u;           /* 2 ч */
 
         for (uint8_t i = 0; i < kDefrostSensorCount; i++)
         {
@@ -163,7 +166,19 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          if (fishCold_C <  1.0f) return Phase::Plateau;
          return Phase::Finish;
      }
- 
+
+     // Режим «только по воздуху»: фаза по времени из параметров.
+     static Phase SelectPhaseByTime(uint32_t runtime_s)
+     {
+         const uint32_t tWarmUp  = (uint32_t)g_defrostParams.airOnlyPhaseWarmUp_s;
+         const uint32_t tPlateau = (uint32_t)g_defrostParams.airOnlyPhasePlateau_s;
+         if (runtime_s < tWarmUp)  return Phase::WarmUp;
+         if (runtime_s < tPlateau) return Phase::Plateau;
+         return Phase::Finish;
+     }
+
+     static void ControlStep1s_AirOnly();
+
      static Limits GetLimits(Phase p)
      {
         uint8_t idx = 0;
@@ -493,9 +508,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
  
      static void ControlStep1s()
      {
-        // В рабочем автоматическом режиме клапан вытяжки держим закрытым.
-        // Он открывается только в последовательности остановки.
-        Model::DFR.Water_Flap = 1;
+        // Клапан вытяжки в рабочем режиме закрыт (Water_Flap = 1 задаётся при входе в авто-режим, стр. ~1164).
 
         if (g.startupGateClosing != 0)
         {
@@ -507,38 +520,26 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
             }
             else
             {
-                ApplyOutputs(
-                    /*ventLeftOn*/  0,
-                    /*ventRightOn*/ 0,
-                    /*ten1LeftOn*/  0,
-                    /*ten2LeftOn*/  0,
-                    /*ten1RightOn*/ 0,
-                    /*ten2RightOn*/ 0,
-                    /*injOn*/       0,
-                    /*outOn*/       0);
-                return;
+                return;  // выходы регистра DFR уже обнулены при старте закрытия ворот
             }
         }
 
        // В автоматическом режиме воротами управляет только GateControl.
-       // Здесь принудительно снимаем команды, чтобы не оставалось "залипших" битов.
-       GateControl_SetCommand(GateControlCommand::Open, 0);
-       GateControl_SetCommand(GateControlCommand::Close, 0);
-       GateControl_SetCommand(GateControlCommand::Deblock, 0);
+       // Инициализация битов ворот выполняется при входе в авто-режим и при завершении команд; здесь не сбрасываем.
 
-         // Читаем последние значения из Model.
+       /**********************************
+       АЛГОРИТМ АВТОМАТИЧЕСКОГО УПРАВЛЕНИЯ
+       ************************************/  
+       // Читаем последние значения из Model.
          const float T_supL_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensSupLeft_T_H));
-         const float RH_supL  = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupLeft_T_H));
          const float T_supR_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensSupRight_T_H));
+         const float RH_supL  = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupLeft_T_H));
          const float RH_supR  = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupRight_T_H));
          const float T_ret_C  = DeciToC((int16_t)Model::getCurrentVal_T(kSensReturn_T_H));
          const float RH_ret   = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
- 
-         // Почему: переменные оставлены под будущие связи (например, управление w по подаче),
-         //         но сейчас подавляем предупреждения компилятора о неиспользуемых значениях.
-         (void)RH_supL;
-         (void)RH_supR;
- 
+         const float RH_sup_avg = 0.5f * (RH_supL + RH_supR);  // среднее по подаче для единого управления форсунками
+         (void)RH_ret;  // контур влажности по среднему подачи (w_sup_avg); возврат оставлен на случай доработок
+
          const float fish1_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensFish1_T));
          const float fish2_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensFish2_T));
 
@@ -578,20 +579,24 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          }
          else
          {
-             // Почему: без обратной связи по температуре в теле продукта алгоритм должен быть безопасным (без нагрева).
-             // флаг отсутствия последней измеренной температуры продукта.
-             // 0 - отсутствует последняя измеренная температура продукта.
-             // 1 - присутствует последняя измеренная температура продукта.
+             // Почему: без обратной связи по температуре в теле продукта — отдельная ветка «только по воздуху».
              g.haveLastFishHot = 0;
          }
 
+         if (haveFish_C == 0)
+         {
+             ControlStep1s_AirOnly();
+             return;
+         }
+
          // Почему: выбираем фазу разморозки на основе температуры самой холодной точки продукта.
-         const Phase phase = (haveFish_C != 0) ? SelectPhase(fishCold_C) : Phase::WarmUp;
+         const Phase phase = SelectPhase(fishCold_C);
          const Limits lim = GetLimits(phase);
          const Targets tgt = GetTargets(phase);
  
-         // Переводим уставку влажности в абсолютную влажность при температуре возврата.
-         const float w_ret = HumidityRatio_kgkg(T_ret_C, RH_ret);
+         // Переводим уставку влажности в абсолютную влажность. Текущая влажность — среднее по левой/правой подаче (единое управление форсунками).
+         const float T_sup_avg_C = 0.5f * (T_supL_C + T_supR_C);
+         const float w_sup_avg   = HumidityRatio_kgkg(T_sup_avg_C, RH_sup_avg);
          const float w_ret_target = HumidityRatio_kgkg(T_ret_C, tgt.returnTargetRH_percent);
  
          // ─────────────────────────────────────────────────────────────────────────
@@ -602,12 +607,6 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          // Она представляет собой коэффициент (от 0.0 до 1.0), который умножается на расчётную мощность ТЭНов.
          float heatScale01 = 1.0f;
 
-         // Если нет активных датчиков температуры продукта, то отключаем нагрев
-         if (haveFish_C == 0)
-         {
-             heatScale01 = 0.0f;
-         }
- 
          // Жёсткий потолок температуры "горячей" точки продукта.
          if (fishHot_C >= lim.fishHotMax_C)
          {
@@ -654,7 +653,6 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          // Выход выражен в "эквивалентах ТЭНа": 0..2 на сторону (два ТЭНа на сторону).
          // Почему: так отображение на актуаторы явно и удобно строить скважность.
          // ─────────────────────────────────────────────────────────────────────────
-         const float T_sup_avg_C = 0.5f * (T_supL_C + T_supR_C);
          const float eT_common = tgt.supplySet_C - T_sup_avg_C;
  
          // Базовый запрос мощности с учётом ограничителя.
@@ -694,10 +692,10 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          const uint8_t ventR_on = 1;
  
          // ─────────────────────────────────────────────────────────────────────────
-         // Управление влажностью (форсунка + вытяжка) по абсолютной влажности возврата.
+         // Управление влажностью (форсунка + вытяжка) по абсолютной влажности: среднее по подаче лево/право.
          // Почему: абсолютная влажность лучше отражает "сушащее" действие воздуха, чем RH (RH зависит от T).
          // ─────────────────────────────────────────────────────────────────────────
-         const float wErr = w_ret_target - w_ret;
+         const float wErr = w_ret_target - w_sup_avg;
  
          // Форсунка как медленный актуатор по скважности.
          // Почему: у форсунки есть инерция/перенос капель — модуляция скважностью мягче, чем жёсткий ON/OFF.
@@ -792,6 +790,125 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
              /*ten2RightOn*/ ten2R_on,
              /*injOn*/       inj_on,
              /*outOn*/       out_on);
+     }
+
+     // Управление без датчиков продукта: только по T/RH подачи и возврата, фаза по времени, лимит T подачи и макс. время.
+     static void ControlStep1s_AirOnly()
+     {
+         const float T_supL_C   = DeciToC((int16_t)Model::getCurrentVal_T(kSensSupLeft_T_H));
+         const float T_supR_C   = DeciToC((int16_t)Model::getCurrentVal_T(kSensSupRight_T_H));
+         const float RH_supL    = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupLeft_T_H));
+         const float RH_supR    = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupRight_T_H));
+         const float T_ret_C    = DeciToC((int16_t)Model::getCurrentVal_T(kSensReturn_T_H));
+         const float RH_ret     = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
+         const float RH_sup_avg = 0.5f * (RH_supL + RH_supR);
+         (void)RH_ret;
+
+         const float T_sup_avg_C = 0.5f * (T_supL_C + T_supR_C);
+         const float w_sup_avg  = HumidityRatio_kgkg(T_sup_avg_C, RH_sup_avg);
+
+         const Phase phase = SelectPhaseByTime(g.runtimeSeconds);
+         const Limits lim  = GetLimits(phase);
+         const Targets tgt = GetTargets(phase);
+         const float w_ret_target = HumidityRatio_kgkg(T_ret_C, tgt.returnTargetRH_percent);
+
+         float heatScale01 = 1.0f;
+         if (T_sup_avg_C >= lim.supplyMax_C)
+             heatScale01 = 0.0f;
+         if (g.runtimeSeconds >= (uint32_t)g_defrostParams.maxRuntime_s)
+             heatScale01 = 0.0f;
+
+         const float eT_common = tgt.supplySet_C - T_sup_avg_C;
+         float uCommon_TEN = g.piSupplyCommon.Step(eT_common, kDt_s, 0.0f, 2.0f);
+         uCommon_TEN *= heatScale01;
+
+         const float eT_diff = T_supL_C - T_supR_C;
+         float trim_TEN = g.leftRightTrimGain * eT_diff;
+         trim_TEN = Clamp(trim_TEN, -g_defrostParams.leftRightTrimMaxEq, g_defrostParams.leftRightTrimMaxEq);
+
+         float uLeft_TEN  = Clamp(uCommon_TEN - trim_TEN, 0.0f, 2.0f);
+         float uRight_TEN = Clamp(uCommon_TEN + trim_TEN, 0.0f, 2.0f);
+
+         const float leftTen1Duty  = Clamp(uLeft_TEN, 0.0f, 1.0f);
+         const float leftTen2Duty  = Clamp(uLeft_TEN - 1.0f, 0.0f, 1.0f);
+         const float rightTen1Duty = Clamp(uRight_TEN, 0.0f, 1.0f);
+         const float rightTen2Duty = Clamp(uRight_TEN - 1.0f, 0.0f, 1.0f);
+
+         const uint8_t ten1L_desired = g.left.ten1.Step(leftTen1Duty);
+         const uint8_t ten2L_desired = g.left.ten2.Step(leftTen2Duty);
+         const uint8_t ten1R_desired = g.right.ten1.Step(rightTen1Duty);
+         const uint8_t ten2R_desired = g.right.ten2.Step(rightTen2Duty);
+
+         const uint16_t kTenMinHold_s = g_defrostParams.tenMinHold_s;
+         const uint8_t ten1L_on = g.left.ten1Hold.Step(ten1L_desired, kTenMinHold_s);
+         const uint8_t ten2L_on = g.left.ten2Hold.Step(ten2L_desired, kTenMinHold_s);
+         const uint8_t ten1R_on = g.right.ten1Hold.Step(ten1R_desired, kTenMinHold_s);
+         const uint8_t ten2R_on = g.right.ten2Hold.Step(ten2R_desired, kTenMinHold_s);
+
+         const uint8_t ventL_on = 1;
+         const uint8_t ventR_on = 1;
+
+         const float wErr = w_ret_target - w_sup_avg;
+         float injDuty = 0.0f;
+         if (wErr > g.wDeadband_kgkg)
+             injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
+
+         if (g.outHold_s > 0)
+             g.outHold_s--;
+         if (g.outHold_s == 0)
+         {
+             if (wErr < -g.wDeadband_kgkg)
+             {
+                 if (g.outDamperState == 0)
+                 {
+                     g.outDamperState = 1;
+                     g.outDamperTimer_s = g_defrostParams.outDamperTimer_s;
+                     g.outFanOn = 0;
+                     g.outHold_s = g_defrostParams.outHold_s;
+                 }
+             }
+             else if (wErr > 0.0f)
+             {
+                 g.outDamperState = 0;
+                 g.outDamperTimer_s = 0;
+                 g.outFanOn = 0;
+                 g.outHold_s = g_defrostParams.outHold_s;
+             }
+         }
+         if (g.outDamperState == 1)
+         {
+             if (g.outDamperTimer_s > 0)
+                 g.outDamperTimer_s--;
+             else
+             {
+                 g.outDamperState = 2;
+                 g.outDamperTimer_s = g_defrostParams.outFanDelay_s;
+             }
+         }
+         else if (g.outDamperState == 2)
+         {
+             if (g.outDamperTimer_s > 0)
+                 g.outDamperTimer_s--;
+             else
+             {
+                 g.outDamperState = 3;
+                 g.outFanOn = 1;
+             }
+         }
+         g.outOn = g.outFanOn;
+
+         if (g.outOn != 0)
+             injDuty = 0.0f;
+
+         const uint8_t inj_desired = g.injPwm.Step(injDuty);
+         const uint16_t kInjMinHold_s = g_defrostParams.injMinHold_s;
+         const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
+         const uint8_t out_on = g.outOn ? 1 : 0;
+
+         ApplyOutputs(
+             ventL_on, ventR_on,
+             ten1L_on, ten2L_on, ten1R_on, ten2R_on,
+             inj_on, out_on);
      }
  } // namespace
  
@@ -957,6 +1074,24 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
                 outValue->value.u16 = g_defrostParams.outHold_s;
                 return 1;
             }
+            if (paramId == 3)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_U16;
+                outValue->value.u16 = g_defrostParams.airOnlyPhaseWarmUp_s;
+                return 1;
+            }
+            if (paramId == 4)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_U16;
+                outValue->value.u16 = g_defrostParams.airOnlyPhasePlateau_s;
+                return 1;
+            }
+            if (paramId == 5)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_U16;
+                outValue->value.u16 = g_defrostParams.maxRuntime_s;
+                return 1;
+            }
             return 0;
 
         default:
@@ -1088,6 +1223,21 @@ static uint8_t DefrostControl_SetParamInternal(uint8_t groupId, uint8_t paramId,
                 g_defrostParams.outHold_s = inValue->value.u16;
                 return 1;
             }
+            if (paramId == 3)
+            {
+                g_defrostParams.airOnlyPhaseWarmUp_s = (uint16_t)Clamp((float)inValue->value.u16, 60.0f, 7200.0f);
+                return 1;
+            }
+            if (paramId == 4)
+            {
+                g_defrostParams.airOnlyPhasePlateau_s = (uint16_t)Clamp((float)inValue->value.u16, 60.0f, 14400.0f);
+                return 1;
+            }
+            if (paramId == 5)
+            {
+                g_defrostParams.maxRuntime_s = (uint16_t)Clamp((float)inValue->value.u16, 300.0f, 65535.0f);
+                return 1;
+            }
             return 0;
 
         default:
@@ -1179,6 +1329,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
             {
                 GateControl_SetCommand(GateControlCommand::Close, 1);
                 g.startupGateClosing = 1;
+                ApplyOutputs(0, 0, 0, 0, 0, 0, 0, 0);  // один раз: все выходы выкл. до закрытия ворот
             }
             else
             {
@@ -1337,27 +1488,22 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
          // Почему: ручной режим должен быть главным; алгоритм не должен "бороться" с оператором.
          if (g.enabled == 0)
          {
+            // Алгоритм выключен, работает ручной режим
             // В режиме останова всегда показываем красную лампу.
             ApplyModeLamps(LampModeState::StoppedOrManual);
 
             if (g.shutdownActive != 0)
              {
-                // Открытие ворот выполняем через API GateControl.
+                // Алгоритм выключен, но выполняется процесс завершения работы алгоритма
+                // В рамках остановки алгоритма открытие ворот выполняем через API GateControl.
                 if (g.shutdownGateOpening != 0)
                 {
                     if (GateControl_IsCommandActive(GateControlCommand::Open) == 0)
                     {
                         g.shutdownGateOpening = 0;
+                        GateControl_SetCommand(GateControlCommand::Open, 0);  // один раз при завершении открытия
                     }
                 }
-                else
-                {
-                    GateControl_SetCommand(GateControlCommand::Open, 0);
-                    GateControl_SetCommand(GateControlCommand::Close, 0);
-                    GateControl_SetCommand(GateControlCommand::Deblock, 0);
-                }
-
-                Model::DFR.Water_Flap = 0;
 
                 if (g.outDamperState == 1)
                 {
@@ -1370,6 +1516,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
                         g.outDamperState = 2;
                         g.outFanOn = 1;
                         g.shutdownOutFanRemain_s = 300;
+                        Model::DFR._Out = 1;  // включение вытяжки один раз при открытии заслонки
                     }
                 }
 
@@ -1379,10 +1526,9 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
                     if (g.shutdownOutFanRemain_s == 0)
                     {
                         g.outFanOn = 0;
+                        Model::DFR._Out = 0;  // выключение вытяжки один раз по истечении 5 мин
                     }
                 }
-
-                Model::DFR._Out = g.outFanOn ? 1 : 0;
 
                 if (g.outFanOn == 0 && g.outDamperState >= 2 && g.shutdownOutFanRemain_s == 0)
                  {

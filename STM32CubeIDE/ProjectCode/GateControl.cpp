@@ -47,7 +47,8 @@ void GateControl_SetCommand(GateControlCommand command, uint8_t enabled)
 		if (en)
 		{
 			gateRegister.Gate_Down = 0;
-			gateRegister.Gate_Dbl = 0;
+			if (GateControl_GetManualMode() == 0)
+				gateRegister.Gate_Dbl = 0;
 		}
 		break;
 
@@ -61,7 +62,8 @@ void GateControl_SetCommand(GateControlCommand command, uint8_t enabled)
 		if (en)
 		{
 			gateRegister.Gate_Up = 0;
-			gateRegister.Gate_Dbl = 0;
+			if (GateControl_GetManualMode() == 0)
+				gateRegister.Gate_Dbl = 0;
 		}
 		break;
 

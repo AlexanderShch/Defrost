@@ -145,7 +145,7 @@
             "Y": 111,
             "Width": 39,
             "Height": 24,
-            "TextId": "ValuePRGTimeLeft",
+            "TextId": "ValuePRGTimeWrk",
             "TextRotation": "0",
             "Color": {
               "Red": 232,

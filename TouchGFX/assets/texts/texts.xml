@@ -97,7 +97,7 @@
       <Text Id="ValueDefrosterH" Alignment="Left" TypographyId="Small">
         <Translation Language="GB">%</Translation>
       </Text>
-      <Text Id="ValuePRGTimeLeft" Alignment="Left" TypographyId="Default">
+      <Text Id="ValuePRGTimeWrk" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">&lt;value&gt;</Translation>
       </Text>
       <Text Id="ValueCoreT2" Alignment="Center" TypographyId="Default">
