@@ -63,8 +63,10 @@ uint8_t ucHeap[65536];  // Явно указываем размер вместо
 #define I2C3_TIMEOUT_MAX                    0x3000 /*<! максимальный таймаут ожидания в циклах I2C */
 #define SPI5_TIMEOUT_MAX                    0x1000
 
-#define MSGQUEUE_OBJECTS        6       // количество объектов в очереди сообщений
-#define MSGQUEUE_OBJECT_SIZE	80		// размер одного объекта в очереди
+#define MSGQUEUE_OBJECTS        6       // количество объектов в очереди сообщений (телеметрия + лог)
+#define MSGQUEUE_OBJECT_SIZE    96      // размер элемента: ServerTxItem_t (type + length + data), совпадает с SERVER_TX_ITEM_SIZE
+#define SERVER_TX_HIGH_QUEUE_DEPTH  3   // очередь высокого приоритета: ответы на команды, повтор телеметрии
+#define SERVER_TX_HIGH_ITEM_SIZE   96  // тот же размер, чтобы помещались ответ (56) и телеметрия (80)
 /* USER CODE END PD */
 
 /* Локальные макросы ---------------------------------------------------------*/
@@ -189,10 +191,15 @@ const osThreadAttr_t TX_To_Server_attributes = {
   .priority = (osPriority_t) osPriorityLow,
 };
 
-/* Описания для Data_Queue */
+/* Описания для Data_Queue (нормальный приоритет: телеметрия, лог алгоритма) */
 osMessageQueueId_t Data_QueueHandle;
 const osMessageQueueAttr_t Data_Queue_attributes = {
   .name = "Data_Queue"
+};
+/* Очередь высокого приоритета: ответы на команды, повтор телеметрии */
+osMessageQueueId_t ServerTx_HighPriority_QueueHandle;
+const osMessageQueueAttr_t ServerTx_HighPriority_Queue_attributes = {
+  .name = "ServerTx_High"
 };
 
 /* USER CODE END PV */
@@ -352,6 +359,8 @@ int main(void)
   /* Создание очередей */
   /* creation of Data_Queue */
   Data_QueueHandle = osMessageQueueNew (MSGQUEUE_OBJECTS, MSGQUEUE_OBJECT_SIZE, &Data_Queue_attributes);
+  /* creation of ServerTx_HighPriority_Queue */
+  ServerTx_HighPriority_QueueHandle = osMessageQueueNew (SERVER_TX_HIGH_QUEUE_DEPTH, SERVER_TX_HIGH_ITEM_SIZE, &ServerTx_HighPriority_Queue_attributes);
   /* USER CODE END RTOS_QUEUES */
 
   /* Создание потоков */

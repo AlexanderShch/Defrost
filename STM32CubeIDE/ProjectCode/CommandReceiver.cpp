@@ -207,10 +207,10 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     txLength += 2;
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // ОТПРАВКА С МАРКЕРОМ НАЧАЛА (без маркера конца)
-    // Формат: [AA 55][Type][Len][Code + Status + DataLen + Data][CRC16]
+    // ОТПРАВКА через единую очередь (высокий приоритет), чтобы не конкурировать за UART с телеметрией/логом
+    // Формат на линии: [AA 55][Type][Len][Code + Status + DataLen + Data][CRC16]
     // ═══════════════════════════════════════════════════════════════════════════
-    WriteToServerWithSyncHighPriority(TX_Response_Buffer, txLength);
+    ServerTx_EnqueueHighPriority(TX_Response_Buffer, (uint16_t)txLength);
 
     if (g_currentCmdSkipAudit == 0)
     {

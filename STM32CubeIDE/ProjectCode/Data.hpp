@@ -17,8 +17,9 @@
 #define STQ 5				// количество типов датчиков и IO-модулей
 #define FLAG_ReadData 1ul	// флаг события чтения данных 0x00000001ul
 // Интервал отправки телеметрии на сервер по умолчанию (сек).
-// Почему: 10 секунд — безопасная нагрузка на линию/сервер и ожидаемое значение по умолчанию.
 #define TELEMETRY_INTERVAL_DEFAULT_SEC 10u
+// Интервал отправки лога алгоритма на сервер (сек). Лог и телеметрия отправляются в разных циклах.
+#define LOG_INTERVAL_DEFAULT_SEC 1u
 
 class Sensor
 {
@@ -43,6 +44,33 @@ extern volatile uint16_t g_TelemetryIntervalSeconds;
 // Установить новый интервал отправки телеметрии (сек).
 // Почему: интервал меняется из обработчика команд и должен применяться сразу (сброс счётчика).
 void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Единая очередь отправки на сервер (телеметрия, лог алгоритма, ответы на команды).
+// Один поток TX_ToServer забирает из очередей и вызывает WriteToServerWithSync — конфликта по UART нет.
+// ═══════════════════════════════════════════════════════════════════════════
+#define SERVER_TX_ITEM_SIZE  96u   /* размер элемента очереди (type + length + payload), не больше MAX_MB_BUFSIZE */
+
+typedef enum {
+	SERVER_TX_TYPE_TELEMETRY = 0,
+	SERVER_TX_TYPE_LOG       = 1,
+	SERVER_TX_TYPE_HIGH      = 2   /* ответ на команду или повтор телеметрии */
+} ServerTxType_t;
+
+typedef struct __attribute__((packed)) {
+	uint8_t type;
+	uint8_t length;
+	uint8_t data[SERVER_TX_ITEM_SIZE - 2u];
+} ServerTxItem_t;
+
+extern osMessageQueueId_t Data_QueueHandle;
+extern osMessageQueueId_t ServerTx_HighPriority_QueueHandle;
+
+/* Поставить в очередь обычной отправки (телеметрия, лог). Вызывать из DataProcessing / таймера. */
+void ServerTx_EnqueueNormal(ServerTxType_t type, const uint8_t* data, uint16_t length);
+
+/* Поставить в очередь высокого приоритета (ответ на команду, повтор телеметрии). Вызывать из CommandReceiver / ResendLastTelemetry. */
+void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length);
 
 #endif /* DATA_HPP_ */
 

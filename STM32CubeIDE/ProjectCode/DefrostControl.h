@@ -80,6 +80,20 @@ uint8_t DefrostControl_SetParams(const DefrostParams_t *inParams);
 void DefrostControl_SaveParams(void);
 void DefrostControl_LoadParams(void);
 
+/* Пакет параметров для лога алгоритма (CSV на сервере). Заполняется в ControlStep1s/ControlStep1s_AirOnly. */
+typedef struct __attribute__((packed)) {
+    uint16_t Time;               /* секунды с включения (как в телеметрии) */
+    uint32_t runtimeSeconds;
+    uint8_t phase;               /* 0=WarmUp, 1=Plateau, 2=Finish */
+    uint8_t ten1L_on, ten2L_on, ten1R_on, ten2R_on, inj_on, outOn;
+    float T_sup_avg_C, T_supL_C, T_supR_C, supplySet_C, eT_common, heatScale01;
+    float uCommon_TEN, uLeft_TEN, uRight_TEN;
+    float leftTen1Duty, leftTen2Duty, rightTen1Duty, rightTen2Duty;
+    float w_sup_avg, w_ret_target, wErr, injDuty;
+} ControlLogPayload_t;
+
+void DefrostControl_GetControlLogPayload(ControlLogPayload_t *out, uint16_t timeFromStart);
+
 #ifdef __cplusplus
 }
 #endif

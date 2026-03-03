@@ -18,7 +18,6 @@ extern osEventFlagsId_t ReadDataEventHandle;
 extern osEventFlagsId_t Start_TX_EventHandle;
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osThreadId_t TouchGFX_Task;
-extern osMessageQueueId_t Data_QueueHandle;
 
 uint32_t flags;				// флаги для ожидания событий
 int8_t SensorNumber;
@@ -31,6 +30,8 @@ volatile uint16_t g_TelemetryIntervalSeconds = TELEMETRY_INTERVAL_DEFAULT_SEC;
 
 static volatile uint16_t ShiftCounter = TELEMETRY_INTERVAL_DEFAULT_SEC;	// Счётчик 1-сек периодов между отправками телеметрии
 static volatile uint8_t TelemetrySendPending = 0;						// Флаг: пора отправлять телеметрию (выставляет таймер 1 Гц)
+static volatile uint16_t LogShiftCounter = LOG_INTERVAL_DEFAULT_SEC;		// Счётчик для интервала отправки лога алгоритма
+static volatile uint8_t LogSendPending = 0;								// Флаг: пора отправлять лог (отдельно от телеметрии)
 
 void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
 {
@@ -76,6 +77,7 @@ typedef struct __attribute__((packed))   // формат данных для с�
 } MSGQUEUE_OBJ_t;
 // !!! ВНИМАНИЕ! Если меняется структура, надо поменять и размер буфера MAX_MB_BUFSIZE в ModBus.cpp
 
+#define LOG_PACKET_SIZE  (2u + sizeof(ControlLogPayload_t) + 2u)
 
 /* Функция записывает int Val в массив данных, полученных с датчиков.
  * Параметр Param определяет, какой величиной массива является int Val.
@@ -137,7 +139,7 @@ void DataTimerFunc()
 	// Датчики должны считываться строго 1 раз в секунду.
 	osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
 
-	// Интервал телеметрии влияет только на постановку данных в очередь отправки.
+	// Интервал телеметрии: постановка в очередь раз в g_TelemetryIntervalSeconds.
 	if (ShiftCounter > 0)
 	{
 		--ShiftCounter;
@@ -146,6 +148,16 @@ void DataTimerFunc()
 	{
 		ShiftCounter = g_TelemetryIntervalSeconds;
 		TelemetrySendPending = 1;
+	}
+	// Интервал лога алгоритма: постановка в очередь раз в LOG_INTERVAL_DEFAULT_SEC (отдельно от телеметрии).
+	if (LogShiftCounter > 0)
+	{
+		--LogShiftCounter;
+	}
+	if (LogShiftCounter == 0)
+	{
+		LogShiftCounter = LOG_INTERVAL_DEFAULT_SEC;
+		LogSendPending = 1;
 	}
 	// моргнём светодиодом
 	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
@@ -247,16 +259,12 @@ void ReadDataFunc() {
 		GateControl_Update1s();
 		DefrostControl_Update1s();
 
-		// Телеметрия отправляется с интервалом g_TelemetryIntervalSeconds.
+		// Телеметрия: раз в g_TelemetryIntervalSeconds (например 10 с).
 		if (TelemetrySendPending != 0)
 		{
 			TelemetrySendPending = 0;
-
-			// формирование данных для сервера
 			DataToServer = {};
 			DataToServer.DataType = 0x00;	// Тип данных: 0x00 = телеметрия
-			// Длина полезной части после Len и до CRC:
-			// Time(2) + SensorQuantity(1) + SensorType(7) + Active(7) + T(14) + H(14) = 45 байт
 			DataToServer.Len = 45;
 			DataToServer.Time = TimeFromStart;
 			DataToServer.SensorQuantity = SQ;
@@ -267,8 +275,33 @@ void ReadDataFunc() {
 				DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 2);
 				DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
 			}
-			// запись в очередь передачи данных в удалённый компьютер
-			osMessageQueuePut(Data_QueueHandle, &DataToServer, 0U, 0U);
+			ServerTxItem_t item = {};
+			item.type = (uint8_t)SERVER_TX_TYPE_TELEMETRY;
+			item.length = (uint8_t)sizeof(MSGQUEUE_OBJ_t);
+			memcpy(item.data, &DataToServer, sizeof(MSGQUEUE_OBJ_t));
+			osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
+		}
+
+		// Лог алгоритма (Type 0x01): раз в LOG_INTERVAL_DEFAULT_SEC, отдельно от телеметрии.
+		if (LogSendPending != 0)
+		{
+			LogSendPending = 0;
+			ControlLogPayload_t logPayload;
+			DefrostControl_GetControlLogPayload(&logPayload, (uint16_t)TimeFromStart);
+			uint8_t logPacket[LOG_PACKET_SIZE];
+			logPacket[0] = 0x01u;
+			logPacket[1] = (uint8_t)sizeof(ControlLogPayload_t);
+			memcpy(logPacket + 2, &logPayload, sizeof(ControlLogPayload_t));
+			{
+				uint16_t crc = MB_GetCRC(logPacket, 2u + (uint16_t)sizeof(ControlLogPayload_t));
+				logPacket[2 + sizeof(ControlLogPayload_t)] = (uint8_t)(crc & 0xFFu);
+				logPacket[2 + sizeof(ControlLogPayload_t) + 1] = (uint8_t)(crc >> 8);
+			}
+			ServerTxItem_t item = {};
+			item.type = (uint8_t)SERVER_TX_TYPE_LOG;
+			item.length = (uint8_t)LOG_PACKET_SIZE;
+			memcpy(item.data, logPacket, LOG_PACKET_SIZE);
+			osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 		}
 
 		// проверим не активные датчики на активность
@@ -341,48 +374,76 @@ static uint32_t TelemetryErrorCount = 0;       // Счётчик ошибок о
  */
 void ResendLastTelemetry(void)
 {
-	// Проверяем, есть ли сохранённые данные для повторной отправки
-	if (LastSentTelemetry.DataType == 0x00)
+	if (LastSentTelemetry.DataType != 0x00)
 	{
-		// ═══════════════════════════════════════════════════════════════════════════
-		// ОТПРАВКА В НОВОМ ФОРМАТЕ (без маркера конца)
-		// Формат: [AA 55][Type][Len][Payload...][CRC16]
-		// ═══════════════════════════════════════════════════════════════════════════
-		WriteToServerWithSyncHighPriority((uint8_t*)&LastSentTelemetry, (int) sizeof(LastSentTelemetry));
-		
-		// Инкрементируем счётчик ошибок
-		TelemetryErrorCount++;
+		return;
 	}
+	ServerTx_EnqueueHighPriority((uint8_t*)&LastSentTelemetry, (uint16_t)sizeof(LastSentTelemetry));
+	TelemetryErrorCount++;
 }
 
-// 4. Передача данных серверу работает в потоке TX_To_Server
+// Единая точка отправки на сервер: сначала высокий приоритет (ответы, повтор телеметрии), затем нормальная очередь
+void ServerTx_EnqueueNormal(ServerTxType_t type, const uint8_t* data, uint16_t length)
+{
+	if (data == NULL || length > (SERVER_TX_ITEM_SIZE - 2u))
+	{
+		return;
+	}
+	ServerTxItem_t item = {};
+	item.type = (uint8_t)type;
+	item.length = (uint8_t)length;
+	memcpy(item.data, data, length);
+	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
+}
+
+void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length)
+{
+	if (data == NULL || length > (SERVER_TX_ITEM_SIZE - 2u))
+	{
+		return;
+	}
+	ServerTxItem_t item = {};
+	item.type = (uint8_t)SERVER_TX_TYPE_HIGH;
+	item.length = (uint8_t)length;
+	memcpy(item.data, data, length);
+	osMessageQueuePut(ServerTx_HighPriority_QueueHandle, &item, 0U, 0U);
+}
+
+// 4. Передача данных серверу: один поток читает из двух очередей и вызывает только WriteToServerWithSync
 void TX_ToServer()
 {
-	MSGQUEUE_OBJ_t Data_TX_Server;
+	ServerTxItem_t item = {};
 
 	while (1)
 	{
-		Data_TX_Server = {};
-		osMessageQueueGet(Data_QueueHandle, &Data_TX_Server, 0u, osWaitForever);
-		// сделаем расчёт CRC для структуры Data_TX_Server,
-		// но без учёта последних двух байт структуры, занятых CRC
-		Data_TX_Server.CRC_SUM = MB_GetCRC((uint8_t*)&Data_TX_Server, sizeof(Data_TX_Server)-2);
-		
-		// ═══════════════════════════════════════════════════════════════════════════
-		// СОХРАНЯЕМ данные телеметрии перед отправкой
-		// Это позволит повторить отправку при ошибке (DATA_FALSE от сервера)
-		// ═══════════════════════════════════════════════════════════════════════════
-		memcpy(&LastSentTelemetry, &Data_TX_Server, sizeof(MSGQUEUE_OBJ_t));
-		
-		// ═══════════════════════════════════════════════════════════════════════════
-		// ОТПРАВКА В НОВОМ ФОРМАТЕ (без маркера конца)
-		// Формат: [AA 55][Type][Len][Payload...][CRC16]
-		// ═══════════════════════════════════════════════════════════════════════════
-		WriteToServerWithSync((uint8_t*)&Data_TX_Server, (int) sizeof(Data_TX_Server));
-		if (result == MB_ERROR_NO)
+		item = {};
+		// Сначала высокий приоритет (ответы на команды, повтор телеметрии), без ожидания
+		osStatus_t st = osMessageQueueGet(ServerTx_HighPriority_QueueHandle, &item, 0u, 0u);
+		if (st != osOK)
 		{
-			// данные приняты - проверяем достоверность и сохраняем принятые данные в переменные
+			// Нет срочных — ждём элемент из обычной очереди (телеметрия, лог)
+			st = osMessageQueueGet(Data_QueueHandle, &item, 0u, osWaitForever);
+			if (st != osOK)
+			{
+				continue;
+			}
 		}
+
+		uint16_t len = (uint16_t)item.length;
+		if (len == 0)
+		{
+			continue;
+		}
+
+		if (item.type == SERVER_TX_TYPE_TELEMETRY)
+		{
+			// CRC и копия для повтора при DATA_FALSE
+			MSGQUEUE_OBJ_t* p = (MSGQUEUE_OBJ_t*)item.data;
+			p->CRC_SUM = MB_GetCRC((uint8_t*)p, sizeof(MSGQUEUE_OBJ_t) - 2u);
+			memcpy(&LastSentTelemetry, p, sizeof(MSGQUEUE_OBJ_t));
+		}
+
+		WriteToServerWithSync(item.data, (int)len);
 	}
 }
 

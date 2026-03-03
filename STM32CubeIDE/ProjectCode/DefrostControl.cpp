@@ -29,6 +29,9 @@
 
 extern SENSOR_typedef_t Sensor_array[SQ];
 
+/* Буфер параметров для лога (заполняется в ControlStep1s/ControlStep1s_AirOnly, читается из Data.cpp). */
+static ControlLogPayload_t s_controlLogPayload;
+
 typedef struct {
     uint16_t version;
     uint16_t payloadCrc;
@@ -528,7 +531,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
        // Инициализация битов ворот выполняется при входе в авто-режим и при завершении команд; здесь не сбрасываем.
 
        /**********************************
-       АЛГОРИТМ АВТОМАТИЧЕСКОГО УПРАВЛЕНИЯ
+       СОБСТВЕННО АЛГОРИТМ АВТОМАТИЧЕСКОГО УПРАВЛЕНИЯ
        ************************************/  
        // Читаем последние значения из Model.
          const float T_supL_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensSupLeft_T_H));
@@ -780,7 +783,33 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         const uint16_t kInjMinHold_s = g_defrostParams.injMinHold_s;
          const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
          const uint8_t out_on = g.outOn ? 1 : 0;
- 
+
+         s_controlLogPayload.runtimeSeconds = g.runtimeSeconds;
+         s_controlLogPayload.phase = static_cast<uint8_t>(phase);
+         s_controlLogPayload.ten1L_on = ten1L_on;
+         s_controlLogPayload.ten2L_on = ten2L_on;
+         s_controlLogPayload.ten1R_on = ten1R_on;
+         s_controlLogPayload.ten2R_on = ten2R_on;
+         s_controlLogPayload.inj_on = inj_on;
+         s_controlLogPayload.outOn = out_on ? 1 : 0;
+         s_controlLogPayload.T_sup_avg_C = T_sup_avg_C;
+         s_controlLogPayload.T_supL_C = T_supL_C;
+         s_controlLogPayload.T_supR_C = T_supR_C;
+         s_controlLogPayload.supplySet_C = tgt.supplySet_C;
+         s_controlLogPayload.eT_common = eT_common;
+         s_controlLogPayload.heatScale01 = heatScale01;
+         s_controlLogPayload.uCommon_TEN = uCommon_TEN;
+         s_controlLogPayload.uLeft_TEN = uLeft_TEN;
+         s_controlLogPayload.uRight_TEN = uRight_TEN;
+         s_controlLogPayload.leftTen1Duty = leftTen1Duty;
+         s_controlLogPayload.leftTen2Duty = leftTen2Duty;
+         s_controlLogPayload.rightTen1Duty = rightTen1Duty;
+         s_controlLogPayload.rightTen2Duty = rightTen2Duty;
+         s_controlLogPayload.w_sup_avg = w_sup_avg;
+         s_controlLogPayload.w_ret_target = w_ret_target;
+         s_controlLogPayload.wErr = wErr;
+         s_controlLogPayload.injDuty = injDuty;
+
          ApplyOutputs(
              /*ventLeftOn*/  ventL_on,
              /*ventRightOn*/ ventR_on,
@@ -904,6 +933,32 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          const uint16_t kInjMinHold_s = g_defrostParams.injMinHold_s;
          const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
          const uint8_t out_on = g.outOn ? 1 : 0;
+
+         s_controlLogPayload.runtimeSeconds = g.runtimeSeconds;
+         s_controlLogPayload.phase = static_cast<uint8_t>(phase);
+         s_controlLogPayload.ten1L_on = ten1L_on;
+         s_controlLogPayload.ten2L_on = ten2L_on;
+         s_controlLogPayload.ten1R_on = ten1R_on;
+         s_controlLogPayload.ten2R_on = ten2R_on;
+         s_controlLogPayload.inj_on = inj_on;
+         s_controlLogPayload.outOn = out_on ? 1 : 0;
+         s_controlLogPayload.T_sup_avg_C = T_sup_avg_C;
+         s_controlLogPayload.T_supL_C = T_supL_C;
+         s_controlLogPayload.T_supR_C = T_supR_C;
+         s_controlLogPayload.supplySet_C = tgt.supplySet_C;
+         s_controlLogPayload.eT_common = eT_common;
+         s_controlLogPayload.heatScale01 = heatScale01;
+         s_controlLogPayload.uCommon_TEN = uCommon_TEN;
+         s_controlLogPayload.uLeft_TEN = uLeft_TEN;
+         s_controlLogPayload.uRight_TEN = uRight_TEN;
+         s_controlLogPayload.leftTen1Duty = leftTen1Duty;
+         s_controlLogPayload.leftTen2Duty = leftTen2Duty;
+         s_controlLogPayload.rightTen1Duty = rightTen1Duty;
+         s_controlLogPayload.rightTen2Duty = rightTen2Duty;
+         s_controlLogPayload.w_sup_avg = w_sup_avg;
+         s_controlLogPayload.w_ret_target = w_ret_target;
+         s_controlLogPayload.wErr = wErr;
+         s_controlLogPayload.injDuty = injDuty;
 
          ApplyOutputs(
              ventL_on, ventR_on,
@@ -1558,3 +1613,15 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
      }
  }
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+void DefrostControl_GetControlLogPayload(ControlLogPayload_t *out, uint16_t timeFromStart)
+{
+    if (out == NULL) return;
+    memcpy(out, &s_controlLogPayload, sizeof(ControlLogPayload_t));
+    out->Time = timeFromStart;
+}
+#ifdef __cplusplus
+}
+#endif
