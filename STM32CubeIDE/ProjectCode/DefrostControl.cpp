@@ -2,9 +2,9 @@
  * DefrostControl.cpp
  *
  * Практичный алгоритм управления дефростером с двумя потоками:
- * - Два потока подачи (левый/правый) с 2 ТЭН + 2 вентилятор на сторону
+ * - Два потока подачи (левый/правый) с 2 ТЭН + 2 вентилятора на сторону
  * - Одна точка возврата/смешения (чердак над всасывающим люком)
- * - Форсунка (впрыск воды) и вытяжка для управления влажностью
+ * - Форсунки с двух сторон (впрыск воды) и вытяжка для управления влажностью
  *
  * Цели:
  * - Быстро размораживать без ухудшения качества (не перегревать / не портить поверхность)
@@ -57,7 +57,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
      constexpr int8_t kSensFish2_T      = 4;
  
      // Масштаб "в десятых" (UI делит на 10.0).
-     // Почему: преобразование должно быть в одном месте, чтобы не смешивать "сырые" и инженерные единицы.
+     // Почему: преобразование должно быть в одинаковых единицах, чтобы не смешивать "сырые" и инженерные единицы.
      constexpr float kDeciToUnit = 0.1f;
  
      // Допущения по психрометрии.
@@ -70,6 +70,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
  
      // Ограничения безопасности/качества (по умолчанию; требуют настройки под продукт).
      // Почему: ограничения качества должны доминировать над "оптимальностью", чтобы избежать необратимых дефектов.
+     // Снимок лимитов для одной из фаз (0=WarmUp, 1=Plateau, 2=Finish); значения берутся из GetLimits(phase).
      struct Limits
      {
          float fishHotMax_C;        // жёсткий потолок для самой тёплой измеренной точки продукта
@@ -237,47 +238,51 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          return 0.62198f * (pv_kPa / denom);
      }
  
+     // Пропорционально - интегральное управление
      struct PI
      {
-         float kp = 0.0f;
-         float ki = 0.0f;
-         float i = 0.0f;
+         float kp = 0.0f;       // пропорциональный коэффициент
+         float ki = 0.0f;       // интегральный коэффициент
+         float i = 0.0f;        // интегральный накопитель ошибки
  
-         float Step(float error, float dt, float uMin, float uMax)
+         float Step(float error, float dt, float uMin, float uMax)    // расчёт управляющего воздействия
          {
-             // Anti-windup: корректируем интегратор при насыщении выхода.
+             // Ограничение интегратора при насыщении: корректируем интегратор при насыщении выхода.
              // Почему: актуаторы насыщаются (0..2 "эквивалента ТЭНа"), разгон интегратора даёт длинные перерегулирования.
-             const float p = kp * error;
-             i += ki * error * dt;
-             float u = p + i;
-             if (u > uMax)
+             const float p = kp * error;    // пропорциональная составляющая
+             i += ki * error * dt;          // интегральная составляющая
+             float u = p + i;               // суммарное воздействие
+             if (u > uMax)                  // ограничение выхода за верхнюю границу
              {
                  u = uMax;
-                 i = u - p;
+                 i = u - p;                 // корректировка интегральной составляющей - рост не учитывается
              }
-             else if (u < uMin)
+             else if (u < uMin)             // ограничение выхода за нижнюю границу
              {
                  u = uMin;
-                 i = u - p;
+                 i = u - p;                 // корректировка интегральной составляющей - снижение не учитывается
              }
              return u;
          }
      };
  
+     // Расчёт скважности для ШИМ методом сигма-дельта
      struct SigmaDeltaPWM
      {
-         float acc = 0.0f;
-         uint8_t Step(float duty01)
+         float acc = 0.0f;                  // накопитель
+         uint8_t Step(float duty01)         // duty01 — заданная скважность 0…1 (0 = выкл, 1 = вкл)
          {
-             // Почему: sigma-delta "размазывает" включения, приближая аналоговую скважность при обновлении 1 Гц.
+             // При обновлении раз в секунду выход принимает значения только 0 или 1; 
+             // накопитель распределяет включения по тактам так, чтобы средняя скважность за период 
+             // совпадала с заданной (эквивалент ШИМ).
              duty01 = Clamp(duty01, 0.0f, 1.0f);
-             acc += duty01;
-             if (acc >= 1.0f)
+             acc += duty01;                 // накопитель скважности
+             if (acc >= 1.0f)               // накопитель превысил 100%, нужно включить устройство
              {
-                 acc -= 1.0f;
-                 return 1;
+                 acc -= 1.0f;               // устройство включаем, накопитель сбрасываем на 100%
+                 return 1;                  // возвращаем команду на включение
              }
-             return 0;
+             return 0;                      // накопитель ещё не полный, устройство включать не нужно
          }
  
          void Reset()
@@ -286,6 +291,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          }
      };
  
+     // Удержание объекта от переключения в течение не менее заданного времени
      struct HoldSwitch
      {
          uint8_t state = 0;
@@ -293,14 +299,14 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
  
          uint8_t Step(uint8_t desiredState, uint16_t minHold_s)
          {
-             // Почему: 1-секундная дискретность + sigma-delta могут вызвать частые переключения,
+             // Почему: 1-секундная дискретность + sigma-delta может вызвать частые переключения,
              //         что плохо для силовых реле/контакторов и ухудшает повторяемость теплового режима.
              if (hold_s > 0)
              {
                  hold_s--;
                  return state;
              }
- 
+             // Переход к переключению состояния может быть только по истечении минимального времени удержания
              desiredState = desiredState ? 1 : 0;
              if (desiredState != state)
              {
@@ -427,6 +433,9 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         StoppedOrManual = 1
     };
 
+    // Управление лампами индикации работы:
+    // зеленая - работа в автоматическом режиме
+    // красная - автоматический процесс остановлен
     static void ApplyModeLamps(LampModeState modeState)
     {
         // Why: централизуем правила индикации режима, чтобы исключить расхождения между ветками auto/manual/stop.
@@ -445,7 +454,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         Model::DFR_manual._Stp = 1;
     }
 
-     static void ApplyOutputs(
+    // Соблюдение порядка последовательного, с интервалами времени, включения мощных устройств 
+    static void ApplyOutputs(
          uint8_t ventLeftOn,
          uint8_t ventRightOn,
          uint8_t ten1LeftOn,
@@ -493,7 +503,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         stageActuator(ten1RightOn, g.stagedTen1RightOn);
         stageActuator(ten2RightOn, g.stagedTen2RightOn);
 
-        // Почему: побочные эффекты (изменение общего Model::DFR) держим в одном месте для простого аудита.
+        // Загружаем значения в регистр управления устройствами
         Model::DFR.Vent1_Left  = g.stagedVent1LeftOn ? 1 : 0;
         Model::DFR.Vent2_Left  = g.stagedVent2LeftOn ? 1 : 0;
         Model::DFR.Vent1_Right = g.stagedVent1RightOn ? 1 : 0;
@@ -550,44 +560,35 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          const bool fish1Enabled = (Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0);
          const bool fish2Enabled = (Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0);
 
-         // Переменная haveFish_C является флагом, указывающим на наличие активных датчиков температуры продукта. 
-         // Она принимает значения:
-         // 0 - если нет активных датчиков температуры продукта (fish1 и fish2 отключены или не используются)
-         // 1 - если хотя бы один датчик температуры продукта активен и используется в алгоритме
          float fishHot_C = 0.0f;
          float fishCold_C = 0.0f;
          float fishDelta_C = 0.0f;
-         uint8_t haveFish_C = 0;
 
+         // Установка параметров алгоритма при наличии двух датчиков продукта
          if (fish1Enabled && fish2Enabled)
          {
              fishHot_C = (fish1_C >= fish2_C) ? fish1_C : fish2_C;
              fishCold_C = (fish1_C < fish2_C) ? fish1_C : fish2_C;
              fishDelta_C = fishHot_C - fishCold_C;
-             haveFish_C = 1;
          }
+         // Установка параметров алгоритма при наличии только первого датчика продукта
          else if (fish1Enabled)
          {
              fishHot_C = fish1_C;
              fishCold_C = fish1_C;
              fishDelta_C = 0.0f;
-             haveFish_C = 1;
          }
+         // Установка параметров алгоритма при наличии только второго датчика продукта
          else if (fish2Enabled)
          {
              fishHot_C = fish2_C;
              fishCold_C = fish2_C;
              fishDelta_C = 0.0f;
-             haveFish_C = 1;
          }
+         // Без датчиков продукта — режим «только по воздуху» (фаза дефроста определяется по времени, лимит T подачи).
          else
          {
-             // Почему: без обратной связи по температуре в теле продукта — отдельная ветка «только по воздуху».
              g.haveLastFishHot = 0;
-         }
-
-         if (haveFish_C == 0)
-         {
              ControlStep1s_AirOnly();
              return;
          }
@@ -625,9 +626,10 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          }
  
          // Ограничение по скорости прогрева "горячей" точки (только при наличии предыдущей температуры продукта).
+         float rate_Cps = 0.0f;   // для лога; при отсутствии предыдущего замера — 0
          if (g.haveLastFishHot != 0)
          {
-             const float rate_Cps = (fishHot_C - g.lastFishHot_C) / kDt_s; // скорость прогрева "горячей" точки, град/сек
+             rate_Cps = (fishHot_C - g.lastFishHot_C) / kDt_s; // скорость прогрева "горячей" точки, град/сек
              if (rate_Cps > lim.fishHotRateMax_Cps) // если скорость прогрева превышает максимально допустимую
              {
                  // Пропорционально снижаем; защищаемся от полного "затыка" из-за шума.
@@ -786,19 +788,10 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
 
          s_controlLogPayload.runtimeSeconds = g.runtimeSeconds;
          s_controlLogPayload.phase = static_cast<uint8_t>(phase);
-         s_controlLogPayload.ten1L_on = ten1L_on;
-         s_controlLogPayload.ten2L_on = ten2L_on;
-         s_controlLogPayload.ten1R_on = ten1R_on;
-         s_controlLogPayload.ten2R_on = ten2R_on;
-         s_controlLogPayload.inj_on = inj_on;
-         s_controlLogPayload.outOn = out_on ? 1 : 0;
-         s_controlLogPayload.T_sup_avg_C = T_sup_avg_C;
-         s_controlLogPayload.T_supL_C = T_supL_C;
-         s_controlLogPayload.T_supR_C = T_supR_C;
-         s_controlLogPayload.supplySet_C = tgt.supplySet_C;
          s_controlLogPayload.eT_common = eT_common;
          s_controlLogPayload.heatScale01 = heatScale01;
          s_controlLogPayload.uCommon_TEN = uCommon_TEN;
+         s_controlLogPayload.trim_TEN = trim_TEN;
          s_controlLogPayload.uLeft_TEN = uLeft_TEN;
          s_controlLogPayload.uRight_TEN = uRight_TEN;
          s_controlLogPayload.leftTen1Duty = leftTen1Duty;
@@ -809,6 +802,14 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          s_controlLogPayload.w_ret_target = w_ret_target;
          s_controlLogPayload.wErr = wErr;
          s_controlLogPayload.injDuty = injDuty;
+         s_controlLogPayload.fishHotMax_C = lim.fishHotMax_C;
+         s_controlLogPayload.rate_Cps = rate_Cps;
+         s_controlLogPayload.fishHotRateMax_Cps = lim.fishHotRateMax_Cps;
+         s_controlLogPayload.fishDeltaMax_C = lim.fishDeltaMax_C;
+         s_controlLogPayload.supplyMax_C = lim.supplyMax_C;
+         s_controlLogPayload.fishHot_C = fishHot_C;
+         s_controlLogPayload.fishCold_C = fishCold_C;
+         s_controlLogPayload.supplySet_C = tgt.supplySet_C;
 
          ApplyOutputs(
              /*ventLeftOn*/  ventL_on,
@@ -936,19 +937,10 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
 
          s_controlLogPayload.runtimeSeconds = g.runtimeSeconds;
          s_controlLogPayload.phase = static_cast<uint8_t>(phase);
-         s_controlLogPayload.ten1L_on = ten1L_on;
-         s_controlLogPayload.ten2L_on = ten2L_on;
-         s_controlLogPayload.ten1R_on = ten1R_on;
-         s_controlLogPayload.ten2R_on = ten2R_on;
-         s_controlLogPayload.inj_on = inj_on;
-         s_controlLogPayload.outOn = out_on ? 1 : 0;
-         s_controlLogPayload.T_sup_avg_C = T_sup_avg_C;
-         s_controlLogPayload.T_supL_C = T_supL_C;
-         s_controlLogPayload.T_supR_C = T_supR_C;
-         s_controlLogPayload.supplySet_C = tgt.supplySet_C;
          s_controlLogPayload.eT_common = eT_common;
          s_controlLogPayload.heatScale01 = heatScale01;
          s_controlLogPayload.uCommon_TEN = uCommon_TEN;
+         s_controlLogPayload.trim_TEN = trim_TEN;
          s_controlLogPayload.uLeft_TEN = uLeft_TEN;
          s_controlLogPayload.uRight_TEN = uRight_TEN;
          s_controlLogPayload.leftTen1Duty = leftTen1Duty;
@@ -959,6 +951,14 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          s_controlLogPayload.w_ret_target = w_ret_target;
          s_controlLogPayload.wErr = wErr;
          s_controlLogPayload.injDuty = injDuty;
+         s_controlLogPayload.fishHotMax_C = lim.fishHotMax_C;
+         s_controlLogPayload.rate_Cps = 0.0f;
+         s_controlLogPayload.fishHotRateMax_Cps = lim.fishHotRateMax_Cps;
+         s_controlLogPayload.fishDeltaMax_C = lim.fishDeltaMax_C;
+         s_controlLogPayload.supplyMax_C = lim.supplyMax_C;
+         s_controlLogPayload.fishHot_C = 0.0f;
+         s_controlLogPayload.fishCold_C = 0.0f;
+         s_controlLogPayload.supplySet_C = tgt.supplySet_C;
 
          ApplyOutputs(
              ventL_on, ventR_on,

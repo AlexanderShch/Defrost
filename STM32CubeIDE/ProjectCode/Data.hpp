@@ -49,7 +49,7 @@ void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds);
 // Единая очередь отправки на сервер (телеметрия, лог алгоритма, ответы на команды).
 // Один поток TX_ToServer забирает из очередей и вызывает WriteToServerWithSync — конфликта по UART нет.
 // ═══════════════════════════════════════════════════════════════════════════
-#define SERVER_TX_ITEM_SIZE  96u   /* размер элемента очереди (type + length + payload), не больше MAX_MB_BUFSIZE */
+#define SERVER_TX_ITEM_SIZE  98u   /* размер элемента очереди (type + length + payload); лог до 95 байт, не больше MAX_MB_BUFSIZE */
 
 typedef enum {
 	SERVER_TX_TYPE_TELEMETRY = 0,

@@ -64,9 +64,9 @@ uint8_t ucHeap[65536];  // Явно указываем размер вместо
 #define SPI5_TIMEOUT_MAX                    0x1000
 
 #define MSGQUEUE_OBJECTS        6       // количество объектов в очереди сообщений (телеметрия + лог)
-#define MSGQUEUE_OBJECT_SIZE    96      // размер элемента: ServerTxItem_t (type + length + data), совпадает с SERVER_TX_ITEM_SIZE
+#define MSGQUEUE_OBJECT_SIZE    98      // размер элемента: ServerTxItem_t (type + length + data), совпадает с SERVER_TX_ITEM_SIZE
 #define SERVER_TX_HIGH_QUEUE_DEPTH  3   // очередь высокого приоритета: ответы на команды, повтор телеметрии
-#define SERVER_TX_HIGH_ITEM_SIZE   96  // тот же размер, чтобы помещались ответ (56) и телеметрия (80)
+#define SERVER_TX_HIGH_ITEM_SIZE   98  // тот же размер, чтобы помещались ответ (56), телеметрия (80), лог (95)
 /* USER CODE END PD */
 
 /* Локальные макросы ---------------------------------------------------------*/
