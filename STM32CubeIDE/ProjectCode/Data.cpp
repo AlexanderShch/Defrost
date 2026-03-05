@@ -16,6 +16,7 @@
 // ReadDataEventHandle определён в main.c
 extern osEventFlagsId_t ReadDataEventHandle;
 extern osEventFlagsId_t Start_TX_EventHandle;
+extern osSemaphoreId_t ServerResponseReceived_SemHandle;  // ответ на телеметрию (DATA_OK/DATA_FALSE)
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osThreadId_t TouchGFX_Task;
 
@@ -444,6 +445,17 @@ void TX_ToServer()
 		}
 
 		WriteToServerWithSync(item.data, (int)len);
+
+		// После отправки телеметрии ждём до 100 мс ответ сервера (DATA_OK/DATA_FALSE), чтобы не начинать передачу лога до приёма ответа (RS-485 half-duplex).
+		if (item.type == SERVER_TX_TYPE_TELEMETRY && ServerResponseReceived_SemHandle != NULL)
+		{
+			// Сброс возможного старого токена семафора перед ожиданием актуального ответа
+			while (osSemaphoreAcquire(ServerResponseReceived_SemHandle, 0u) == osOK)
+			{
+				;
+			}
+			osSemaphoreAcquire(ServerResponseReceived_SemHandle, 100u);  // таймаут 100 мс (тики при 1 кГц)
+		}
 	}
 }
 

@@ -20,6 +20,7 @@ extern "C" {
 extern UART_HandleTypeDef huart4;  // UART для связи с сервером
 extern osSemaphoreId_t PR_TX_Compl_SemHandle;  // завершение передачи (UART4)
 extern osSemaphoreId_t UART4_CMD_RX_SemHandle;  // завершение приёма сервера (UART4)
+extern osSemaphoreId_t ServerResponseReceived_SemHandle;  // ответ на телеметрию получен (DATA_OK/DATA_FALSE)
 extern SENSOR_typedef_t Sensor_array[SQ];  // массив датчиков
 extern unsigned int TimeFromStart;  // время устройства в секундах
 }
@@ -235,9 +236,11 @@ CommandStatus_t CommandReceiver_HandleTelemetry(Command_t *cmd)
         case TELEMETRY_DATA_OK:
             // Сервер подтвердил приём телеметрии
             // ✅ Успешная передача телеметрии
-            // Можно сбросить счётчик ошибок передачи
-            // Можно обновить статус связи с сервером
-            // Можно залогировать успешную передачу
+            // Сигнал TX_ToServer: можно продолжать (дать окно для приёма ответа перед следующим пакетом)
+            if (ServerResponseReceived_SemHandle != NULL)
+            {
+                osSemaphoreRelease(ServerResponseReceived_SemHandle);
+            }
             break;
             
         case TELEMETRY_DATA_FALSE:
@@ -250,9 +253,12 @@ CommandStatus_t CommandReceiver_HandleTelemetry(Command_t *cmd)
             //   - Отправляет сохранённые данные телеметрии
             //   - Инкрементирует счётчик ошибок
             ResendLastTelemetry();
-            
+            // Сигнал TX_ToServer: ответ на телеметрию получен (DATA_FALSE)
+            if (ServerResponseReceived_SemHandle != NULL)
+            {
+                osSemaphoreRelease(ServerResponseReceived_SemHandle);
+            }
             // Можно залогировать ошибку передачи
-            // Можно обновить статус связи с сервером (индикатор проблемы)
             break;
         }
             
@@ -616,6 +622,7 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
 
         case REQ_CMD_GET_DEFROST_PARAM:
         {
+            // Отправляем запрошенный параметр алгоритма дефростации
             // Запрос: [groupId][paramId]
             if (cmd->dataLength != 2)
             {
@@ -668,6 +675,7 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
 
         case REQ_CMD_GET_DEFROST_GROUP:
         {
+            // Отправляем группу параметров алгоритма дефростации
             // Запрос: [groupId][page]
             if (cmd->dataLength != 2)
             {

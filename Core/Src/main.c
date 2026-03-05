@@ -120,7 +120,7 @@ const osThreadAttr_t DataProcessing_attributes = {
 osThreadId_t ReadDataHandle;
 const osThreadAttr_t ReadData_attributes = {
   .name = "ReadData",
-  .stack_size = 320 * 4,  // Уменьшено с 384 до 320 (экономия 256 байт)
+  .stack_size = 448 * 4,  // Увеличено: C++/Modbus/датчики; при overflow в vApplicationStackOverflowHook смотреть pcTaskName
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Описания для RX_From_Server */
@@ -182,12 +182,17 @@ const osEventFlagsAttr_t ReadDataEvent_attributes = {
 };
 
 /* USER CODE BEGIN PV */
-
+/* Семафор: ответ сервера на переданный пакет (DATA_OK/DATA_FALSE) получен CommandReceiver.
+   TX_ToServer() после отправки телеметрии ждёт этот семафор до 100 мс перед следующим osMessageQueueGet. */
+osSemaphoreId_t ServerResponseReceived_SemHandle;
+const osSemaphoreAttr_t ServerResponseReceived_Sem_attributes = {
+  .name = "ServerRespRcvd"
+};
 /* Описания для TX_To_Server */
 osThreadId_t TX_To_ServerHandle;
 const osThreadAttr_t TX_To_Server_attributes = {
   .name = "TX_To_Server",
-  .stack_size = 128 * 4,
+  .stack_size = 512 * 4,  // Увеличено: поток TX_To_Server переполнял стек (см. vApplicationStackOverflowHook, pcTaskName)
   .priority = (osPriority_t) osPriorityLow,
 };
 
@@ -343,12 +348,17 @@ int main(void)
   UART4_MutexHandle = osMutexNew(&UART4_Mutex_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* add semaphores, ... */
+  ServerResponseReceived_SemHandle = osSemaphoreNew(1, 0, &ServerResponseReceived_Sem_attributes);
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* Создание таймеров */
   /* creation of DataTimer */
   DataTimerHandle = osTimerNew(Callback01, osTimerPeriodic, NULL, &DataTimer_attributes);
+  if (DataTimerHandle == NULL) {
+    /* Таймер не создан: не хватило heap (configTOTAL_HEAP_SIZE / ucHeap).
+       DataTimerFunc() вызываться не будет, светодиод не мигает. */
+    Error_Handler();
+  }
 
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */

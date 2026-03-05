@@ -56,6 +56,7 @@
 /* Hook prototypes */
 void configureTimerForRunTimeStats(void);
 unsigned long getRunTimeCounterValue(void);
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName);
 
 /* USER CODE BEGIN 1 */
 /* Functions needed when configGENERATE_RUN_TIME_STATS is on */
@@ -70,6 +71,15 @@ __weak void configureTimerForRunTimeStats(void)
 __weak unsigned long getRunTimeCounterValue(void)
 {
 return DWT->CYCCNT;
+}
+
+/* Вызывается ядром при обнаружении переполнения стека задачи (configCHECK_FOR_STACK_OVERFLOW == 2). */
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+	(void)xTask;
+	(void)pcTaskName;
+	/* Остановиться здесь в отладчике: по pcTaskName видно, какая задача переполнила стек. */
+	for (;;) { __asm volatile ("nop"); }
 }
 /* USER CODE END 1 */
 
