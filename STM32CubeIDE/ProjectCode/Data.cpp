@@ -29,10 +29,9 @@ uint8_t CirNum= 4;						// счётчик паузы для цикла "бегу
 // Почему: интервал меняется командой CFG_CMD_SET_INTERVAL и должен применяться без перезагрузки.
 volatile uint16_t g_TelemetryIntervalSeconds = TELEMETRY_INTERVAL_DEFAULT_SEC;
 
-static volatile uint16_t ShiftCounter = TELEMETRY_INTERVAL_DEFAULT_SEC;	// Счётчик 1-сек периодов между отправками телеметрии
-static volatile uint8_t TelemetrySendPending = 0;						// Флаг: пора отправлять телеметрию (выставляет таймер 1 Гц)
-static volatile uint16_t LogShiftCounter = LOG_INTERVAL_DEFAULT_SEC;		// Счётчик для интервала отправки лога алгоритма
-static volatile uint8_t LogSendPending = 0;								// Флаг: пора отправлять лог (отдельно от телеметрии)
+static volatile uint16_t ShiftCounter = TELEMETRY_INTERVAL_DEFAULT_SEC;	// Общий счётчик: телеметрия и лог по одному интервалу
+static volatile uint8_t TelemetrySendPending = 0;						// Флаг: пора отправлять телеметрию
+static volatile uint8_t LogSendPending = 0;								// Флаг: пора отправлять лог (только в автоматическом режиме)
 
 void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
 {
@@ -140,7 +139,7 @@ void DataTimerFunc()
 	// Датчики должны считываться строго 1 раз в секунду.
 	osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
 
-	// Интервал телеметрии: постановка в очередь раз в g_TelemetryIntervalSeconds.
+	// Общий интервал: телеметрия и лог раз в g_TelemetryIntervalSeconds. Лог — только в автоматическом режиме.
 	if (ShiftCounter > 0)
 	{
 		--ShiftCounter;
@@ -149,16 +148,9 @@ void DataTimerFunc()
 	{
 		ShiftCounter = g_TelemetryIntervalSeconds;
 		TelemetrySendPending = 1;
-	}
-	// Интервал лога алгоритма: постановка в очередь раз в LOG_INTERVAL_DEFAULT_SEC (отдельно от телеметрии).
-	if (LogShiftCounter > 0)
-	{
-		--LogShiftCounter;
-	}
-	if (LogShiftCounter == 0)
-	{
-		LogShiftCounter = LOG_INTERVAL_DEFAULT_SEC;
-		LogSendPending = 1;
+		// Лог — только при включённом алгоритме и не в ручном режиме.
+		if (DefrostControl_IsEnabled() != 0 && GateControl_GetManualMode() == 0)
+			LogSendPending = 1;
 	}
 	// моргнём светодиодом
 	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
@@ -283,10 +275,17 @@ void ReadDataFunc() {
 			osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 		}
 
-		// Лог алгоритма (Type 0x01): раз в LOG_INTERVAL_DEFAULT_SEC, отдельно от телеметрии.
+		// Лог алгоритма (Type 0x01): тот же интервал, что и телеметрия, только при включённом алгоритме и не в ручном режиме.
 		if (LogSendPending != 0)
 		{
 			LogSendPending = 0;
+			// Не передаём лог в ручном режиме или при выключенном алгоритме.
+			if (DefrostControl_IsEnabled() == 0 || GateControl_GetManualMode() != 0 || Model::isDefrostManualModeEnabled())
+			{
+				// Пропускаем отправку лога.
+			}
+			else
+			{
 			ControlLogPayload_t logPayload;
 			DefrostControl_GetControlLogPayload(&logPayload, (uint16_t)TimeFromStart);
 			uint8_t logPacket[LOG_PACKET_SIZE];
@@ -303,6 +302,7 @@ void ReadDataFunc() {
 			item.length = (uint8_t)LOG_PACKET_SIZE;
 			memcpy(item.data, logPacket, LOG_PACKET_SIZE);
 			osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
+			}
 		}
 
 		// проверим не активные датчики на активность

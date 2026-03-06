@@ -127,7 +127,7 @@ const osThreadAttr_t ReadData_attributes = {
 osThreadId_t RX_From_ServerHandle;
 const osThreadAttr_t RX_From_Server_attributes = {
   .name = "RX_From_Server",
-  .stack_size = 320 * 4,  // Уменьшено с 384 до 320 (экономия 256 байт)
+  .stack_size = 448 * 4,  // Увеличено: CommandReceiver -> DefrostControl_SetParam/SaveParams; при overflow смотреть vApplicationStackOverflowHook
   .priority = (osPriority_t) osPriorityAboveNormal,
 };
 

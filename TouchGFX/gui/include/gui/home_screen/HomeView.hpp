@@ -14,6 +14,9 @@ public:
     virtual void setupScreen();
     virtual void tearDownScreen();
 
+    /** Повторная привязка действия к BTNStart (вызывать при активации экрана, чтобы колбэк гарантированно был установлен). */
+    void bindStartButtonAction();
+
     virtual void Val_T_3UpdateView(int val);
     virtual void Val_T_4UpdateView(int val);
     void updateProgramRuntimeView(uint32_t runtimeSeconds);

@@ -1358,6 +1358,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
            // Почему: запуск автоматического алгоритма должен выполняться именно в автоматическом режиме.
            // Иначе на реле будет отправляться ручной регистр, а счётчик runtime не будет увеличиваться.
            GateControl_SetManualMode(0);
+           Model::setDefrostManualModeEnabled(false);  // синхронизация с Model: переключатель «ручной» в Settings2 станет «выкл»
 
            // При повторном старте во время post-shutdown вытяжки немедленно останавливаем
            // вентилятор вытяжки и закрываем заслонку, не дожидаясь следующего тика 1 Гц.
@@ -1437,6 +1438,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
 
     uint8_t DefrostControl_GetGroup(uint8_t groupId, uint8_t page, uint8_t *outData, uint8_t outCapacity, uint8_t *outLength)
     {
+        // переменная page пока не используется
         (void)page;
         if (outData == nullptr || outLength == nullptr)
         {

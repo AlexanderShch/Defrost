@@ -15,8 +15,8 @@ void HomeView::setupScreen()
     // Привязка нажатия BTNStart к запуску алгоритма разморозки.
     startButtonCallback = touchgfx::Callback<HomeView, const touchgfx::AbstractButton&>(this, &HomeView::onBTNStartClicked);
     BTNStart.setAction(startButtonCallback);
-    // Синхронизируем переключатель с текущим состоянием автоматического режима.
-    BTNStart.forceState(DefrostControl_IsEnabled() != 0);
+    // ToggleButton: getState() 0 = Released (OFF), 1 = Pressed (ON). Синхронизируем с DefrostControl.
+    BTNStart.forceState(DefrostControl_IsEnabled() != 0 ? 1 : 0);
     BTNStart.invalidate();
 
     // Счётчик отработанного времени (ValuePRGTimeWrk): подключаем свой буфер и выводим 00:00:00.
@@ -30,8 +30,10 @@ void HomeView::setupScreen()
 
 void HomeView::onBTNStartClicked(const touchgfx::AbstractButton&)
 {
-    // Состояние переключателя уже обновлено: нажато = запуск, отжато = остановка.
-    if (BTNStart.getPressedState())
+    // getState(): 0 = Released (OFF/Стоп), 1 = Pressed (ON/Старт). Колбэк вызывается при отпускании.
+    // getState() == 1 (Pressed, ON) → startDefrostRequested()
+    // getState() == 0 (Released, OFF) → stopDefrostRequested()
+    if (BTNStart.getState() == 1)
         presenter->startDefrostRequested();
     else
         presenter->stopDefrostRequested();
