@@ -80,6 +80,16 @@ void HomeView::updateProgramRuntimeView(uint32_t runtimeSeconds)
  * 
  * Почему: используем сгенерированные LabelVersion/LabelVersionBuffer из TouchGFX Designer.
  */
+void HomeView::syncStartButtonState()
+{
+    const uint8_t enabled = DefrostControl_IsEnabled() != 0 ? 1 : 0;
+    if (BTNStart.getState() != enabled)
+    {
+        BTNStart.forceState(enabled);
+        BTNStart.invalidate();
+    }
+}
+
 void HomeView::updateVersionDisplay()
 {
     // Получаем версию прошивки из Model

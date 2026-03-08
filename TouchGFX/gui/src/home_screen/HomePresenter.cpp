@@ -59,6 +59,9 @@ void HomePresenter::ValUpdatePresenter()
         lastRuntimeSeconds = runtimeSeconds;
         view.updateProgramRuntimeView(runtimeSeconds);
     }
+
+    // Синхронизация кнопки ПУСК/СТОП при изменении состояния по команде с сервера
+    view.syncStartButtonState();
 }
 
 void HomePresenter::startDefrostRequested()

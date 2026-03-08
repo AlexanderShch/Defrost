@@ -23,6 +23,9 @@ public:
 
     void updateVersionDisplay();
 
+    /** Синхронизирует состояние BTNStart с DefrostControl_IsEnabled() (для обновления при команде ПУСК/СТОП с сервера). */
+    void syncStartButtonState();
+
 protected:
     /** Обработчик нажатия кнопки «Старт» — запуск алгоритма разморозки. */
     void onBTNStartClicked(const touchgfx::AbstractButton& src);

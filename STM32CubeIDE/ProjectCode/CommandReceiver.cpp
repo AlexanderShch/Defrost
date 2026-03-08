@@ -59,30 +59,8 @@ static void WaitForUart4TxLineIdle(uint32_t timeoutMs)
     }
 }
 
-// Тип функции-колбэка для действий с битом (сброс или установка)
-typedef void (*BitActionCallback_t)(void);
-
-// Структура для управления таймерами битов
-typedef struct {
-    volatile uint32_t* timer;        // Указатель на переменную таймера
-    BitActionCallback_t action;      // Функция действия (сброс/установка бита)
-    const char* name;                // Название таймера (для отладки)
-} ControlBitTimer_t;
-
-// Таймеры для битов управления (время в мс, когда нужно выполнить действие)
-static volatile uint32_t WrkBitTimer = 0;  // Таймер для бита _Wrk (зелёная лампа РАБОТА)
-
-// Функции для управления битами (обёртки для битовых полей)
-// Работают с обоими регистрами: DFR (автоматический режим) и DFR_manual (ручной режим)
-static void ResetWrkBit(void) { 
-    Model::DFR._Wrk = 0; 
-    Model::DFR_manual._Wrk = 0; 
-}  // Сброс бита _Wrk
-
-// Массив таймеров для централизованной обработки
-static ControlBitTimer_t controlBitTimers[] = {
-    { &WrkBitTimer, ResetWrkBit, "_Wrk" }  // _Wrk: включается на 3 сек, затем сбрасывается
-};
+// Флаг: ответ на PROG_CONTROL START/STOP уже отправлен из обработчика (не дублировать в ProcessReceivedData)
+static volatile uint8_t s_progControlAckSentInHandler = 0;
 
 // Статистика работы модуля
 typedef struct {
@@ -283,36 +261,31 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
     
     switch (cmd->commandCode)
     {
-        case PROG_CTRL_CMD_START:
-            // Запуск программы
-            // Проверка: модуль ввода-вывода (SQ=6) должен быть активен
-            if (Sensor_array[6].Active != 1)
-            {
-                // Модуль ввода-вывода не активен - прерываем исполнение команды
-                status = CMD_STATUS_EXECUTION_ERROR;
-                break;
-            }
-            
-            // Активируем автоматический режим работы
-            Model::Flag_DFR_manual = 0;  // Автоматический режим
-            
-            // Устанавливаем бит _Wrk (зелёная лампа РАБОТА) на 3 секунды
-            // Устанавливаем в обоих регистрах для синхронизации состояния
-            Model::DFR._Wrk = 1;
-            Model::DFR_manual._Wrk = 1;
-            WrkBitTimer = osKernelGetTickCount() + 3000;  // Сбросить через 3000 мс
+        case PROG_CTRL_CMD_START: {
+            // Сначала отправляем подтверждение серверу, затем запускаем процесс (чтобы сервер успел принять ACK до таймаута)
+            CommandResponse_t ack;
+            memset(&ack, 0, sizeof(ack));
+            ack.commandType = CMD_TYPE_PROG_CONTROL;
+            ack.commandCode = cmd->commandCode;
+            ack.status = CMD_STATUS_OK;
+            ack.dataLength = 0;
+            CommandReceiver_SendResponse(&ack);
+            s_progControlAckSentInHandler = 1;
+            DefrostControl_SetEnabled(1);
             break;
-            
-        case PROG_CTRL_CMD_STOP:
-            // Остановка программы
-            // Проверка: модуль ввода-вывода (SQ=6) должен быть активен
-            if (Sensor_array[6].Active != 1)
-            {
-                // Модуль ввода-вывода не активен - прерываем исполнение команды
-                status = CMD_STATUS_EXECUTION_ERROR;
-                break;
-            }
+        }
+        case PROG_CTRL_CMD_STOP: {
+            CommandResponse_t ack;
+            memset(&ack, 0, sizeof(ack));
+            ack.commandType = CMD_TYPE_PROG_CONTROL;
+            ack.commandCode = cmd->commandCode;
+            ack.status = CMD_STATUS_OK;
+            ack.dataLength = 0;
+            CommandReceiver_SendResponse(&ack);
+            s_progControlAckSentInHandler = 1;
+            DefrostControl_SetEnabled(0);
             break;
+        }
             
         case PROG_CTRL_CMD_PAUSE:
             // Приостановка программы
@@ -560,19 +533,6 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
             CommandReceiver_SendResponse(&response);
             break;
         }
-        
-        case REQ_CMD_GET_CONFIG:
-        {
-            // Отправляем текущую конфигурацию
-            // Например, режим работы
-            response.data[0] = Model::Flag_DFR_manual;
-            response.dataLength = 1;
-            
-            // Отправляем ответ
-            CommandReceiver_SendResponse(&response);
-            break;
-        }
-
         
         case REQ_CMD_GET_CMD_INFO:
         {
@@ -996,11 +956,16 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     // Для команд, требующих подтверждения, отправляем ответ
     // TELEMETRY (0x00) не требует ответа, так как это уже ответ от сервера
     // REQUEST (0x03) не требует ответа здесь, так как отправляет свой ответ внутри обработчика
+    // PROG_CONTROL START/STOP уже отправили ответ из HandleProgControl (s_progControlAckSentInHandler)
     if (originalCommandType != CMD_TYPE_TELEMETRY &&
         originalCommandType != CMD_TYPE_REQUEST)
     {
-        // Отправляем подтверждение для PROG_CONTROL, DEVICE_CONTROL, CONFIGURATION
-        if (originalCommandType == CMD_TYPE_PROG_CONTROL || 
+        if (originalCommandType == CMD_TYPE_PROG_CONTROL && s_progControlAckSentInHandler != 0)
+        {
+            s_progControlAckSentInHandler = 0;
+            // ответ уже отправлен в HandleProgControl
+        }
+        else if (originalCommandType == CMD_TYPE_PROG_CONTROL || 
             originalCommandType == CMD_TYPE_DEVICE_CONTROL ||
             originalCommandType == CMD_TYPE_CONFIGURATION)
         {
@@ -1068,37 +1033,6 @@ void CommandReceiver_OnDataReceived(uint16_t receivedSize)
 }
 
 /*
- * Функция: CommandReceiver_ProcessControlBitTimers
- * Описание: Проверяет и сбрасывает все биты управления по таймерам
- * 
- * Эта универсальная функция обрабатывает все таймеры битов управления
- * (например, _Wrk, _Stp и т.д.) в едином цикле.
- * Для добавления нового таймера достаточно добавить запись в массив controlBitTimers.
- */
-static void CommandReceiver_ProcessControlBitTimers(void)
-{
-    uint32_t currentTick = osKernelGetTickCount();
-    
-    // Количество таймеров в массиве
-    const size_t timerCount = sizeof(controlBitTimers) / sizeof(controlBitTimers[0]);
-    
-    // Проходим по всем таймерам
-    for (size_t i = 0; i < timerCount; i++)
-    {
-        // Проверяем, установлен ли таймер
-        if (*(controlBitTimers[i].timer) > 0)
-        {
-            // Если время истекло, выполняем действие (сброс или установка)
-            if (currentTick >= *(controlBitTimers[i].timer))
-            {
-                controlBitTimers[i].action();           // Вызываем функцию действия
-                *(controlBitTimers[i].timer) = 0;       // Отключаем таймер
-            }
-        }
-    }
-}
-
-/*
  * Функция: CommandReceiver_Task
  * Описание: Основная задача приема команд от сервера
  * Параметры:
@@ -1111,10 +1045,7 @@ void CommandReceiver_Task(void *argument)
     // Основной цикл задачи - ожидаем получения данных и обрабатываем их
     while (1)
     {
-        // Проверяем все таймеры битов управления (_Wrk, _Stp, и т.д.)
-        CommandReceiver_ProcessControlBitTimers();
-        
-        // Ждем семафор от прерывания о получении данных (с таймаутом для проверки таймеров)
+        // Ждем семафор от прерывания о получении данных (таймаут 100 мс)
         osStatus_t semStatus = osSemaphoreAcquire(UART4_CMD_RX_SemHandle, 100);
         
         if (semStatus == osOK && RX_ReceivedSize > 0)
