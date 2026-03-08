@@ -15,7 +15,9 @@ typedef enum {
     DEFROST_PARAM_GROUP_SENSORS = 1,
     DEFROST_PARAM_GROUP_TEMPERATURE = 2,
     DEFROST_PARAM_GROUP_HUMIDITY = 3,
-    DEFROST_PARAM_GROUP_PWM = 4
+    DEFROST_PARAM_GROUP_PWM = 4,
+    DEFROST_PARAM_GROUP_LOG_PHASE = 5,   /* группа 1 лога: параметры, зависящие от фазы (по запросу REQ_CMD_GET_DEFROST_GROUP) */
+    DEFROST_PARAM_GROUP_LOG_GLOBAL = 6    /* группа 2 лога: параметры, общие для всех фаз (по запросу REQ_CMD_GET_DEFROST_GROUP) */
 } DefrostParamGroup_t;
 
 typedef enum {
@@ -80,19 +82,15 @@ uint8_t DefrostControl_SetParams(const DefrostParams_t *inParams);
 void DefrostControl_SaveParams(void);
 void DefrostControl_LoadParams(void);
 
-/* Пакет параметров для лога алгоритма (CSV на сервере). Заполняется в ControlStep1s/ControlStep1s_AirOnly. */
+/* Регулярный лог (Type 0x01): текущая фаза + группа 3 — переменные алгоритма. Группы 1 и 2 — по запросу REQ_CMD_GET_DEFROST_GROUP (groupId 5 и 6). */
 typedef struct __attribute__((packed)) {
-    uint16_t Time;               /* секунды с включения (как в телеметрии) */
-    uint32_t runtimeSeconds;
     uint8_t phase;               /* 0=WarmUp, 1=Plateau, 2=Finish */
     float eT_common, heatScale01;
     float uCommon_TEN, trim_TEN, uLeft_TEN, uRight_TEN;
     float leftTen1Duty, leftTen2Duty, rightTen1Duty, rightTen2Duty;
-    float w_sup_avg, w_ret_target, wErr, injDuty;
-    /* Действующие на момент фиксации лога лимиты по Т и фактические температуры продукта */
-    float fishHotMax_C, rate_Cps, fishHotRateMax_Cps, fishDeltaMax_C, supplyMax_C;  /* rate_Cps — скорость прогрева горячей точки; Limits */
-    float fishHot_C, fishCold_C;                                          /* температуры продукта (в AirOnly — 0) */
-    float supplySet_C;                                                     /* Targets (уставка T подачи); w_sup_avg, w_ret_target уже в блоке влажности */
+    float w_sup_avg, wErr, injDuty;
+    float rate_Cps;
+    float fishHot_C, fishCold_C;
 } ControlLogPayload_t;
 
 void DefrostControl_GetControlLogPayload(ControlLogPayload_t *out, uint16_t timeFromStart);

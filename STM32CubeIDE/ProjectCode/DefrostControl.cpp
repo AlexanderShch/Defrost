@@ -31,6 +31,8 @@ extern SENSOR_typedef_t Sensor_array[SQ];
 
 /* Буфер параметров для лога (заполняется в ControlStep1s/ControlStep1s_AirOnly, читается из Data.cpp). */
 static ControlLogPayload_t s_controlLogPayload;
+/* Текущая фаза для ответа по REQ_CMD_GET_DEFROST_GROUP groupId 5 (группа 1 лога). */
+static uint8_t s_lastPhase = 0;
 
 typedef struct {
     uint16_t version;
@@ -786,8 +788,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
          const uint8_t out_on = g.outOn ? 1 : 0;
 
-         s_controlLogPayload.runtimeSeconds = g.runtimeSeconds;
-         s_controlLogPayload.phase = static_cast<uint8_t>(phase);
+         s_lastPhase = static_cast<uint8_t>(phase);
+         s_controlLogPayload.phase = s_lastPhase;
          s_controlLogPayload.eT_common = eT_common;
          s_controlLogPayload.heatScale01 = heatScale01;
          s_controlLogPayload.uCommon_TEN = uCommon_TEN;
@@ -799,17 +801,11 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          s_controlLogPayload.rightTen1Duty = rightTen1Duty;
          s_controlLogPayload.rightTen2Duty = rightTen2Duty;
          s_controlLogPayload.w_sup_avg = w_sup_avg;
-         s_controlLogPayload.w_ret_target = w_ret_target;
          s_controlLogPayload.wErr = wErr;
          s_controlLogPayload.injDuty = injDuty;
-         s_controlLogPayload.fishHotMax_C = lim.fishHotMax_C;
          s_controlLogPayload.rate_Cps = rate_Cps;
-         s_controlLogPayload.fishHotRateMax_Cps = lim.fishHotRateMax_Cps;
-         s_controlLogPayload.fishDeltaMax_C = lim.fishDeltaMax_C;
-         s_controlLogPayload.supplyMax_C = lim.supplyMax_C;
          s_controlLogPayload.fishHot_C = fishHot_C;
          s_controlLogPayload.fishCold_C = fishCold_C;
-         s_controlLogPayload.supplySet_C = tgt.supplySet_C;
 
          ApplyOutputs(
              /*ventLeftOn*/  ventL_on,
@@ -935,8 +931,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
          const uint8_t out_on = g.outOn ? 1 : 0;
 
-         s_controlLogPayload.runtimeSeconds = g.runtimeSeconds;
-         s_controlLogPayload.phase = static_cast<uint8_t>(phase);
+         s_lastPhase = static_cast<uint8_t>(phase);
+         s_controlLogPayload.phase = s_lastPhase;
          s_controlLogPayload.eT_common = eT_common;
          s_controlLogPayload.heatScale01 = heatScale01;
          s_controlLogPayload.uCommon_TEN = uCommon_TEN;
@@ -948,17 +944,11 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          s_controlLogPayload.rightTen1Duty = rightTen1Duty;
          s_controlLogPayload.rightTen2Duty = rightTen2Duty;
          s_controlLogPayload.w_sup_avg = w_sup_avg;
-         s_controlLogPayload.w_ret_target = w_ret_target;
          s_controlLogPayload.wErr = wErr;
          s_controlLogPayload.injDuty = injDuty;
-         s_controlLogPayload.fishHotMax_C = lim.fishHotMax_C;
          s_controlLogPayload.rate_Cps = 0.0f;
-         s_controlLogPayload.fishHotRateMax_Cps = lim.fishHotRateMax_Cps;
-         s_controlLogPayload.fishDeltaMax_C = lim.fishDeltaMax_C;
-         s_controlLogPayload.supplyMax_C = lim.supplyMax_C;
          s_controlLogPayload.fishHot_C = 0.0f;
          s_controlLogPayload.fishCold_C = 0.0f;
-         s_controlLogPayload.supplySet_C = tgt.supplySet_C;
 
          ApplyOutputs(
              ventL_on, ventR_on,
@@ -1145,6 +1135,52 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
             {
                 outValue->valueType = DEFROST_PARAM_TYPE_U16;
                 outValue->value.u16 = g_defrostParams.maxRuntime_s;
+                return 1;
+            }
+            return 0;
+
+        case DEFROST_PARAM_GROUP_LOG_PHASE:
+            /* Группа 1 лога: параметры для всех фаз. paramId 0..5 = фаза 0, 6..11 = фаза 1, 12..17 = фаза 2 (в каждой фазе: fishHotMax_C, fishHotRateMax_Cps, fishDeltaMax_C, supplyMax_C, supplySet_C, returnTargetRH_percent). */
+            if (paramId < DEFROST_PHASE_COUNT * 6u)
+            {
+                const uint8_t phaseIdx = paramId / 6u;
+                const uint8_t subId   = paramId % 6u;
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                switch (subId)
+                {
+                    case 0: outValue->value.f32 = g_defrostParams.fishHotMax_C[phaseIdx];       break;
+                    case 1: outValue->value.f32 = g_defrostParams.fishHotRateMax_Cps[phaseIdx]; break;
+                    case 2: outValue->value.f32 = g_defrostParams.fishDeltaMax_C[phaseIdx];     break;
+                    case 3: outValue->value.f32 = g_defrostParams.supplyMax_C[phaseIdx];       break;
+                    case 4: outValue->value.f32 = g_defrostParams.supplySet_C[phaseIdx];        break;
+                    case 5: outValue->value.f32 = g_defrostParams.returnTargetRH_percent[phaseIdx]; break;
+                    default: return 0;
+                }
+                return 1;
+            }
+            return 0;
+
+        case DEFROST_PARAM_GROUP_LOG_GLOBAL:
+            /* Группа 2 лога: параметры, общие для всех фаз. */
+            if (paramId == 0) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.leftRightTrimGain; return 1; }
+            if (paramId == 1) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.leftRightTrimMaxEq; return 1; }
+            if (paramId == 2) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.piKp; return 1; }
+            if (paramId == 3) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.piKi; return 1; }
+            if (paramId == 4) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.wDeadband_kgkg; return 1; }
+            if (paramId == 5) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.injGain; return 1; }
+            if (paramId == 6) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.outDamperTimer_s; return 1; }
+            if (paramId == 7) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.outFanDelay_s; return 1; }
+            if (paramId == 8) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.outHold_s; return 1; }
+            if (paramId == 9) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.tenMinHold_s; return 1; }
+            if (paramId == 10) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.injMinHold_s; return 1; }
+            if (paramId == 11) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.airOnlyPhaseWarmUp_s; return 1; }
+            if (paramId == 12) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.airOnlyPhasePlateau_s; return 1; }
+            if (paramId == 13) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.maxRuntime_s; return 1; }
+            if (paramId < 14u + DEFROST_MAX_SENSOR_COUNT)
+            {
+                const uint8_t idx = (uint8_t)(paramId - 14u);
+                outValue->valueType = DEFROST_PARAM_TYPE_U8;
+                outValue->value.u8 = g_defrostParams.sensorUseInDefrost[idx];
                 return 1;
             }
             return 0;
@@ -1620,9 +1656,9 @@ extern "C" {
 #endif
 void DefrostControl_GetControlLogPayload(ControlLogPayload_t *out, uint16_t timeFromStart)
 {
+    (void)timeFromStart;
     if (out == NULL) return;
     memcpy(out, &s_controlLogPayload, sizeof(ControlLogPayload_t));
-    out->Time = timeFromStart;
 }
 #ifdef __cplusplus
 }
