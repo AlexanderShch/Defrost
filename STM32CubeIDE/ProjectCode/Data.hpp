@@ -44,8 +44,8 @@ extern volatile uint16_t g_TelemetryIntervalSeconds;
 void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds);
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Единая очередь отправки на сервер (телеметрия, лог алгоритма, ответы на команды).
-// Один поток TX_ToServer забирает из очередей и вызывает WriteToServerWithSync — конфликта по UART нет.
+// Единая очередь отправки на сервер (телеметрия, лог, ответы на команды).
+// Один поток TX_ToServer забирает из очереди и вызывает WriteToServerWithSync при возможности (нет приёма).
 // ═══════════════════════════════════════════════════════════════════════════
 #define SERVER_TX_ITEM_SIZE  98u   /* размер элемента очереди (type + length + payload); регулярный лог только группа 3 ~68 байт */
 
@@ -62,12 +62,11 @@ typedef struct __attribute__((packed)) {
 } ServerTxItem_t;
 
 extern osMessageQueueId_t Data_QueueHandle;
-extern osMessageQueueId_t ServerTx_HighPriority_QueueHandle;
 
-/* Поставить в очередь обычной отправки (телеметрия, лог). Вызывать из DataProcessing / таймера. */
+/* Поставить в очередь (телеметрия, лог). Вызывать из DataProcessing / таймера. */
 void ServerTx_EnqueueNormal(ServerTxType_t type, const uint8_t* data, uint16_t length);
 
-/* Поставить в очередь высокого приоритета (ответ на команду, повтор телеметрии). Вызывать из CommandReceiver / ResendLastTelemetry. */
+/* Поставить в очередь (ответ на команду, повтор телеметрии). Тот же буфер, тип SERVER_TX_TYPE_HIGH. */
 void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length);
 
 #endif /* DATA_HPP_ */

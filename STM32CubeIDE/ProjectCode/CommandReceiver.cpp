@@ -295,12 +295,19 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             // Возобновление программы
             break;
             
-        case PROG_CTRL_CMD_RESET:
-            // Сбрасываем устройство
-            // ВАЖНО: Отправляем ответ сервису ПЕРЕД сбросом
-            // Сброс выполняется после возврата из функции ответа серверу
+        case PROG_CTRL_CMD_RESET: {
+            // Сначала отправляем подтверждение серверу (как для START/STOP), затем сброс — после возврата и паузы в ProcessReceivedData.
+            CommandResponse_t ack;
+            memset(&ack, 0, sizeof(ack));
+            ack.commandType = CMD_TYPE_PROG_CONTROL;
+            ack.commandCode = cmd->commandCode;
+            ack.status = CMD_STATUS_OK;
+            ack.dataLength = 0;
+            CommandReceiver_SendResponse(&ack);
+            s_progControlAckSentInHandler = 1;
             status = CMD_STATUS_OK;
             break;
+        }
             
         default:
             status = CMD_STATUS_INVALID_CODE;
@@ -987,7 +994,8 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         cmdStatus == CMD_STATUS_OK)
     {
         WaitForUart4TxLineIdle(50);
-        // Теперь выполняем сброс
+        // Пауза, чтобы ответ успел уйти из очереди UART и мост TCP↔UART успел переслать его серверу
+        osDelay(200);
         HAL_NVIC_SystemReset();
     }
 

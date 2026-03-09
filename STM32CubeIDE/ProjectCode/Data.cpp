@@ -383,7 +383,7 @@ void ResendLastTelemetry(void)
 	TelemetryErrorCount++;
 }
 
-// Единая точка отправки на сервер: сначала высокий приоритет (ответы, повтор телеметрии), затем нормальная очередь
+// Единая очередь отправки на сервер (телеметрия, лог, ответы на команды)
 void ServerTx_EnqueueNormal(ServerTxType_t type, const uint8_t* data, uint16_t length)
 {
 	if (data == NULL || length > (SERVER_TX_ITEM_SIZE - 2u))
@@ -407,10 +407,10 @@ void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length)
 	item.type = (uint8_t)SERVER_TX_TYPE_HIGH;
 	item.length = (uint8_t)length;
 	memcpy(item.data, data, length);
-	osMessageQueuePut(ServerTx_HighPriority_QueueHandle, &item, 0U, 0U);
+	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 }
 
-// 4. Передача данных серверу: один поток читает из двух очередей и вызывает только WriteToServerWithSync
+// Передача данных серверу: одна очередь, отправка сразу при возможности (когда нет приёма — WriteToServerWithSync ждёт)
 void TX_ToServer()
 {
 	ServerTxItem_t item = {};
@@ -418,16 +418,11 @@ void TX_ToServer()
 	while (1)
 	{
 		item = {};
-		// Сначала высокий приоритет (ответы на команды, повтор телеметрии), без ожидания
-		osStatus_t st = osMessageQueueGet(ServerTx_HighPriority_QueueHandle, &item, 0u, 0u);
+		// Ждём элемент из единственной очереди (таймаут 50 мс, чтобы не нагружать CPU)
+		osStatus_t st = osMessageQueueGet(Data_QueueHandle, &item, 0u, 50u);
 		if (st != osOK)
 		{
-			// Нет срочных — ждём элемент из обычной очереди (телеметрия, лог)
-			st = osMessageQueueGet(Data_QueueHandle, &item, 0u, osWaitForever);
-			if (st != osOK)
-			{
-				continue;
-			}
+			continue;
 		}
 
 		uint16_t len = (uint16_t)item.length;
@@ -444,17 +439,26 @@ void TX_ToServer()
 			memcpy(&LastSentTelemetry, p, sizeof(MSGQUEUE_OBJ_t));
 		}
 
-		WriteToServerWithSync(item.data, (int)len);
+		// Отправка сразу при возможности:
+		// - для SERVER_TX_TYPE_HIGH используем WriteToServerWithSyncHighPriority (не блокируемся на CommandReceiver_IsHandling);
+		// - для телеметрии/лога используем обычный WriteToServerWithSync.
+		if (item.type == SERVER_TX_TYPE_HIGH)
+		{
+			WriteToServerWithSyncHighPriority(item.data, (int)len);
+		}
+		else
+		{
+			WriteToServerWithSync(item.data, (int)len);
+		}
 
 		// После отправки телеметрии ждём до 100 мс ответ сервера (DATA_OK/DATA_FALSE), чтобы не начинать передачу лога до приёма ответа (RS-485 half-duplex).
 		if (item.type == SERVER_TX_TYPE_TELEMETRY && ServerResponseReceived_SemHandle != NULL)
 		{
-			// Сброс возможного старого токена семафора перед ожиданием актуального ответа
 			while (osSemaphoreAcquire(ServerResponseReceived_SemHandle, 0u) == osOK)
 			{
 				;
 			}
-			osSemaphoreAcquire(ServerResponseReceived_SemHandle, 100u);  // таймаут 100 мс (тики при 1 кГц)
+			osSemaphoreAcquire(ServerResponseReceived_SemHandle, 100u);
 		}
 	}
 }
