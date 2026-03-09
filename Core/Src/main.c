@@ -27,6 +27,7 @@
 #include "Components/ili9341/ili9341.h"
 #include "C2CPP.hpp"
 #include "CommandReceiver.hpp"
+#include "DefrostControl.h"
 #include "FreeRTOS.h"
 
 /* Куча FreeRTOS (64 КБ) размещена в основной SRAM (доступна для DMA) */
@@ -308,7 +309,10 @@ int main(void)
   // ═══════════════════════════════════════════════════════════════════════════
   HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
-  
+
+  /* Инициализация модуля дефроста (загрузка/дефолт параметров, сброс состояния) */
+  DefrostControl_Init();
+
   /* USER CODE END 2 */
 
   /* Инициализация планировщика */

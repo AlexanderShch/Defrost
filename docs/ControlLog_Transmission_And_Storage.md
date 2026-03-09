@@ -19,65 +19,57 @@
 |-------------|----------|----------|
 | Синхромаркер| 2 байта  | `0xAA 0x55` |
 | Type        | 1 байт   | Для лога алгоритма: **0x01** |
-| Len         | 1 байт   | Длина полезной части после Len и до CRC (в байтах). Для лога: `sizeof(ControlLogPayload_t)` (95 байт) |
+| Len         | 1 байт   | Длина полезной части после Len и до CRC (в байтах). Для лога: `sizeof(ControlLogPayload_t)` = **65** байт |
 | Payload     | Len байт | Type 0x01: `ControlLogPayload_t` (см. ниже) |
 | CRC16       | 2 байта  | CRC по блоку `[Type][Len][Payload]` (ModBus CRC-16) |
 
-Размер пакета лога на линии: `2 + 2 + sizeof(ControlLogPayload_t) + 2` байт (с маркером и CRC). Без маркера: `2 + sizeof(ControlLogPayload_t) + 2` = **LOG_PACKET_SIZE** (в коде контроллера).
+Размер пакета лога на линии: `2 + 2 + 65 + 2` = 71 байт (с маркером AA 55 и CRC). Без маркера: **LOG_PACKET_SIZE** в коде контроллера = 2 + 65 + 2 байт.
+
+**Группировка параметров процесса** (по фазам и общие для всех фаз) описана в документе **GetParams_Command_Guide.md** (разделы 4, 9): конфигурируемые группы 1–4, лог по запросу — groupId 5 (параметры по фазам), groupId 6 (общие параметры). В регулярный пакет Type 0x01 входят только текущая фаза и переменные алгоритма ниже («группа 3» лога).
 
 ---
 
 ## 3. Структура полезной нагрузки (ControlLogPayload_t)
 
-Определена в **DefrostControl.h** (контроллер) и должна совпадать по памяти с определением на сервере (DataForm.cpp).
+Определена в **DefrostControl.h** (контроллер) и должна совпадать по памяти с определением на сервере (DataForm.cpp). Размер: **65** байт.
 
 ```c
 typedef struct __attribute__((packed)) {
-    uint16_t Time;               // секунды с включения (как в телеметрии)
-    uint32_t runtimeSeconds;    // время работы алгоритма, с
-    uint8_t phase;              // 0=WarmUp, 1=Plateau, 2=Finish
+    uint8_t phase;               /* 0=WarmUp, 1=Plateau, 2=Finish */
     float eT_common, heatScale01;
-    float uCommon_TEN, uLeft_TEN, uRight_TEN;
+    float uCommon_TEN, trim_TEN, uLeft_TEN, uRight_TEN;
     float leftTen1Duty, leftTen2Duty, rightTen1Duty, rightTen2Duty;
-    float w_sup_avg, w_ret_target, wErr, injDuty;
-    float fishHotMax_C, rate_Cps, fishHotRateMax_Cps, fishDeltaMax_C, supplyMax_C;  /* rate_Cps — скорость прогрева горячей точки; Limits */
-    float fishHot_C, fishCold_C;                                          /* температуры продукта (в AirOnly — 0) */
-    float supplySet_C;                                                    /* Targets: уставка T подачи; w_sup_avg, } ControlLogPayload_t;
+    float w_sup_avg, wErr, injDuty;
+    float rate_Cps;
+    float fishHot_C, fishCold_C;
+} ControlLogPayload_t;
 ```
 
-Размер структуры на контроллере определяет константу **CONTROL_LOG_PAYLOAD_LEN** на сервере (95 байт).
+На сервере константа **CONTROL_LOG_PAYLOAD_LEN** = 65 (SServer.cpp).
 
-### 3.1. Перечень параметров (порядок передачи)
+### 3.1. Перечень полей (порядок передачи)
 
-Поля передаются в порядке объявления в структуре. Типы: `uint8_t` — 1 байт, `uint16_t` — 2 байта, `uint32_t` — 4 байта, `float` — 4 байта.
+Поля передаются в порядке объявления. Типы: `uint8_t` — 1 байт, `float` — 4 байта.
 
 | №  | Поле            | Тип   | Описание |
 |----|-----------------|-------|----------|
-| 1  | `Time`          | uint16_t | Секунды с момента включения устройства (как в телеметрии). |
-| 2  | `runtimeSeconds`| uint32_t | Время работы алгоритма разморозки, с (счётчик с старта процесса). |
-| 3  | `phase`         | uint8_t | Текущая фаза: 0 = WarmUp (прогрев), 1 = Plateau (плато), 2 = Finish (завершение). |
-| 4  | `eT_common`     | float | Общая ошибка по температуре (для регулятора), °C. |
-| 5  | `heatScale01`   | float | Масштаб нагрева 0…1 (доля мощности). |
-| 6  | `uCommon_TEN`   | float | Базовый запрос мощности с учётом ограничителя. |
-| 7  | `trim_TEN`      | float | Коррекция лево/право по разности температур подачи (эквивалент ТЭНа, может быть отрицательным). |
-| 8  | `uLeft_TEN`     | float | Управление ТЭНами левой стороны (0…1). |
-| 9  | `uRight_TEN`    | float | Управление ТЭНами правой стороны (0…1). |
-| 10 | `leftTen1Duty`  | float | Скважность ТЭНа 1 левый, 0…1. |
-| 11 | `leftTen2Duty`  | float | Скважность ТЭНа 2 левый, 0…1. |
-| 12 | `rightTen1Duty` | float | Скважность ТЭНа 1 правый, 0…1. |
-| 13 | `rightTen2Duty` | float | Скважность ТЭНа 2 правый, 0…1. |
-| 14 | `w_sup_avg`     | float | Средняя абсолютная влажность воздуха подачи, кг/кг. |
-| 15 | `w_ret_target`  | float | Целевая влажность в возврате по фазе, кг/кг. |
-| 16 | `wErr`          | float | Ошибка по влажности (для регулятора увлажнения), кг/кг. |
-| 17 | `injDuty`       | float | Скважность форсунки увлажнения, 0…1. |
-| 18 | `fishHotMax_C`  | float | Действующий лимит: потолок температуры «горячей» точки продукта, °C. |
-| 19 | `rate_Cps`      | float | Скорость прогрева «горячей» точки продукта, °C/с (при отсутствии предыдущего замера — 0). |
-| 20 | `fishHotRateMax_Cps` | float | Действующий лимит: потолок скорости прогрева «горячей» точки, °C/с. |
-| 21 | `fishDeltaMax_C`| float | Действующий лимит: потолок разницы горячая–холодная точка, °C. |
-| 22 | `supplyMax_C`   | float | Действующий лимит: потолок температуры воздуха подачи, °C. |
-| 23 | `fishHot_C`     | float | Температура самой тёплой точки продукта, °C (в режиме «только по воздуху» — 0). |
-| 24 | `fishCold_C`    | float | Температура самой холодной точки продукта, °C (в режиме «только по воздуху» — 0). |
-| 25 | `supplySet_C`   | float | Действующая уставка температуры подачи по фазе, °C. |
+| 1  | `phase`         | uint8_t | Текущая фаза: 0 = WarmUp, 1 = Plateau, 2 = Finish. |
+| 2  | `eT_common`     | float | Общая ошибка по температуре (вход регулятора), °C. |
+| 3  | `heatScale01`   | float | Масштаб нагрева 0…1 (доля мощности). |
+| 4  | `uCommon_TEN`   | float | Базовый запрос мощности ТЭНов с учётом ограничителя. |
+| 5  | `trim_TEN`      | float | Коррекция лево/право по разности температур подачи (эквивалент ТЭНа). |
+| 6  | `uLeft_TEN`     | float | Управление ТЭНами левой стороны (0…1). |
+| 7  | `uRight_TEN`    | float | Управление ТЭНами правой стороны (0…1). |
+| 8  | `leftTen1Duty`  | float | Скважность ТЭНа 1 левый, 0…1. |
+| 9  | `leftTen2Duty`  | float | Скважность ТЭНа 2 левый, 0…1. |
+| 10 | `rightTen1Duty` | float | Скважность ТЭНа 1 правый, 0…1. |
+| 11 | `rightTen2Duty` | float | Скважность ТЭНа 2 правый, 0…1. |
+| 12 | `w_sup_avg`     | float | Средняя абсолютная влажность воздуха подачи, кг/кг. |
+| 13 | `wErr`          | float | Ошибка по влажности (для регулятора увлажнения), кг/кг. |
+| 14 | `injDuty`       | float | Скважность форсунки увлажнения, 0…1. |
+| 15 | `rate_Cps`      | float | Скорость прогрева «горячей» точки продукта, °C/с (при отсутствии замера — 0). |
+| 16 | `fishHot_C`     | float | Температура самой тёплой точки продукта, °C (в режиме «только по воздуху» — 0). |
+| 17 | `fishCold_C`    | float | Температура самой холодной точки продукта, °C (в режиме «только по воздуху» — 0). |
 
 ---
 
@@ -124,13 +116,13 @@ typedef struct __attribute__((packed)) {
 Поток приёма в **SServer.cpp** в цикле читает данные из сокета в накопительный буфер, ищет синхромаркер `AA 55`, затем разбирает кадр:
 
 - Читает `Type` и `Len`, проверяет длину и CRC.
-- Для **Type == 0x01** и **Len == CONTROL_LOG_PAYLOAD_LEN** (95) пакет считается пакетом лога алгоритма; полезная часть (включая Type, Len, Payload, CRC) копируется в массив и передаётся в очередь обработки.
+- Для **Type == 0x01** и **Len == CONTROL_LOG_PAYLOAD_LEN** (65) пакет считается пакетом лога алгоритма; полезная часть (включая Type, Len, Payload, CRC) копируется в массив и передаётся в очередь обработки.
 
 ### 5.2. Функции и методы сервера
 
 | Файл | Функция / метод | Описание |
 |------|------------------|----------|
-| **SServer.cpp** | `CONTROL_LOG_PAYLOAD_LEN` | Константа 95 — ожидаемая длина полезной части лога (должна совпадать с `sizeof(ControlLogPayload_t)` на контроллере). |
+| **SServer.cpp** | `CONTROL_LOG_PAYLOAD_LEN` | Константа 65 — ожидаемая длина полезной части лога (должна совпадать с `sizeof(ControlLogPayload_t)` на контроллере). |
 | **SServer.cpp** | Обработка кадра (цикл приёма) | При `framedType == 0x01` и `payloadLenByte == CONTROL_LOG_PAYLOAD_LEN` копирует кадр (payload с Type/Len + CRC) в `logBuffer` и вызывает `PacketQueueProcessor::EnqueueControlLog(...)`. |
 | **PacketQueueProcessor.cpp** | `static void EnqueueControlLog(cli::array<System::Byte>^ packet, int size, int port, System::String^ formGuid, SOCKET clientSocket, System::String^ clientIP)` | Формирует элемент очереди с `itemType = 1` (control log), кладёт его в общую очередь `s_telemetryQueue` и подаёт сигнал потоку обработки. |
 | **PacketQueueProcessor.cpp** | Поток обработки очереди | Для элемента с `itemType == 1` находит форму по `formGuid` и вызывает `form->AppendControlLogToCsv(item->packet, item->size)`. Подтверждение контроллеру по логу не отправляется. |
@@ -144,6 +136,6 @@ typedef struct __attribute__((packed)) {
 ## 6. Сводка цепочки
 
 1. **Контроллер:** таймер 1 Гц → `LogSendPending` раз в `LOG_INTERVAL_DEFAULT_SEC` → в задаче ReadData: `DefrostControl_GetControlLogPayload` → сборка пакета [Type=0x01][Len][Payload][CRC16] → постановка в очередь `Data_QueueHandle` (тип `SERVER_TX_TYPE_LOG`) → поток `TX_ToServer` забирает элемент и вызывает `WriteToServerWithSync` → по UART уходит кадр [AA 55][Type][Len][Payload][CRC16].
-2. **Сервер:** приём в SServer → распознавание Type=0x01 и Len=81 → `EnqueueControlLog` → очередь → поток обработки вызывает `AppendControlLogToCsv` на форме → создаётся/дополняется CSV-файл лога.
+2. **Сервер:** приём в SServer → распознавание Type=0x01 и Len=65 → `EnqueueControlLog` → очередь → поток обработки вызывает `AppendControlLogToCsv` / `AppendControlLogToDataRow` на форме → создаётся/дополняется CSV и строка в таблице данных.
 
 Изменение полей или размера **ControlLogPayload_t** на контроллере требует синхронного изменения структуры и, при необходимости, **CONTROL_LOG_PAYLOAD_LEN** и заголовка CSV на сервере.

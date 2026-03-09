@@ -15,8 +15,9 @@
 #include <stdint.h>
 
 // Максимальная длина команды (заголовок + данные + CRC)
-#define CMD_MAX_LENGTH 56  // Уменьшено с 64 до 56 (экономия 192 байта)
-#define CMD_MAX_DATA_LENGTH 51  // 56 - 3 (header) - 2 (CRC) = 51
+// GET_DEFROST_GROUP(5) возвращает DefrostLogPhasePayload_t (72 байта) + 2 (groupId, page) = 74 байта данных
+#define CMD_MAX_DATA_LENGTH 80  // не менее 74 для групп 5/6 лога параметров
+#define CMD_MAX_LENGTH 86       // 3 (header) + CMD_MAX_DATA_LENGTH + 2 (CRC)
 #define CMD_HEADER_SIZE 3
 #define CMD_CRC_SIZE 2
 

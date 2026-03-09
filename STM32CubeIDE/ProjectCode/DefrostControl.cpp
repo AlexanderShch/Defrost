@@ -1474,11 +1474,50 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
 
     uint8_t DefrostControl_GetGroup(uint8_t groupId, uint8_t page, uint8_t *outData, uint8_t outCapacity, uint8_t *outLength)
     {
-        // переменная page пока не используется
         (void)page;
         if (outData == nullptr || outLength == nullptr)
         {
             return 0;
+        }
+
+        /* Группы 5 и 6: фиксированная структура — копирование куска памяти из g_defrostParams. */
+        if (groupId == DEFROST_PARAM_GROUP_LOG_PHASE)
+        {
+            const uint32_t sz = (uint32_t)sizeof(DefrostLogPhasePayload_t);
+            if (outCapacity < sz)
+            {
+                return 0;
+            }
+            memcpy(outData, &g_defrostParams.fishHotMax_C, sz);
+            *outLength = (uint8_t)sz;
+            return 1;
+        }
+        if (groupId == DEFROST_PARAM_GROUP_LOG_GLOBAL)
+        {
+            DefrostLogGlobalPayload_t p;
+            p.leftRightTrimGain   = g_defrostParams.leftRightTrimGain;
+            p.leftRightTrimMaxEq  = g_defrostParams.leftRightTrimMaxEq;
+            p.piKp                = g_defrostParams.piKp;
+            p.piKi                = g_defrostParams.piKi;
+            p.wDeadband_kgkg      = g_defrostParams.wDeadband_kgkg;
+            p.injGain             = g_defrostParams.injGain;
+            p.outDamperTimer_s    = g_defrostParams.outDamperTimer_s;
+            p.outFanDelay_s       = g_defrostParams.outFanDelay_s;
+            p.outHold_s           = g_defrostParams.outHold_s;
+            p.tenMinHold_s        = g_defrostParams.tenMinHold_s;
+            p.injMinHold_s        = g_defrostParams.injMinHold_s;
+            p.airOnlyPhaseWarmUp_s  = g_defrostParams.airOnlyPhaseWarmUp_s;
+            p.airOnlyPhasePlateau_s = g_defrostParams.airOnlyPhasePlateau_s;
+            p.maxRuntime_s        = g_defrostParams.maxRuntime_s;
+            memcpy(p.sensorUseInDefrost, g_defrostParams.sensorUseInDefrost, sizeof(p.sensorUseInDefrost));
+            const uint32_t sz = (uint32_t)sizeof(DefrostLogGlobalPayload_t);
+            if (outCapacity < sz)
+            {
+                return 0;
+            }
+            memcpy(outData, &p, sz);
+            *outLength = (uint8_t)sz;
+            return 1;
         }
 
         uint8_t offset = 0;

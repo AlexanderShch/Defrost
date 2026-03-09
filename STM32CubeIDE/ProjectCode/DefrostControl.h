@@ -82,6 +82,35 @@ uint8_t DefrostControl_SetParams(const DefrostParams_t *inParams);
 void DefrostControl_SaveParams(void);
 void DefrostControl_LoadParams(void);
 
+/* Ответ GET_DEFROST_GROUP(groupId=5): фиксированная структура — копирование памяти, без TLV. */
+typedef struct __attribute__((packed)) {
+    float fishHotMax_C[DEFROST_PHASE_COUNT];
+    float fishHotRateMax_Cps[DEFROST_PHASE_COUNT];
+    float fishDeltaMax_C[DEFROST_PHASE_COUNT];
+    float supplySet_C[DEFROST_PHASE_COUNT];
+    float supplyMax_C[DEFROST_PHASE_COUNT];
+    float returnTargetRH_percent[DEFROST_PHASE_COUNT];
+} DefrostLogPhasePayload_t;
+
+/* Ответ GET_DEFROST_GROUP(groupId=6): фиксированная структура — копирование памяти, без TLV. Порядок полей совпадает с DefrostParams_t. */
+typedef struct __attribute__((packed)) {
+    float leftRightTrimGain;
+    float leftRightTrimMaxEq;
+    float piKp;
+    float piKi;
+    float wDeadband_kgkg;
+    float injGain;
+    uint16_t outDamperTimer_s;
+    uint16_t outFanDelay_s;
+    uint16_t outHold_s;
+    uint16_t tenMinHold_s;
+    uint16_t injMinHold_s;
+    uint16_t airOnlyPhaseWarmUp_s;
+    uint16_t airOnlyPhasePlateau_s;
+    uint16_t maxRuntime_s;
+    uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT];
+} DefrostLogGlobalPayload_t;
+
 /* Регулярный лог (Type 0x01): текущая фаза + группа 3 — переменные алгоритма. Группы 1 и 2 — по запросу REQ_CMD_GET_DEFROST_GROUP (groupId 5 и 6). */
 typedef struct __attribute__((packed)) {
     uint8_t phase;               /* 0=WarmUp, 1=Plateau, 2=Finish */
