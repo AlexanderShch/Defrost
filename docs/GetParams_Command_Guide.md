@@ -1,9 +1,10 @@
-# Считывание параметров из контроллера Defrost
+# Считывание и запись параметров контроллера Defrost
 
-Документация по командам **запроса параметров** авто-дефроста: один параметр или группа параметров. Контроллер отвечает по тому же протоколу, что и для других команд запроса (тип `REQUEST`, ответ с префиксом `AA 55` на линии).
+Документация по командам **запроса и записи параметров** авто-дефроста: один параметр или группа параметров. Чтение — команды типа `REQUEST` (ответ с префиксом `AA 55` на линии). Запись групп 5 и 6 — команда конфигурации **CFG_CMD_SET_DEFROST_GROUP** (тип `CONFIGURATION`, код `0x05`).
 
 **Файлы реализации:**  
-`STM32CubeIDE/ProjectCode/CommandReceiver.cpp`, `DefrostControl.cpp`, `DefrostControl.h`
+Контроллер: `STM32CubeIDE/ProjectCode/CommandReceiver.cpp`, `DefrostControl.cpp`, `DefrostControl.h`.  
+Сервер: `ProjectServerW` — кнопки «Считать параметры», «Записать параметры», формирование и разбор payload.
 
 ---
 
@@ -96,7 +97,39 @@
 
 ---
 
-## 4. Группы и идентификаторы параметров
+## 4. Запись группы параметров (CFG_CMD_SET_DEFROST_GROUP)
+
+**Тип команды:** `CommandType = 0x02` (CONFIGURATION).  
+**Код команды:** `0x05` (CFG_CMD_SET_DEFROST_GROUP).
+
+Используется для **записи целиком группы 5 или группы 6** в контроллер. Payload совпадает с форматом **ответа** GET_DEFROST_GROUP для соответствующей группы: те же бинарные структуры `DefrostLogPhasePayload_t` (группа 5) и `DefrostLogGlobalPayload_t` (группа 6).
+
+### 4.1. Формат команды
+
+| Байт  | Поле      | Значение | Описание |
+|-------|-----------|----------|----------|
+| 0     | Type      | `0x02`   | CONFIGURATION |
+| 1     | Code      | `0x05`   | SET_DEFROST_GROUP |
+| 2     | DataLen   | 1 + размер payload | длина данных |
+| 3     | Data[0]   | groupId  | идентификатор группы: **5** (LOG_PHASE) или **6** (LOG_GLOBAL) |
+| 4…    | Data[1…]  | payload  | бинарные данные группы (как в ответе GET_DEFROST_GROUP для этой группы) |
+| …     | CRC16     | —        | ModBus CRC16 по полям до CRC |
+
+- **Группа 5:** payload = 72 байта (`DefrostLogPhasePayload_t`: 6×3 float — fishHotMax_C, fishHotRateMax_Cps, fishDeltaMax_C, supplySet_C, supplyMax_C, returnTargetRH_percent).
+- **Группа 6:** payload = 44 байта (`DefrostLogGlobalPayload_t`: 6× float, 8× uint16_t, 6× uint8_t sensorUseInDefrost; порядок полей в `DefrostControl.h`).
+
+### 4.2. Ответ контроллера
+
+Стандартный ответ на команду CONFIGURATION: Type=0x02, Code=0x05, Status=0x00 при успехе. При ошибке (неверная длина, неверный groupId, ошибка применения) — Status=0x04 (INVALID_LENGTH) или 0x05 (EXECUTION_ERROR).
+
+### 4.3. Обработка на контроллере
+
+- **CommandReceiver:** по коду `CFG_CMD_SET_DEFROST_GROUP` извлекает `groupId` из `Data[0]`, payload — из `Data[1]…Data[DataLen-1]`, вызывает `DefrostControl_SetGroupPayload(groupId, payload, payloadLen)`.
+- **DefrostControl_SetGroupPayload:** для groupId 5 копирует payload в `DefrostLogPhasePayload_t` и переносит поля в `g_defrostParams`; для groupId 6 — в `DefrostLogGlobalPayload_t`, переносит в `g_defrostParams`, обновляет `Sensor_array` и глобальные переменные. После применения вызывается **DefrostControl_SaveParams()**: параметры сохраняются в статическую структуру **в RAM** (без записи во Flash); после сброса питания загружаются значения по умолчанию.
+
+---
+
+## 5. Группы и идентификаторы параметров
 
 Группы задаются перечислением `DefrostParamGroup_t` в `DefrostControl.h`:
 
@@ -106,15 +139,15 @@
 | 2       | DEFROST_PARAM_GROUP_TEMPERATURE| Температура, ПИ, баланс лево/право (чтение/запись)                       |
 | 3       | DEFROST_PARAM_GROUP_HUMIDITY   | Влажность, вытяжка, форсунка (чтение/запись)                             |
 | 4       | DEFROST_PARAM_GROUP_PWM        | Тайминги, режим «только по воздуху» (чтение/запись)                      |
-| 5       | DEFROST_PARAM_GROUP_LOG_PHASE  | Лог: параметры, зависящие от фазы (только чтение по GET_DEFROST_GROUP)  |
-| 6       | DEFROST_PARAM_GROUP_LOG_GLOBAL | Лог: параметры, общие для всех фаз (только чтение по GET_DEFROST_GROUP) |
+| 5       | DEFROST_PARAM_GROUP_LOG_PHASE  | Лог: параметры по фазам — чтение GET_DEFROST_GROUP, запись SET_DEFROST_GROUP |
+| 6       | DEFROST_PARAM_GROUP_LOG_GLOBAL | Лог: общие параметры — чтение GET_DEFROST_GROUP, запись SET_DEFROST_GROUP  |
 
 **Разделение по способу доступа:**
-- **Группы 1–4** — конфигурируемые параметры: запрос одного параметра (GET_DEFROST_PARAM), запрос группы (GET_DEFROST_GROUP), запись (SET_DEFROST_PARAM для групп 1–4).
-- **Группы 5–6** — только чтение по запросу GET_DEFROST_GROUP; используются для выгрузки «лога» параметров (по фазам и общих) на сервер. В регулярный пакет лога Type 0x01 они не входят.
+- **Группы 1–4** — конфигурируемые параметры: запрос одного параметра (GET_DEFROST_PARAM), запрос группы (GET_DEFROST_GROUP), запись одного параметра (SET_DEFROST_PARAM).
+- **Группы 5–6** — чтение по запросу GET_DEFROST_GROUP и **запись целиком группы** по команде SET_DEFROST_GROUP (раздел 4). Используются для выгрузки и загрузки «лога» параметров (по фазам и общих) между сервером и контроллером. В регулярный пакет лога Type 0x01 они не входят.
 - **Регулярный лог (Type 0x01)** передаётся контроллером автоматически и содержит: текущую фазу процесса и **переменные алгоритма** (структура `ControlLogPayload_t` — «группа 3» в смысле лога: eT_common, heatScale01, скважности ТЭНов и т.д.). Это не groupId 3 (HUMIDITY).
 
-### 4.1. Группа 1 — Датчики (SENSORS)
+### 5.1. Группа 1 — Датчики (SENSORS)
 
 | paramId | Описание                         | Тип  | Единица / примечание      |
 |---------|----------------------------------|------|---------------------------|
@@ -122,7 +155,7 @@
 
 Количество датчиков N задаётся в прошивке: `kDefrostSensorCount = min(SQ, DEFROST_MAX_SENSOR_COUNT)` (например SQ=7, DEFROST_MAX_SENSOR_COUNT=16). Допустимые paramId: 0…(N−1).
 
-### 4.2. Группа 2 — Температура (TEMPERATURE)
+### 5.2. Группа 2 — Температура (TEMPERATURE)
 
 | paramId | Описание                                      | Тип  | Примечание        |
 |---------|-----------------------------------------------|------|-------------------|
@@ -138,7 +171,7 @@
 
 Фазы: 0 = WarmUp, 1 = Plateau, 2 = Finish.
 
-### 4.3. Группа 3 — Влажность (HUMIDITY)
+### 5.3. Группа 3 — Влажность (HUMIDITY)
 
 | paramId | Описание                | Тип  | Единица / примечание |
 |---------|-------------------------|------|----------------------|
@@ -148,7 +181,7 @@
 | 5       | outFanDelay_s           | U16  | с                    |
 | 6       | injGain                 | F32  | —                    |
 
-### 4.4. Группа 4 — ШИМ/тайминги (PWM)
+### 5.4. Группа 4 — ШИМ/тайминги (PWM)
 
 | paramId | Описание             | Тип  | Единица |
 |---------|----------------------|------|---------|
@@ -159,9 +192,9 @@
 | 4       | airOnlyPhasePlateau_s| U16  | с       |
 | 5       | maxRuntime_s         | U16  | с       |
 
-### 4.5. Группа 5 — Лог: параметры, зависящие от фазы (LOG_PHASE)
+### 5.5. Группа 5 — Лог: параметры, зависящие от фазы (LOG_PHASE)
 
-Доступна **только по запросу** **REQ_CMD_GET_DEFROST_GROUP** с groupId = 5. Возвращает параметры **для всех трёх фаз** процесса (0=WarmUp, 1=Plateau, 2=Finish). Только чтение; в регулярный пакет лога Type 0x01 не входит.
+Чтение: **REQ_CMD_GET_DEFROST_GROUP** с groupId = 5. Запись: **CFG_CMD_SET_DEFROST_GROUP** (раздел 4) с groupId = 5 и payload = `DefrostLogPhasePayload_t`. Возвращает/принимает параметры **для всех трёх фаз** процесса (0=WarmUp, 1=Plateau, 2=Finish). В регулярный пакет лога Type 0x01 не входит.
 
 Формат: paramId 0..5 — фаза 0, 6..11 — фаза 1, 12..17 — фаза 2. В каждой фазе 6 параметров в порядке таблицы ниже.
 
@@ -176,9 +209,9 @@
 
 Итого: paramId 0..17 (phaseIdx = paramId/6, subId = paramId%6).
 
-### 4.6. Группа 6 — Лог: параметры, общие для всех фаз (LOG_GLOBAL)
+### 5.6. Группа 6 — Лог: параметры, общие для всех фаз (LOG_GLOBAL)
 
-Доступна **только по запросу** **REQ_CMD_GET_DEFROST_GROUP** с groupId = 6. Только чтение; в регулярный пакет лога Type 0x01 не входит.
+Чтение: **REQ_CMD_GET_DEFROST_GROUP** с groupId = 6. Запись: **CFG_CMD_SET_DEFROST_GROUP** (раздел 4) с groupId = 6 и payload = `DefrostLogGlobalPayload_t`. В регулярный пакет лога Type 0x01 не входит.
 
 | paramId | Описание                 | Тип  | Примечание |
 |---------|--------------------------|------|------------|
@@ -221,7 +254,31 @@ def calculate_crc16(data):
 
 ---
 
-## 6. Пример: запрос одного параметра (Python)
+## 6. Процесс записи параметров в контроллер
+
+Описывается цепочка от нажатия кнопки «Записать параметры» на сервере до обновления параметров в RAM контроллера.
+
+### 6.1. Сервер (ProjectServerW)
+
+1. **Кнопка «Записать параметры»** (`buttonWriteParameters`): проверяется наличие соединения и что хотя бы одна из таблиц параметров (таблица 1 — параметры по фазам, таблица 2 — общие параметры) содержит строки с данными. Если обе пусты — выводится сообщение и запись не выполняется.
+
+2. **Формирование payload группы 5:** из таблицы 1 (dataGridView1) по строкам 0…5 в фиксированном порядке (fishHotMax_C, fishHotRateMax_Cps, fishDeltaMax_C, supplySet_C, supplyMax_C, returnTargetRH_percent) считываются значения колонок WarmUP, Plateau, Finish и собирается структура `DefrostLogPhasePayload_t`. Если в таблице есть данные, формируется команда **SET_DEFROST_GROUP** с groupId=5 и payload 72 байта; команда отправляется контроллеру, ожидается ответ со Status=OK.
+
+3. **Формирование payload группы 6:** из таблицы 2 (dataGridView2) по имени параметра (колонка Parameter2) и значению (колонка Value) заполняется структура `DefrostLogGlobalPayload_t`. Если в таблице есть данные, формируется команда **SET_DEFROST_GROUP** с groupId=6 и payload 44 байта; команда отправляется контроллеру, ожидается ответ со Status=OK.
+
+4. В статусной строке выводится результат: обе группы записаны, только одна, или ошибка.
+
+### 6.2. Контроллер
+
+1. **CommandReceiver** принимает кадр типа CONFIGURATION, код 0x05 (CFG_CMD_SET_DEFROST_GROUP). Проверяется длина данных (не менее 2: groupId + хотя бы 1 байт payload). Извлекаются groupId = Data[0], указатель на payload = &Data[1], payloadLen = DataLen − 1.
+
+2. Вызывается **DefrostControl_SetGroupPayload(groupId, payload, payloadLen)**. Для groupId 5 проверяется размер payload ≥ sizeof(DefrostLogPhasePayload_t), данные копируются в временную структуру и переносятся в `g_defrostParams` (поля по фазам). Для groupId 6 — то же с DefrostLogGlobalPayload_t, плюс обновление `Sensor_array[i].UseInDefrost` и глобальных переменных (g.leftRightTrimGain и т.д.).
+
+3. После успешного применения для каждой группы вызывается **DefrostControl_SaveParams()**: текущие `g_defrostParams` копируются в статический буфер **g_defrostParamsStorage** в RAM, вычисляется и сохраняется CRC. Записи во Flash или EEPROM нет; после сброса питания при следующем старте загружаются значения по умолчанию (LoadParams проверяет версию и CRC в g_defrostParamsStorage и при несовпадении вызывает LoadDefaultParams).
+
+---
+
+## 7. Пример: запрос одного параметра (Python)
 
 ```python
 import serial
@@ -278,7 +335,7 @@ def get_defrost_param(ser, group_id, param_id):
 
 ---
 
-## 7. Пример: запрос группы параметров (Python)
+## 8. Пример: запрос группы параметров (Python)
 
 ```python
 def get_defrost_group(ser, group_id, page=0):
@@ -324,18 +381,18 @@ def get_defrost_group(ser, group_id, page=0):
 
 ---
 
-## 8. Коды ошибок (Status)
+## 9. Коды ошибок (Status)
 
 | Код | Константа                  | Описание                    |
 |-----|----------------------------|-----------------------------|
 | 0x00| CMD_STATUS_OK              | Успех                       |
 | 0x01| CMD_STATUS_CRC_ERROR       | Ошибка CRC (в запросе)      |
-| 0x04| CMD_STATUS_INVALID_LENGTH  | Неверная длина данных (для GET_PARAM ожидается 2, для GET_GROUP — 2) |
-| 0x05| CMD_STATUS_EXECUTION_ERROR | Ошибка при чтении параметра (неверный groupId/paramId или внутренняя ошибка) |
+| 0x04| CMD_STATUS_INVALID_LENGTH  | Неверная длина данных (для GET_PARAM — 2, для GET_GROUP — 2; для SET_DEFROST_GROUP — не менее 2) |
+| 0x05| CMD_STATUS_EXECUTION_ERROR | Ошибка при чтении/записи параметра (неверный groupId/paramId, неверный размер payload или внутренняя ошибка) |
 
 ---
 
-## 9. Группы параметров процесса дефростации (сводка по логу)
+## 10. Группы параметров процесса дефростации (сводка по логу)
 
 Используются две схемы нумерации:
 
@@ -345,7 +402,7 @@ def get_defrost_group(ser, group_id, page=0):
    - **Лог по запросу, группа 2** — общие параметры: запрос **REQ_CMD_GET_DEFROST_GROUP** с **groupId = 6** (раздел 4.6).
    - **Регулярный лог (пакет Type 0x01)** передаётся контроллером автоматически и содержит **текущую фазу** и **«группу 3»** — переменные алгоритма (структура `ControlLogPayload_t`: eT_common, heatScale01, скважности ТЭНов, влажность, fishHot_C и т.д.). Это не groupId 3 (HUMIDITY).
 
-### 9.1. Лог по запросу: параметры, зависящие от фазы (groupId = 5)
+### 10.1. Лог по запросу: параметры, зависящие от фазы (groupId = 5)
 
 По запросу **REQ_CMD_GET_DEFROST_GROUP**, groupId = **5**. Возвращаются параметры **для всех трёх фаз** (paramId 0..17: по 6 параметров на фазу). В регулярный пакет лога Type 0x01 не входят (там передаётся только текущая фаза в поле **phase** и переменные алгоритма — «группа 3»).
 
@@ -358,7 +415,7 @@ def get_defrost_group(ser, group_id, page=0):
 | supplySet_C                     | Уставка температуры воздуха подачи, °C                                  |
 | returnTargetRH_percent          | Уставка RH в возврате для фазы, %                                       |
 
-### 9.2. Лог по запросу: параметры, общие для всех фаз (groupId = 6)
+### 10.2. Лог по запросу: параметры, общие для всех фаз (groupId = 6)
 
 По запросу **REQ_CMD_GET_DEFROST_GROUP**, groupId = **6**. Не входят в регулярный пакет лога Type 0x01.
 
@@ -367,7 +424,7 @@ def get_defrost_group(ser, group_id, page=0):
 | leftRightTrimGain (0) … maxRuntime_s (13) | См. таблицу в п. 4.6              |
 | sensorUseInDefrost[] (14…29) | По каждому датчику: 1 = использовать в дефросте, 0 = игнорировать |
 
-### 9.3. Регулярный лог Type 0x01: текущая фаза и переменные алгоритма («группа 3» лога)
+### 10.3. Регулярный лог Type 0x01: текущая фаза и переменные алгоритма («группа 3» лога)
 
 В каждом пакете лога Type 0x01 контроллер передаёт **текущую фазу** процесса и переменные алгоритма (структура `ControlLogPayload_t`). Это не groupId 3 (HUMIDITY), а отдельный поток данных «группы 3» в смысле лога.
 
@@ -388,4 +445,4 @@ def get_defrost_group(ser, group_id, page=0):
 
 ---
 
-Документация подготовлена по коду Defrost (`CommandReceiver.cpp`, `DefrostControl.cpp`, `DefrostControl.h`). При изменении групп или идентификаторов параметров в прошивке таблицы в разделах 4.1–4.6 и 9 нужно обновить.
+Документация подготовлена по коду Defrost (`CommandReceiver.cpp`, `DefrostControl.cpp`, `DefrostControl.h`) и сервера ProjectServerW. При изменении групп или идентификаторов параметров в прошивке таблицы в разделах 5.1–5.6 и 10 нужно обновить.

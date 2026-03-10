@@ -12,7 +12,7 @@
 // Версия прошивки (семантическое версионирование: MAJOR.MINOR.PATCH)
 #define FW_VERSION_MAJOR    1   // несовместимые изменения API
 #define FW_VERSION_MINOR    7   // новая функциональность, обратно совместимая
-#define FW_VERSION_PATCH    9   // исправления багов, обратно совместимые
+#define FW_VERSION_PATCH    10  // исправления багов, обратно совместимые
 
 // Строковое представление строится из числовых частей, чтобы не допустить расхождений при ручном редактировании.
 #define FW_VERSION_STRINGIFY_IMPL(x)  #x
@@ -33,6 +33,9 @@
 #endif /* VERSION_H_ */
 
 /*
+Версия 1.7.10
+- Команда CFG_CMD_SET_DEFROST_GROUP (0x05): приём групп параметров 5 и 6 (бинарные структуры), обновление g_defrostParams и сохранение в RAM.
+
 Версия 1.7.9
 - Команда REQ_CMD_GET_DEFROST_GROUP (groupId = 5 и 6) возвращает структуры фиксированного размера
   (DefrostLogPhasePayload_t и DefrostLogGlobalPayload_t) вместо TLV, что упрощает парсинг на сервере.

@@ -471,7 +471,25 @@ CommandStatus_t CommandReceiver_HandleConfiguration(Command_t *cmd)
             }
             break;
         }
-        
+
+        case CFG_CMD_SET_DEFROST_GROUP:
+        {
+            /* Формат: data[0] = groupId, data[1..] = payload (как в ответе GET_DEFROST_GROUP). */
+            if (cmd->dataLength < 2u)
+            {
+                status = CMD_STATUS_INVALID_LENGTH;
+                break;
+            }
+            const uint8_t groupId = cmd->data[0];
+            const uint8_t *payload = &cmd->data[1];
+            const uint8_t payloadLen = cmd->dataLength - 1u;
+            if (DefrostControl_SetGroupPayload(groupId, payload, payloadLen) == 0u)
+            {
+                status = CMD_STATUS_EXECUTION_ERROR;
+            }
+            break;
+        }
+
         default:
             status = CMD_STATUS_INVALID_CODE;
             break;

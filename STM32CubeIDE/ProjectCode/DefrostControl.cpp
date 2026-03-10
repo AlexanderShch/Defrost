@@ -1554,6 +1554,67 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
         return 1;
     }
 
+    uint8_t DefrostControl_SetGroupPayload(uint8_t groupId, const uint8_t *payload, uint8_t payloadLen)
+    {
+        if (payload == nullptr)
+        {
+            return 0;
+        }
+        if (groupId == DEFROST_PARAM_GROUP_LOG_PHASE)
+        {
+            const uint32_t sz = (uint32_t)sizeof(DefrostLogPhasePayload_t);
+            if ((uint32_t)payloadLen < sz)
+            {
+                return 0;
+            }
+            DefrostLogPhasePayload_t p;
+            memcpy(&p, payload, sz);
+            memcpy(&g_defrostParams.fishHotMax_C, &p.fishHotMax_C, sizeof(p.fishHotMax_C));
+            memcpy(&g_defrostParams.fishHotRateMax_Cps, &p.fishHotRateMax_Cps, sizeof(p.fishHotRateMax_Cps));
+            memcpy(&g_defrostParams.fishDeltaMax_C, &p.fishDeltaMax_C, sizeof(p.fishDeltaMax_C));
+            memcpy(&g_defrostParams.supplySet_C, &p.supplySet_C, sizeof(p.supplySet_C));
+            memcpy(&g_defrostParams.supplyMax_C, &p.supplyMax_C, sizeof(p.supplyMax_C));
+            memcpy(&g_defrostParams.returnTargetRH_percent, &p.returnTargetRH_percent, sizeof(p.returnTargetRH_percent));
+            DefrostControl_SaveParams();
+            return 1;
+        }
+        if (groupId == DEFROST_PARAM_GROUP_LOG_GLOBAL)
+        {
+            const uint32_t sz = (uint32_t)sizeof(DefrostLogGlobalPayload_t);
+            if ((uint32_t)payloadLen < sz)
+            {
+                return 0;
+            }
+            DefrostLogGlobalPayload_t p;
+            memcpy(&p, payload, sz);
+            g_defrostParams.leftRightTrimGain   = p.leftRightTrimGain;
+            g_defrostParams.leftRightTrimMaxEq  = p.leftRightTrimMaxEq;
+            g_defrostParams.piKp                = p.piKp;
+            g_defrostParams.piKi                = p.piKi;
+            g_defrostParams.wDeadband_kgkg      = p.wDeadband_kgkg;
+            g_defrostParams.injGain             = p.injGain;
+            g_defrostParams.outDamperTimer_s    = p.outDamperTimer_s;
+            g_defrostParams.outFanDelay_s       = p.outFanDelay_s;
+            g_defrostParams.outHold_s           = p.outHold_s;
+            g_defrostParams.tenMinHold_s        = p.tenMinHold_s;
+            g_defrostParams.injMinHold_s        = p.injMinHold_s;
+            g_defrostParams.airOnlyPhaseWarmUp_s  = p.airOnlyPhaseWarmUp_s;
+            g_defrostParams.airOnlyPhasePlateau_s = p.airOnlyPhasePlateau_s;
+            g_defrostParams.maxRuntime_s        = p.maxRuntime_s;
+            memcpy(g_defrostParams.sensorUseInDefrost, p.sensorUseInDefrost, sizeof(p.sensorUseInDefrost));
+            for (uint8_t i = 0; i < kDefrostSensorCount; ++i)
+            {
+                Sensor_array[i].UseInDefrost = (g_defrostParams.sensorUseInDefrost[i] != 0u) ? 1u : 0u;
+            }
+            g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
+            g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
+            g.outFanDelay_s = g_defrostParams.outFanDelay_s;
+            DefrostControl_SaveParams();
+            return 1;
+        }
+        return 0;
+    }
+
     void DefrostControl_GetParams(DefrostParams_t *outParams)
     {
         if (outParams == nullptr)

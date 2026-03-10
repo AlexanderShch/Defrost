@@ -9,7 +9,7 @@
 #include <stdint.h>
 
 #define DEFROST_PHASE_COUNT 3
-#define DEFROST_MAX_SENSOR_COUNT 16
+#define DEFROST_MAX_SENSOR_COUNT 6   /* в алгоритме участвуют только датчики 0..5 */
 
 typedef enum {
     DEFROST_PARAM_GROUP_SENSORS = 1,
@@ -77,6 +77,8 @@ uint8_t DefrostControl_IsEnabled(void);
 uint8_t DefrostControl_GetParam(uint8_t groupId, uint8_t paramId, DefrostParamValue_t *outValue);
 uint8_t DefrostControl_SetParam(uint8_t groupId, uint8_t paramId, const DefrostParamValue_t *inValue);
 uint8_t DefrostControl_GetGroup(uint8_t groupId, uint8_t page, uint8_t *outData, uint8_t outCapacity, uint8_t *outLength);
+/** Принять и применить группу параметров (payload как в ответе GET_DEFROST_GROUP). groupId 5 или 6. */
+uint8_t DefrostControl_SetGroupPayload(uint8_t groupId, const uint8_t *payload, uint8_t payloadLen);
 void DefrostControl_GetParams(DefrostParams_t *outParams);
 uint8_t DefrostControl_SetParams(const DefrostParams_t *inParams);
 void DefrostControl_SaveParams(void);
