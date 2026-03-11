@@ -69,6 +69,12 @@ void ServerTx_EnqueueNormal(ServerTxType_t type, const uint8_t* data, uint16_t l
 /* Поставить в очередь (ответ на команду, повтор телеметрии). Тот же буфер, тип SERVER_TX_TYPE_HIGH. */
 void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length);
 
+/* По команде SEND_STATE: сформировать текущую телеметрию и поставить в очередь. */
+void Data_EnqueueCurrentTelemetry(void);
+
+/* По команде SEND_STATE: если авторежим — сформировать лог и поставить в очередь. */
+void Data_EnqueueCurrentLogIfAuto(void);
+
 #endif /* DATA_HPP_ */
 
 

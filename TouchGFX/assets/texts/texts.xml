@@ -385,10 +385,10 @@
         <Translation Language="GB">Ворота - ALARM</Translation>
       </Text>
       <Text Id="VersionValue" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">0.0.0</Translation>
+        <Translation Language="GB">0.00.00</Translation>
       </Text>
       <Text Id="LabelVerID" Alignment="Left" TypographyId="Default">
-        <Translation Language="GB">v &lt;value&gt;</Translation>
+        <Translation Language="GB">v&lt;value&gt;</Translation>
       </Text>
     </TextGroup>
   </Texts>

@@ -688,6 +688,12 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
             CommandReceiver_SendResponse(&response);
             break;
         }
+
+        case REQ_CMD_SEND_STATE:
+            /* Ответом на команду являются кадры телеметрии и лога (не CommandResponse). */
+            Data_EnqueueCurrentTelemetry();
+            Data_EnqueueCurrentLogIfAuto();
+            break;
         
         default:
             status = CMD_STATUS_INVALID_CODE;

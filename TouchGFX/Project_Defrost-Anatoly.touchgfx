@@ -185,11 +185,10 @@
             "Name": "LabelVersion",
             "X": 3,
             "Y": 282,
-            "Width": 72,
+            "Width": 90,
             "Height": 24,
             "TextId": "LabelVerID",
             "TextRotation": "0",
-            "AutoSize": true,
             "Wildcard1": {
               "TextId": "VersionValue",
               "UseBuffer": true,
@@ -199,8 +198,8 @@
           {
             "Type": "ToggleButton",
             "Name": "BTNStart",
-            "X": 39,
-            "Y": 199,
+            "X": 35,
+            "Y": 196,
             "Width": 170,
             "Height": 60,
             "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_large_rounded_text_on_action.png",

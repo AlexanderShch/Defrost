@@ -20,6 +20,22 @@ extern osSemaphoreId_t ServerResponseReceived_SemHandle;  // ответ на т�
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osThreadId_t TouchGFX_Task;
 
+typedef struct __attribute__((packed))   // формат данных для сервера
+{
+    uint8_t DataType;			// Байт типа передаваемых данных (0x00 для телеметрии)
+    uint8_t Len;               // Длина полезной части после Len и до CRC (в байтах), включается в CRC
+    uint16_t Time;				// Количество секунд с момента включения
+    uint8_t SensorQuantity;		// Количество сенсоров
+    uint8_t SensorType[SQ];		// Тип сенсора
+    uint8_t Active[SQ];			// Активность сенсора
+    int16_t T[SQ];				// Значение 1 сенсора (температура)
+    int16_t H[SQ];				// Значение 2 сенсора (влажность)
+    uint16_t CRC_SUM;			// Контрольное значение
+} MSGQUEUE_OBJ_t;
+#define LOG_PACKET_SIZE  (2u + sizeof(ControlLogPayload_t) + 2u)
+
+extern unsigned int TimeFromStart;  // определение ниже в файле
+
 uint32_t flags;				// флаги для ожидания событий
 int8_t SensorNumber;
 uint16_t CirStop = 0b0001111000000000;	// стоповое слово, из которого будет выполняться перенос "бегущей единицы"
@@ -29,10 +45,6 @@ uint8_t CirNum= 4;						// счётчик паузы для цикла "бегу
 // Почему: интервал меняется командой CFG_CMD_SET_INTERVAL и должен применяться без перезагрузки.
 volatile uint16_t g_TelemetryIntervalSeconds = TELEMETRY_INTERVAL_DEFAULT_SEC;
 
-static volatile uint16_t ShiftCounter = TELEMETRY_INTERVAL_DEFAULT_SEC;	// Общий счётчик: телеметрия и лог по одному интервалу
-static volatile uint8_t TelemetrySendPending = 0;						// Флаг: пора отправлять телеметрию
-static volatile uint8_t LogSendPending = 0;								// Флаг: пора отправлять лог (только в автоматическом режиме)
-
 void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
 {
 	// Почему: защищаемся от нулевого интервала (зависание в постоянной отправке).
@@ -41,8 +53,51 @@ void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
 		intervalSeconds = TELEMETRY_INTERVAL_DEFAULT_SEC;
 	}
 	g_TelemetryIntervalSeconds = intervalSeconds;
-	ShiftCounter = intervalSeconds;
-	TelemetrySendPending = 0;
+}
+
+/* По команде SEND_STATE от сервера: сформировать текущую телеметрию и поставить в очередь. */
+void Data_EnqueueCurrentTelemetry(void)
+{
+	MSGQUEUE_OBJ_t DataToServer = {};
+	DataToServer.DataType = 0x00;
+	DataToServer.Len = 45;
+	DataToServer.Time = (uint16_t)TimeFromStart;
+	DataToServer.SensorQuantity = SQ;
+	for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
+	{
+		DataToServer.SensorType[SensorIndex] = Sensor_array[SensorIndex].TypeOfSensor;
+		DataToServer.Active[SensorIndex] = Sensor_array[SensorIndex].Active;
+		DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 2);
+		DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
+	}
+	ServerTxItem_t item = {};
+	item.type = (uint8_t)SERVER_TX_TYPE_TELEMETRY;
+	item.length = (uint8_t)sizeof(MSGQUEUE_OBJ_t);
+	memcpy(item.data, &DataToServer, sizeof(MSGQUEUE_OBJ_t));
+	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
+}
+
+/* По команде SEND_STATE: если авторежим — сформировать лог и поставить в очередь. */
+void Data_EnqueueCurrentLogIfAuto(void)
+{
+	if (DefrostControl_IsEnabled() == 0 || GateControl_GetManualMode() != 0 || Model::isDefrostManualModeEnabled())
+	{
+		return;
+	}
+	ControlLogPayload_t logPayload;
+	DefrostControl_GetControlLogPayload(&logPayload, (uint16_t)TimeFromStart);
+	uint8_t logPacket[LOG_PACKET_SIZE];
+	logPacket[0] = 0x01u;
+	logPacket[1] = (uint8_t)sizeof(ControlLogPayload_t);
+	memcpy(logPacket + 2, &logPayload, sizeof(ControlLogPayload_t));
+	uint16_t crc = MB_GetCRC(logPacket, 2u + (uint16_t)sizeof(ControlLogPayload_t));
+	logPacket[2 + sizeof(ControlLogPayload_t)] = (uint8_t)(crc & 0xFFu);
+	logPacket[2 + sizeof(ControlLogPayload_t) + 1] = (uint8_t)(crc >> 8);
+	ServerTxItem_t item = {};
+	item.type = (uint8_t)SERVER_TX_TYPE_LOG;
+	item.length = (uint8_t)LOG_PACKET_SIZE;
+	memcpy(item.data, logPacket, LOG_PACKET_SIZE);
+	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 }
 
 /* Регистр аппаратного управления устройствами загружается в модуль ввода-вывода,
@@ -62,22 +117,7 @@ unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// номер такта измерения
 int Sensor::T[TQ][SQ] = {{0}};		// температура
 int Sensor::H[TQ][SQ] = {{0}};		// влажность
-
-typedef struct __attribute__((packed))   // формат данных для сервера
-{
-    uint8_t DataType;			// Байт типа передаваемых данных (0x00 для телеметрии)
-    uint8_t Len;               // Длина полезной части после Len и до CRC (в байтах), включается в CRC
-    uint16_t Time;				// Количество секунд с момента включения
-    uint8_t SensorQuantity;		// Количество сенсоров
-    uint8_t SensorType[SQ];		// Тип сенсора
-    uint8_t Active[SQ];			// Активность сенсора
-    int16_t T[SQ];				// Значение 1 сенсора (температура)
-    int16_t H[SQ];				// Значение 2 сенсора (влажность)
-    uint16_t CRC_SUM;			// Контрольное значение
-} MSGQUEUE_OBJ_t;
-// !!! ВНИМАНИЕ! Если меняется структура, надо поменять и размер буфера MAX_MB_BUFSIZE в ModBus.cpp
-
-#define LOG_PACKET_SIZE  (2u + sizeof(ControlLogPayload_t) + 2u)
+// !!! ВНИМАНИЕ! Если меняется структура MSGQUEUE_OBJ_t, надо поменять и размер буфера MAX_MB_BUFSIZE в ModBus.cpp
 
 /* Функция записывает int Val в массив данных, полученных с датчиков.
  * Параметр Param определяет, какой величиной массива является int Val.
@@ -138,20 +178,6 @@ void DataTimerFunc()
 {
 	// Датчики должны считываться строго 1 раз в секунду.
 	osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
-
-	// Общий интервал: телеметрия и лог раз в g_TelemetryIntervalSeconds. Лог — только в автоматическом режиме.
-	if (ShiftCounter > 0)
-	{
-		--ShiftCounter;
-	}
-	if (ShiftCounter == 0)
-	{
-		ShiftCounter = g_TelemetryIntervalSeconds;
-		TelemetrySendPending = 1;
-		// Лог — только при включённом алгоритме и не в ручном режиме.
-		if (DefrostControl_IsEnabled() != 0 && GateControl_GetManualMode() == 0)
-			LogSendPending = 1;
-	}
 	// моргнём светодиодом
 	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
 	// Нельзя блокироваться внутри callback таймера RTOS: это добавляет джиттер и может задерживать другие таймеры.
@@ -171,7 +197,6 @@ void ReadDataFunc() {
 	int TempNew, HumNew = 0;
 	int T_CORR_Old, H_CORR_Old = 0, R_CORR_Old = 0;
 	int T_CORR_New, H_CORR_New = 0, R_CORR_New = 0;
-	MSGQUEUE_OBJ_t DataToServer;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// КРИТИЧНО: Явно устанавливаем UART4 в режим приёма ПЕРЕД началом работы
@@ -252,58 +277,7 @@ void ReadDataFunc() {
 		GateControl_Update1s();
 		DefrostControl_Update1s();
 
-		// Телеметрия: раз в g_TelemetryIntervalSeconds (например 10 с).
-		if (TelemetrySendPending != 0)
-		{
-			TelemetrySendPending = 0;
-			DataToServer = {};
-			DataToServer.DataType = 0x00;	// Тип данных: 0x00 = телеметрия
-			DataToServer.Len = 45;
-			DataToServer.Time = TimeFromStart;
-			DataToServer.SensorQuantity = SQ;
-			for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
-			{
-				DataToServer.SensorType[SensorIndex] = Sensor_array[SensorIndex].TypeOfSensor;
-				DataToServer.Active[SensorIndex] = Sensor_array[SensorIndex].Active;
-				DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 2);
-				DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
-			}
-			ServerTxItem_t item = {};
-			item.type = (uint8_t)SERVER_TX_TYPE_TELEMETRY;
-			item.length = (uint8_t)sizeof(MSGQUEUE_OBJ_t);
-			memcpy(item.data, &DataToServer, sizeof(MSGQUEUE_OBJ_t));
-			osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
-		}
-
-		// Лог алгоритма (Type 0x01): тот же интервал, что и телеметрия, только при включённом алгоритме и не в ручном режиме.
-		if (LogSendPending != 0)
-		{
-			LogSendPending = 0;
-			// Не передаём лог в ручном режиме или при выключенном алгоритме.
-			if (DefrostControl_IsEnabled() == 0 || GateControl_GetManualMode() != 0 || Model::isDefrostManualModeEnabled())
-			{
-				// Пропускаем отправку лога.
-			}
-			else
-			{
-			ControlLogPayload_t logPayload;
-			DefrostControl_GetControlLogPayload(&logPayload, (uint16_t)TimeFromStart);
-			uint8_t logPacket[LOG_PACKET_SIZE];
-			logPacket[0] = 0x01u;
-			logPacket[1] = (uint8_t)sizeof(ControlLogPayload_t);
-			memcpy(logPacket + 2, &logPayload, sizeof(ControlLogPayload_t));
-			{
-				uint16_t crc = MB_GetCRC(logPacket, 2u + (uint16_t)sizeof(ControlLogPayload_t));
-				logPacket[2 + sizeof(ControlLogPayload_t)] = (uint8_t)(crc & 0xFFu);
-				logPacket[2 + sizeof(ControlLogPayload_t) + 1] = (uint8_t)(crc >> 8);
-			}
-			ServerTxItem_t item = {};
-			item.type = (uint8_t)SERVER_TX_TYPE_LOG;
-			item.length = (uint8_t)LOG_PACKET_SIZE;
-			memcpy(item.data, logPacket, LOG_PACKET_SIZE);
-			osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
-			}
-		}
+		// Телеметрия и лог отправляются только по команде SEND_STATE от сервера (см. CommandReceiver REQ_CMD_SEND_STATE).
 
 		// проверим не активные датчики на активность
 		MB_Master_Init();
@@ -363,15 +337,13 @@ void InitData()
 // ═══════════════════════════════════════════════════════════════════════════
 // ХРАНЕНИЕ ПОСЛЕДНИХ ОТПРАВЛЕННЫХ ДАННЫХ ТЕЛЕМЕТРИИ
 // ═══════════════════════════════════════════════════════════════════════════
-static MSGQUEUE_OBJ_t LastSentTelemetry = {};  // Последние отправленные данные
-static uint32_t TelemetryErrorCount = 0;       // Счётчик ошибок отправки телеметрии
+static MSGQUEUE_OBJ_t LastSentTelemetry = {};  // Последние отправленные данные (для повтора при DATA_FALSE)
 
 /*
  * Функция: ResendLastTelemetry
  * Описание: Повторная отправка последних данных телеметрии
- * 
+ *
  * Используется когда сервер сообщает об ошибке в данных телеметрии (DATA_FALSE)
- * Отправляет последние сохранённые данные без изменений
  */
 void ResendLastTelemetry(void)
 {
@@ -380,7 +352,6 @@ void ResendLastTelemetry(void)
 		return;
 	}
 	ServerTx_EnqueueHighPriority((uint8_t*)&LastSentTelemetry, (uint16_t)sizeof(LastSentTelemetry));
-	TelemetryErrorCount++;
 }
 
 // Единая очередь отправки на сервер (телеметрия, лог, ответы на команды)
