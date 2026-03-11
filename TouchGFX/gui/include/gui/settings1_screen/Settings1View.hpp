@@ -12,15 +12,29 @@ class Settings1View : public Settings1ViewBase
 public:
     Settings1View();
     virtual ~Settings1View() {}
-    virtual void setupScreen();
-    virtual void tearDownScreen();
-    virtual void BTNCoreTSetIncreaseClicked();
-    virtual void BTNCoreTSetDecreaseClicked();
+    virtual void setupScreen() override;
+    virtual void tearDownScreen() override;
+    virtual void handleTickEvent() override;
+    virtual void BTNCoreTSetIncreaseClicked() override;
+    virtual void BTNCoreTSetDecreaseClicked() override;
 protected:
-    char  CoreTSet = 6;
+    // Уставка целевой температуры рыбы в десятых долях градуса (например, 65 = 6.5 °C).
+    int16_t CoreTSetDeci = 60; // 6.0 °C по умолчанию
 
     touchgfx::Callback<Settings1View, const touchgfx::AbstractButton&> coreTSensorToggleCallback;
     void coreTSensorToggleCallbackHandler(const touchgfx::AbstractButton& src);
+
+    // Состояние для автоинкремента/декремента при длительном нажатии.
+    bool incPressedPrev = false;
+    bool decPressedPrev = false;
+    uint16_t incPressTicks = 0;
+    uint16_t decPressTicks = 0;
+    uint16_t incRepeatTicks = 0;
+    uint16_t decRepeatTicks = 0;
+
+    void applyCoreTSetAndRedraw();
+    void stepIncreaseOnce();
+    void stepDecreaseOnce();
 };
 
 #endif // SETTINGS1VIEW_HPP

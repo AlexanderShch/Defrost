@@ -146,6 +146,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         p->airOnlyPhaseWarmUp_s = 600u;   /* 10 мин */
         p->airOnlyPhasePlateau_s = 1800u; /* 30 мин от старта */
         p->maxRuntime_s = 7200u;           /* 2 ч */
+        p->fishColdTarget_C = 6.0f;        /* целевая мин. Т рыбы °C; при достижении — автоостанов алгоритма */
 
         for (uint8_t i = 0; i < kDefrostSensorCount; i++)
         {
@@ -587,13 +588,20 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
              fishCold_C = fish2_C;
              fishDelta_C = 0.0f;
          }
-         // Без датчиков продукта — режим «только по воздуху» (фаза дефроста определяется по времени, лимит T подачи).
-         else
-         {
-             g.haveLastFishHot = 0;
-             ControlStep1s_AirOnly();
-             return;
-         }
+        // Без датчиков продукта — режим «только по воздуху» (фаза дефроста определяется по времени, лимит T подачи).
+        else
+        {
+            g.haveLastFishHot = 0;
+            ControlStep1s_AirOnly();
+            return;
+        }
+
+        // Останов алгоритма при достижении целевой мин. температуры рыбы (целевая Т задаётся в параметрах/на Settings1).
+        if (fishCold_C >= g_defrostParams.fishColdTarget_C)
+        {
+            DefrostControl_SetEnabled(0);
+            return;
+        }
 
          // Почему: выбираем фазу разморозки на основе температуры самой холодной точки продукта.
          const Phase phase = SelectPhase(fishCold_C);
@@ -1509,6 +1517,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
             p.airOnlyPhaseWarmUp_s  = g_defrostParams.airOnlyPhaseWarmUp_s;
             p.airOnlyPhasePlateau_s = g_defrostParams.airOnlyPhasePlateau_s;
             p.maxRuntime_s        = g_defrostParams.maxRuntime_s;
+            p.fishColdTarget_C    = g_defrostParams.fishColdTarget_C;
             memcpy(p.sensorUseInDefrost, g_defrostParams.sensorUseInDefrost, sizeof(p.sensorUseInDefrost));
             const uint32_t sz = (uint32_t)sizeof(DefrostLogGlobalPayload_t);
             if (outCapacity < sz)
@@ -1601,6 +1610,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
             g_defrostParams.airOnlyPhaseWarmUp_s  = p.airOnlyPhaseWarmUp_s;
             g_defrostParams.airOnlyPhasePlateau_s = p.airOnlyPhasePlateau_s;
             g_defrostParams.maxRuntime_s        = p.maxRuntime_s;
+            g_defrostParams.fishColdTarget_C   = p.fishColdTarget_C;
             memcpy(g_defrostParams.sensorUseInDefrost, p.sensorUseInDefrost, sizeof(p.sensorUseInDefrost));
             for (uint8_t i = 0; i < kDefrostSensorCount; ++i)
             {
@@ -1673,6 +1683,17 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
         {
             Sensor_array[i].UseInDefrost = (g_defrostParams.sensorUseInDefrost[i] != 0u) ? 1u : 0u;
         }
+    }
+
+    float DefrostControl_GetFishColdTarget_C(void)
+    {
+        return g_defrostParams.fishColdTarget_C;
+    }
+
+    void DefrostControl_SetFishColdTarget_C(float val_C)
+    {
+        g_defrostParams.fishColdTarget_C = val_C;
+        DefrostControl_SaveParams();
     }
  
      void DefrostControl_Update1s(void)

@@ -223,10 +223,8 @@ void Settings6View::BTNConfirmClicked()
 			DigitWheelOff();			// тип окна корректировки - 0, разрешено отображение Н и R
 			break;	}
 		case 2:		{	// установка корректировочного значения T
-			if (Set_Digit != 0)
-				Unicode::snprintfFloat(BTN_T_CorrectionBuffer, BTN_T_CORRECTION_SIZE, "%5.1f", (float)Set_Digit/10);
-			else
-				Unicode::strncpy(BTN_T_CorrectionBuffer, "---", 4); //buffer belongs to textArea
+			// Показываем 0.0 и отрицательные значения, не заменяя их на "---".
+			Unicode::snprintfFloat(BTN_T_CorrectionBuffer, BTN_T_CORRECTION_SIZE, "%5.1f", (float)Set_Digit/10);
 			presenter -> Corr_Sensor_Value(Selected, Set_Digit);
 			if (Set_Digit == 0) FlagWriteT = 0; else FlagWriteT = 1;
 			DigitWheelOff();
@@ -436,10 +434,8 @@ void Settings6View::Print_Whole_Digit()
 // отображение считанных из датчика значений
 void Settings6View::CorrData_T_View()
 {
-	if (Model::T_CORR_sensor != 0)
-		Unicode::snprintfFloat(CurrentValue_TBuffer, sizeof(CurrentValue_TBuffer), "%5.1f", (float)Model::T_CORR_sensor/10);
-	else
-		Unicode::strncpy(CurrentValue_TBuffer, "---", 4); //buffer belongs to textArea
+	// Показываем текущее значение коррекции T всегда (включая 0 и отрицательные).
+	Unicode::snprintfFloat(CurrentValue_TBuffer, sizeof(CurrentValue_TBuffer), "%5.1f", (float)Model::T_CORR_sensor/10);
 	CurrentValue_T.invalidate();
 }
 void Settings6View::CorrData_H_View()

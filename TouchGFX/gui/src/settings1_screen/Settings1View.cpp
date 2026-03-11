@@ -42,7 +42,6 @@ Settings1View::Settings1View()
 
 void Settings1View::setupScreen()
 {
-    // Обновляем значение на экране в соответствии с текущей уставкой CoreTSet.
     Settings1ViewBase::setupScreen();
 
 	BTNCoreTSensorLeft.setAction(coreTSensorToggleCallback);
@@ -60,7 +59,15 @@ void Settings1View::setupScreen()
 		setToggleOn(BTNCoreTSensorRight, Sensor_array[rightIdx].UseInDefrost != 0);
 	}
 
-    Unicode::snprintf(ValueCoreTSetBuffer, VALUECORETSET_SIZE, "%d", CoreTSet);
+	// Целевая мин. Т рыбы °C — из параметров алгоритма (синхронизация с ValueCoreTSet на экране).
+	float t = presenter->GetFishColdTarget_C();
+	// Храним уставку в десятых градуса, шаг = 0.1 °C.
+	int vDeci = static_cast<int>(t * 10.0f + 0.5f);
+	if (vDeci < 10)  vDeci = 10;   // 1.0 °C
+	if (vDeci > 190) vDeci = 190;  // 19.0 °C
+	CoreTSetDeci = static_cast<int16_t>(vDeci);
+
+    applyCoreTSetAndRedraw();
 	// Почему: задаём фиксированную широкую область, чтобы при переходе 2→1 цифра не оставляла артефактов
 	// (инвалидация всегда перерисовывает один и тот же прямоугольник).
 	ValueCoreTSet.setPosition(BoxCoreT.getX(), ValueCoreTSet.getY(), BoxCoreT.getWidth(), ValueCoreTSet.getHeight());
@@ -70,6 +77,41 @@ void Settings1View::setupScreen()
 void Settings1View::tearDownScreen()
 {
     Settings1ViewBase::tearDownScreen();
+}
+
+void Settings1View::applyCoreTSetAndRedraw()
+{
+	// Отображаем одно десятичное: X.Y
+	int whole = CoreTSetDeci / 10;
+	int frac  = CoreTSetDeci >= 0 ? (CoreTSetDeci % 10) : -(CoreTSetDeci % 10);
+	Unicode::snprintf(ValueCoreTSetBuffer, VALUECORETSET_SIZE, "%d.%d", whole, frac);
+	ValueCoreTSet.invalidate();
+
+	// Передаём уставку алгоритму в градусах Цельсия.
+	float valC = static_cast<float>(CoreTSetDeci) / 10.0f;
+	presenter->DefrosterOperatingTemperaturePresenter(valC);
+}
+
+void Settings1View::stepIncreaseOnce()
+{
+	if (CoreTSetDeci <= 190)
+	{
+		CoreTSetDeci += 1; // +0.1 °C
+		if (CoreTSetDeci > 190)
+			CoreTSetDeci = 190;
+		applyCoreTSetAndRedraw();
+	}
+}
+
+void Settings1View::stepDecreaseOnce()
+{
+	if (CoreTSetDeci >= 10)
+	{
+		CoreTSetDeci -= 1; // -0.1 °C
+		if (CoreTSetDeci < 10)
+			CoreTSetDeci = 10;
+		applyCoreTSetAndRedraw();
+	}
 }
 
 void Settings1View::coreTSensorToggleCallbackHandler(const touchgfx::AbstractButton& src)
@@ -94,25 +136,89 @@ void Settings1View::coreTSensorToggleCallbackHandler(const touchgfx::AbstractBut
 
 void Settings1View::BTNCoreTSetIncreaseClicked()
 {
-    // Увеличиваем уставку CoreTSet на 1 в допустимых пределах и обновляем отображение.
-    if (CoreTSet <= 19)
-    {
-        CoreTSet++;
-        Unicode::snprintf(ValueCoreTSetBuffer, VALUECORETSET_SIZE, "%d", CoreTSet);
-        ValueCoreTSet.invalidate();
-        presenter->DefrosterOperatingTemperaturePresenter(CoreTSet);
-    }
+    // Однократное нажатие: шаг +0.1 °C.
+	stepIncreaseOnce();
 }
 
 void Settings1View::BTNCoreTSetDecreaseClicked()
 {
-    // Уменьшаем уставку CoreTSet на 1 в допустимых пределах и обновляем отображение.
-    if (CoreTSet >= 1)
-    {
-        CoreTSet--;
-        Unicode::snprintf(ValueCoreTSetBuffer, VALUECORETSET_SIZE, "%d", CoreTSet);
-        ValueCoreTSet.invalidate();
-        presenter->DefrosterOperatingTemperaturePresenter(CoreTSet);
-    }
+    // Однократное нажатие: шаг -0.1 °C.
+	stepDecreaseOnce();
+}
+
+void Settings1View::handleTickEvent()
+{
+	Settings1ViewBase::handleTickEvent();
+
+	// Предполагаем частоту тиков ~60 Гц:
+	// 2 с удержания ≈ 120 тиков, повтор каждые 0.3 с ≈ 18 тиков.
+	const uint16_t longPressTicks = 120;
+	const uint16_t repeatIntervalTicks = 18;
+
+	// Кнопка увеличения.
+	bool incNow = BTNCoreTSetIncrease.getPressedState();
+	if (incNow)
+	{
+		if (!incPressedPrev)
+		{
+			incPressTicks = 0;
+			incRepeatTicks = 0;
+		}
+		else
+		{
+			incPressTicks++;
+			if (incPressTicks >= longPressTicks)
+			{
+				if (incRepeatTicks >= repeatIntervalTicks)
+				{
+					incRepeatTicks = 0;
+					stepIncreaseOnce();
+				}
+				else
+				{
+					incRepeatTicks++;
+				}
+			}
+		}
+	}
+	else
+	{
+		incPressTicks = 0;
+		incRepeatTicks = 0;
+	}
+	incPressedPrev = incNow;
+
+	// Кнопка уменьшения.
+	bool decNow = BTNCoreTSetDecrease.getPressedState();
+	if (decNow)
+	{
+		if (!decPressedPrev)
+		{
+			decPressTicks = 0;
+			decRepeatTicks = 0;
+		}
+		else
+		{
+			decPressTicks++;
+			if (decPressTicks >= longPressTicks)
+			{
+				if (decRepeatTicks >= repeatIntervalTicks)
+				{
+					decRepeatTicks = 0;
+					stepDecreaseOnce();
+				}
+				else
+				{
+					decRepeatTicks++;
+				}
+			}
+		}
+	}
+	else
+	{
+		decPressTicks = 0;
+		decRepeatTicks = 0;
+	}
+	decPressedPrev = decNow;
 }
 

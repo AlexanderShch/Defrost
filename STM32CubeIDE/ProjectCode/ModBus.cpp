@@ -265,7 +265,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 		case MB_ERROR_UART_RECIEVE:	{
 			Sensor_array[SensIndex].RxErrorCnt++;
 			SW.Read_Data_2 = Sensor::GetData(TimeFromStart-1, SensIndex, 2);	// достали предыдущее значение T
-			SW.Read_Data_1 = Sensor::GetData(TimeFromStart-1, SensIndex, 1);	// достали предыдущее значение H
+			SW.Read_Data_1 = Sensor::GetData(TimeFromStart-1, SensIndex, 3);	// достали предыдущее значение H (Param 3 = H)
 			Sensor::PutData(TimeFromStart, SensIndex, 2, SW.Read_Data_2);		// запись Т
 			Sensor::PutData(TimeFromStart, SensIndex, 3, SW.Read_Data_1);		// запись Н
 			break;	}

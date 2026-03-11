@@ -91,7 +91,7 @@
 
 - **Группы 1–4** — последовательность записей TLV: каждая запись `[paramId][valueType][valueSize][value…]` (valueType: 1=U8, 2=U16, 3=F32; value — 1/2/4 байта, little-endian). Конец по DataLen.
 - **Группа 5 (LOG_PHASE)** — фиксированная структура `DefrostLogPhasePayload_t` (копирование памяти, без TLV). Размер 72 байта: 6 массивов по 3 float (fishHotMax_C, fishHotRateMax_Cps, fishDeltaMax_C, supplySet_C, supplyMax_C, returnTargetRH_percent).
-- **Группа 6 (LOG_GLOBAL)** — фиксированная структура `DefrostLogGlobalPayload_t` (копирование памяти, без TLV). Размер 56 байт: 6× float, 8× uint16_t, 16× uint8_t (порядок полей см. в `DefrostControl.h`).
+- **Группа 6 (LOG_GLOBAL)** — фиксированная структура `DefrostLogGlobalPayload_t` (копирование памяти, без TLV). Размер 50 байт: 6× float, 8× uint16_t, 1× float `fishColdTarget_C` (целевая мин. Т рыбы °C; при достижении алгоритм останавливается), 6× uint8_t sensorUseInDefrost (порядок полей см. в `DefrostControl.h`).
 
 Сервер и контроллер используют одинаковые структуры; приём — один `memcpy` payload в структуру.
 
@@ -116,7 +116,7 @@
 | …     | CRC16     | —        | ModBus CRC16 по полям до CRC |
 
 - **Группа 5:** payload = 72 байта (`DefrostLogPhasePayload_t`: 6×3 float — fishHotMax_C, fishHotRateMax_Cps, fishDeltaMax_C, supplySet_C, supplyMax_C, returnTargetRH_percent).
-- **Группа 6:** payload = 44 байта (`DefrostLogGlobalPayload_t`: 6× float, 8× uint16_t, 6× uint8_t sensorUseInDefrost; порядок полей в `DefrostControl.h`).
+- **Группа 6:** payload = 50 байт (`DefrostLogGlobalPayload_t`: 6× float, 8× uint16_t, float fishColdTarget_C, 6× uint8_t sensorUseInDefrost; порядок полей в `DefrostControl.h`).
 
 ### 4.2. Ответ контроллера
 

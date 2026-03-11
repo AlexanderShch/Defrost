@@ -190,7 +190,7 @@
         <Translation Language="GB">98</Translation>
       </Text>
       <Text Id="ValueCoreTSet_W" Alignment="Left" TypographyId="Large">
-        <Translation Language="GB">9</Translation>
+        <Translation Language="GB">6.0</Translation>
       </Text>
       <Text Id="ValuePRGTimeLeft_W" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">999</Translation>
@@ -397,6 +397,6 @@
     <Typography Id="LargeHighlight" Font="verdanab.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacterRanges="0-9" />
     <Typography Id="Large" Font="verdana.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" />
     <Typography Id="Small" Font="verdana.ttf" Size="10" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="." WildcardCharacterRanges="0-9" />
-    <Typography Id="WildcardLarge" Font="verdana.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="-0123456789" />
+    <Typography Id="WildcardLarge" Font="verdana.ttf" Size="40" Bpp="4" Direction="LTR" FallbackCharacter="?" WildcardCharacters="-0123456789." />
   </Typographies>
 </TextDatabase>

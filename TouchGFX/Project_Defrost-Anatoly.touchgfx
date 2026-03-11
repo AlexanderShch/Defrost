@@ -1060,9 +1060,9 @@
           {
             "Type": "TextArea",
             "Name": "ValueCoreTSet",
-            "X": 97,
+            "X": 77,
             "Y": 195,
-            "Width": 47,
+            "Width": 87,
             "Height": 41,
             "TextId": "ValueCoreTSet",
             "TextRotation": "0",
