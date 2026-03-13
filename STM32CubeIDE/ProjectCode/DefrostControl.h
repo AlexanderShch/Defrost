@@ -118,8 +118,11 @@ typedef struct __attribute__((packed)) {
     uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT];
 } DefrostLogGlobalPayload_t;
 
-/* Регулярный лог (Type 0x01): текущая фаза + группа 3 — переменные алгоритма. Группы 1 и 2 — по запросу REQ_CMD_GET_DEFROST_GROUP (groupId 5 и 6). */
+/* Регулярный лог (Type 0x01): сначала отфильтрованные температуры всех датчиков (°C),
+ * затем текущая фаза + группа 3 — переменные алгоритма.
+ * Группы 1 и 2 — по запросу REQ_CMD_GET_DEFROST_GROUP (groupId 5 и 6). */
 typedef struct __attribute__((packed)) {
+    float T_filt_C[7];           /* 0..6: отфильтрованные T датчиков (см. Sensor_array индекс) */
     uint8_t phase;               /* 0=WarmUp, 1=Plateau, 2=Finish */
     float eT_common, heatScale01;
     float uCommon_TEN, trim_TEN, uLeft_TEN, uRight_TEN;

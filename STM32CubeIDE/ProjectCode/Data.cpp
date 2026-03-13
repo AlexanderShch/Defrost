@@ -160,17 +160,47 @@ int Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned 
 	switch (Param) {
 	case 1:
 		return Time[i][SensNum];
-		break;
 	case 2:
 		return T[i][SensNum];
-		break;
 	case 3:
 		return H[i][SensNum];
-		break;
 	default:
 		return 0;
-		break;
 	}
+}
+
+int Sensor::GetAverageTemperature(unsigned int TimeFromStart, unsigned char SensNum, unsigned int windowSeconds)
+{
+	if (windowSeconds == 0u)
+	{
+		return GetData(TimeFromStart, SensNum, 2);
+	}
+
+	long sum = 0;
+	unsigned int count = 0;
+	const unsigned int now = TimeFromStart;
+
+	for (unsigned int idx = 0u; idx < TQ; ++idx)
+	{
+		const unsigned int t = Time[idx][SensNum];
+		if (t == 0u)
+		{
+			continue;
+		}
+		const unsigned int dt = now - t;
+		if (dt < windowSeconds)
+		{
+			sum += T[idx][SensNum];
+			++count;
+		}
+	}
+
+	if (count == 0u)
+	{
+		return GetData(TimeFromStart, SensNum, 2);
+	}
+
+	return (int)(sum / (long)count);
 }
 
 // 1. Operating system timer 1 sec will start this function
@@ -194,7 +224,9 @@ void DataTimerFunc()
 */
 void ReadDataFunc() {
 	int TempOld, HumOld = 0;
-	int TempNew, HumNew = 0;
+	int HumNew = 0;
+	int TempAvg10 = 0;
+	int TempFiltered = 0;
 	int T_CORR_Old, H_CORR_Old = 0, R_CORR_Old = 0;
 	int T_CORR_New, H_CORR_New = 0, R_CORR_New = 0;
 
@@ -255,12 +287,33 @@ void ReadDataFunc() {
 				result = Sensor_Read(SensorIndex);
 
 				// запись в переменные экрана, если есть изменения
-				// Temperature
+				// Temperature: фильтруем по скорости изменения и усредняем по времени
 				TempOld = Model::getCurrentVal_T(SensorIndex);
-				TempNew = Sensor::GetData(TimeFromStart, SensorIndex, 2);
-				if (TempOld != TempNew)
+				TempAvg10 = Sensor::GetAverageTemperature(TimeFromStart, SensorIndex, 10u);
+
+				// Ограничение скорости изменения: не более 1.1 °C/сек (11 десятых градуса)
+				const int maxDeltaDeci = 11;
+				if (TimeFromStart == 0u || TempOld == 0)
 				{
-					Model::setCurrentVal_T(SensorIndex, TempNew);
+					TempFiltered = TempAvg10;
+				}
+				else
+				{
+					int delta = TempAvg10 - TempOld;
+					if (delta > maxDeltaDeci)
+					{
+						delta = maxDeltaDeci;
+					}
+					else if (delta < -maxDeltaDeci)
+					{
+						delta = -maxDeltaDeci;
+					}
+					TempFiltered = TempOld + delta;
+				}
+
+				if (TempOld != TempFiltered)
+				{
+					Model::setCurrentVal_T(SensorIndex, TempFiltered);
 				}
 				// Humidity
 				HumOld = Model::getCurrentVal_H(SensorIndex);

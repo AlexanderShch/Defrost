@@ -26,6 +26,7 @@ public:
 	Sensor(unsigned int Time, int T, int H){};		// конструктор
 	static void PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val);
 	static int GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param);
+	static int GetAverageTemperature(unsigned int TimeFromStart, unsigned char SensNum, unsigned int windowSeconds);
 
 protected:
 	static unsigned int Time[TQ][SQ];	// номер такта измерения

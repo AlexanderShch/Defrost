@@ -304,6 +304,9 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          {
              // Почему: 1-секундная дискретность + sigma-delta может вызвать частые переключения,
              //         что плохо для силовых реле/контакторов и ухудшает повторяемость теплового режима.
+             // Гарантируем минимум 1 с, иначе при minHold_s==0 переключение возможно каждый тик.
+             if (minHold_s == 0u)
+                 minHold_s = 1u;
              if (hold_s > 0)
              {
                  hold_s--;
@@ -317,6 +320,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
                  hold_s = minHold_s;
              }
              return state;
+             // Важно: DefrostControl_Update1s() должен вызываться ровно 1 раз в секунду (DataTimerFunc 1 Гц).
+             // При более частом вызове hold_s будет уменьшаться быстрее и удержание сократится.
          }
  
          void Reset(uint8_t initialState = 0)
@@ -695,7 +700,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
  
          // Почему: защита от слишком частого щёлканья реле ТЭНов.
          //         Значение minHold нужно подбирать под силовую часть (реле/контактор/SSR).
-        const uint16_t kTenMinHold_s = g_defrostParams.tenMinHold_s;
+        // Ниже 10 с удержание не защищает реле от частых переключений; при сбое параметра задаём минимум 10 с.
+        const uint16_t kTenMinHold_s = (g_defrostParams.tenMinHold_s >= 10u) ? g_defrostParams.tenMinHold_s : 10u;
          const uint8_t ten1L_on = g.left.ten1Hold.Step(ten1L_desired, kTenMinHold_s);
          const uint8_t ten2L_on = g.left.ten2Hold.Step(ten2L_desired, kTenMinHold_s);
          const uint8_t ten1R_on = g.right.ten1Hold.Step(ten1R_desired, kTenMinHold_s);
@@ -796,8 +802,18 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
          const uint8_t out_on = g.outOn ? 1 : 0;
 
-         s_lastPhase = static_cast<uint8_t>(phase);
-         s_controlLogPayload.phase = s_lastPhase;
+        s_lastPhase = static_cast<uint8_t>(phase);
+
+        // Отфильтрованные температуры всех датчиков (в °C) — первыми в логе.
+        s_controlLogPayload.T_filt_C[0] = DeciToC((int16_t)Model::getCurrentVal_T(0));  // defroster T,H left
+        s_controlLogPayload.T_filt_C[1] = DeciToC((int16_t)Model::getCurrentVal_T(1));  // defroster T,H right
+        s_controlLogPayload.T_filt_C[2] = DeciToC((int16_t)Model::getCurrentVal_T(2));  // defroster T,H center
+        s_controlLogPayload.T_filt_C[3] = DeciToC((int16_t)Model::getCurrentVal_T(3));  // fish T left
+        s_controlLogPayload.T_filt_C[4] = DeciToC((int16_t)Model::getCurrentVal_T(4));  // fish T right
+        s_controlLogPayload.T_filt_C[5] = DeciToC((int16_t)Model::getCurrentVal_T(5));  // defroster operating T
+        s_controlLogPayload.T_filt_C[6] = DeciToC((int16_t)Model::getCurrentVal_T(6));  // product final T
+
+        s_controlLogPayload.phase = s_lastPhase;
          s_controlLogPayload.eT_common = eT_common;
          s_controlLogPayload.heatScale01 = heatScale01;
          s_controlLogPayload.uCommon_TEN = uCommon_TEN;
@@ -873,7 +889,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          const uint8_t ten1R_desired = g.right.ten1.Step(rightTen1Duty);
          const uint8_t ten2R_desired = g.right.ten2.Step(rightTen2Duty);
 
-         const uint16_t kTenMinHold_s = g_defrostParams.tenMinHold_s;
+         // Ниже 10 с удержание не защищает реле от частых переключений; при сбое параметра задаём минимум 10 с.
+         const uint16_t kTenMinHold_s = (g_defrostParams.tenMinHold_s >= 10u) ? g_defrostParams.tenMinHold_s : 10u;
          const uint8_t ten1L_on = g.left.ten1Hold.Step(ten1L_desired, kTenMinHold_s);
          const uint8_t ten2L_on = g.left.ten2Hold.Step(ten2L_desired, kTenMinHold_s);
          const uint8_t ten1R_on = g.right.ten1Hold.Step(ten1R_desired, kTenMinHold_s);
@@ -950,13 +967,23 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          s_controlLogPayload.leftTen1Duty = leftTen1Duty;
          s_controlLogPayload.leftTen2Duty = leftTen2Duty;
          s_controlLogPayload.rightTen1Duty = rightTen1Duty;
-         s_controlLogPayload.rightTen2Duty = rightTen2Duty;
-         s_controlLogPayload.w_sup_avg = w_sup_avg;
-         s_controlLogPayload.wErr = wErr;
-         s_controlLogPayload.injDuty = injDuty;
-         s_controlLogPayload.rate_Cps = 0.0f;
-         s_controlLogPayload.fishHot_C = 0.0f;
-         s_controlLogPayload.fishCold_C = 0.0f;
+        s_controlLogPayload.rightTen2Duty = rightTen2Duty;
+
+        // Отфильтрованные температуры всех датчиков (в °C) — первыми в логе.
+        s_controlLogPayload.T_filt_C[0] = DeciToC((int16_t)Model::getCurrentVal_T(0));  // defroster T,H left
+        s_controlLogPayload.T_filt_C[1] = DeciToC((int16_t)Model::getCurrentVal_T(1));  // defroster T,H right
+        s_controlLogPayload.T_filt_C[2] = DeciToC((int16_t)Model::getCurrentVal_T(2));  // defroster T,H center
+        s_controlLogPayload.T_filt_C[3] = DeciToC((int16_t)Model::getCurrentVal_T(3));  // fish T left
+        s_controlLogPayload.T_filt_C[4] = DeciToC((int16_t)Model::getCurrentVal_T(4));  // fish T right
+        s_controlLogPayload.T_filt_C[5] = DeciToC((int16_t)Model::getCurrentVal_T(5));  // defroster operating T
+        s_controlLogPayload.T_filt_C[6] = DeciToC((int16_t)Model::getCurrentVal_T(6));  // product final T
+
+        s_controlLogPayload.w_sup_avg = w_sup_avg;
+        s_controlLogPayload.wErr = wErr;
+        s_controlLogPayload.injDuty = injDuty;
+        s_controlLogPayload.rate_Cps = 0.0f;
+        s_controlLogPayload.fishHot_C = 0.0f;
+        s_controlLogPayload.fishCold_C = 0.0f;
 
          ApplyOutputs(
              ventL_on, ventR_on,
