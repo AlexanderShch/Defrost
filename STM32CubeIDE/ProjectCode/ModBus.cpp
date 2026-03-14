@@ -11,7 +11,7 @@
 
 //#include "usb_host.h"
 
-#define  MAX_MB_BUFSIZE 101						// максимальный размер пакета UART4 с SYNC: лог 0x01 только группа 3 (2+~68+2)+AA55; телеметрия и ответы меньше
+#define  MAX_MB_BUFSIZE 101						// максимальный размер пакета UART4 с SYNC: лог 0x01 (2+93+2)+AA55=99; телеметрия и ответы меньше
 
 extern "C" {
 extern UART_HandleTypeDef huart4;				// UART4: программирование датчиков и связь с сервером

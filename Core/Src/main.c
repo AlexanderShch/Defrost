@@ -17,12 +17,11 @@
   ******************************************************************************
   */
 /* USER CODE END Header */
-/* Подключаемые заголовки ----------------------------------------------------*/
+/* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
-#include "app_touchgfx.h"
 
-/* Локальные заголовки -------------------------------------------------------*/
+/* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Components/ili9341/ili9341.h"
 #include "C2CPP.hpp"
@@ -36,12 +35,12 @@ uint8_t ucHeap[65536];  // Явно указываем размер вместо
 
 /* USER CODE END Includes */
 
-/* Локальные типы ------------------------------------------------------------*/
+/* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
 
-/* Локальные определения -----------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define REFRESH_COUNT           ((uint32_t)1386)   /* счётчик обновления SDRAM */
 #define SDRAM_TIMEOUT           ((uint32_t)0xFFFF)
@@ -68,12 +67,12 @@ uint8_t ucHeap[65536];  // Явно указываем размер вместо
 #define MSGQUEUE_OBJECT_SIZE    98     // размер элемента: ServerTxItem_t (type + length + data)
 /* USER CODE END PD */
 
-/* Локальные макросы ---------------------------------------------------------*/
+/* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
 /* USER CODE END PM */
 
-/* Локальные переменные ------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
 CRC_HandleTypeDef hcrc;
 
 DMA2D_HandleTypeDef hdma2d;
@@ -93,93 +92,69 @@ DMA_HandleTypeDef hdma_uart5_tx;
 
 SDRAM_HandleTypeDef hsdram1;
 
-// ПОТОКИ
-/* Описания для defaultTask */
+/* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Описания для GUI_Task */
+/* Definitions for GUI_Task */
 osThreadId_t GUI_TaskHandle;
 const osThreadAttr_t GUI_Task_attributes = {
   .name = "GUI_Task",
-  .stack_size = 4736 * 4,  // Уменьшено с 5632 до 4736 (экономия ~3.5 КБ для решения проблемы RAM)
+  .stack_size = 8192 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
-/* Описания для DataProcessing */
+/* Definitions for DataProcessing */
 osThreadId_t DataProcessingHandle;
 const osThreadAttr_t DataProcessing_attributes = {
   .name = "DataProcessing",
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Описания для ReadData */
+/* Definitions for ReadData */
 osThreadId_t ReadDataHandle;
 const osThreadAttr_t ReadData_attributes = {
   .name = "ReadData",
-  .stack_size = 448 * 4,  // Увеличено: C++/Modbus/датчики; при overflow в vApplicationStackOverflowHook смотреть pcTaskName
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Описания для RX_From_Server */
-osThreadId_t RX_From_ServerHandle;
-const osThreadAttr_t RX_From_Server_attributes = {
-  .name = "RX_From_Server",
-  .stack_size = 448 * 4,  // Увеличено: CommandReceiver -> DefrostControl_SetParam/SaveParams; при overflow смотреть vApplicationStackOverflowHook
-  .priority = (osPriority_t) osPriorityAboveNormal,
-};
-
-// ТАЙМЕРЫ
-/* Описания для DataTimer */
+/* Definitions for DataTimer */
 osTimerId_t DataTimerHandle;
 const osTimerAttr_t DataTimer_attributes = {
   .name = "DataTimer"
 };
-/* Описания для TX_Compl_Sem */
+/* Definitions for TX_Compl_Sem */
 osSemaphoreId_t TX_Compl_SemHandle;
 const osSemaphoreAttr_t TX_Compl_Sem_attributes = {
   .name = "TX_Compl_Sem"
 };
-/* Описания для RX_Compl_Sem */
+/* Definitions for RX_Compl_Sem */
 osSemaphoreId_t RX_Compl_SemHandle;
 const osSemaphoreAttr_t RX_Compl_Sem_attributes = {
   .name = "RX_Compl_Sem"
 };
-/* Описания для PR_TX_Compl_Sem */
+/* Definitions for PR_TX_Compl_Sem */
 osSemaphoreId_t PR_TX_Compl_SemHandle;
 const osSemaphoreAttr_t PR_TX_Compl_Sem_attributes = {
   .name = "PR_TX_Compl_Sem"
 };
-/* Описания для PR_RX_Compl_Sem */
+/* Definitions for PR_RX_Compl_Sem */
 osSemaphoreId_t PR_RX_Compl_SemHandle;
 const osSemaphoreAttr_t PR_RX_Compl_Sem_attributes = {
   .name = "PR_RX_Compl_Sem"
 };
-
-/* Описания для UART4_CMD_RX_Sem */
-osSemaphoreId_t UART4_CMD_RX_SemHandle;
-const osSemaphoreAttr_t UART4_CMD_RX_Sem_attributes = {
-  .name = "UART4_CMD_RX_Sem"
+/* Definitions for DataAnalysisStart */
+osSemaphoreId_t DataAnalysisStartHandle;
+const osSemaphoreAttr_t DataAnalysisStart_attributes = {
+  .name = "DataAnalysisStart"
 };
-
-/* Описания для UART4_RX_Event_Sem */
-osSemaphoreId_t UART4_RX_Event_SemHandle;
-const osSemaphoreAttr_t UART4_RX_Event_Sem_attributes = {
-  .name = "UART4_RX_Event_Sem"
-};
-
-/* Описания для UART4_Mutex */
-osMutexId_t UART4_MutexHandle;
-const osMutexAttr_t UART4_Mutex_attributes = {
-  .name = "UART4_Mutex"
-};
-/* Описания для ReadDataEvent */
+/* Definitions for ReadDataEvent */
 osEventFlagsId_t ReadDataEventHandle;
 const osEventFlagsAttr_t ReadDataEvent_attributes = {
   .name = "ReadDataEvent"
 };
-
 /* USER CODE BEGIN PV */
 /* Семафор: ответ сервера на переданный пакет (DATA_OK/DATA_FALSE) получен CommandReceiver.
    TX_ToServer() после отправки телеметрии ждёт этот семафор до 100 мс перед следующим osMessageQueueGet. */
@@ -194,7 +169,13 @@ const osThreadAttr_t TX_To_Server_attributes = {
   .stack_size = 512 * 4,  // Увеличено: поток TX_To_Server переполнял стек (см. vApplicationStackOverflowHook, pcTaskName)
   .priority = (osPriority_t) osPriorityLow,
 };
-
+/* Описания для RX_From_Server */
+osThreadId_t RX_From_ServerHandle;
+const osThreadAttr_t RX_From_Server_attributes = {
+  .name = "RX_From_Server",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* Единая очередь отправки на сервер (телеметрия, лог, ответы на команды) */
 osMessageQueueId_t Data_QueueHandle;
 const osMessageQueueAttr_t Data_Queue_attributes = {
@@ -203,7 +184,7 @@ const osMessageQueueAttr_t Data_Queue_attributes = {
 
 /* USER CODE END PV */
 
-/* Прототипы локальных функций ----------------------------------------------*/
+/* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
@@ -253,7 +234,7 @@ uint16_t                  IOE_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *p
 
 /* USER CODE END PFP */
 
-/* Пользовательский код ------------------------------------------------------*/
+/* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 static LCD_DrvTypeDef* LcdDrv;
 
@@ -267,27 +248,28 @@ uint32_t Spi5Timeout = SPI5_TIMEOUT_MAX; /*<! таймаут при сбое о�
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
 
-  /* Конфигурация MCU --------------------------------------------------------*/
+  /* MCU Configuration--------------------------------------------------------*/
 
-  /* Сброс всех периферийных блоков, инициализация Flash и SysTick. */
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
 
-  /* Настройка системной частоты */
+  /* Configure the system clock */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
-  /* Инициализация всех настроенных периферийных блоков */
+  /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_CRC_Init();
@@ -298,9 +280,6 @@ int main(void)
   MX_DMA2D_Init();
   MX_UART5_Init();
   MX_UART4_Init();
-  MX_TouchGFX_Init();
-  /* Вызов функции PreOsInit */
-  MX_TouchGFX_PreOSInit();
   /* USER CODE BEGIN 2 */
   
   // ═══════════════════════════════════════════════════════════════════════════
@@ -315,14 +294,14 @@ int main(void)
 
   /* USER CODE END 2 */
 
-  /* Инициализация планировщика */
+  /* Init scheduler */
   osKernelInitialize();
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
-  /* Создание семафоров */
+  /* Create the semaphores(s) */
   /* creation of TX_Compl_Sem */
   TX_Compl_SemHandle = osSemaphoreNew(1, 0, &TX_Compl_Sem_attributes);
 
@@ -335,27 +314,16 @@ int main(void)
   /* creation of PR_RX_Compl_Sem */
   PR_RX_Compl_SemHandle = osSemaphoreNew(1, 0, &PR_RX_Compl_Sem_attributes);
 
-  /* creation of UART4_CMD_RX_Sem */
-  UART4_CMD_RX_SemHandle = osSemaphoreNew(1, 0, &UART4_CMD_RX_Sem_attributes);
-
-  /* creation of UART4_RX_Event_Sem */
-  UART4_RX_Event_SemHandle = osSemaphoreNew(1, 0, &UART4_RX_Event_Sem_attributes);
-
-  /* creation of UART4_Mutex */
-  UART4_MutexHandle = osMutexNew(&UART4_Mutex_attributes);
+  /* creation of DataAnalysisStart */
+  DataAnalysisStartHandle = osSemaphoreNew(1, 0, &DataAnalysisStart_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   ServerResponseReceived_SemHandle = osSemaphoreNew(1, 0, &ServerResponseReceived_Sem_attributes);
   /* USER CODE END RTOS_SEMAPHORES */
 
-  /* Создание таймеров */
+  /* Create the timer(s) */
   /* creation of DataTimer */
   DataTimerHandle = osTimerNew(Callback01, osTimerPeriodic, NULL, &DataTimer_attributes);
-  if (DataTimerHandle == NULL) {
-    /* Таймер не создан: не хватило heap (configTOTAL_HEAP_SIZE / ucHeap).
-       DataTimerFunc() вызываться не будет, светодиод не мигает. */
-    Error_Handler();
-  }
 
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
@@ -367,11 +335,18 @@ int main(void)
   Data_QueueHandle = osMessageQueueNew (MSGQUEUE_OBJECTS, MSGQUEUE_OBJECT_SIZE, &Data_Queue_attributes);
   /* USER CODE END RTOS_QUEUES */
 
-  /* Создание потоков */
+  /* Create the thread(s) */
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
   /* creation of GUI_Task */
   GUI_TaskHandle = osThreadNew(TouchGFX_Task, NULL, &GUI_Task_attributes);
+
+  /* creation of DataProcessing */
+  DataProcessingHandle = osThreadNew(HandleDataProcessing, NULL, &DataProcessing_attributes);
+
+  /* creation of ReadData */
+  ReadDataHandle = osThreadNew(ReadDataFunction, NULL, &ReadData_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* creation of DataProcessing */
@@ -384,18 +359,21 @@ int main(void)
   RX_From_ServerHandle = osThreadNew(CommandReceiver_Task_C, NULL, &RX_From_Server_attributes);
   /* USER CODE END RTOS_THREADS */
 
-  /* Создание событий */
+  /* Create the event(s) */
+  /* creation of ReadDataEvent */
+  ReadDataEventHandle = osEventFlagsNew(&ReadDataEvent_attributes);
 
   /* USER CODE BEGIN RTOS_EVENTS */
   /* creation of ReadDataEvent */
   ReadDataEventHandle = osEventFlagsNew(&ReadDataEvent_attributes);
   /* USER CODE END RTOS_EVENTS */
 
-  /* Запуск планировщика */
+  /* Start scheduler */
   osKernelStart();
 
-  /* Сюда не должны попадать: управление передано планировщику */
-  /* Бесконечный цикл */
+  /* We should never get here as control is now taken by the scheduler */
+
+  /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
@@ -817,8 +795,8 @@ static void MX_FMC_Init(void)
 static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-/* USER CODE BEGIN MX_GPIO_Init_1 */
-/* USER CODE END MX_GPIO_Init_1 */
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+  /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOE_CLK_ENABLE();
@@ -834,7 +812,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOE, VSYNC_FREQ_Pin|RENDER_TIME_Pin|FRAME_RATE_Pin|MCU_ACTIVE_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, PROG_MASTER_DE_Pin|GPIO_PIN_2|GPIO_PIN_3|MB_MASTER_DE_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, PROG_MASTER_DE_Pin|GPIO_PIN_3|MB_MASTER_DE_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12|GPIO_PIN_13, GPIO_PIN_RESET);
@@ -849,8 +827,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PROG_MASTER_DE_Pin PC2 PC3 MB_MASTER_DE_Pin */
-  GPIO_InitStruct.Pin = PROG_MASTER_DE_Pin|GPIO_PIN_2|GPIO_PIN_3|MB_MASTER_DE_Pin;
+  /*Configure GPIO pins : PROG_MASTER_DE_Pin PC3 MB_MASTER_DE_Pin */
+  GPIO_InitStruct.Pin = PROG_MASTER_DE_Pin|GPIO_PIN_3|MB_MASTER_DE_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -870,8 +848,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
-/* USER CODE BEGIN MX_GPIO_Init_2 */
-/* USER CODE END MX_GPIO_Init_2 */
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
+  /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -1253,24 +1231,6 @@ void ReadDataFunction(void *argument)
   /* USER CODE END ReadDataFunction */
 }
 
-/* USER CODE BEGIN Header_TransferToServer */
-/**
-* @brief Function implementing the TX_To_Server thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_TransferToServer */
-  /* USER CODE BEGIN TransferToServer */
-  /* Infinite loop */
-void TransferToServer(void *argument)
-{
-  for(;;)
-  {
-	  TransferToServer_С();
-  }
-}
-  /* USER CODE END TransferToServer */
-
 /* Callback01 function */
 void Callback01(void *argument)
 {
@@ -1292,7 +1252,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM6) {
+  if (htim->Instance == TIM6)
+  {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
@@ -1311,8 +1272,7 @@ void Error_Handler(void)
 
   /* USER CODE END Error_Handler_Debug */
 }
-
-#ifdef  USE_FULL_ASSERT
+#ifdef USE_FULL_ASSERT
 /**
   * @brief  Reports the name of the source file and the source line number
   *         where the assert_param error has occurred.

@@ -173,6 +173,7 @@ const char* Model::getFirmwareVersion()
 
 // definition of static variable. Member function definitions belong in the scope where the class is defined.
 short Model::CurrentValueT[SQ] = {0};
+short Model::FilteredValueT[SQ] = {0};
 int8_t Model::FlagCurrentValueTChanged[SQ] = {0};
 short Model::CurrentValueH[SQ] = {0};
 int8_t Model::FlagCurrentValueHChanged[SQ] = {0};
