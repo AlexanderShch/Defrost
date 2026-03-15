@@ -118,6 +118,7 @@ MB_Error_t result;
 unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// номер такта измерения
 int Sensor::T[TQ][SQ] = {{0}};		// температура
+int Sensor::T_Average[TQ][SQ] = {{0}};		// температура
 int Sensor::H[TQ][SQ] = {{0}};		// влажность
 // !!! ВНИМАНИЕ! Если меняется структура MSGQUEUE_OBJ_t, надо поменять и размер буфера MAX_MB_BUFSIZE в ModBus.cpp
 
@@ -126,7 +127,7 @@ int Sensor::H[TQ][SQ] = {{0}};		// влажность
  * Параметры функции:
  * 	TimeFromStart - кол-во тиков с момента запуска программы,
  * 	SensNum - number of interesting sensor,
- * 	Param - место int Val в массиве данных: 1 for time, 2 for temperature, 3 for humidity
+ * 	Param - место int Val в массиве данных: 1 for time, 2 for temperature, 3 for humidity, 4 for average T
  * 	Val - value of data
  */
 void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val) {
@@ -143,6 +144,9 @@ void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned
 		break;
 	case 3:
 		H[i][SensNum] = Val;
+		break;
+	case 4:
+		T_Average[i][SensNum] = Val;
 		break;
 	default:
 		break;
@@ -166,16 +170,19 @@ int Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned 
 		return T[i][SensNum];
 	case 3:
 		return H[i][SensNum];
+	case 4:
+		return T_Average[i][SensNum];
 	default:
 		return 0;
 	}
 }
 
-int Sensor::GetAverageTemperature(unsigned int TimeFromStart, unsigned char SensNum, unsigned int windowSeconds)
+void Sensor::SetAverageTemperature(unsigned int TimeFromStart, unsigned char SensNum, int Temp, unsigned int windowSeconds)
 {
+	int TempAverage = 0;
 	if (windowSeconds == 0u)
 	{
-		return GetData(TimeFromStart, SensNum, 2);
+		TempAverage = Temp;
 	}
 
 	long sum = 0;
@@ -197,12 +204,38 @@ int Sensor::GetAverageTemperature(unsigned int TimeFromStart, unsigned char Sens
 		}
 	}
 
-	if (count == 0u)
+	if (count != 0u)
 	{
-		return GetData(TimeFromStart, SensNum, 2);
+		TempAverage = (int)(sum / (long)count);
+	}
+	PutData(TimeFromStart, SensNum, 4, TempAverage);
+}
+
+int ClatchSensorTemperature (unsigned int TimeFromStart, unsigned char SensNum, int Temp) {
+	const int maxDeltaDeci = 11;
+	int TempClatched = 0;
+	int TempOld = 0;
+
+	if (TimeFromStart == 0u)
+	{
+		TempClatched = Temp;
+	}
+	else
+	{
+		TempOld = Sensor::GetData(TimeFromStart-1, SensNum, 4); // предыдущее усредненное значение температуры
+		int delta = Temp - TempOld;
+		if (delta > maxDeltaDeci)
+		{
+			delta = maxDeltaDeci;
+		}
+		else if (delta < -maxDeltaDeci)
+		{
+			delta = -maxDeltaDeci;
+		}
+		TempClatched = TempOld + delta;
 	}
 
-	return (int)(sum / (long)count);
+	return TempClatched;
 }
 
 // 1. Operating system timer 1 sec will start this function
@@ -226,9 +259,8 @@ void DataTimerFunc()
 */
 void ReadDataFunc() {
 	int TempOld, HumOld = 0;
-	int HumNew = 0;
-	int TempAvg10 = 0;
-	int TempFiltered = 0;
+	int TempNew, HumNew = 0;
+	int TempClatched = 0;
 	int T_CORR_Old, H_CORR_Old = 0, R_CORR_Old = 0;
 	int T_CORR_New, H_CORR_New = 0, R_CORR_New = 0;
 
@@ -288,35 +320,18 @@ void ReadDataFunc() {
 				// Продолжаем для активного датчика
 				result = Sensor_Read(SensorIndex);
 
-				// запись в переменные экрана, если есть изменения
 				// Temperature: фильтруем по скорости изменения и усредняем по времени
-				TempOld = Model::getCurrentVal_T(SensorIndex);
-				TempAvg10 = Sensor::GetAverageTemperature(TimeFromStart, SensorIndex, 10u);
+				TempClatched = ClatchSensorTemperature(TimeFromStart, SensorIndex, Sensor::GetData(TimeFromStart, SensorIndex, 2));
+				Sensor::SetAverageTemperature(TimeFromStart, SensorIndex, TempClatched, 10u);	// расчёт и запись в массив усредненное значение температуры за последние 10 секунд
 
-				// Ограничение скорости изменения: не более 1.1 °C/сек (11 десятых градуса)
-				const int maxDeltaDeci = 11;
-				if (TimeFromStart == 0u || TempOld == 0)
+				// запись в переменные экрана, если есть изменения
+				TempOld = Model::getCurrentVal_T(SensorIndex);	// текущее значение температуры на экране
+				TempNew = Sensor::GetData(TimeFromStart, SensorIndex, 2);	// новое значение (необработанное) температуры с датчика
+				if (TempOld != TempNew)
 				{
-					TempFiltered = TempAvg10;
+					Model::setCurrentVal_T(SensorIndex, TempNew);
 				}
-				else
-				{
-					int delta = TempAvg10 - TempOld;
-					if (delta > maxDeltaDeci)
-					{
-						delta = maxDeltaDeci;
-					}
-					else if (delta < -maxDeltaDeci)
-					{
-						delta = -maxDeltaDeci;
-					}
-					TempFiltered = TempOld + delta;
-				}
-
-				if (TempOld != TempFiltered)
-				{
-					Model::setCurrentVal_T(SensorIndex, TempFiltered);
-				}
+			
 				// Humidity
 				HumOld = Model::getCurrentVal_H(SensorIndex);
 				HumNew = Sensor::GetData(TimeFromStart, SensorIndex, 3);
@@ -328,6 +343,14 @@ void ReadDataFunc() {
 		}	// конец цикла опроса датчиков
 
 		// Телеметрия и лог отправляются только по команде SEND_STATE от сервера (см. CommandReceiver REQ_CMD_SEND_STATE).
+		/* отпускаем семафор SensorsReadDone для запуска задачи DataAnalysis
+		 * osSemaphoreRelease — увеличивает счётчик семафора на 1 (отдаёт один «токен»).
+		 * Это не «взвод», а именно «отпускание» семафора.
+		 * Семафор «взводится» (становится доступным для ожидающих) именно вызовом Release, а не Acquire.
+		 */
+		if (SensorsReadDone_SemHandle != NULL) {
+		    osSemaphoreRelease(SensorsReadDone_SemHandle);
+		}
 
 		// проверим не активные датчики на активность
 		MB_Master_Init();
@@ -368,14 +391,6 @@ void ReadDataFunc() {
 				}	// закончили считывать параметры с датчика
 			}
 
-			/* отпускаем семафор SensorsReadDone для запуска задачи DataAnalysis
-			 * osSemaphoreRelease — увеличивает счётчик семафора на 1 (отдаёт один «токен»).
-			 * Это не «взвод», а именно «отпускание» семафора.
-			 * Семафор «взводится» (становится доступным для ожидающих) именно вызовом Release, а не Acquire.
-			 */
-			if (SensorsReadDone_SemHandle != NULL) {
-			    osSemaphoreRelease(SensorsReadDone_SemHandle);
-			}
 	}	// конец рабочего цикла
 }
 

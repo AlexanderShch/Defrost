@@ -485,18 +485,21 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         bool switchedOnThisTick = false;
         auto stageActuator = [&](uint8_t desiredOn, uint8_t& stagedOn)
         {
-            if (desiredOn == 0)
+            if (desiredOn == 0) // Алгоритм хочет выключить устройство
             {
-                stagedOn = 0;
+                stagedOn = 0;   // Выключаем сразу
                 return;
             }
-            if (stagedOn != 0)
+            if (stagedOn != 0)  // Алгоритм хочет включить устройство, но оно уже включено
             {
-                return;
+                return;  // Ничего не делаем
             }
+            // Алгоритм хочет включить устройство
+            // Если устройство ещё не было включено за эту секунду, и время задержки равно 0, то включаем устройство
             if (!switchedOnThisTick && g.startupActuatorDelay_s == 0)
             {
                 stagedOn = 1;
+                // Устанавливаем флаг, что устройство было включено за эту секунду
                 switchedOnThisTick = true;
                 g.startupActuatorDelay_s = kStartupInterval_s;
             }
@@ -805,7 +808,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
 
         s_lastPhase = static_cast<uint8_t>(phase);
 
-        // Отфильтрованные температуры всех датчиков (в °C) — первыми в логе.
+        // Формируем текущее состояние алгоритма управления для регулярного лога
         s_controlLogPayload.T_filt_C[0] = DeciToC((int16_t)Model::getCurrentVal_T(0));  // defroster T,H left
         s_controlLogPayload.T_filt_C[1] = DeciToC((int16_t)Model::getCurrentVal_T(1));  // defroster T,H right
         s_controlLogPayload.T_filt_C[2] = DeciToC((int16_t)Model::getCurrentVal_T(2));  // defroster T,H center
@@ -814,7 +817,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         s_controlLogPayload.T_filt_C[5] = DeciToC((int16_t)Model::getCurrentVal_T(5));  // defroster operating T
         s_controlLogPayload.T_filt_C[6] = DeciToC((int16_t)Model::getCurrentVal_T(6));  // product final T
 
-        s_controlLogPayload.phase = s_lastPhase;
+         s_controlLogPayload.phase = s_lastPhase;
          s_controlLogPayload.eT_common = eT_common;
          s_controlLogPayload.heatScale01 = heatScale01;
          s_controlLogPayload.uCommon_TEN = uCommon_TEN;
@@ -832,6 +835,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          s_controlLogPayload.fishHot_C = fishHot_C;
          s_controlLogPayload.fishCold_C = fishCold_C;
 
+         // Устанавливаем порядок включения мощных устройств с интервалом между включениями
+         // но выключаем сразу
          ApplyOutputs(
              /*ventLeftOn*/  ventL_on,
              /*ventRightOn*/ ventR_on,
@@ -1780,23 +1785,26 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
                     GateControl_SetCommand(GateControlCommand::Deblock, 0);
                  }
              }
-             return;
+           // В ручном режиме горит красная лампа.
+           ApplyModeLamps(LampModeState::StoppedOrManual);
          }         
 
-        // В ручном режиме автоматический алгоритм и счётчик времени не должны выполняться.
-        if (GateControl_GetManualMode() != 0)
-        {
-            // В ручном режиме горит красная лампа.
-            ApplyModeLamps(LampModeState::StoppedOrManual);
-            return;
-        }
+         // Включен автоматический алгоритм
+         else
+         {
+             ApplyModeLamps(LampModeState::AutoActive);
+             ControlStep1s();
+         };
 
-        ControlStep1s();
-
-        if (g.runtimeSeconds < UINT32_MAX)
-        {
+         // Счётчик времени
+         if (g.runtimeSeconds < UINT32_MAX)
+         {
             g.runtimeSeconds++;
-        }
+         }
+         else
+         {
+            g.runtimeSeconds = 0;
+         }
      }
  }
 
