@@ -19,15 +19,16 @@
  
  #include <math.h>
  #include <stdint.h>
-#include <string.h>
+ #include <string.h>
  
  #include "Data.hpp"                 // индексы датчиков SQ
-#include "DefrostControl.h"
+ #include "DefrostControl.h"
  #include "GateControl.hpp"
  #include <gui/model/Model.hpp>      // Model::getCurrentVal_* и битовый регистр Model::DFR
  #include "ModBus.hpp"
 
 extern SENSOR_typedef_t Sensor_array[SQ];
+extern osSemaphoreId_t SensorsReadDone_SemHandle;
 
 /* Буфер параметров для лога (заполняется в ControlStep1s/ControlStep1s_AirOnly, читается из Data.cpp). */
 static ControlLogPayload_t s_controlLogPayload;
@@ -1797,6 +1798,21 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
             g.runtimeSeconds++;
         }
      }
+ }
+
+ // 3. The task DataAnalysis processing data from sensors
+ void DataFunc()
+ {
+	/* Ждём семафор завершения считывания датчиков (его отпустит Data.cpp).
+	 * osSemaphoreAcquire — уменьшает счётчик на 1, когда он уже больше нуля (забирает токен).
+	 * Если счётчик 0, поток блокируется и ждёт, пока кто-то сделает Release
+	 */
+	osSemaphoreAcquire(SensorsReadDone_SemHandle, osWaitForever);
+
+	// Сначала обновляем состояние ворот (концевики/тайм-ауты),
+	// затем шаг автоматики, чтобы автоматика видела актуальное состояние ворот в этом же такте.
+	GateControl_Update1s();
+	DefrostControl_Update1s();
  }
 
 #ifdef __cplusplus

@@ -8,6 +8,7 @@
 #include "GateControl.hpp"
 #include "DefrostControl.h"
 #include "main.h"
+#include "cmsis_os.h"
 #include <string.h>
 
 
@@ -17,6 +18,7 @@
 extern osEventFlagsId_t ReadDataEventHandle;
 extern osEventFlagsId_t Start_TX_EventHandle;
 extern osSemaphoreId_t ServerResponseReceived_SemHandle;  // ответ на телеметрию (DATA_OK/DATA_FALSE)
+extern osSemaphoreId_t SensorsReadDone_SemHandle;
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osThreadId_t TouchGFX_Task;
 
@@ -325,11 +327,6 @@ void ReadDataFunc() {
 			}
 		}	// конец цикла опроса датчиков
 
-		// Сначала обновляем состояние ворот (концевики/тайм-ауты),
-		// затем шаг автоматики, чтобы автоматика видела актуальное состояние ворот в этом же такте.
-		GateControl_Update1s();
-		DefrostControl_Update1s();
-
 		// Телеметрия и лог отправляются только по команде SEND_STATE от сервера (см. CommandReceiver REQ_CMD_SEND_STATE).
 
 		// проверим не активные датчики на активность
@@ -371,15 +368,15 @@ void ReadDataFunc() {
 				}	// закончили считывать параметры с датчика
 			}
 
-			// установка флага FLAG_DataAnalysis для запуска задачи DataAnalysis
-
+			/* отпускаем семафор SensorsReadDone для запуска задачи DataAnalysis
+			 * osSemaphoreRelease — увеличивает счётчик семафора на 1 (отдаёт один «токен»).
+			 * Это не «взвод», а именно «отпускание» семафора.
+			 * Семафор «взводится» (становится доступным для ожидающих) именно вызовом Release, а не Acquire.
+			 */
+			if (SensorsReadDone_SemHandle != NULL) {
+			    osSemaphoreRelease(SensorsReadDone_SemHandle);
+			}
 	}	// конец рабочего цикла
-}
-
-// 3. The task DataAnalysis processing data from sensors
-void DataFunc()
-{
-	osDelay(1000);
 }
 
 void InitData()

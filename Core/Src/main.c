@@ -187,6 +187,11 @@ osSemaphoreId_t ServerResponseReceived_SemHandle;
 const osSemaphoreAttr_t ServerResponseReceived_Sem_attributes = {
   .name = "ServerRespRcvd"
 };
+// Семафор: окончание процесса считывания с датчиков, начало обработки данных для автоматического регулирования
+osSemaphoreId_t SensorsReadDone_SemHandle;
+const osSemaphoreAttr_t SensorsReadDone_Sem_attributes = {
+  .name = "SensorsReadDone"
+};
 /* Описания для TX_To_Server */
 osThreadId_t TX_To_ServerHandle;
 const osThreadAttr_t TX_To_Server_attributes = {
@@ -346,7 +351,8 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   ServerResponseReceived_SemHandle = osSemaphoreNew(1, 0, &ServerResponseReceived_Sem_attributes);
-  /* USER CODE END RTOS_SEMAPHORES */
+  SensorsReadDone_SemHandle = osSemaphoreNew(1, 0, &SensorsReadDone_Sem_attributes);
+ /* USER CODE END RTOS_SEMAPHORES */
 
   /* Создание таймеров */
   /* creation of DataTimer */
