@@ -982,7 +982,6 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         s_controlLogPayload.T_filt_C[3] = DeciToC((int16_t)Model::getCurrentVal_T(3));  // fish T left
         s_controlLogPayload.T_filt_C[4] = DeciToC((int16_t)Model::getCurrentVal_T(4));  // fish T right
         s_controlLogPayload.T_filt_C[5] = DeciToC((int16_t)Model::getCurrentVal_T(5));  // defroster operating T
-        s_controlLogPayload.T_filt_C[6] = DeciToC((int16_t)Model::getCurrentVal_T(6));  // product final T
 
         s_controlLogPayload.w_sup_avg = w_sup_avg;
         s_controlLogPayload.wErr = wErr;

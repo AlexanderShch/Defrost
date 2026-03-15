@@ -82,11 +82,12 @@ void Data_EnqueueCurrentTelemetry(void)
 /* По команде SEND_STATE: если авторежим — сформировать лог и поставить в очередь. */
 void Data_EnqueueCurrentLogIfAuto(void)
 {
-	if (DefrostControl_IsEnabled() == 0 || GateControl_GetManualMode() != 0 || Model::isDefrostManualModeEnabled())
+	if (DefrostControl_IsEnabled() == 0 || Model::isDefrostManualModeEnabled())
 	{
 		return;
 	}
-	ControlLogPayload_t logPayload;
+	ControlLogPayload_t logPayload = {};
+
 	DefrostControl_GetControlLogPayload(&logPayload, (uint16_t)TimeFromStart);
 	uint8_t logPacket[LOG_PACKET_SIZE];
 	logPacket[0] = 0x01u;

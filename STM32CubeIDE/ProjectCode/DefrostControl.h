@@ -122,7 +122,9 @@ typedef struct __attribute__((packed)) {
  * затем текущая фаза + группа 3 — переменные алгоритма.
  * Группы 1 и 2 — по запросу REQ_CMD_GET_DEFROST_GROUP (groupId 5 и 6). */
 typedef struct __attribute__((packed)) {
-    float T_filt_C[7];           /* 0..6: отфильтрованные T датчиков (см. Sensor_array индекс) */
+    uint8_t DataType;			// Байт типа передаваемых данных (0x01 для лога)
+    uint8_t Len;               // Длина полезной части после Len и до CRC (в байтах), включается в CRC
+    float T_filt_C[6];           /* 0..5: отфильтрованные T датчиков (см. Sensor_array индекс) */
     uint8_t phase;               /* 0=WarmUp, 1=Plateau, 2=Finish */
     float eT_common, heatScale01;
     float uCommon_TEN, trim_TEN, uLeft_TEN, uRight_TEN;
@@ -130,6 +132,7 @@ typedef struct __attribute__((packed)) {
     float w_sup_avg, wErr, injDuty;
     float rate_Cps;
     float fishHot_C, fishCold_C;
+    uint16_t CRC_SUM;			// Контрольное значение
 } ControlLogPayload_t;
 
 void DefrostControl_GetControlLogPayload(ControlLogPayload_t *out, uint16_t timeFromStart);
