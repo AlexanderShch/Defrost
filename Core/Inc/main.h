@@ -66,7 +66,7 @@ void Error_Handler(void);
 #define FRAME_RATE_GPIO_Port GPIOE
 #define MCU_ACTIVE_Pin GPIO_PIN_5
 #define MCU_ACTIVE_GPIO_Port GPIOE
-#define PROG_MASTER_DE_Pin GPIO_PIN_2
+#define PROG_MASTER_DE_Pin GPIO_PIN_1
 #define PROG_MASTER_DE_GPIO_Port GPIOC
 #define MB_MASTER_DE_Pin GPIO_PIN_8
 #define MB_MASTER_DE_GPIO_Port GPIOC

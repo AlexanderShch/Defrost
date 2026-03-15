@@ -158,7 +158,6 @@ public:
 protected:
     ModelListener* modelListener;
     static short CurrentValueT[SQ];				// текущее значение Т на экране
-    static short FilteredValueT[SQ];			// отфильтрованное и усреднённое значение Т
     static int8_t FlagCurrentValueTChanged[SQ];	// флаг изменения Т
     static short CurrentValueH[SQ];				// текущее значение Н на экране
     static int8_t FlagCurrentValueHChanged[SQ];	// флаг изменения Н

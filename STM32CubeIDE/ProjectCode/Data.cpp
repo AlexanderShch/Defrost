@@ -32,13 +32,7 @@ typedef struct __attribute__((packed))   // формат данных для с�
     int16_t H[SQ];				// Значение 2 сенсора (влажность)
     uint16_t CRC_SUM;			// Контрольное значение
 } MSGQUEUE_OBJ_t;
-/* Размер блока для CRC лога: [Type][Len][Payload] — совпадает с сервером (payloadNoCrcLen). */
-#define LOG_CRC_BLOCK_LEN  (2u + (uint16_t)sizeof(ControlLogPayload_t))
-#define LOG_PACKET_SIZE    (LOG_CRC_BLOCK_LEN + 2u)
-
-#if defined(__cplusplus) && (__cplusplus >= 201103L)
-static_assert(sizeof(ControlLogPayload_t) == 93u, "ControlLogPayload_t must be 93 bytes for server compatibility");
-#endif
+#define LOG_PACKET_SIZE  (2u + sizeof(ControlLogPayload_t) + 2u)
 
 extern unsigned int TimeFromStart;  // определение ниже в файле
 
@@ -93,10 +87,12 @@ void Data_EnqueueCurrentLogIfAuto(void)
 	ControlLogPayload_t logPayload;
 	DefrostControl_GetControlLogPayload(&logPayload, (uint16_t)TimeFromStart);
 	uint8_t logPacket[LOG_PACKET_SIZE];
-	logPacket[0] = 0x01u;   /* Type: лог алгоритма */
-	logPacket[1] = (uint8_t)sizeof(ControlLogPayload_t);  /* Len: только payload, без Type/Len/CRC */
+	logPacket[0] = 0x01u;
+	logPacket[1] = (uint8_t)sizeof(ControlLogPayload_t);
 	memcpy(logPacket + 2, &logPayload, sizeof(ControlLogPayload_t));
-	/* CRC будет посчитан в TX_ToServer перед отправкой (как для телеметрии). */
+	uint16_t crc = MB_GetCRC(logPacket, 2u + (uint16_t)sizeof(ControlLogPayload_t));
+	logPacket[2 + sizeof(ControlLogPayload_t)] = (uint8_t)(crc & 0xFFu);
+	logPacket[2 + sizeof(ControlLogPayload_t) + 1] = (uint8_t)(crc >> 8);
 	ServerTxItem_t item = {};
 	item.type = (uint8_t)SERVER_TX_TYPE_LOG;
 	item.length = (uint8_t)LOG_PACKET_SIZE;
@@ -120,7 +116,6 @@ MB_Error_t result;
 unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// номер такта измерения
 int Sensor::T[TQ][SQ] = {{0}};		// температура
-int Sensor::T_Avarage[TQ][SQ] = {{0}};		// температура фильтрованная усреднённая
 int Sensor::H[TQ][SQ] = {{0}};		// влажность
 // !!! ВНИМАНИЕ! Если меняется структура MSGQUEUE_OBJ_t, надо поменять и размер буфера MAX_MB_BUFSIZE в ModBus.cpp
 
@@ -129,7 +124,7 @@ int Sensor::H[TQ][SQ] = {{0}};		// влажность
  * Параметры функции:
  * 	TimeFromStart - кол-во тиков с момента запуска программы,
  * 	SensNum - number of interesting sensor,
- * 	Param - место int Val в массиве данных: 1 for time, 2 for temperature, 3 for humidity, 4 for average T
+ * 	Param - место int Val в массиве данных: 1 for time, 2 for temperature, 3 for humidity
  * 	Val - value of data
  */
 void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val) {
@@ -146,9 +141,6 @@ void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned
 		break;
 	case 3:
 		H[i][SensNum] = Val;
-		break;
-	case 4:
-		T[i][SensNum] = Val;
 		break;
 	default:
 		break;
@@ -177,8 +169,13 @@ int Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned 
 	}
 }
 
-void Sensor::SetAverageTemperature(unsigned int TimeFromStart, unsigned char SensNum, unsigned int windowSeconds)
+int Sensor::GetAverageTemperature(unsigned int TimeFromStart, unsigned char SensNum, unsigned int windowSeconds)
 {
+	if (windowSeconds == 0u)
+	{
+		return GetData(TimeFromStart, SensNum, 2);
+	}
+
 	long sum = 0;
 	unsigned int count = 0;
 	const unsigned int now = TimeFromStart;
@@ -198,10 +195,12 @@ void Sensor::SetAverageTemperature(unsigned int TimeFromStart, unsigned char Sen
 		}
 	}
 
-	if (count != 0u)
+	if (count == 0u)
 	{
-		PutData(TimeFromStart, SensNum, 4, (int)(sum / (long)count));
+		return GetData(TimeFromStart, SensNum, 2);
 	}
+
+	return (int)(sum / (long)count);
 }
 
 // 1. Operating system timer 1 sec will start this function
@@ -214,33 +213,6 @@ void DataTimerFunc()
 	// Нельзя блокироваться внутри callback таймера RTOS: это добавляет джиттер и может задерживать другие таймеры.
 }
 
-/* Ограничение скорости изменения температуры: не более 1.1 °C/сек (11 десятых градуса).
-   Записывает отфильтрованное значение в буферный массив текущих значений с датчиков.
-   Усредняет и записывает усреднённую Т в буферный массив текущих значений с датчиков. */
-static void ApplyTemperatureRateLimitAndUpdate(int SensorIndex, int Temp, unsigned int timeFromStart)
-{
-	const int maxDeltaDeci = 11;
-	const int TempOld = Model::getCurrentVal_T(SensorIndex);
-	int TempFiltered;
-	if (timeFromStart == 0u)
-	{
-		TempFiltered = Temp;
-	}
-	else
-	{
-		int delta = Temp - TempOld;
-		if (delta > maxDeltaDeci)
-			delta = maxDeltaDeci;
-		else if (delta < -maxDeltaDeci)
-			delta = -maxDeltaDeci;
-		TempFiltered = TempOld + delta;
-	}
-	// Запишем отфильтрованную Т в в буфер текущих значений с датчиков
-	Sensor::PutData(TimeFromStart, SensorIndex, 2, TempFiltered);
-	// Запишем усреднённую Т в буфер текущих значений с датчиков
-	Sensor::SetAverageTemperature(TimeFromStart, SensorIndex, 10u);
-}
-
 /* 2. The task ReadData reading data from sensors
  * 	0 - defroster T, H left
  * 	1 - defroster T, H right
@@ -251,10 +223,12 @@ static void ApplyTemperatureRateLimitAndUpdate(int SensorIndex, int Temp, unsign
  * 	6 - product final T
 */
 void ReadDataFunc() {
-	int TempOld = 0, HumOld = 0;
-	int TempNew = 0, HumNew = 0;
-	int T_CORR_Old = 0, H_CORR_Old = 0, R_CORR_Old = 0;
-	int T_CORR_New = 0, H_CORR_New = 0, R_CORR_New = 0;
+	int TempOld, HumOld = 0;
+	int HumNew = 0;
+	int TempAvg10 = 0;
+	int TempFiltered = 0;
+	int T_CORR_Old, H_CORR_Old = 0, R_CORR_Old = 0;
+	int T_CORR_New, H_CORR_New = 0, R_CORR_New = 0;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// КРИТИЧНО: Явно устанавливаем UART4 в режим приёма ПЕРЕД началом работы
@@ -312,28 +286,49 @@ void ReadDataFunc() {
 				// Продолжаем для активного датчика
 				result = Sensor_Read(SensorIndex);
 
-				TempNew = Sensor::GetData(TimeFromStart, SensorIndex, 2);		// то, что приняли с датчика
-				// Temperature: обрезаем по скорости изменения Т, корректируем новую Т в массиве,
-				// усредняем 10 последних измерений, записываем среднее в массив
-				ApplyTemperatureRateLimitAndUpdate(SensorIndex, TempNew, TimeFromStart);
-
 				// запись в переменные экрана, если есть изменения
-				// Temperature
-				TempOld = Model::getCurrentVal_T(SensorIndex);					// то, что сейчас на экране
-				if (TempOld != TempNew)
+				// Temperature: фильтруем по скорости изменения и усредняем по времени
+				TempOld = Model::getCurrentVal_T(SensorIndex);
+				TempAvg10 = Sensor::GetAverageTemperature(TimeFromStart, SensorIndex, 10u);
+
+				// Ограничение скорости изменения: не более 1.1 °C/сек (11 десятых градуса)
+				const int maxDeltaDeci = 11;
+				if (TimeFromStart == 0u || TempOld == 0)
 				{
-					Model::setCurrentVal_T(SensorIndex, TempNew);
+					TempFiltered = TempAvg10;
+				}
+				else
+				{
+					int delta = TempAvg10 - TempOld;
+					if (delta > maxDeltaDeci)
+					{
+						delta = maxDeltaDeci;
+					}
+					else if (delta < -maxDeltaDeci)
+					{
+						delta = -maxDeltaDeci;
+					}
+					TempFiltered = TempOld + delta;
 				}
 
+				if (TempOld != TempFiltered)
+				{
+					Model::setCurrentVal_T(SensorIndex, TempFiltered);
+				}
 				// Humidity
-				HumNew = Sensor::GetData(TimeFromStart, SensorIndex, 3);		// то, что приняли с датчика
-				HumOld = Model::getCurrentVal_H(SensorIndex);					// то, что сейчас на экране
+				HumOld = Model::getCurrentVal_H(SensorIndex);
+				HumNew = Sensor::GetData(TimeFromStart, SensorIndex, 3);
 				if (HumOld != HumNew)
 				{
 					Model::setCurrentVal_H(SensorIndex, HumNew);
 				}
 			}
 		}	// конец цикла опроса датчиков
+
+		// Сначала обновляем состояние ворот (концевики/тайм-ауты),
+		// затем шаг автоматики, чтобы автоматика видела актуальное состояние ворот в этом же такте.
+		GateControl_Update1s();
+		DefrostControl_Update1s();
 
 		// Телеметрия и лог отправляются только по команде SEND_STATE от сервера (см. CommandReceiver REQ_CMD_SEND_STATE).
 
@@ -377,9 +372,14 @@ void ReadDataFunc() {
 			}
 
 			// установка флага FLAG_DataAnalysis для запуска задачи DataAnalysis
-	        if (DataAnalysisStart_SemHandle != NULL)
-	        	osSemaphoreRelease(DataAnalysisStart_SemHandle);
+
 	}	// конец рабочего цикла
+}
+
+// 3. The task DataAnalysis processing data from sensors
+void DataFunc()
+{
+	osDelay(1000);
 }
 
 void InitData()
@@ -434,7 +434,7 @@ void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length)
 	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 }
 
-// Передача данных серверу: отправка сразу при возможности (когда нет приёма — WriteToServerWithSync ждёт)
+// Передача данных серверу: одна очередь, отправка сразу при возможности (когда нет приёма — WriteToServerWithSync ждёт)
 void TX_ToServer()
 {
 	ServerTxItem_t item = {};
@@ -442,7 +442,7 @@ void TX_ToServer()
 	while (1)
 	{
 		item = {};
-		// Ждём элемент из очереди (таймаут 50 мс, чтобы не нагружать CPU)
+		// Ждём элемент из единственной очереди (таймаут 50 мс, чтобы не нагружать CPU)
 		osStatus_t st = osMessageQueueGet(Data_QueueHandle, &item, 0u, 50u);
 		if (st != osOK)
 		{
@@ -461,13 +461,6 @@ void TX_ToServer()
 			MSGQUEUE_OBJ_t* p = (MSGQUEUE_OBJ_t*)item.data;
 			p->CRC_SUM = MB_GetCRC((uint8_t*)p, sizeof(MSGQUEUE_OBJ_t) - 2u);
 			memcpy(&LastSentTelemetry, p, sizeof(MSGQUEUE_OBJ_t));
-		}
-		else if (item.type == SERVER_TX_TYPE_LOG)
-		{
-			// CRC по блоку [Type][Len][Payload], LSB first — как для телеметрии
-			uint16_t crc = MB_GetCRC(item.data, LOG_CRC_BLOCK_LEN);
-			item.data[LOG_CRC_BLOCK_LEN]     = (uint8_t)(crc & 0xFFu);
-			item.data[LOG_CRC_BLOCK_LEN + 1] = (uint8_t)(crc >> 8);
 		}
 
 		// Отправка сразу при возможности:

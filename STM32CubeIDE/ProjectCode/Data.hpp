@@ -25,13 +25,12 @@ public:
 	Sensor(){};										// конструктор по умолчанию
 	Sensor(unsigned int Time, int T, int H){};		// конструктор
 	static void PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val);
-	static void SetAverageTemperature(unsigned int TimeFromStart, unsigned char SensNum, unsigned int windowSeconds);
 	static int GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param);
+	static int GetAverageTemperature(unsigned int TimeFromStart, unsigned char SensNum, unsigned int windowSeconds);
 
 protected:
 	static unsigned int Time[TQ][SQ];	// номер такта измерения
 	static int T[TQ][SQ];			// температура
-	static int T_Avarage[TQ][SQ];			// температура отфильтрованная усреднённая
 	static int H[TQ][SQ];			// влажность
 };
 
@@ -49,7 +48,7 @@ void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds);
 // Единая очередь отправки на сервер (телеметрия, лог, ответы на команды).
 // Один поток TX_ToServer забирает из очереди и вызывает WriteToServerWithSync при возможности (нет приёма).
 // ═══════════════════════════════════════════════════════════════════════════
-#define SERVER_TX_ITEM_SIZE  99u   /* размер элемента очереди (type + length + payload); лог: 2+93+2=97 байт (Type+Len+ControlLogPayload_t+CRC) */
+#define SERVER_TX_ITEM_SIZE  98u   /* размер элемента очереди (type + length + payload); регулярный лог только группа 3 ~68 байт */
 
 typedef enum {
 	SERVER_TX_TYPE_TELEMETRY = 0,
@@ -64,7 +63,6 @@ typedef struct __attribute__((packed)) {
 } ServerTxItem_t;
 
 extern osMessageQueueId_t Data_QueueHandle;
-extern osSemaphoreId_t DataAnalysisStart_SemHandle;
 
 /* Поставить в очередь (телеметрия, лог). Вызывать из DataProcessing / таймера. */
 void ServerTx_EnqueueNormal(ServerTxType_t type, const uint8_t* data, uint16_t length);

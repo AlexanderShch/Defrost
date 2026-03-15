@@ -1811,18 +1811,3 @@ void DefrostControl_GetControlLogPayload(ControlLogPayload_t *out, uint16_t time
 #ifdef __cplusplus
 }
 #endif
-
-// 3. The task DataAnalysis processing data from sensors
-void DataFunc()
-{
-	// Ждём флаг DataAnalysisStart,который разрешит анализ данных после приёма от датчиков
-    if (DataAnalysisStart_SemHandle != NULL)
-    	osSemaphoreAcquire(DataAnalysisStart_SemHandle, osWaitForever);
-
-    // Сначала обновляем состояние ворот (концевики/тайм-ауты),
-	// затем шаг автоматики, чтобы автоматика видела актуальное состояние ворот в этом же такте.
-	GateControl_Update1s();
-	DefrostControl_Update1s();
-
-}
-
