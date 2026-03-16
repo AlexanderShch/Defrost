@@ -1408,14 +1408,17 @@ void WriteToServer(uint8_t* Data, int length)
  * Описание: Отправка пакета на сервер с маркером начала (AA 55), но без маркера конца
  * 
  * ФОРМАТ ПАКЕТА:
- *   [AA 55] [Данные с CRC]
- *   └──┬──┘ └─────┬──────┘
- *    START      Data
+ *   [AA 55] [Type + Len + PayLoad + CRC]
+ *   └──┬──┘ └─────────────┬────────────┘
+ *    START              Data
  * 
  * Параметры:
- * 	 - START  маркер начала пакета данных
- *   - Data   указатель на данные пакета (с CRC)
- *   - length длина данных Data (без маркера начала)
+ * 	 - START  		маркер начала пакета
+ *   - Data		   	указатель на данные пакета (с CRC)
+ *   - Type			тип пакета
+ *   - Len 	  		длина данных PayLoad
+ *   - PayLoad		данные
+ *   - CRC			CRC по данным PayLoad
  * 
  * ВАЖНО: CRC должен быть уже рассчитан и помещён в Data!
  * 
@@ -1430,7 +1433,7 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 	TxBufferWithSync[0] = SYNC_START_1;  // 0xAA
 	TxBufferWithSync[1] = SYNC_START_2;  // 0x55
 	
-	// Копируем данные (Type + payload + CRC)
+	// Добавляем в буфер данные (Type + Len + PayLoad + CRC)
 	memcpy(&TxBufferWithSync[2], Data, length);
 	
 	WriteToServer(TxBufferWithSync, length + 2);	// Отправляем пакет на сервер
