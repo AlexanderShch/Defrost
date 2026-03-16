@@ -65,9 +65,6 @@ typedef struct __attribute__((packed)) {
 
 extern osMessageQueueId_t Data_QueueHandle;
 
-/* Поставить в очередь (телеметрия, лог). Вызывать из DataProcessing / таймера. */
-void ServerTx_EnqueueNormal(ServerTxType_t type, const uint8_t* data, uint16_t length);
-
 /* Поставить в очередь (ответ на команду, повтор телеметрии). Тот же буфер, тип SERVER_TX_TYPE_HIGH. */
 void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length);
 

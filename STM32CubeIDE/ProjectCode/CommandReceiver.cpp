@@ -191,6 +191,8 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     // ═══════════════════════════════════════════════════════════════════════════
     ServerTx_EnqueueHighPriority(TX_Response_Buffer, (uint16_t)txLength);
 
+
+
     if (g_currentCmdSkipAudit == 0)
     {
         g_lastCmdAckSent = 1;

@@ -1365,7 +1365,7 @@ void WriteToServer(uint8_t* Data, int length)
 		result = UART4_TryEnterForTx();
 		if (result != MB_ERROR_NO)
 		{
-		// Освобождение мьютекса уже сделано внутри при ошибке
+		// Освобождение мьютекса при ошибке уже сделано внутри
 		osDelay(1);
 		continue;
 		}
@@ -1405,233 +1405,33 @@ void WriteToServer(uint8_t* Data, int length)
 
 /*
  * Функция: WriteToServerWithSync
- * Описание: Отправка пакета на сервер с маркером начала (AA 55) без маркера конца
+ * Описание: Отправка пакета на сервер с маркером начала (AA 55), но без маркера конца
  * 
  * ФОРМАТ ПАКЕТА:
- *   [AA 55] [Данные]
- *   └─┬──┘  └───┬──┘ └──┬──┘
- *   START    Data
+ *   [AA 55] [Данные с CRC]
+ *   └──┬──┘ └─────┬──────┘
+ *    START      Data
  * 
  * Параметры:
- *   - Data: указатель на данные пакета (с CRC)
- *   - length: длина данных (без маркера начала)
+ * 	 - START  маркер начала пакета данных
+ *   - Data   указатель на данные пакета (с CRC)
+ *   - length длина данных Data (без маркера начала)
  * 
- * ВАЖНО: CRC должен быть уже рассчитан в Data!
+ * ВАЖНО: CRC должен быть уже рассчитан и помещён в Data!
  * 
  * Примеры:
- *   Телеметрия: [AA 55][Type][Len][Payload...][CRC16]
- *   Ответ:      [AA 55][Type][Len][Code + Status + DataLen + Data][CRC16]
+ *   Телеметрия: [AA 55][Type + Len + Payload + CRC16]
+ *   Ответ:      [AA 55][Type + Len + Code + Status + DataLen + Data + CRC16]
  */
 void WriteToServerWithSync(uint8_t* Data, int length)
 {
-	MB_Error_t result;
-	MB_Active_t MB;
 	static uint8_t TxBufferWithSync[MAX_MB_BUFSIZE];
 
-	if (UART4_IsOwner_Programming() != 0)
-	{
-		// Во время программирования меняется baud UART4, поэтому серверный трафик нужно приостановить.
-		return;
-	}
-	
-	// Проверка размера буфера
-	if ((size_t)(length + 2) > sizeof(TxBufferWithSync))
-	{
-		// Пакет слишком большой - отправляем без маркера начала (обратная совместимость)
-		WriteToServer(Data, length);
-		return;
-	}
-
-	// Телеметрия (низкий приоритет) не должна блокировать приём/ответ команд.
-	while (CommandReceiver_IsHandling() != 0)
-	{
-		osDelay(1);
-	}
-
-	for (;;)
-	{
-		// If a server command frame is arriving right now, wait for it to complete without holding the UART4 mutex.
-		result = WaitUntilUART4RxFrameCompletes();
-		if (result != MB_ERROR_NO)
-		{
-			return;
-		}
-
-		// ═══════════════════════════════════════════════════════════════════════════
-		// ЗАХВАТ МЬЮТЕКСА UART4
-		// ═══════════════════════════════════════════════════════════════════════════
-		osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
-		if (mutexStatus != osOK)
-		{
-			return;
-		}
-
-		// Повторная проверка после захвата: если CommandReceiver начал обработку, сразу уступаем.
-		if (CommandReceiver_IsHandling() != 0)
-		{
-			osMutexRelease(UART4_MutexHandle);
-			osDelay(1);
-			continue;
-		}
-
-		// Если байты приходят прямо сейчас, не удерживаем мьютекс во время ожидания.
-		if (UART4_IsReceivingBytesNow() != 0)
-		{
-			osMutexRelease(UART4_MutexHandle);
-			osDelay(1);
-			continue;
-		}
-
-		// Перед переключением направления RS-485 в TX гарантируем остановку RX DMA.
-		HAL_UART_AbortReceive(&huart4);
-		osDelay(2);
-		break;
-	}
-
-	// ═══════════════════════════════════════════════════════════════════════════
-	// ФОРМИРОВАНИЕ ПАКЕТА С МАРКЕРОМ НАЧАЛА
-	// ═══════════════════════════════════════════════════════════════════════════
-	// Структура: [AA 55] [Data]
-	
 	TxBufferWithSync[0] = SYNC_START_1;  // 0xAA
 	TxBufferWithSync[1] = SYNC_START_2;  // 0x55
 	
 	// Копируем данные (Type + payload + CRC)
 	memcpy(&TxBufferWithSync[2], Data, length);
 	
-	// Инициируем среду для работы по шине
-	MB.UART = &huart4;
-	MB.PORT = PROG_MASTER_DE_GPIO_Port;
-	MB.PORT_PIN = PROG_MASTER_DE_Pin;
-	MB.Sem_Rx = &UART4_RX_Event_SemHandle;
-	MB.Sem_Tx = &PR_TX_Compl_SemHandle;
-	
-	// Копируем в буфер передачи (весь пакет с маркером начала)
-	memcpy(MB.Tx_Buffer, TxBufferWithSync, length + 2);
-	
-	// ═══════════════════════════════════════════════════════════════════════════
-	// ОТПРАВКА С МАРКЕРОМ НАЧАЛА
-	// ═══════════════════════════════════════════════════════════════════════════
-	result = Master_SendTelemetry(&MB, length + 2);
-	
-	// После передачи перезапускаем приём команд
-	CommandReceiver_RestartReception();
-	
-	// ═══════════════════════════════════════════════════════════════════════════
-	// ОСВОБОЖДЕНИЕ МЬЮТЕКСА UART4
-	// ═══════════════════════════════════════════════════════════════════════════
-	osMutexRelease(UART4_MutexHandle);
-	
-	if (result != MB_ERROR_NO)
-	{
-		// Обработка ошибки передачи
-	}
+	WriteToServer(TxBufferWithSync, length + 2);	// Отправляем пакет на сервер
 }
-
-void WriteToServerWithSyncHighPriority(uint8_t* Data, int length)
-{
-	MB_Error_t result;
-	MB_Active_t MB;
-	static uint8_t TxBufferWithSync[MAX_MB_BUFSIZE];
-
-	if (UART4_IsOwner_Programming() != 0)
-	{
-		// UART4 changes baud rate during programming; server traffic must be suspended.
-		return;
-	}
-
-	if ((size_t)(length + 2) > sizeof(TxBufferWithSync))
-	{
-		// Резервный вариант: отправить без SYNC-маркеров, но сохранить семантику "высокого приоритета".
-		for (;;)
-		{
-			result = WaitUntilUART4RxFrameCompletes();
-			if (result != MB_ERROR_NO)
-			{
-				return;
-			}
-
-			osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
-			if (mutexStatus != osOK)
-			{
-				return;
-			}
-
-			if (UART4_IsReceivingBytesNow() != 0)
-			{
-				osMutexRelease(UART4_MutexHandle);
-				osDelay(1);
-				continue;
-			}
-
-			HAL_UART_AbortReceive(&huart4);
-			osDelay(2);
-			break;
-		}
-
-		MB.UART = &huart4;
-		MB.PORT = PROG_MASTER_DE_GPIO_Port;
-		MB.PORT_PIN = PROG_MASTER_DE_Pin;
-		MB.Sem_Rx = &UART4_RX_Event_SemHandle;
-		MB.Sem_Tx = &PR_TX_Compl_SemHandle;
-		memcpy(MB.Tx_Buffer, Data, length);
-
-		result = Master_SendTelemetry(&MB, length);
-		CommandReceiver_RestartReception();
-		osMutexRelease(UART4_MutexHandle);
-
-		if (result != MB_ERROR_NO)
-		{
-		}
-
-		return;
-	}
-
-	for (;;)
-	{
-		// Если прямо сейчас приходит кадр от сервера, ждём его завершения.
-		result = WaitUntilUART4RxFrameCompletes();
-		if (result != MB_ERROR_NO)
-		{
-			return;
-		}
-
-		osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
-		if (mutexStatus != osOK)
-		{
-			return;
-		}
-
-		if (UART4_IsReceivingBytesNow() != 0)
-		{
-			osMutexRelease(UART4_MutexHandle);
-			osDelay(1);
-			continue;
-		}
-
-		HAL_UART_AbortReceive(&huart4);
-		osDelay(2);
-		break;
-	}
-
-	TxBufferWithSync[0] = SYNC_START_1;
-	TxBufferWithSync[1] = SYNC_START_2;
-	memcpy(&TxBufferWithSync[2], Data, length);
-
-	MB.UART = &huart4;
-	MB.PORT = PROG_MASTER_DE_GPIO_Port;
-	MB.PORT_PIN = PROG_MASTER_DE_Pin;
-	MB.Sem_Rx = &UART4_RX_Event_SemHandle;
-	MB.Sem_Tx = &PR_TX_Compl_SemHandle;
-	memcpy(MB.Tx_Buffer, TxBufferWithSync, length + 2);
-
-	result = Master_SendTelemetry(&MB, length + 2);
-	CommandReceiver_RestartReception();
-
-	osMutexRelease(UART4_MutexHandle);
-
-	if (result != MB_ERROR_NO)
-	{
-	}
-}
-

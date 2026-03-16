@@ -77,7 +77,7 @@ void Data_EnqueueCurrentTelemetry(void)
 {
 	MSGQUEUE_OBJ_t DataToServer = {};
 	DataToServer.DataType = (uint8_t)SERVER_TX_TYPE_TELEMETRY;
-	DataToServer.Len = 45;	// это полная длина посылки в формате [AA 55]+[Data]+[CRC], по другому: [AA 55]+[MSGQUEUE_OBJ_t = 43 байта]
+	DataToServer.Len = 45;	// это полная длина посылки в формате [type+length]+[Data+CRC], по другому: [type+length = 2]+[MSGQUEUE_OBJ_t = 43 байта] = 45
 	DataToServer.Time = (uint16_t)TimeFromStart;
 	DataToServer.SensorQuantity = SQ;
 	for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
@@ -88,8 +88,8 @@ void Data_EnqueueCurrentTelemetry(void)
 		DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
 	}
 	ServerTxItem_t item = {};
-	item.type = (uint8_t)SERVER_TX_TYPE_TELEMETRY;
-	item.length = (uint8_t)sizeof(MSGQUEUE_OBJ_t);
+	item.type = (uint8_t)SERVER_TX_TYPE_TELEMETRY;				// здесь добавляется type
+	item.length = (uint8_t)sizeof(MSGQUEUE_OBJ_t);				// здесь добавляется length [Data+CRC]
 	memcpy(item.data, &DataToServer, sizeof(MSGQUEUE_OBJ_t));
 	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 }
@@ -102,21 +102,15 @@ void Data_EnqueueCurrentLogIfAuto(void)
 		return;
 	}
 	ControlLogPayload_t logPayload = {};
-
+	// копируем текущее состояние алгоритма в logPayload
 	DefrostControl_GetControlLogPayload(&logPayload, (uint16_t)TimeFromStart);
-	uint8_t logPacket[LOG_PACKET_SIZE];
-	//logPacket[0] = 0x01u;
-	//logPacket[1] = (uint8_t)sizeof(ControlLogPayload_t);
 	logPayload.DataType = (uint8_t)SERVER_TX_TYPE_LOG;
-	logPayload.Len = 2 + (uint8_t)sizeof(ControlLogPayload_t);		// это полная длина посылки в формате [AA 55]+[Data]+[CRC]
-	memcpy(logPacket + 2, &logPayload, sizeof(ControlLogPayload_t));
-	uint16_t crc = MB_GetCRC(logPacket, 2u + (uint16_t)sizeof(ControlLogPayload_t));
-	logPacket[2 + sizeof(ControlLogPayload_t)] = (uint8_t)(crc & 0xFFu);
-	logPacket[2 + sizeof(ControlLogPayload_t) + 1] = (uint8_t)(crc >> 8);
+	logPayload.Len = 2 + (uint8_t)sizeof(ControlLogPayload_t);		// это полная длина посылки в формате [type+length]+[Data+CRC]
+
 	ServerTxItem_t item = {};
-	item.type = (uint8_t)SERVER_TX_TYPE_LOG;
-	item.length = (uint8_t)LOG_PACKET_SIZE;
-	memcpy(item.data, logPacket, LOG_PACKET_SIZE);
+	item.type = (uint8_t)SERVER_TX_TYPE_LOG;					// здесь добавляется type
+	item.length = (uint8_t)sizeof(ControlLogPayload_t);			// здесь добавляется length [Data+CRC]
+	memcpy(item.data, &logPayload, (uint8_t)sizeof(ControlLogPayload_t));
 	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 }
 
@@ -438,19 +432,6 @@ void ResendLastTelemetry(void)
 }
 
 // Единая очередь отправки на сервер (телеметрия, лог, ответы на команды)
-void ServerTx_EnqueueNormal(ServerTxType_t type, const uint8_t* data, uint16_t length)
-{
-	if (data == NULL || length > (SERVER_TX_ITEM_SIZE - 2u))
-	{
-		return;
-	}
-	ServerTxItem_t item = {};
-	item.type = (uint8_t)type;
-	item.length = (uint8_t)length;
-	memcpy(item.data, data, length);
-	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
-}
-
 void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length)
 {
 	if (data == NULL || length > (SERVER_TX_ITEM_SIZE - 2u))
@@ -464,7 +445,8 @@ void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length)
 	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 }
 
-// Передача данных серверу: одна очередь, отправка сразу при возможности (когда нет приёма — WriteToServerWithSync ждёт)
+// Ждём элемент из очереди Data_QueueHandle (таймаут 50 мс, чтобы не нагружать CPU)
+// принимаем элемент из очереди, добавляем CRC и отправляем на сервер через WriteToServerWithSync
 void TX_ToServer()
 {
 	ServerTxItem_t item = {};
@@ -472,7 +454,6 @@ void TX_ToServer()
 	while (1)
 	{
 		item = {};
-		// Ждём элемент из единственной очереди (таймаут 50 мс, чтобы не нагружать CPU)
 		osStatus_t st = osMessageQueueGet(Data_QueueHandle, &item, 0u, 50u);
 		if (st != osOK)
 		{
@@ -485,34 +466,44 @@ void TX_ToServer()
 			continue;
 		}
 
-		if (item.type == SERVER_TX_TYPE_TELEMETRY)
+		switch (item.type)
 		{
-			// CRC и копия для повтора при DATA_FALSE
-			MSGQUEUE_OBJ_t* p = (MSGQUEUE_OBJ_t*)item.data;
-			p->CRC_SUM = MB_GetCRC((uint8_t*)p, sizeof(MSGQUEUE_OBJ_t) - 2u);
-			memcpy(&LastSentTelemetry, p, sizeof(MSGQUEUE_OBJ_t));
+			case SERVER_TX_TYPE_TELEMETRY:	// добавляем CRC и сохраняем копию для повтора при DATA_FALSE
+			{
+				MSGQUEUE_OBJ_t* p = (MSGQUEUE_OBJ_t*)item.data;
+				p->CRC_SUM = MB_GetCRC((uint8_t*)p, sizeof(MSGQUEUE_OBJ_t) - 2u);	// формируем CRC из данных без поля CRC и помещаем в поле CRC
+				memcpy(&LastSentTelemetry, p, sizeof(MSGQUEUE_OBJ_t));				// сохраняем копию данных для повторной отправки
+				WriteToServerWithSync(item.data, (int)len);
+				break;
+			}
+			case SERVER_TX_TYPE_LOG:	// добавляем CRC и отправляем лог параметров
+			{
+				ControlLogPayload_t* p = (ControlLogPayload_t*)item.data;
+				p->CRC_SUM = MB_GetCRC((uint8_t*)p, sizeof(ControlLogPayload_t) - 2u);	// формируем CRC из данных без поля CRC и помещаем в поле CRC
+				WriteToServerWithSync(item.data, (int)len);
+				break;
+			}
+			case SERVER_TX_TYPE_HIGH:		// высокоприоритетный ответ / повтор телеметрии
+			{
+				WriteToServerWithSync(item.data, (int)len);
+				break;
+			}
+			default:						// обычный низкоприоритетный пакет (лог и т.п.)
+			{
+				WriteToServerWithSync(item.data, (int)len);
+				break;
+			}
 		}
-
-		// Отправка сразу при возможности:
-		// - для SERVER_TX_TYPE_HIGH используем WriteToServerWithSyncHighPriority (не блокируемся на CommandReceiver_IsHandling);
-		// - для телеметрии/лога используем обычный WriteToServerWithSync.
-		if (item.type == SERVER_TX_TYPE_HIGH)
-		{
-			WriteToServerWithSyncHighPriority(item.data, (int)len);
-		}
-		else
-		{
-			WriteToServerWithSync(item.data, (int)len);
-		}
-
 		// После отправки телеметрии ждём до 100 мс ответ сервера (DATA_OK/DATA_FALSE),
 		// Следующую передачу из очереди можно начинать только после ответа сервера, например, передачу лога
 		if (item.type == SERVER_TX_TYPE_TELEMETRY && ServerResponseReceived_SemHandle != NULL)
 		{
+			// Сделаем очистку семафора от предыдущих значений
 			while (osSemaphoreAcquire(ServerResponseReceived_SemHandle, 0u) == osOK)
 			{
 				;
 			}
+			// Ждём ответ сервера в течение 100 мс, после этого можно продолжать передачу данных
 			osSemaphoreAcquire(ServerResponseReceived_SemHandle, 100u);
 		}
 	}
