@@ -24,30 +24,35 @@ extern osSemaphoreId_t UART4_RX_Event_SemHandle; // событие UART4 RX-to-I
 extern osMutexId_t UART4_MutexHandle;			// защита переходов владения UART4
 }
 
+// Арбитраж владения UART4 между сервером и программированием
 typedef enum
 {
 	UART4_OWNER_SERVER = 0,
 	UART4_OWNER_PROGRAMMING = 1
 } UART4_Owner_t;
 
+// Глобальная переменная владения UART4
 static volatile UART4_Owner_t g_uart4Owner = UART4_OWNER_SERVER;
 
+// Функция установки владения UART4 сервером
 extern "C" void UART4_SetOwner_Server(void)
 {
 	g_uart4Owner = UART4_OWNER_SERVER;
 }
 
+// Функция установки владения UART4 программированием
 extern "C" void UART4_SetOwner_Programming(void)
 {
 	g_uart4Owner = UART4_OWNER_PROGRAMMING;
 }
 
+// Функция проверки владения UART4 программированием
 extern "C" uint8_t UART4_IsOwner_Programming(void)
 {
 	return (g_uart4Owner == UART4_OWNER_PROGRAMMING) ? 1 : 0;
 }
 
-// Объявления функций CommandReceiver
+// Объявления функций CommandReceiver для обработки данных от сервера
 void CommandReceiver_OnDataReceived(uint16_t receivedSize);
 void CommandReceiver_RestartReception(void);
 
@@ -1288,62 +1293,83 @@ MB_Error_t Master_SendTelemetry(MB_Active_t *MB, int N_Bytes)
 	return MB_ERR;
 }
 
+// Функция для предотвращения конфликта приёма и передачи данных на сервер и для захвата мьютекса UART4
+static MB_Error_t UART4_TryEnterForTx(void)
+{
+	MB_Error_t result;
+
+	// Если прямо сейчас приходит кадр от сервера, ждём его завершения, не удерживая мьютекс UART4.
+	result = WaitUntilUART4RxFrameCompletes();
+	if (result != MB_ERROR_NO)
+	{
+		return result;
+	}
+
+	// Захват мьютекса UART4 — защита от конфликта с программированием датчиков
+	osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
+	if (mutexStatus != osOK)
+	{
+		// Не удалось захватить мьютекс — считаем это ошибкой шины
+		return MB_ERROR_UART_SEND;
+	}
+
+	// Повторная проверка после захвата: если CommandReceiver начал обработку, сразу уступаем.
+	if (CommandReceiver_IsHandling() != 0)
+	{
+		osMutexRelease(UART4_MutexHandle);
+		osDelay(1);
+		return MB_ERROR_UART_SEND;
+	}
+
+	// Если байты приходят прямо сейчас, не удерживаем мьютекс во время ожидания.
+	if (UART4_IsReceivingBytesNow() != 0)
+	{
+		osMutexRelease(UART4_MutexHandle);
+		osDelay(1);
+		return MB_ERROR_UART_SEND;
+	}
+
+	// Перед переключением направления RS-485 в TX гарантируем остановку RX DMA.
+	HAL_UART_AbortReceive(&huart4);
+	osDelay(2);
+
+	// На этом шаге:
+	// - RX кадр не идёт,
+	// - CommandReceiver не обрабатывает команду,
+	// - мьютекс UART4 захвачен вызывающим потоком,
+	// - RX остановлен, можно переключать в TX и отправлять.
+	return MB_ERROR_NO;
+}
+
 // Функция для передачи данных на сервер
 void WriteToServer(uint8_t* Data, int length)
 {
 	MB_Error_t result;
 	MB_Active_t MB;						// объявляем среду работы с шиной
 
+	// Если UART4 занят программированием, не отправляем данные на сервер.
 	if (UART4_IsOwner_Programming() != 0)
 	{
-		// UART4 changes baud rate during programming; server traffic must be suspended.
 		return;
 	}
 
-	// Телеметрия (низкий приоритет) не должна блокировать приём/ответ команд.
+	// Ждём завершения обработки данных (команд) от сервера
 	while (CommandReceiver_IsHandling() != 0)
 	{
 		osDelay(1);
 	}
 
+	// Пытаемся захватить мьютекс UART4 для передачи данных на сервер
 	for (;;)
 	{
-		// Если прямо сейчас приходит кадр от сервера, ждём его завершения, не удерживая мьютекс UART4.
-		result = WaitUntilUART4RxFrameCompletes();
+		result = UART4_TryEnterForTx();
 		if (result != MB_ERROR_NO)
 		{
-			return;
+		// Освобождение мьютекса уже сделано внутри при ошибке
+		osDelay(1);
+		continue;
 		}
-
-		// ═══════════════════════════════════════════════════════════════════════════
-		// ЗАХВАТ МЬЮТЕКСА UART4 - защита от конфликта с программированием датчиков
-		// ═══════════════════════════════════════════════════════════════════════════
-		osStatus_t mutexStatus = osMutexAcquire(UART4_MutexHandle, osWaitForever);
-		if (mutexStatus != osOK)
-		{
-			// Не удалось захватить мьютекс - критическая ошибка
-			return;
-		}
-
-		// Повторная проверка после захвата: если CommandReceiver начал обработку, сразу уступаем.
-		if (CommandReceiver_IsHandling() != 0)
-		{
-			osMutexRelease(UART4_MutexHandle);
-			osDelay(1);
-			continue;
-		}
-
-		// Если байты приходят прямо сейчас, не удерживаем мьютекс во время ожидания.
-		if (UART4_IsReceivingBytesNow() != 0)
-		{
-			osMutexRelease(UART4_MutexHandle);
-			osDelay(1);
-			continue;
-		}
-
-		// Перед переключением направления RS-485 в TX гарантируем остановку RX DMA.
-		HAL_UART_AbortReceive(&huart4);
-		osDelay(2);
+	
 		break;
 	}
 

@@ -34,6 +34,21 @@ typedef struct __attribute__((packed))   // формат данных для с�
     int16_t H[SQ];				// Значение 2 сенсора (влажность)
     uint16_t CRC_SUM;			// Контрольное значение
 } MSGQUEUE_OBJ_t;
+/*
+ * MSGQUEUE_OBJ_t помечена как __attribute__((packed)), так что выравнивания нет, размер — просто сумма полей:
+uint8_t DataType — 1 байт
+uint8_t Len — 1 байт
+uint16_t Time — 2 байта
+uint8_t SensorQuantity — 1 байт
+uint8_t SensorType[SQ] — SQ байт
+uint8_t Active[SQ] — SQ байт
+int16_t T[SQ] — 2 * SQ байта
+int16_t H[SQ] — 2 * SQ байта
+uint16_t CRC_SUM — 2 байта
+Итого: 1+1+2+1+SQ+SQ+2SQ+2SQ+2=6SQ+7 байт
+если SQ = 6, размер = 6*6 + 7 = 43 байт;
+если SQ = 7, размер = 6*7 + 7 = 49 байт;
+ */
 #define LOG_PACKET_SIZE  (2u + sizeof(ControlLogPayload_t) + 2u)
 
 extern unsigned int TimeFromStart;  // определение ниже в файле
@@ -61,8 +76,8 @@ void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
 void Data_EnqueueCurrentTelemetry(void)
 {
 	MSGQUEUE_OBJ_t DataToServer = {};
-	DataToServer.DataType = 0x00;
-	DataToServer.Len = 45;
+	DataToServer.DataType = (uint8_t)SERVER_TX_TYPE_TELEMETRY;
+	DataToServer.Len = 45;	// это полная длина посылки в формате [AA 55]+[Data]+[CRC], по другому: [AA 55]+[MSGQUEUE_OBJ_t = 43 байта]
 	DataToServer.Time = (uint16_t)TimeFromStart;
 	DataToServer.SensorQuantity = SQ;
 	for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
@@ -90,8 +105,10 @@ void Data_EnqueueCurrentLogIfAuto(void)
 
 	DefrostControl_GetControlLogPayload(&logPayload, (uint16_t)TimeFromStart);
 	uint8_t logPacket[LOG_PACKET_SIZE];
-	logPacket[0] = 0x01u;
-	logPacket[1] = (uint8_t)sizeof(ControlLogPayload_t);
+	//logPacket[0] = 0x01u;
+	//logPacket[1] = (uint8_t)sizeof(ControlLogPayload_t);
+	logPayload.DataType = (uint8_t)SERVER_TX_TYPE_LOG;
+	logPayload.Len = 2 + (uint8_t)sizeof(ControlLogPayload_t);		// это полная длина посылки в формате [AA 55]+[Data]+[CRC]
 	memcpy(logPacket + 2, &logPayload, sizeof(ControlLogPayload_t));
 	uint16_t crc = MB_GetCRC(logPacket, 2u + (uint16_t)sizeof(ControlLogPayload_t));
 	logPacket[2 + sizeof(ControlLogPayload_t)] = (uint8_t)(crc & 0xFFu);
@@ -488,7 +505,8 @@ void TX_ToServer()
 			WriteToServerWithSync(item.data, (int)len);
 		}
 
-		// После отправки телеметрии ждём до 100 мс ответ сервера (DATA_OK/DATA_FALSE), чтобы не начинать передачу лога до приёма ответа (RS-485 half-duplex).
+		// После отправки телеметрии ждём до 100 мс ответ сервера (DATA_OK/DATA_FALSE),
+		// Следующую передачу из очереди можно начинать только после ответа сервера, например, передачу лога
 		if (item.type == SERVER_TX_TYPE_TELEMETRY && ServerResponseReceived_SemHandle != NULL)
 		{
 			while (osSemaphoreAcquire(ServerResponseReceived_SemHandle, 0u) == osOK)
