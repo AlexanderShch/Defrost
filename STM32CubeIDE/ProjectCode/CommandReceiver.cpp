@@ -74,30 +74,6 @@ typedef struct {
 static CommandStats_t commandStats = {0};
 
 /*
- * CRC16 таблица для быстрого вычисления (ModBus CRC16)
- * Используем ту же таблицу, что и в ModBus
- */
-extern const uint16_t crc16_table[];
-
-/*
- * Функция: CommandReceiver_CalculateCRC
- * Описание: Вычисляет CRC16 для массива данных
- * Параметры:
- *   - data: указатель на данные
- *   - length: длина данных в байтах
- * Возвращает: значение CRC16
- */
-uint16_t CommandReceiver_CalculateCRC(uint8_t *data, uint16_t length)
-{
-    uint16_t crc_16 = 0xFFFF;
-    for (uint16_t i = 0; i < length; i++)
-    {
-        crc_16 = (crc_16 >> 8) ^ crc16_table[(data[i] ^ crc_16) & 0xFF];
-    }
-    return crc_16;
-}
-
-/*
  * Функция: CommandReceiver_Init
  * Описание: Инициализация модуля приема команд
  */
@@ -161,8 +137,8 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     
     txLength = 4 + response->dataLength;
     
-    // Вычисляем CRC
-    response->crc = CommandReceiver_CalculateCRC(TX_Response_Buffer, txLength);
+    // Вычисляем CRC (единый метод из ModBus)
+    response->crc = MB_GetCRC((volatile uint8_t*)TX_Response_Buffer, txLength);
     TX_Response_Buffer[txLength] = response->crc & 0xFF;        // CRC (младший байт)
     TX_Response_Buffer[txLength + 1] = (response->crc >> 8) & 0xFF;  // CRC (старший байт)
     
@@ -176,7 +152,10 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     // ═══════════════════════════════════════════════════════════════════════════
 	ServerTx_EnqueueHighPriority(TX_Response_Buffer, (uint16_t)txLength);
 
-
+    if (response->commandType == (uint8_t)CMD_TYPE_REQUEST && response->commandCode == (uint8_t)REQ_CMD_SEND_STATE)
+    {
+        Data_SaveLastSentTelemetryPacket(TX_Response_Buffer, (uint16_t)txLength);
+    }
 
     if (g_currentCmdSkipAudit == 0)
     {
@@ -868,7 +847,7 @@ CommandStatus_t CommandReceiver_ReceiveCommand(Command_t *cmd)
     
     // Проверяем CRC
     uint16_t totalLength = CMD_HEADER_SIZE + cmd->dataLength;
-    if (CommandReceiver_CalculateCRC(RX_CMD_Buffer, totalLength) != cmd->crc)
+    if (MB_GetCRC((volatile uint8_t*)RX_CMD_Buffer, totalLength) != cmd->crc)
     {
         return CMD_STATUS_CRC_ERROR;
     }
@@ -973,7 +952,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
 
     // Проверяем CRC
     uint16_t totalLength = CMD_HEADER_SIZE + receivedCommand.dataLength;
-    if (CommandReceiver_CalculateCRC(localBuffer, totalLength) != receivedCommand.crc)
+    if (MB_GetCRC((volatile uint8_t*)localBuffer, totalLength) != receivedCommand.crc)
     {
         commandStats.crcErrors++;
         

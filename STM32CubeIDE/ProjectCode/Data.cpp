@@ -360,19 +360,40 @@ void InitData()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// ХРАНЕНИЕ ПОСЛЕДНИХ ОТПРАВЛЕННЫХ ДАННЫХ ТЕЛЕМЕТРИИ
+// ХРАНЕНИЕ ПОСЛЕДНЕГО ОТПРАВЛЕННОГО ПАКЕТА ТЕЛЕМЕТРИИ (для повтора при DATA_FALSE)
+// Формат пакета: [Type][Code][Status][DataLen][Data...][CRC16]
 // ═══════════════════════════════════════════════════════════════════════════
-static MSGQUEUE_OBJ_t LastSentTelemetry = {};  // Последние отправленные данные (для повтора при DATA_FALSE)
+#define TELEMETRY_PACKET_MAX  (4u + 113u + 2u)
+static uint8_t s_lastSentTelemetryPacket[TELEMETRY_PACKET_MAX];
+static uint16_t s_lastSentTelemetryPacketLen = 0u;
+
+void Data_SaveLastSentTelemetryPacket(const uint8_t* packet, uint16_t length)
+{
+	if (packet != NULL && length > 0u && length <= TELEMETRY_PACKET_MAX)
+	{
+		memcpy(s_lastSentTelemetryPacket, packet, length);
+		s_lastSentTelemetryPacketLen = length;
+	}
+}
 
 /*
  * Функция: ResendLastTelemetry
- * Описание: Повторная отправка последних данных телеметрии
- *
- * Используется когда сервер сообщает об ошибке в данных телеметрии (DATA_FALSE)
+ * Описание: Повторная отправка сохранённого байтового пакета телеметрии.
+ * Добавляет в начало маркер [AA 55] и передаёт в WriteToServer().
  */
 void ResendLastTelemetry(void)
 {
-	ServerTx_EnqueueHighPriority((uint8_t*)&LastSentTelemetry, (uint16_t)sizeof(LastSentTelemetry));
+	if (s_lastSentTelemetryPacketLen == 0u)
+	{
+		return;
+	}
+	static uint8_t buf[2u + TELEMETRY_PACKET_MAX];
+
+	buf[0] = SYNC_START_1;
+	buf[1] = SYNC_START_2;
+	memcpy(&buf[2], s_lastSentTelemetryPacket, s_lastSentTelemetryPacketLen);
+
+	WriteToServer(buf, (int)(2u + s_lastSentTelemetryPacketLen));
 }
 
 // Единая очередь отправки на сервер (телеметрия, лог, ответы на команды)

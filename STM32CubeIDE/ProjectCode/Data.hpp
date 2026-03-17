@@ -38,6 +38,9 @@ protected:
 // Функция повторной отправки последних данных телеметрии
 void ResendLastTelemetry(void);
 
+/* Сохранить готовый байтовый пакет телеметрии [Type][Code][Status][DataLen][Data...][CRC16] для повтора при TELEMETRY_DATA_FALSE. */
+void Data_SaveLastSentTelemetryPacket(const uint8_t* packet, uint16_t length);
+
 // Текущий интервал отправки телеметрии (сек). Изменяется командой CFG_CMD_SET_INTERVAL.
 extern volatile uint16_t g_TelemetryIntervalSeconds;
 
