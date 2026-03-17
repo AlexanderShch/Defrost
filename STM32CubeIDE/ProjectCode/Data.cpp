@@ -436,18 +436,6 @@ void TX_ToServer()
 
 		WriteToServerWithSync(item.data, (int)len);
 
-		// После отправки телеметрии ждём до 100 мс ответ сервера (DATA_OK/DATA_FALSE),
-		// Следующую передачу из очереди можно начинать только после ответа сервера, например, передачу лога
-//		if (item.type == SERVER_TX_TYPE_TELEMETRY && ServerResponseReceived_SemHandle != NULL)
-		{
-			// Сделаем очистку семафора от предыдущих значений
-			while (osSemaphoreAcquire(ServerResponseReceived_SemHandle, 0u) == osOK)
-			{
-				;
-			}
-			// Ждём ответ сервера в течение 100 мс, после этого можно продолжать передачу данных
-			osSemaphoreAcquire(ServerResponseReceived_SemHandle, 100u);
-		}
 	}
 }
 
