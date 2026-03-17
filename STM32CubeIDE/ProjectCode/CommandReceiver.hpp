@@ -118,7 +118,6 @@ CommandStatus_t CommandReceiver_HandleDeviceControl(Command_t *cmd);
 
 // Вспомогательные функции
 uint16_t CommandReceiver_CalculateCRC(uint8_t *data, uint16_t length);
-uint8_t CommandReceiver_ValidateCRC(uint8_t *data, uint16_t length, uint16_t receivedCRC);
 CommandStatus_t CommandReceiver_ReceiveCommand(Command_t *cmd);
 void CommandReceiver_ProcessReceivedData(uint16_t receivedSize);
 void CommandReceiver_RestartReception(void);

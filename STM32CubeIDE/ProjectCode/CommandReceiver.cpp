@@ -98,21 +98,6 @@ uint16_t CommandReceiver_CalculateCRC(uint8_t *data, uint16_t length)
 }
 
 /*
- * Функция: CommandReceiver_ValidateCRC
- * Описание: Проверяет CRC16 полученных данных
- * Параметры:
- *   - data: указатель на данные (без CRC)
- *   - length: длина данных (без CRC)
- *   - receivedCRC: полученная контрольная сумма
- * Возвращает: 1 если CRC корректна, 0 если нет
- */
-uint8_t CommandReceiver_ValidateCRC(uint8_t *data, uint16_t length, uint16_t receivedCRC)
-{
-    uint16_t calculatedCRC = CommandReceiver_CalculateCRC(data, length);
-    return (calculatedCRC == receivedCRC) ? 1 : 0;
-}
-
-/*
  * Функция: CommandReceiver_Init
  * Описание: Инициализация модуля приема команд
  */
@@ -883,7 +868,7 @@ CommandStatus_t CommandReceiver_ReceiveCommand(Command_t *cmd)
     
     // Проверяем CRC
     uint16_t totalLength = CMD_HEADER_SIZE + cmd->dataLength;
-    if (!CommandReceiver_ValidateCRC(RX_CMD_Buffer, totalLength, cmd->crc))
+    if (CommandReceiver_CalculateCRC(RX_CMD_Buffer, totalLength) != cmd->crc)
     {
         return CMD_STATUS_CRC_ERROR;
     }
@@ -988,7 +973,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
 
     // Проверяем CRC
     uint16_t totalLength = CMD_HEADER_SIZE + receivedCommand.dataLength;
-    if (!CommandReceiver_ValidateCRC(localBuffer, totalLength, receivedCommand.crc))
+    if (CommandReceiver_CalculateCRC(localBuffer, totalLength) != receivedCommand.crc)
     {
         commandStats.crcErrors++;
         
