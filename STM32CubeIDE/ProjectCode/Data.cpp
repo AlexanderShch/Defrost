@@ -62,31 +62,6 @@ MSGQUEUE_OBJ_t Data_CurrentTelemetry(void)
 	return DataToServer;
 }
 
-/* По команде SEND_STATE: если авторежим — сформировать лог и поставить в очередь. */
-void Data_EnqueueCurrentLogIfAuto(void)
-{
-	if (DefrostControl_IsEnabled() == 0 || Model::isDefrostManualModeEnabled())
-	{
-		return;
-	}
-	ControlLogPayload_t logPayload = {};
-
-	DefrostControl_GetControlLogPayload(&logPayload, (uint16_t)TimeFromStart);
-	uint8_t logPacket[LOG_PACKET_SIZE];
-	//logPacket[0] = 0x01u;
-	//logPacket[1] = (uint8_t)sizeof(ControlLogPayload_t);
-	logPayload.DataType = (uint8_t)SERVER_TX_TYPE_LOG;
-	logPayload.Len = 2 + (uint8_t)sizeof(ControlLogPayload_t);		// это полная длина посылки в формате [AA 55]+[Data]+[CRC]
-	memcpy(logPacket + 2, &logPayload, sizeof(ControlLogPayload_t));
-	uint16_t crc = MB_GetCRC(logPacket, 2u + (uint16_t)sizeof(ControlLogPayload_t));
-	logPacket[2 + sizeof(ControlLogPayload_t)] = (uint8_t)(crc & 0xFFu);
-	logPacket[2 + sizeof(ControlLogPayload_t) + 1] = (uint8_t)(crc >> 8);
-	ServerTxItem_t item = {};
-	item.PacketLength = (uint8_t)LOG_PACKET_SIZE;
-	memcpy(item.data, logPacket, LOG_PACKET_SIZE);
-	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
-}
-
 /* Регистр аппаратного управления устройствами загружается в модуль ввода-вывода,
  * который содержит реле, переключающие устройства дефростера.
  * В регистр аппаратного управления загружаются флаги устройств из регистра состояния устройств.

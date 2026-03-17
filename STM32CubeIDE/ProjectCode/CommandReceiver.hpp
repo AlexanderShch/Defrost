@@ -16,7 +16,7 @@
 
 // Максимальная длина команды (заголовок + данные + CRC)
 // GET_DEFROST_GROUP(5) возвращает DefrostLogPhasePayload_t (72 байта) + 2 (groupId, page) = 74 байта данных
-#define CMD_MAX_DATA_LENGTH 80  // не менее 74 для групп 5/6 лога параметров
+#define CMD_MAX_DATA_LENGTH 113  // не менее 74 для групп 5/6 лога параметров
 #define CMD_MAX_LENGTH 86       // 3 (header) + CMD_MAX_DATA_LENGTH + 2 (CRC)
 #define CMD_HEADER_SIZE 3
 #define CMD_CRC_SIZE 2
@@ -33,7 +33,7 @@ typedef enum {
 // Коды команд телеметрии (TelemetryResponseCommand)
 // Ответы сервера на переданную контроллером телеметрию
 typedef enum {
-    TELEMETRY_DATA_OK     = 0x01,  // Сервер подтвердил приём телеметрии
+    TELEMETRY_DATA_OK     = 0x01,  // Сервер подтвердил приём телеметрии, получай лог параметров при авторежиме
     TELEMETRY_DATA_FALSE  = 0x02   // Сервер сообщает об ошибке в данных телеметрии
 } TelemetryResponseCommand_t;
 
@@ -69,7 +69,7 @@ typedef enum {
     REQ_CMD_GET_BUILD_INFO = 0x05,  // Запросить информацию о сборке (версия + дата)
     REQ_CMD_GET_DEFROST_PARAM = 0x06, // Запрос одного параметра авто-дефроста
     REQ_CMD_GET_DEFROST_GROUP = 0x07, // Запрос пачки параметров группы
-    REQ_CMD_SEND_STATE       = 0x08  // Отправить состояние: телеметрия + при авторежиме лог
+    REQ_CMD_SEND_STATE       = 0x08  // Отправить состояние: телеметрия
 } RequestCommand_t;
 
 // Статусы обработки команд

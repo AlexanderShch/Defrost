@@ -1825,11 +1825,11 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
 #ifdef __cplusplus
 extern "C" {
 #endif
-void DefrostControl_GetControlLogPayload(ControlLogPayload_t *out, uint16_t timeFromStart)
+ControlLogPayload_t DefrostControl_GetControlLogPayload(void)
 {
-    (void)timeFromStart;
-    if (out == NULL) return;
-    memcpy(out, &s_controlLogPayload, sizeof(ControlLogPayload_t));
+	ControlLogPayload_t out = {};
+    memcpy(&out, &s_controlLogPayload, sizeof(ControlLogPayload_t));
+    return out;
 }
 #ifdef __cplusplus
 }

@@ -210,19 +210,41 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
 CommandStatus_t CommandReceiver_HandleTelemetry(Command_t *cmd)
 {
     CommandStatus_t status = CMD_STATUS_OK;
+    CommandResponse_t response;
     
+    // КРИТИЧНО: Инициализируем структуру ответа
+    memset(&response, 0, sizeof(CommandResponse_t));
+
+    // Подготовка базовой структуры ответа
+    // Возвращаем тот же тип команды CMD_TYPE_TELEMETRY
+    response.commandType = CMD_TYPE_TELEMETRY;
+    response.commandCode = cmd->commandCode;
+    response.status = CMD_STATUS_OK;
+    response.dataLength = 0;
+
     switch (cmd->commandCode)
     {
         case TELEMETRY_DATA_OK:
+        {
             // Сервер подтвердил приём телеметрии
             // ✅ Успешная передача телеметрии
+        	ControlLogPayload_t logPayload = {};
+
             // Сигнал TX_ToServer: можно продолжать (дать окно для приёма ответа перед следующим пакетом)
             if (ServerResponseReceived_SemHandle != NULL)
             {
                 osSemaphoreRelease(ServerResponseReceived_SemHandle);
             }
+
+            // Передаём лог параметров алгоритма управления в автоматическом режиме
+        	logPayload = DefrostControl_GetControlLogPayload();
+        	response.dataLength = (uint8_t)sizeof(logPayload);
+        	memcpy(response.data, &logPayload, response.dataLength);
+
+            CommandReceiver_SendResponse(&response);
+
             break;
-            
+        }
         case TELEMETRY_DATA_FALSE:
         {
             // ═══════════════════════════════════════════════════════════════════════════
@@ -698,9 +720,8 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
         	DataTelemetry = Data_CurrentTelemetry();
         	response.dataLength = (uint8_t)sizeof(DataTelemetry);
         	memcpy(response.data, &DataTelemetry, response.dataLength);
-            CommandReceiver_SendResponse(&response);
 
-            Data_EnqueueCurrentLogIfAuto();
+            CommandReceiver_SendResponse(&response);
             break;
         }
         default:
@@ -916,11 +937,10 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     g_currentCmdType = receivedCommand.commandType;
     g_currentCmdCode = receivedCommand.commandCode;
     // Пропускаем аудит для:
-    // 1. CMD_TYPE_TELEMETRY (0x00) - ответы сервера на телеметрию (DATA_TRUE/DATA_FALSE)
+    // 1.
     // 2. REQ_CMD_GET_CMD_INFO - чтобы запрос не затирал аудит сам по себе
-    g_currentCmdSkipAudit = (receivedCommand.commandType == CMD_TYPE_TELEMETRY ||
-                             (receivedCommand.commandType == CMD_TYPE_REQUEST &&
-                              receivedCommand.commandCode == REQ_CMD_GET_CMD_INFO)) ? 1 : 0;
+    g_currentCmdSkipAudit = (receivedCommand.commandType == CMD_TYPE_REQUEST &&
+                             receivedCommand.commandCode == REQ_CMD_GET_CMD_INFO) ? 1 : 0;
     
     // КРИТИЧНО: Проверяем недопустимую комбинацию Type=0x00 и Code=0x00
     // Это артефакт из-за обработки пустого буфера при ложном IDLE

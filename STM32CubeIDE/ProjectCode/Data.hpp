@@ -93,9 +93,6 @@ void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length);
 /* По команде SEND_STATE: сформировать текущую телеметрию и передать для постановки в очередь. */
 MSGQUEUE_OBJ_t Data_CurrentTelemetry(void);
 
-/* По команде SEND_STATE: если авторежим — сформировать лог и поставить в очередь. */
-void Data_EnqueueCurrentLogIfAuto(void);
-
 #endif /* DATA_HPP_ */
 
 
