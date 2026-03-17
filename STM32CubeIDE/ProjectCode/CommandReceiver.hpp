@@ -30,9 +30,6 @@ typedef enum {
     CMD_TYPE_DEVICE_CONTROL = 0x04   // Команды управления устройствами
 } CommandType_t;
 
-// Тип для ответов (используется внутри модуля)
-#define CMD_TYPE_RESPONSE       0x80   // Ответы от устройства
-
 // Коды команд телеметрии (TelemetryResponseCommand)
 // Ответы сервера на переданную контроллером телеметрию
 typedef enum {

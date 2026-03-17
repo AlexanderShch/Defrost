@@ -159,24 +159,22 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     // чтобы избежать отправки старых данных из предыдущего ответа
     memset(TX_Response_Buffer, 0, CMD_MAX_LENGTH);
     
-    // Формируем буфер для отправки в НОВОМ формате:
-    // [Type][Len][Code][Status][DataLen][Data...][CRC16]
+    // Формируем буфер для отправки в формате:
+    // [Type][Code][Status][DataLen][Data...][CRC16]
     // Где:
-    // - Len = длина полезной части после Len и до CRC: (Code + Status + DataLen + Data)
-    // - CRC16 считается по блоку [Type][Len][Code][Status][DataLen][Data...]
+    // - CRC16 считается по блоку [Type][Code][Status][DataLen][Data...]
     TX_Response_Buffer[0] = response->commandType;   // тип
-    TX_Response_Buffer[1] = (uint8_t)(3 + response->dataLength); // длина полезной части
-    TX_Response_Buffer[2] = response->commandCode;   // код
-    TX_Response_Buffer[3] = response->status;        // статус
-    TX_Response_Buffer[4] = response->dataLength;    // длина данных
+    TX_Response_Buffer[1] = response->commandCode;   // код
+    TX_Response_Buffer[2] = response->status;        // статус
+    TX_Response_Buffer[3] = response->dataLength;    // длина данных
     
     // Копируем данные
     if (response->dataLength > 0 && response->dataLength <= CMD_MAX_DATA_LENGTH)
     {
-        memcpy(&TX_Response_Buffer[5], response->data, response->dataLength);
+        memcpy(&TX_Response_Buffer[4], response->data, response->dataLength);
     }
     
-    txLength = 5 + response->dataLength;
+    txLength = 4 + response->dataLength;
     
     // Вычисляем CRC
     response->crc = CommandReceiver_CalculateCRC(TX_Response_Buffer, txLength);
@@ -516,7 +514,7 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
     memset(&response, 0, sizeof(CommandResponse_t));
     
     // Подготовка базовой структуры ответа
-    // Возвращаем тот же тип команды REQUEST, а не CMD_TYPE_RESPONSE
+    // Возвращаем тот же тип команды REQUEST
     response.commandType = CMD_TYPE_REQUEST;
     response.commandCode = cmd->commandCode;
     response.status = CMD_STATUS_OK;
@@ -534,7 +532,7 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
 //
 //            // Отправляем ответ
 //            CommandReceiver_SendResponse(&response);
-//            break;
+            break;
         }
         
         case REQ_CMD_GET_VERSION:
@@ -872,12 +870,12 @@ CommandStatus_t CommandReceiver_ReceiveCommand(Command_t *cmd)
  */
 void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
 {
-    Command_t receivedCommand;
-    CommandStatus_t cmdStatus;
+    Command_t receivedCommand;      // структура для хранения команды
+    CommandStatus_t cmdStatus;      // статус обработки команды
     static uint8_t localBuffer[CMD_MAX_LENGTH];  // static для экономии стека
 
-    g_commandReceiverHandling = 1;
-    g_currentCmdSkipAudit = 0;
+    g_commandReceiverHandling = 1;  // устанавливаем флаг обработки команды
+    g_currentCmdSkipAudit = 0;      // сбрасываем флаг пропуска аудита
     
     // КРИТИЧНО: Инициализируем структуру команды нулями
     // чтобы избежать случайных значений в неиспользуемых полях
@@ -950,6 +948,7 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     receivedCommand.crc = localBuffer[CMD_HEADER_SIZE + receivedCommand.dataLength] | 
                           (localBuffer[CMD_HEADER_SIZE + receivedCommand.dataLength + 1] << 8);
                     
+    // Сохраняем данные для аудита последней команды
     if (g_currentCmdSkipAudit == 0)
     {
         g_lastCmdType = receivedCommand.commandType;

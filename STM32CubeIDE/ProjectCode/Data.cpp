@@ -94,8 +94,7 @@ void Data_EnqueueCurrentTelemetry(void)
 {
 	MSGQUEUE_OBJ_t DataToServer = {};
 	DataToServer.DataType = (uint8_t)SERVER_TX_TYPE_TELEMETRY;
-	DataToServer.Len = 45;
-	// это полная длина посылки в формате [type+length]+[Type+Len+Data+CRC], по другому: [type+length=2]+[MSGQUEUE_OBJ_t=43 байта] = 45
+	DataToServer.Len = 45;	// это полная длина посылки в формате [AA 55]+[Data]+[CRC], по другому: [AA 55]+[MSGQUEUE_OBJ_t = 43 байта]
 	DataToServer.Time = (uint16_t)TimeFromStart;
 	DataToServer.SensorQuantity = SQ;
 	for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
@@ -106,8 +105,8 @@ void Data_EnqueueCurrentTelemetry(void)
 		DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
 	}
 	ServerTxItem_t item = {};
-	item.type = (uint8_t)SERVER_TX_TYPE_TELEMETRY;				// здесь добавляется type
-	item.length = (uint8_t)sizeof(MSGQUEUE_OBJ_t);				// здесь добавляется length of PayLoad [Type + Len + Data + CRC]
+	item.type = (uint8_t)SERVER_TX_TYPE_TELEMETRY;
+	item.length = (uint8_t)sizeof(MSGQUEUE_OBJ_t);
 	memcpy(item.data, &DataToServer, sizeof(MSGQUEUE_OBJ_t));
 	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 }
@@ -120,15 +119,21 @@ void Data_EnqueueCurrentLogIfAuto(void)
 		return;
 	}
 	ControlLogPayload_t logPayload = {};
-	// копируем текущее состояние алгоритма в logPayload
-	DefrostControl_GetControlLogPayload(&logPayload, (uint16_t)TimeFromStart);
-	logPayload.DataType = (uint8_t)SERVER_TX_TYPE_LOG;
-	logPayload.Len = 2 + (uint8_t)sizeof(ControlLogPayload_t);		// это полная длина посылки в формате [type+length]+[Data+CRC]
 
+	DefrostControl_GetControlLogPayload(&logPayload, (uint16_t)TimeFromStart);
+	uint8_t logPacket[LOG_PACKET_SIZE];
+	//logPacket[0] = 0x01u;
+	//logPacket[1] = (uint8_t)sizeof(ControlLogPayload_t);
+	logPayload.DataType = (uint8_t)SERVER_TX_TYPE_LOG;
+	logPayload.Len = 2 + (uint8_t)sizeof(ControlLogPayload_t);		// это полная длина посылки в формате [AA 55]+[Data]+[CRC]
+	memcpy(logPacket + 2, &logPayload, sizeof(ControlLogPayload_t));
+	uint16_t crc = MB_GetCRC(logPacket, 2u + (uint16_t)sizeof(ControlLogPayload_t));
+	logPacket[2 + sizeof(ControlLogPayload_t)] = (uint8_t)(crc & 0xFFu);
+	logPacket[2 + sizeof(ControlLogPayload_t) + 1] = (uint8_t)(crc >> 8);
 	ServerTxItem_t item = {};
-	item.type = (uint8_t)SERVER_TX_TYPE_LOG;					// здесь добавляется type
-	item.length = (uint8_t)sizeof(ControlLogPayload_t);			// здесь добавляется length [Data+CRC]
-	memcpy(item.data, &logPayload, (uint8_t)sizeof(ControlLogPayload_t));
+	item.type = (uint8_t)SERVER_TX_TYPE_LOG;
+	item.length = (uint8_t)LOG_PACKET_SIZE;
+	memcpy(item.data, logPacket, LOG_PACKET_SIZE);
 	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 }
 
@@ -465,24 +470,6 @@ void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length)
 
 // Ждём элемент из очереди Data_QueueHandle (таймаут 50 мс, чтобы не нагружать CPU)
 // принимаем элемент из очереди, добавляем CRC и отправляем на сервер через WriteToServerWithSync
-/*
- * ФОРМАТ ДАННЫХ ServerTxItem_t:
- *   [type + length] [Type + Len + Data + CRC]
- *   └──────┬──────┘ └──────────┬────────────┘
- *    	  Descript            data
- *
- * Параметры:
- * 	 - Descript		descriptor (описание) пакета, служебная роль при формировании пакета, передаваться не будет
- *   - type			тип пакета
- *   - length  		длина пакета данных data
- *   - data		   	указатель на пакет с данными (с CRC)
- *   - Type			тип пакета
- *   - Len 	  		длина данных Data
- *   - Data			данные
- *   - CRC			CRC16 считается по [Type][Len][Data]
- *
- * ВАЖНО: CRC должен быть уже рассчитан и помещён в data!
- */
 void TX_ToServer()
 {
 	ServerTxItem_t item = {};
@@ -496,7 +483,7 @@ void TX_ToServer()
 			continue;
 		}
 
-		uint16_t len = (uint16_t)item.length;	// длина пакета data [Type][Len][Data][CRC]
+		uint16_t len = (uint16_t)item.length;
 		if (len == 0)
 		{
 			continue;
@@ -506,21 +493,10 @@ void TX_ToServer()
 		{
 			case SERVER_TX_TYPE_TELEMETRY:	// добавляем CRC и сохраняем копию для повтора при DATA_FALSE
 			{
-				MSGQUEUE_OBJ_t* p = (MSGQUEUE_OBJ_t*)item.data;	// указатель на [Type][Len][Data][CRC]
-
-				// формируем CRC из [Type][Len][Data] без поля CRC и помещаем в поле CRC
-				p->CRC_SUM = MB_GetCRC((uint8_t*)p, sizeof(MSGQUEUE_OBJ_t) - 2u);
-				memcpy(&LastSentTelemetry, p, sizeof(MSGQUEUE_OBJ_t));				// сохраняем копию данных для повторной отправки
-				WriteToServerWithSync(item.data, (int)len);	// отправляем блок data и указываем его длину
-				break;
-			}
-			case SERVER_TX_TYPE_LOG:	// добавляем CRC и отправляем лог параметров
-			{
-				ControlLogPayload_t* p = (ControlLogPayload_t*)item.data;	// указатель на [Type][Len][Data][CRC]
-
-				// формируем CRC из [Type][Len][Data] без поля CRC и помещаем в поле CRC
-				p->CRC_SUM = MB_GetCRC((uint8_t*)p, sizeof(ControlLogPayload_t) - 2u);
-				WriteToServerWithSync(item.data, (int)len);	// отправляем блок data и указываем его длину
+				MSGQUEUE_OBJ_t* p = (MSGQUEUE_OBJ_t*)item.data;
+				p->CRC_SUM = MB_GetCRC((uint8_t*)p, sizeof(MSGQUEUE_OBJ_t) - 2u);	// формируем CRC из данных без поля CRC и помещаем в поле CRC
+				memcpy(&LastSentTelemetry, p, sizeof(MSGQUEUE_OBJ_t));		 // сохраняем копию данных для повторной отправки
+				WriteToServerWithSync(item.data, (int)len);
 				break;
 			}
 			case SERVER_TX_TYPE_HIGH:		// высокоприоритетный ответ / повтор телеметрии
