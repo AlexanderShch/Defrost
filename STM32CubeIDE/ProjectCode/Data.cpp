@@ -22,33 +22,7 @@ extern osSemaphoreId_t SensorsReadDone_SemHandle;
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osThreadId_t TouchGFX_Task;
 
-typedef struct __attribute__((packed))   // формат данных для сервера
-{
-    uint8_t DataType;			// Байт типа передаваемых данных (0x00 для телеметрии)
-    uint8_t Len;               // Длина полезной части после Len и до CRC (в байтах), включается в CRC
-    uint16_t Time;				// Количество секунд с момента включения
-    uint8_t SensorQuantity;		// Количество сенсоров
-    uint8_t SensorType[SQ];		// Тип сенсора
-    uint8_t Active[SQ];			// Активность сенсора
-    int16_t T[SQ];				// Значение 1 сенсора (температура)
-    int16_t H[SQ];				// Значение 2 сенсора (влажность)
-    uint16_t CRC_SUM;			// Контрольное значение
-} MSGQUEUE_OBJ_t;
-/*
- * MSGQUEUE_OBJ_t помечена как __attribute__((packed)), так что выравнивания нет, размер — просто сумма полей:
-uint8_t DataType — 1 байт
-uint8_t Len — 1 байт
-uint16_t Time — 2 байта
-uint8_t SensorQuantity — 1 байт
-uint8_t SensorType[SQ] — SQ байт
-uint8_t Active[SQ] — SQ байт
-int16_t T[SQ] — 2 * SQ байта
-int16_t H[SQ] — 2 * SQ байта
-uint16_t CRC_SUM — 2 байта
-Итого: 1+1+2+1+SQ+SQ+2SQ+2SQ+2=6SQ+7 байт
-если SQ = 6, размер = 6*6 + 7 = 43 байт;
-если SQ = 7, размер = 6*7 + 7 = 49 байт;
- */
+
 #define LOG_PACKET_SIZE  (2u + sizeof(ControlLogPayload_t) + 2u)
 
 extern unsigned int TimeFromStart;  // определение ниже в файле
@@ -72,29 +46,10 @@ void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
 	g_TelemetryIntervalSeconds = intervalSeconds;
 }
 
-/* По команде SEND_STATE от сервера: сформировать текущую телеметрию и поставить в очередь.
-* ФОРМАТ ДАННЫХ ServerTxItem_t:
-*   [type + length] [Type + Len + Data + CRC]
-*   └──────┬──────┘ └──────────┬────────────┘
-*    	  Descript            data
-*
-* Параметры:
-* 	 - Descript		descriptor (описание) пакета, служебная роль при формировании пакета, передаваться не будет
-*   - type			тип пакета
-*   - length  		длина пакета данных data
-*   - data		   	указатель на пакет с данными (с CRC)
-*   - Type			тип пакета
-*   - Len 	  		длина данных Data
-*   - Data			данные
-*   - CRC			CRC16 считается по [Type][Len][Data]
-*
-* ВАЖНО: CRC должен быть уже рассчитан и помещён в data!
-**/
-void Data_EnqueueCurrentTelemetry(void)
+// Подготовка данных текущей телеметрии
+MSGQUEUE_OBJ_t Data_CurrentTelemetry(void)
 {
 	MSGQUEUE_OBJ_t DataToServer = {};
-	DataToServer.DataType = (uint8_t)SERVER_TX_TYPE_TELEMETRY;
-	DataToServer.Len = 45;	// это полная длина посылки в формате [AA 55]+[Data]+[CRC], по другому: [AA 55]+[MSGQUEUE_OBJ_t = 43 байта]
 	DataToServer.Time = (uint16_t)TimeFromStart;
 	DataToServer.SensorQuantity = SQ;
 	for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
@@ -104,11 +59,7 @@ void Data_EnqueueCurrentTelemetry(void)
 		DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 2);
 		DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
 	}
-	ServerTxItem_t item = {};
-	item.type = (uint8_t)SERVER_TX_TYPE_TELEMETRY;
-	item.length = (uint8_t)sizeof(MSGQUEUE_OBJ_t);
-	memcpy(item.data, &DataToServer, sizeof(MSGQUEUE_OBJ_t));
-	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
+	return DataToServer;
 }
 
 /* По команде SEND_STATE: если авторежим — сформировать лог и поставить в очередь. */
@@ -131,8 +82,7 @@ void Data_EnqueueCurrentLogIfAuto(void)
 	logPacket[2 + sizeof(ControlLogPayload_t)] = (uint8_t)(crc & 0xFFu);
 	logPacket[2 + sizeof(ControlLogPayload_t) + 1] = (uint8_t)(crc >> 8);
 	ServerTxItem_t item = {};
-	item.type = (uint8_t)SERVER_TX_TYPE_LOG;
-	item.length = (uint8_t)LOG_PACKET_SIZE;
+	item.PacketLength = (uint8_t)LOG_PACKET_SIZE;
 	memcpy(item.data, logPacket, LOG_PACKET_SIZE);
 	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 }
@@ -447,10 +397,6 @@ static MSGQUEUE_OBJ_t LastSentTelemetry = {};  // Последние отпра�
  */
 void ResendLastTelemetry(void)
 {
-	if (LastSentTelemetry.DataType != 0x00)
-	{
-		return;
-	}
 	ServerTx_EnqueueHighPriority((uint8_t*)&LastSentTelemetry, (uint16_t)sizeof(LastSentTelemetry));
 }
 
@@ -462,8 +408,7 @@ void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length)
 		return;
 	}
 	ServerTxItem_t item = {};
-	item.type = (uint8_t)SERVER_TX_TYPE_HIGH;
-	item.length = (uint8_t)length;
+	item.PacketLength = (uint8_t)length;
 	memcpy(item.data, data, length);
 	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 }
@@ -483,36 +428,17 @@ void TX_ToServer()
 			continue;
 		}
 
-		uint16_t len = (uint16_t)item.length;
+		uint16_t len = (uint16_t)item.PacketLength;
 		if (len == 0)
 		{
 			continue;
 		}
 
-		switch (item.type)
-		{
-			case SERVER_TX_TYPE_TELEMETRY:	// добавляем CRC и сохраняем копию для повтора при DATA_FALSE
-			{
-				MSGQUEUE_OBJ_t* p = (MSGQUEUE_OBJ_t*)item.data;
-				p->CRC_SUM = MB_GetCRC((uint8_t*)p, sizeof(MSGQUEUE_OBJ_t) - 2u);	// формируем CRC из данных без поля CRC и помещаем в поле CRC
-				memcpy(&LastSentTelemetry, p, sizeof(MSGQUEUE_OBJ_t));		 // сохраняем копию данных для повторной отправки
-				WriteToServerWithSync(item.data, (int)len);
-				break;
-			}
-			case SERVER_TX_TYPE_HIGH:		// высокоприоритетный ответ / повтор телеметрии
-			{
-				WriteToServerWithSync(item.data, (int)len);
-				break;
-			}
-			default:						// обычный низкоприоритетный пакет (лог и т.п.)
-			{
-				WriteToServerWithSync(item.data, (int)len);
-				break;
-			}
-		}
+		WriteToServerWithSync(item.data, (int)len);
+
 		// После отправки телеметрии ждём до 100 мс ответ сервера (DATA_OK/DATA_FALSE),
 		// Следующую передачу из очереди можно начинать только после ответа сервера, например, передачу лога
-		if (item.type == SERVER_TX_TYPE_TELEMETRY && ServerResponseReceived_SemHandle != NULL)
+//		if (item.type == SERVER_TX_TYPE_TELEMETRY && ServerResponseReceived_SemHandle != NULL)
 		{
 			// Сделаем очистку семафора от предыдущих значений
 			while (osSemaphoreAcquire(ServerResponseReceived_SemHandle, 0u) == osOK)

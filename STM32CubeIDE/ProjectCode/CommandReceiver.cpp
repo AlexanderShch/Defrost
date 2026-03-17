@@ -184,10 +184,12 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     txLength += 2;
     
     // ═══════════════════════════════════════════════════════════════════════════
-    // ОТПРАВКА через единую очередь (высокий приоритет), чтобы не конкурировать за UART с телеметрией/логом
-    // Формат на линии: [AA 55][Type][Len][Code + Status + DataLen + Data][CRC16]
+    // ОТПРАВКА через единую очередь внутреннего кадра, чтобы не конкурировать за UART с телеметрией/логом
+    // Формат на линии: [AA 55][Type + Code + Status + DataLen + Data][CRC16]
+    // SYNC-префикс [AA 55] добавляется позже, на этапе фактической отправки по UART,
+    // в WriteToServerWithSync (в ModBus.cpp), куда доезжает item.data из очереди:
     // ═══════════════════════════════════════════════════════════════════════════
-    ServerTx_EnqueueHighPriority(TX_Response_Buffer, (uint16_t)txLength);
+	ServerTx_EnqueueHighPriority(TX_Response_Buffer, (uint16_t)txLength);
 
 
 
@@ -690,11 +692,17 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
         }
 
         case REQ_CMD_SEND_STATE:
+        {
             /* Ответом на команду являются кадры телеметрии и лога (не CommandResponse). */
-            Data_EnqueueCurrentTelemetry();
+        	MSGQUEUE_OBJ_t DataTelemetry = {};
+        	DataTelemetry = Data_CurrentTelemetry();
+        	response.dataLength = (uint8_t)sizeof(DataTelemetry);
+        	memcpy(response.data, &DataTelemetry, response.dataLength);
+            CommandReceiver_SendResponse(&response);
+
             Data_EnqueueCurrentLogIfAuto();
             break;
-        
+        }
         default:
             status = CMD_STATUS_INVALID_CODE;
             response.status = status;
