@@ -17,6 +17,10 @@ public:
     virtual void handleTickEvent() override;
     virtual void BTNCoreTSetIncreaseClicked() override;
     virtual void BTNCoreTSetDecreaseClicked() override;
+
+    /** Синхронизировать отображаемую уставку с DefrostControl (при изменении с сервера). */
+    void syncCoreTSetFromDefrostControl();
+
 protected:
     // Уставка целевой температуры рыбы в десятых долях градуса (например, 65 = 6.5 °C).
     int16_t CoreTSetDeci = 60; // 6.0 °C по умолчанию
@@ -33,6 +37,8 @@ protected:
     uint16_t decRepeatTicks = 0;
 
     void applyCoreTSetAndRedraw();
+    /** Обновить только отображение ValueCoreTSet по текущему CoreTSetDeci (без записи в DefrostControl). */
+    void applyCoreTSetDisplayOnly();
     void stepIncreaseOnce();
     void stepDecreaseOnce();
 };

@@ -32,6 +32,8 @@ public:
     /** Текущая целевая мин. температура рыбы °C (для автоостанова). С экрана Settings1 отображается как ValueCoreTSet. */
     virtual float GetFishColdTarget_C();
 
+    virtual void ValUpdatePresenter() override;
+
 private:
     Settings1Presenter();
 

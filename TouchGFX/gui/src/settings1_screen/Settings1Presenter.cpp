@@ -27,3 +27,9 @@ float Settings1Presenter::GetFishColdTarget_C()
 {
 	return DefrostControl_GetFishColdTarget_C();
 }
+
+void Settings1Presenter::ValUpdatePresenter()
+{
+	// Синхронизация уставки «конечная температура ядра» при изменении с сервера (CFG_CMD_SET_DEFROST_PARAM).
+	view.syncCoreTSetFromDefrostControl();
+}

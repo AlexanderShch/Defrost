@@ -79,17 +79,33 @@ void Settings1View::tearDownScreen()
     Settings1ViewBase::tearDownScreen();
 }
 
-void Settings1View::applyCoreTSetAndRedraw()
+void Settings1View::applyCoreTSetDisplayOnly()
 {
-	// Отображаем одно десятичное: X.Y
 	int whole = CoreTSetDeci / 10;
 	int frac  = CoreTSetDeci >= 0 ? (CoreTSetDeci % 10) : -(CoreTSetDeci % 10);
 	Unicode::snprintf(ValueCoreTSetBuffer, VALUECORETSET_SIZE, "%d.%d", whole, frac);
 	ValueCoreTSet.invalidate();
+}
 
-	// Передаём уставку алгоритму в градусах Цельсия.
+void Settings1View::applyCoreTSetAndRedraw()
+{
+	applyCoreTSetDisplayOnly();
 	float valC = static_cast<float>(CoreTSetDeci) / 10.0f;
 	presenter->DefrosterOperatingTemperaturePresenter(valC);
+}
+
+void Settings1View::syncCoreTSetFromDefrostControl()
+{
+	float t = presenter->GetFishColdTarget_C();
+	int vDeci = static_cast<int>(t * 10.0f + 0.5f);
+	if (vDeci < 10)  vDeci = 10;
+	if (vDeci > 190) vDeci = 190;
+	const int16_t newDeci = static_cast<int16_t>(vDeci);
+	if (newDeci != CoreTSetDeci)
+	{
+		CoreTSetDeci = newDeci;
+		applyCoreTSetDisplayOnly();
+	}
 }
 
 void Settings1View::stepIncreaseOnce()
