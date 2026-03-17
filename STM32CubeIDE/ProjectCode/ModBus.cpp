@@ -1408,23 +1408,19 @@ void WriteToServer(uint8_t* Data, int length)
  * Описание: Отправка пакета на сервер с маркером начала (AA 55), но без маркера конца
  * 
  * ФОРМАТ ПАКЕТА:
- *   [AA 55] [Type + Len + PayLoad + CRC]
- *   └──┬──┘ └─────────────┬────────────┘
- *    START              Data
+ *   [AA 55] [Type + Code + Status + dataLen + data + CRC16]
+ *   └──┬──┘ └────────────────────┬────────────────────────┘
+ *    START            	         Data
  * 
  * Параметры:
  * 	 - START  		маркер начала пакета
- *   - Data		   	указатель на данные пакета (с CRC)
- *   - Type			тип пакета
- *   - Len 	  		длина данных PayLoad
- *   - PayLoad		данные
- *   - CRC			CRC по данным PayLoad
- * 
- * ВАЖНО: CRC должен быть уже рассчитан и помещён в Data!
- * 
- * Примеры:
- *   Телеметрия: [AA 55][Type + Len + Payload + CRC16]
- *   Ответ:      [AA 55][Type + Len + Code + Status + DataLen + Data + CRC16]
+ *   - Data		   	указатель на пакет с данными
+ *   - Type			тип команды
+ *   - Code			команда
+ *   - Status		статус исполнения команды
+ *   - dataLen 	  	длина данных data
+ *   - data			данные data
+ *   - CRC16		CRC по пакету Data
  */
 void WriteToServerWithSync(uint8_t* Data, int length)
 {

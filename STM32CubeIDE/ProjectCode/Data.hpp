@@ -79,6 +79,7 @@ typedef enum {
 	SERVER_TX_TYPE_HIGH      = 2   /* ответ на команду или повтор телеметрии */
 } ServerTxType_t;
 
+// Структура пакета, отправляемого по шине на сервер
 typedef struct __attribute__((packed)) {
 	uint8_t PacketLength;
 	uint8_t data[SERVER_TX_ITEM_SIZE - 2u];

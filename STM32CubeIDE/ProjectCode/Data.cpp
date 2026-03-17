@@ -410,6 +410,7 @@ void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length)
 	ServerTxItem_t item = {};
 	item.PacketLength = (uint8_t)length;
 	memcpy(item.data, data, length);
+
 	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
 }
 
