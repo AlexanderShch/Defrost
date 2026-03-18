@@ -27,6 +27,9 @@
  #include <gui/model/Model.hpp>      // Model::getCurrentVal_* и битовый регистр Model::DFR
  #include "ModBus.hpp"
 
+ #define DEBUG_DISABLE_TARGET_T_STOP  1   /* 1 = отладка: не останавливать по целевой Т */
+// #define DEBUG_DISABLE_TARGET_T_STOP  0   /* 0 = работа: останавливать по целевой Т */
+
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osSemaphoreId_t SensorsReadDone_SemHandle;
 
@@ -606,11 +609,13 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         }
 
         // Останов алгоритма при достижении целевой мин. температуры рыбы (целевая Т задаётся в параметрах/на Settings1).
+        #if !defined(DEBUG_DISABLE_TARGET_T_STOP) || (DEBUG_DISABLE_TARGET_T_STOP == 0)
         if (fishCold_C >= g_defrostParams.fishColdTarget_C)
         {
             DefrostControl_SetEnabled(0);
             return;
         }
+        #endif
 
          // Почему: выбираем фазу разморозки на основе температуры самой холодной точки продукта.
          const Phase phase = SelectPhase(fishCold_C);
@@ -1793,17 +1798,17 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
          {
              ApplyModeLamps(LampModeState::AutoActive);
              ControlStep1s();
+ 
+             // Счётчик времени "Отработано" увеличиваем только когда реально работает автоматика.
+             if (g.runtimeSeconds < UINT32_MAX)
+             {
+                 g.runtimeSeconds++;
+             }
+             else
+             {
+                 g.runtimeSeconds = 0;
+             }
          };
-
-         // Счётчик времени
-         if (g.runtimeSeconds < UINT32_MAX)
-         {
-            g.runtimeSeconds++;
-         }
-         else
-         {
-            g.runtimeSeconds = 0;
-         }
      }
  }
 
