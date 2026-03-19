@@ -16,10 +16,10 @@
 
 // Максимальная длина команды (заголовок + данные + CRC)
 // GET_DEFROST_GROUP(5) возвращает DefrostLogPhasePayload_t (72 байта) + 2 (groupId, page) = 74 байта данных
-#define CMD_MAX_DATA_LENGTH 113  // не менее 74 для групп 5/6 лога параметров
-#define CMD_MAX_LENGTH 86       // 3 (header) + CMD_MAX_DATA_LENGTH + 2 (CRC)
 #define CMD_HEADER_SIZE 3
 #define CMD_CRC_SIZE 2
+#define CMD_MAX_DATA_LENGTH 113  // не менее sizeof(ControlLogPayload_t)=89 и >=74 для групп 5/6
+#define CMD_MAX_LENGTH (CMD_HEADER_SIZE + CMD_MAX_DATA_LENGTH + CMD_CRC_SIZE)
 
 // Типы команд (CommandType)
 typedef enum {

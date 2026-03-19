@@ -245,11 +245,19 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 	// Обработка считанных данных
 	switch (result)
 	{
-		case MB_ERROR_NO:
+		case MB_ERROR_NO: {
 			Sensor_array[SensIndex].OkCnt++;
 			// запись в массив данных
+			// Важно: температуры от ModBus приходят 16-битным словом в доп.коде.
+			// Для датчиков температуры (типы 1 и 2) нормализуем знак сразу в int16_t,
+			// иначе в буферах/усреднении появляются значения около 655xx и скачки +/-3000 °C.
+			int tempSigned = SW.Read_Data_2;
+			if (Sensor_array[SensIndex].TypeOfSensor == 1 || Sensor_array[SensIndex].TypeOfSensor == 2)
+			{
+				tempSigned = (int16_t)SW.Read_Data_2;
+			}
 			Sensor::PutData(TimeFromStart, SensIndex, 1, TimeFromStart);
-			Sensor::PutData(TimeFromStart, SensIndex, 2, SW.Read_Data_2);	// запись Т
+			Sensor::PutData(TimeFromStart, SensIndex, 2, tempSigned);	// запись Т
 			Sensor::PutData(TimeFromStart, SensIndex, 3, SW.Read_Data_1);	// запись Н
 
 			// Почему: состояние входов дефростера нужно обновлять сразу после чтения из модуля ввода-вывода.
@@ -261,6 +269,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 				Model::Gate_Open = Model::DI_DFR.Bits.Gate_Open ? 1 : 0;
 			}
 			break;
+		}
 		case MB_ERROR_DMA_SEND:
 			Sensor_array[SensIndex].TxErrorCnt++;
 			break;
@@ -269,10 +278,11 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			break;
 		case MB_ERROR_UART_RECIEVE:	{
 			Sensor_array[SensIndex].RxErrorCnt++;
-			SW.Read_Data_2 = Sensor::GetData(TimeFromStart-1, SensIndex, 2);	// достали предыдущее значение T
-			SW.Read_Data_1 = Sensor::GetData(TimeFromStart-1, SensIndex, 3);	// достали предыдущее значение H (Param 3 = H)
-			Sensor::PutData(TimeFromStart, SensIndex, 2, SW.Read_Data_2);		// запись Т
-			Sensor::PutData(TimeFromStart, SensIndex, 3, SW.Read_Data_1);		// запись Н
+			// При ошибке чтения используем предыдущее значение и сохраняем его как signed для температуры.
+			const int prevTemp = Sensor::GetData(TimeFromStart-1, SensIndex, 2);	// предыдущее значение T
+			const int prevHum = Sensor::GetData(TimeFromStart-1, SensIndex, 3);	// предыдущее значение H (Param 3 = H)
+			Sensor::PutData(TimeFromStart, SensIndex, 2, prevTemp);				// запись Т
+			Sensor::PutData(TimeFromStart, SensIndex, 3, prevHum);				// запись Н
 			break;	}
 		case MB_ERROR_DMA_RECIEVE:
 			Sensor_array[SensIndex].RxErrorCnt++;
@@ -1069,7 +1079,8 @@ MB_Error_t Sensor_Read_CORR(uint8_t SensIndex)
 			// Запросим данные с датчика
 			result = Master_RW(&SW, SensAddress, MB_CMD_READ_REGS, Type1_H, 2, WR_Buffer);
 			Model::H_CORR_sensor = SW.Read_Data_1;
-			Model::T_CORR_sensor = SW.Read_Data_2;
+			// Температура в two's complement (deci °C): нормализуем знак.
+			Model::T_CORR_sensor = (int16_t)SW.Read_Data_2;
 			break; 	}
 	// тип датчика: 2 - датчик температуры РТ100 с RS485
 		case 2:		{
@@ -1079,7 +1090,8 @@ MB_Error_t Sensor_Read_CORR(uint8_t SensIndex)
 			Model::R_CORR_sensor = SW.Read_Data_2;
 			// Здесь паузу между фреймами не делаем, поскольку читаем из того же устройства
 			result = Master_RW(&SW, SensAddress, MB_CMD_READ_REGS, Type2_T, 1, WR_Buffer);
-			Model::T_CORR_sensor = SW.Read_Data_2;
+			// Температура в two's complement (deci °C): нормализуем знак.
+			Model::T_CORR_sensor = (int16_t)SW.Read_Data_2;
 			break;	}
 		default:	{
 			result = MB_ERROR_WRONG_ADDRESS;
