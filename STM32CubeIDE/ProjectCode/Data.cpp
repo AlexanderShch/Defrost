@@ -137,52 +137,42 @@ int Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned 
 	}
 }
 
-void Sensor::SetAverageTemperature(unsigned int TimeFromStart, unsigned char SensNum, int Temp, unsigned int windowSeconds)
+void Sensor::SetAverageTemperature(unsigned char SensNum, int Temp)
 {
 	int TempAverage = 0;
-	if (windowSeconds == 0u)
+	long sum = 0;
+	unsigned int count = 0;
+	// На начальном этапе работы, пока не набралось достаточно измерений, чтобы вычислить среднюю Т, используем текущее значение Т
+	if (TimeFromStart <= TQ)
 	{
 		TempAverage = Temp;
 	}
-
-	long sum = 0;
-	unsigned int count = 0;
-	const unsigned int now = TimeFromStart;
-
-	for (unsigned int idx = 0u; idx < TQ; ++idx)
+	else
 	{
-		const unsigned int t = Time[idx][SensNum];
-		if (t == 0u)
-		{
-			continue;
-		}
-		const unsigned int dt = now - t;
-		if (dt < windowSeconds)
+		for (unsigned int idx = 0u; idx < TQ; ++idx)
 		{
 			sum += T[idx][SensNum];
 			++count;
 		}
-	}
-
-	if (count != 0u)
-	{
 		TempAverage = (int)(sum / (long)count);
 	}
+
 	PutData(TimeFromStart, SensNum, 4, TempAverage);
 }
 
-int ClatchSensorTemperature (unsigned int TimeFromStart, unsigned char SensNum, int Temp) {
+int ClatchSensorTemperature (unsigned char SensNum, int Temp) {
 	const int maxDeltaDeci = 11;
 	int TempClatched = 0;
 	int TempOld = 0;
 
-	if (TimeFromStart == 0u)
+	// На начальном этапе работы, пока не набралось достаточно измерений, чтобы вычислить среднюю Т, используем текущее значение Т
+	if (TimeFromStart <= TQ)
 	{
 		TempClatched = Temp;
 	}
 	else
 	{
-		TempOld = Sensor::GetData(TimeFromStart-1, SensNum, 4); // предыдущее усредненное значение температуры
+		TempOld = Sensor::GetData(TimeFromStart-1, SensNum, 4); // предыдущее усредненное значение Т
 		int delta = Temp - TempOld;
 		if (delta > maxDeltaDeci)
 		{
@@ -281,8 +271,8 @@ void ReadDataFunc() {
 				result = Sensor_Read(SensorIndex);
 
 				// Temperature: фильтруем по скорости изменения и усредняем по времени
-				TempClatched = ClatchSensorTemperature(TimeFromStart, SensorIndex, Sensor::GetData(TimeFromStart, SensorIndex, 2));
-				Sensor::SetAverageTemperature(TimeFromStart, SensorIndex, TempClatched, 10u);	// расчёт и запись в массив усредненное значение температуры за последние 10 секунд
+				TempClatched = ClatchSensorTemperature(SensorIndex, Sensor::GetData(TimeFromStart, SensorIndex, 2));
+				Sensor::SetAverageTemperature(SensorIndex, TempClatched);	// расчёт и запись в массив усредненное значение температуры за последние 10 секунд
 
 				// запись в переменные экрана, если есть изменения
 				TempOld = Model::getCurrentVal_T(SensorIndex);	// текущее значение температуры на экране

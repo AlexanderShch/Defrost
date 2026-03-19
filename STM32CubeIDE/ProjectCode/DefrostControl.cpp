@@ -32,9 +32,11 @@
 
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osSemaphoreId_t SensorsReadDone_SemHandle;
+extern unsigned int TimeFromStart;
 
 /* Буфер параметров для лога (заполняется в ControlStep1s/ControlStep1s_AirOnly, читается из Data.cpp). */
 static ControlLogPayload_t s_controlLogPayload;
+static_assert(sizeof(ControlLogPayload_t) == 89, "ControlLogPayload_t size must be 89 bytes");
 /* Текущая фаза для ответа по REQ_CMD_GET_DEFROST_GROUP groupId 5 (группа 1 лога). */
 static uint8_t s_lastPhase = 0;
 
@@ -534,7 +536,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         ApplyModeLamps(LampModeState::AutoActive);
      }
  
-     static void ControlStep1s()
+    static void ControlStep1s()
      {
         // Клапан вытяжки в рабочем режиме закрыт (Water_Flap = 1 задаётся при входе в авто-режим, стр. ~1164).
 
@@ -813,14 +815,13 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
 
         s_lastPhase = static_cast<uint8_t>(phase);
 
-        // Формируем текущее состояние алгоритма управления для регулярного лога
-        s_controlLogPayload.T_filt_C[0] = DeciToC((int16_t)Model::getCurrentVal_T(0));  // defroster T,H left
-        s_controlLogPayload.T_filt_C[1] = DeciToC((int16_t)Model::getCurrentVal_T(1));  // defroster T,H right
-        s_controlLogPayload.T_filt_C[2] = DeciToC((int16_t)Model::getCurrentVal_T(2));  // defroster T,H center
-        s_controlLogPayload.T_filt_C[3] = DeciToC((int16_t)Model::getCurrentVal_T(3));  // fish T left
-        s_controlLogPayload.T_filt_C[4] = DeciToC((int16_t)Model::getCurrentVal_T(4));  // fish T right
-        s_controlLogPayload.T_filt_C[5] = DeciToC((int16_t)Model::getCurrentVal_T(5));  // defroster operating T
-        s_controlLogPayload.T_filt_C[6] = DeciToC((int16_t)Model::getCurrentVal_T(6));  // product final T
+        // Формируем текущее состояние алгоритма управления для регулярного лога (6 датчиков: 0..5).
+        s_controlLogPayload.T_filt_C[0] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 0, 4));  // defroster T,H left
+        s_controlLogPayload.T_filt_C[1] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 1, 4));  // defroster T,H right
+        s_controlLogPayload.T_filt_C[2] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 2, 4));  // defroster T,H center
+        s_controlLogPayload.T_filt_C[3] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 3, 4));  // fish T left
+        s_controlLogPayload.T_filt_C[4] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 4, 4));  // fish T right
+        s_controlLogPayload.T_filt_C[5] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 5, 4));  // defroster operating T
 
          s_controlLogPayload.phase = s_lastPhase;
          s_controlLogPayload.eT_common = eT_common;
@@ -967,26 +968,26 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
          const uint8_t out_on = g.outOn ? 1 : 0;
 
-         s_lastPhase = static_cast<uint8_t>(phase);
-         s_controlLogPayload.phase = s_lastPhase;
-         s_controlLogPayload.eT_common = eT_common;
-         s_controlLogPayload.heatScale01 = heatScale01;
-         s_controlLogPayload.uCommon_TEN = uCommon_TEN;
-         s_controlLogPayload.trim_TEN = trim_TEN;
-         s_controlLogPayload.uLeft_TEN = uLeft_TEN;
-         s_controlLogPayload.uRight_TEN = uRight_TEN;
-         s_controlLogPayload.leftTen1Duty = leftTen1Duty;
-         s_controlLogPayload.leftTen2Duty = leftTen2Duty;
-         s_controlLogPayload.rightTen1Duty = rightTen1Duty;
+        s_lastPhase = static_cast<uint8_t>(phase);
+        s_controlLogPayload.phase = s_lastPhase;
+        s_controlLogPayload.eT_common = eT_common;
+        s_controlLogPayload.heatScale01 = heatScale01;
+        s_controlLogPayload.uCommon_TEN = uCommon_TEN;
+        s_controlLogPayload.trim_TEN = trim_TEN;
+        s_controlLogPayload.uLeft_TEN = uLeft_TEN;
+        s_controlLogPayload.uRight_TEN = uRight_TEN;
+        s_controlLogPayload.leftTen1Duty = leftTen1Duty;
+        s_controlLogPayload.leftTen2Duty = leftTen2Duty;
+        s_controlLogPayload.rightTen1Duty = rightTen1Duty;
         s_controlLogPayload.rightTen2Duty = rightTen2Duty;
 
-        // Отфильтрованные температуры всех датчиков (в °C) — первыми в логе.
-        s_controlLogPayload.T_filt_C[0] = DeciToC((int16_t)Model::getCurrentVal_T(0));  // defroster T,H left
-        s_controlLogPayload.T_filt_C[1] = DeciToC((int16_t)Model::getCurrentVal_T(1));  // defroster T,H right
-        s_controlLogPayload.T_filt_C[2] = DeciToC((int16_t)Model::getCurrentVal_T(2));  // defroster T,H center
-        s_controlLogPayload.T_filt_C[3] = DeciToC((int16_t)Model::getCurrentVal_T(3));  // fish T left
-        s_controlLogPayload.T_filt_C[4] = DeciToC((int16_t)Model::getCurrentVal_T(4));  // fish T right
-        s_controlLogPayload.T_filt_C[5] = DeciToC((int16_t)Model::getCurrentVal_T(5));  // defroster operating T
+        // Отфильтрованные температуры 6 датчиков (индексы 0..5, в °C) — первыми в логе.
+        s_controlLogPayload.T_filt_C[0] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 0, 4));  // defroster T,H left
+        s_controlLogPayload.T_filt_C[1] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 1, 4));  // defroster T,H right
+        s_controlLogPayload.T_filt_C[2] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 2, 4));  // defroster T,H center
+        s_controlLogPayload.T_filt_C[3] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 3, 4));  // fish T left
+        s_controlLogPayload.T_filt_C[4] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 4, 4));  // fish T right
+        s_controlLogPayload.T_filt_C[5] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 5, 4));  // defroster operating T
 
         s_controlLogPayload.w_sup_avg = w_sup_avg;
         s_controlLogPayload.wErr = wErr;

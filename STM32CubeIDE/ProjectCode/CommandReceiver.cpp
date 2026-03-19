@@ -974,8 +974,11 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     uint8_t originalCommandType = receivedCommand.commandType;
     uint8_t originalCommandCode = receivedCommand.commandCode;
     
+    /************************************************************/
     // Обрабатываем команду
+    /************************************************************/
     cmdStatus = CommandReceiver_ProcessCommand(&receivedCommand);
+    /************************************************************/
     
     // Для команд, требующих подтверждения, отправляем ответ
     // TELEMETRY (0x00) не требует ответа, так как это уже ответ от сервера

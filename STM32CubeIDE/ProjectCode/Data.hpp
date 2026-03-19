@@ -12,7 +12,7 @@
 #include "cmsis_os.h"
 #include "ModBus.hpp"
 
-#define TQ 16				// размер буфера (кол-во тактов) для хранения измерений
+#define TQ 16				// размер буфера (кол-во тактов) для хранения измерений при расчёте среднего значения температуры
 #define SQ 7				// датчики TH дефростера (0-2) + датчики продукта (3, 4) + T корпуса (5) + MB_IO (6)
 #define STQ 5				// количество типов датчиков и IO-модулей
 #define FLAG_ReadData 1ul	// флаг события чтения данных 0x00000001ul
@@ -26,7 +26,7 @@ public:
 	Sensor(unsigned int Time, int T, int H){};		// конструктор
 	static void PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val);
 	static int GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param);
-	static void SetAverageTemperature(unsigned int TimeFromStart, unsigned char SensNum, int Temp, unsigned int windowSeconds);
+	static void SetAverageTemperature(unsigned char SensNum, int Temp);
 
 protected:
 	static unsigned int Time[TQ][SQ];	// номер такта измерения
