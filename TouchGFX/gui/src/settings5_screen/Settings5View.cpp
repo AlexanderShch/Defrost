@@ -17,7 +17,7 @@ extern SENSOR_typedef_t Sensor_array[SQ];
 osThreadId_t ProgrammingSensHandle;
 const osThreadAttr_t ProgrammingSens_attributes = {
   .name = "ProgrammingSens",
-  .stack_size = 128 * 4,
+  .stack_size = 1024 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
 
