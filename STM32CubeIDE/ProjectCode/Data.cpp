@@ -246,16 +246,42 @@ void ReadDataFunc() {
 		 * в цикле опроса датчиков
 		 ************************************************************/
 		// Выбираем активный регистр управления в зависимости от режима.
+		// Общий флаг аварии: авария ворот ИЛИ любые аварийные биты устройств.
+		Model::Device_Alarm = ((Model::Gate_Alarm != 0) || (Model::Device_AlarmFlags != 0)) ? 1 : 0;
 		const uint16_t activeRegister = (Model::Flag_DFR_manual == 0) ? *pDFR : *pDFR_manual;
 
 		// В модуль ввода-вывода всегда отправляем активный регистр.
 		RelayRegister = activeRegister;
 
-		// Для визуализации всегда обновляем "текущее отображаемое состояние" активным регистром.
-		// Это нужно, чтобы в ручном режиме в визуализации показывались вентиляторы и тэны.
+		// Для визуализации обновляем "текущее отображаемое состояние" устройств.
+		// По возможности используем ФАКТИЧЕСКИЕ входные сигналы с модуля ввода-вывода (IN0..IN15),
+		// а не только командные биты управления.
+		uint16_t displayedRegister = activeRegister;
+		const int ioIndex = 6; // индекс модуля MB IO в Sensor_array при SQ=7
+		if (ioIndex < SQ && Sensor_array[ioIndex].TypeOfSensor == 4 && Sensor_array[ioIndex].Active == 1)
+		{
+			displayedRegister = 0;
+			displayedRegister |= (Model::DI_DFR.Bits.Vent1_Left  ? (1u << 0)  : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Vent2_Left  ? (1u << 1)  : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Vent1_Right ? (1u << 2)  : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Vent2_Right ? (1u << 3)  : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Ten1_Left   ? (1u << 4)  : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Ten2_Left   ? (1u << 5)  : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Ten1_Right  ? (1u << 6)  : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Ten2_Right  ? (1u << 7)  : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Vent_Out    ? (1u << 8)  : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Air_Open    ? (1u << 9)  : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Air_Close   ? (1u << 10) : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Gate_Alarm  ? (1u << 11) : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Gate_Close  ? (1u << 12) : 0u);
+			displayedRegister |= (Model::DI_DFR.Bits.Gate_Open   ? (1u << 13) : 0u);
+			// Телеметрия/визуализация: бит14 = _Wrk (как в активном регистре), бит15 = _Alr (общая авария).
+			displayedRegister |= (activeRegister & (1u << 14));
+			displayedRegister |= (Model::Device_Alarm ? (1u << 15) : 0u);
+		}
 		const uint16_t prevDisplayedRegister = *pDFR_current;
-		*pDFR_chng_flag = activeRegister ^ prevDisplayedRegister;
-		*pDFR_current = activeRegister;
+		*pDFR_chng_flag = displayedRegister ^ prevDisplayedRegister;
+		*pDFR_current = displayedRegister;
 
 		/**************************************************************
 		 * Цикл опроса датчиков

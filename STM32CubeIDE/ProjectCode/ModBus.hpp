@@ -23,6 +23,10 @@
 #define MB_SLAVE_ADDRESS	200
 #define BAUD_RATE_NUMBER	8
 
+// Флаг включения проверки, что входы MB IO повторяют переключения выходов.
+// 0 - проверка выключена, 1 - проверка включена.
+#define DEVICE_SWITCH_CHECK_ENABLED 1
+
 /* Описание набора датчиков дефростера */
 typedef struct {
 	uint8_t	TypeNumber;

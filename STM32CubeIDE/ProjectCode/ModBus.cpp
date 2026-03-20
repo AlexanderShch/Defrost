@@ -3,6 +3,7 @@
 #include "ModBus.hpp"
 #include "Data.hpp"
 #include "CommandReceiver.hpp"
+#include "DefrostControl.h"
 #include "stdio.h"
 #include "task.h"
 #include "string.h"
@@ -165,6 +166,61 @@ MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreI
 #define PR_CheckAnswerCRC (MB->Rx_Buffer[1] == CMD && MB_GetCRC(MB->Rx_Buffer, 8) == 0)
 int Parametr_CORR;
 
+// Предыдущее "сырое" состояние входов MB IO.
+// Почему: флаги Gate_* в Model должны принимать аппаратное состояние только по факту
+// изменения входного сигнала, а не при каждом цикле опроса.
+static uint16_t g_prevDiRaw = 0;
+static uint8_t g_prevDiRawValid = 0;
+
+#if (DEVICE_SWITCH_CHECK_ENABLED != 0)
+// Биты устройств, для которых проверяем подтверждение по входам MB IO.
+// Vent1_Left, Vent2_Left, Vent1_Right, Vent2_Right, Ten1_Left, Ten2_Left, Ten1_Right, Ten2_Right, Vent_Out.
+static const uint16_t kDeviceCheckMask = (1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) |
+                                         (1u << 4) | (1u << 5) | (1u << 6) | (1u << 7) |
+                                         (1u << 8);
+// Последний снимок выходного регистра для отслеживания переключений.
+static uint16_t g_prevRelayChecked = 0;
+static uint8_t g_prevRelayCheckedValid = 0;
+// Ожидаемые состояния входов после переключения выходов.
+static uint16_t g_pendingCheckMask = 0;
+static uint16_t g_expectedDiBits = 0;
+
+// Обработка случая, когда вход не переключился вслед за выходом на следующем опросе.
+// TODO: добавить нужную бизнес-логику (авария/лог/уведомление/останов и т.д.).
+static void HandleDeviceSwitchCheckMismatch(uint16_t mismatchMask, uint16_t expectedBits, uint16_t actualBits)
+{
+	// Накопительно фиксируем аварийные биты рассогласования "выход->вход".
+	Model::Device_AlarmFlags |= (uint16_t)(mismatchMask & kDeviceCheckMask);
+	(void)expectedBits;
+	(void)actualBits;
+}
+
+// Принудительное отключение ТЭНов, если не подтверждена работа вентиляторов в группе.
+static void EnforceHeaterInterlockByFans(void)
+{
+	const uint8_t leftFansOn = (uint8_t)((Model::DI_DFR.Bits.Vent1_Left != 0) && (Model::DI_DFR.Bits.Vent2_Left != 0));
+	const uint8_t rightFansOn = (uint8_t)((Model::DI_DFR.Bits.Vent1_Right != 0) && (Model::DI_DFR.Bits.Vent2_Right != 0));
+
+	if (leftFansOn == 0u)
+	{
+		Model::DFR.Ten1_Left = 0;
+		Model::DFR.Ten2_Left = 0;
+		Model::DFR_manual.Ten1_Left = 0;
+		Model::DFR_manual.Ten2_Left = 0;
+		RelayRegister &= (uint16_t)~((1u << 4) | (1u << 5));
+	}
+
+	if (rightFansOn == 0u)
+	{
+		Model::DFR.Ten1_Right = 0;
+		Model::DFR.Ten2_Right = 0;
+		Model::DFR_manual.Ten1_Right = 0;
+		Model::DFR_manual.Ten2_Right = 0;
+		RelayRegister &= (uint16_t)~((1u << 6) | (1u << 7));
+	}
+}
+#endif
+
 /************** ДАТЧИКИ ****************************/
 /***************************************************/
 // проверим все сенсоры на активность, в т.ч. при запуске
@@ -265,8 +321,85 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			if (SensIndex == 6 && Sensor_array[SensIndex].TypeOfSensor == 4)
 			{
 				Model::DI_DFR.Raw = SW.Read_Data_2;
-				Model::Gate_Close = Model::DI_DFR.Bits.Gate_Close ? 1 : 0;
-				Model::Gate_Open = Model::DI_DFR.Bits.Gate_Open ? 1 : 0;
+				// Обновляем связанные флаги ворот/аварии только при изменении аппаратного входа.
+				// Если вход не менялся, флаг не трогаем даже при рассогласовании.
+				if (g_prevDiRawValid == 0)
+				{
+					// Первичная инициализация от аппаратного состояния входов.
+					Model::Gate_Close = Model::DI_DFR.Bits.Gate_Close ? 1 : 0;
+					Model::Gate_Open = Model::DI_DFR.Bits.Gate_Open ? 1 : 0;
+					Model::Gate_Alarm = Model::DI_DFR.Bits.Gate_Alarm ? 1 : 0;
+					if (Model::Gate_Alarm != 0)
+					{
+						// Аппаратная авария ворот должна немедленно остановить дефростер.
+						DefrostControl_SetEnabled(0);
+					}
+					g_prevDiRaw = Model::DI_DFR.Raw;
+					g_prevDiRawValid = 1;
+				}
+				else
+				{
+					const uint16_t currRaw = Model::DI_DFR.Raw;
+					const uint16_t changed = (uint16_t)(currRaw ^ g_prevDiRaw);
+
+					if ((changed & (1u << 12)) != 0u)
+					{
+						Model::Gate_Close = Model::DI_DFR.Bits.Gate_Close ? 1 : 0;
+					}
+					if ((changed & (1u << 13)) != 0u)
+					{
+						Model::Gate_Open = Model::DI_DFR.Bits.Gate_Open ? 1 : 0;
+					}
+					if ((changed & (1u << 11)) != 0u)
+					{
+						// Gate_Alarm - инверсный вход (1 = норма, 0 = авария),
+						// а Model::Gate_Alarm храним как 1 = авария.
+						Model::Gate_Alarm = Model::DI_DFR.Bits.Gate_Alarm ? 1 : 0;
+						if (Model::Gate_Alarm != 0)
+						{
+							// Аппаратная авария ворот должна немедленно остановить дефростер.
+							DefrostControl_SetEnabled(0);
+						}
+					}
+
+					g_prevDiRaw = currRaw;
+				}
+
+#if (DEVICE_SWITCH_CHECK_ENABLED != 0)
+				// Проверка переключения устройств:
+				// если выходной бит изменился, то на следующем чтении DI соответствующий вход должен стать таким же.
+				const uint16_t relayNow = (uint16_t)(RelayRegister & kDeviceCheckMask);
+				if (g_prevRelayCheckedValid == 0)
+				{
+					g_prevRelayChecked = relayNow;
+					g_prevRelayCheckedValid = 1;
+				}
+				else
+				{
+					const uint16_t relayChanged = (uint16_t)(relayNow ^ g_prevRelayChecked);
+					if (relayChanged != 0u)
+					{
+						g_pendingCheckMask = (uint16_t)(g_pendingCheckMask | relayChanged);
+						g_expectedDiBits = (uint16_t)((g_expectedDiBits & (uint16_t)(~relayChanged)) | (relayNow & relayChanged));
+						g_prevRelayChecked = relayNow;
+					}
+				}
+
+				if (g_pendingCheckMask != 0u)
+				{
+					const uint16_t diNow = (uint16_t)(Model::DI_DFR.Raw & kDeviceCheckMask);
+					const uint16_t mismatchMask = (uint16_t)((diNow ^ g_expectedDiBits) & g_pendingCheckMask);
+					if (mismatchMask != 0u)
+					{
+						HandleDeviceSwitchCheckMismatch(mismatchMask, g_expectedDiBits, diNow);
+					}
+					// Проверка выполняется один раз на "следующем считывании входов" после переключения.
+					g_pendingCheckMask = 0u;
+				}
+
+				// По входам вентиляторов контролируем межблокировку групп ТЭНов.
+				EnforceHeaterInterlockByFans();
+#endif
 			}
 			break;
 		}

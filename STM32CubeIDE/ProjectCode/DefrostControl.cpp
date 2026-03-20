@@ -378,6 +378,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         uint8_t startupGateClosing = 0; // при старте: 1 если нужно закрыть ворота через API GateControl
         uint8_t shutdownActive = 0;     // при остановке: 1 пока выполняется последовательность остановки
         uint8_t shutdownGateOpening = 0; // при остановке: 1 если открытие ворот выполняется через API GateControl
+        uint8_t alarmBlinkPhase = 0;    // фаза мигания аварийной лампы: 0/1 (1 Гц)
         uint8_t startupActuatorDelay_s = 0; // пауза между последовательными включениями вентиляторов и ТЭНов
         uint8_t stagedVent1LeftOn = 0;
         uint8_t stagedVent2LeftOn = 0;
@@ -417,6 +418,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
        g.startupGateClosing = 0;      // при старте: 1 если нужно закрыть ворота
        g.shutdownActive = 0;          // при остановке: 1 пока выполняется последовательность остановки
        g.shutdownGateOpening = 0;
+       g.alarmBlinkPhase = 0;
        g.startupActuatorDelay_s = 0;
        g.stagedVent1LeftOn = 0;
        g.stagedVent2LeftOn = 0;
@@ -447,25 +449,41 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         StoppedOrManual = 1
     };
 
-    // Управление лампами индикации работы:
-    // зеленая - работа в автоматическом режиме
-    // красная - автоматический процесс остановлен
+    static void UpdateDeviceAlarmState()
+    {
+        // Общий флаг аварии устройства: авария ворот ИЛИ аварии из регистра Device_AlarmFlags.
+        Model::Device_Alarm = ((GateControl_IsAlarm() != 0) || (Model::Device_AlarmFlags != 0)) ? 1 : 0;
+
+        if (Model::Device_Alarm != 0)
+        {
+            // Мигаем 1 сек вкл / 1 сек выкл (тик DefrostControl_Update1s = 1 Гц).
+            g.alarmBlinkPhase = (g.alarmBlinkPhase == 0) ? 1 : 0;
+        }
+        else
+        {
+            g.alarmBlinkPhase = 0;
+        }
+    }
+
+    // Управление лампами индикации:
+    // зелёная _Wrk - только активный автоматический режим;
+    // красная _Alr - только авария устройства, мигание 1/1 сек.
     static void ApplyModeLamps(LampModeState modeState)
     {
-        // Why: централизуем правила индикации режима, чтобы исключить расхождения между ветками auto/manual/stop.
-        if (modeState == LampModeState::AutoActive)
+        // В ручном режиме никакие лампы не горят.
+        if (Model::Flag_DFR_manual != 0)
         {
-            Model::DFR._Wrk = 1;
-            Model::DFR._Stp = 0;
+            Model::DFR._Wrk = 0;
+            Model::DFR._Alr = 0;
             Model::DFR_manual._Wrk = 0;
-            Model::DFR_manual._Stp = 1;
+            Model::DFR_manual._Alr = 0;
             return;
         }
 
-        Model::DFR._Wrk = 0;
-        Model::DFR._Stp = 1;
+        Model::DFR._Wrk = (modeState == LampModeState::AutoActive) ? 1 : 0;
+        Model::DFR._Alr = (Model::Device_Alarm != 0 && g.alarmBlinkPhase != 0) ? 1 : 0;
         Model::DFR_manual._Wrk = 0;
-        Model::DFR_manual._Stp = 1;
+        Model::DFR_manual._Alr = 0;
     }
 
     // Соблюдение порядка последовательного, с интервалами времени, включения мощных устройств 
@@ -1432,6 +1450,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
      void DefrostControl_SetEnabled(uint8_t enabled)
      {
          // Почему: отдельный флаг enabled позволяет безопасно вводить алгоритм, не ломая существующую логику авто/ручного режима.
+       UpdateDeviceAlarmState();
         const uint8_t newEnabled = enabled ? 1 : 0;
 
         if (newEnabled != 0)
@@ -1459,7 +1478,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
            GateControl_SetCommand(GateControlCommand::Close, 0);
            GateControl_SetCommand(GateControlCommand::Deblock, 0);
 
-          // Автоматический режим: зелёная лампа включена, красная выключена.
+          // Автоматический режим: зелёная лампа включена, красная только по аварии.
           ApplyModeLamps(LampModeState::AutoActive);
 
             // На старте авто-режима закрываем ворота, если они не в нижнем положении.
@@ -1486,7 +1505,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
          {
              ShutdownSequence();  // Безопасное выключение всех элементов
             g.runtimeSeconds = 0; // Время работы алгоритма обнуляется при остановке
-            // Останов: зелёная лампа выключена, красная включена.
+            // Останов: зелёная лампа выключена, красная только по аварии.
             ApplyModeLamps(LampModeState::StoppedOrManual);
         }
     }
@@ -1736,12 +1755,13 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
  
      void DefrostControl_Update1s(void)
      {
+        UpdateDeviceAlarmState();
          // Уважаем ручной режим и внешний флаг enabled.
          // Почему: ручной режим должен быть главным; алгоритм не должен "бороться" с оператором.
          if (g.enabled == 0)
          {
             // Алгоритм выключен, работает ручной режим
-            // В режиме останова всегда показываем красную лампу.
+            // В режиме останова зелёная лампа выключена; красная только по аварии.
             ApplyModeLamps(LampModeState::StoppedOrManual);
 
             if (g.shutdownActive != 0)
@@ -1790,7 +1810,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
                     GateControl_SetCommand(GateControlCommand::Deblock, 0);
                  }
              }
-           // В ручном режиме горит красная лампа.
+           // В ручном режиме обе лампы должны быть выключены.
            ApplyModeLamps(LampModeState::StoppedOrManual);
          }         
 

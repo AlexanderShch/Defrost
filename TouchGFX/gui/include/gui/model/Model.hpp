@@ -37,7 +37,7 @@ typedef struct
 	unsigned Gate_Dbl:1;		// 12 Разблокировать управление воротами
 	unsigned Gate_Down:1;		// 13 Опустить ворота
 	unsigned _Wrk:1;     		// 14 Включить зелёную лампу РАБОТА
-	unsigned _Stp:1;     		// 15 Включить красную лампу СТОП
+	unsigned _Alr:1;     		// 15 Включить красную лампу АВАРИЯ
 
 	// наименования и порядок переменных в программе сервера
 //	unsigned _V0:1; 			// Циркуляционный вентилятор 1 левый включить
@@ -66,22 +66,22 @@ typedef union
 	uint16_t Raw;
 	struct
 	{
-		unsigned DI0:1;
-		unsigned DI1:1;
-		unsigned DI2:1;
-		unsigned DI3:1;
-		unsigned DI4:1;
-		unsigned DI5:1;
-		unsigned DI6:1;
-		unsigned DI7:1;
-		unsigned DI8:1;
-		unsigned DI9:1;
-		unsigned DI10:1;
-		unsigned DI11:1;
-		unsigned Gate_Close:1; // бит 12: ворота закрыты
-		unsigned Gate_Open:1;  // бит 13: ворота открыты
-		unsigned DI14:1;
-		unsigned DI15:1;
+		unsigned Vent1_Left:1;   // IN0 / I0  - Вентилятор1 левый
+		unsigned Vent2_Left:1;   // IN1 / I1  - Вентилятор2 левый
+		unsigned Vent1_Right:1;  // IN2 / I2  - Вентилятор1 правый
+		unsigned Vent2_Right:1;  // IN3 / I3  - Вентилятор2 правый
+		unsigned Ten1_Left:1;    // IN4 / I4  - Левый ТЭН №1
+		unsigned Ten2_Left:1;    // IN5 / I5  - Левый ТЭН №2
+		unsigned Ten1_Right:1;   // IN6 / I6  - Правый ТЭН №1
+		unsigned Ten2_Right:1;   // IN7 / I7  - Правый ТЭН №2
+		unsigned Vent_Out:1;     // IN8 / I10 - Вытяжной вентилятор
+		unsigned Air_Open:1;     // IN9 / I11 - Заслонка открыта
+		unsigned Air_Close:1;    // IN10 / I12 - Заслонка закрыта
+		unsigned Gate_Alarm:1;   // IN11 / I13 - Аварийное открытие ворот
+		unsigned Gate_Close:1;   // IN12 / I14 - Ворота закрыты (концевик)
+		unsigned Gate_Open:1;    // IN13 / I15 - Ворота открыты (концевик)
+		unsigned But_Start:1;    // IN14 / I16 - Кнопка ПУСК
+		unsigned But_Stop:1;     // IN15 / I17 - Кнопка СТОП
 	} Bits;
 } DI_DFR_REGISTERS_t;
 
@@ -125,6 +125,8 @@ public:
     static uint8_t Gate_Open;   // бит 13: ворота открыты
     static uint8_t Gate_Close;  // бит 12: ворота закрыты
     static uint8_t Gate_Alarm;  // флаг аварийного режима ворот
+    static uint8_t Device_Alarm; // общий флаг аварии устройства (для красной лампы)
+    static uint16_t Device_AlarmFlags; // регистр аварийных флагов устройств (битовая маска)
     static uint8_t Gate_PosTop;    // флаг конечного положения "ворота вверху" (для аварийного режима)
     static uint8_t Gate_PosBottom; // флаг конечного положения "ворота внизу" (для аварийного режима)
 
