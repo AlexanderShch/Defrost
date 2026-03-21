@@ -266,6 +266,7 @@
       },
       {
         "Name": "Visualization",
+        "CanvasBufferSize": 3600,
         "Components": [
           {
             "Type": "Image",
@@ -634,6 +635,19 @@
           },
           {
             "Type": "AnimatedImage",
+            "Name": "AnimFan_Out",
+            "X": 101,
+            "Y": 29,
+            "Width": 38,
+            "Height": 38,
+            "FileNameFirst": "Fan_01.png",
+            "FileNameLast": "Fan_12.png",
+            "UpdateTicksInterval": 50,
+            "StartOnLoad": true,
+            "LoopEnabled": true
+          },
+          {
+            "Type": "AnimatedImage",
             "Name": "AnimHeat34",
             "X": 153,
             "Y": 86,
@@ -658,6 +672,52 @@
             "StartOnLoad": true,
             "ReverseEnabled": true,
             "LoopEnabled": true
+          },
+          {
+            "Type": "Image",
+            "Name": "Flap_Close",
+            "X": 108,
+            "Y": 7,
+            "Width": 25,
+            "Height": 22,
+            "Visible": false,
+            "RelativeFilename": "Flap_Close.png"
+          },
+          {
+            "Type": "Image",
+            "Name": "Flap_Open",
+            "X": 108,
+            "Y": 6,
+            "Width": 25,
+            "Height": 22,
+            "Visible": false,
+            "RelativeFilename": "Flap_Open.png"
+          },
+          {
+            "Type": "Image",
+            "Name": "Flap",
+            "X": 108,
+            "Y": 6,
+            "Width": 25,
+            "Height": 22,
+            "RelativeFilename": "Flap.png"
+          },
+          {
+            "Type": "Circle",
+            "Name": "Vent_Out_Alarm",
+            "X": 110,
+            "Y": 38,
+            "Width": 20,
+            "Height": 20,
+            "Visible": false,
+            "Color": {
+              "Red": 255
+            },
+            "CenterX": 10.0,
+            "CenterY": 10.0,
+            "Radius": 10.0,
+            "EndAngle": 360.0,
+            "CapPrecision": "Butt"
           }
         ],
         "Interactions": [

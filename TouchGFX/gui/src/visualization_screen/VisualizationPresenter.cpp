@@ -143,6 +143,9 @@ void VisualizationPresenter::ValUpdatePresenter()
 	// Авария по рассогласованию выход/вход: красный текст и принудительная видимость метки
 	view.syncDeviceAlarmIndicators();
 
+	// Вытяжка и положение заслонки по дискретным входам
+	view.syncExhaustFanAndFlapFromInputs();
+
 //	DFR_chng_flag.Vent1_Left = 1;
 //	DFR_current.Vent2_Left = 1;
 //	FlagsTemp = *(uint16_t*) &DFR;

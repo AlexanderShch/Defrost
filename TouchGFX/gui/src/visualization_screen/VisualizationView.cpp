@@ -26,6 +26,11 @@ VisualizationView::VisualizationView()
 void VisualizationView::setupScreen()
 {
     VisualizationViewBase::setupScreen();
+	// В Base анимация вытяжки стартует в конструкторе — останавливаем до синхронизации с DI.
+	if (AnimFan_Out.isAnimatedImageRunning())
+		AnimFan_Out.pauseAnimation();
+	AnimFan_Out.invalidate();
+	syncExhaustFanAndFlapFromInputs();
 }
 
 void VisualizationView::tearDownScreen()
@@ -264,7 +269,7 @@ void VisualizationView::syncDeviceAlarmIndicators()
 	const auto colorNormal = touchgfx::Color::getColorFromRGB(232, 246, 251);
 	const auto colorAlarm = touchgfx::Color::getColorFromRGB(255, 0, 0); // #FF0000
 
-	// Порядок бит совпадает с kDeviceCheckMask в ModBus.cpp: Vent1_L, Vent2_L, Vent1_R, Vent2_R, Ten1_L, Ten2_L, Ten1_R, Ten2_R.
+	// Порядок бит совпадает с kDeviceCheckMask в ModBus.cpp: Vent1_L, Vent2_L, Vent1_R, Vent2_R, Ten1_L, Ten2_L, Ten1_R, Ten2_R; бит 8 — Vent_Out.
 	struct Row
 	{
 		touchgfx::TextArea* widget;
@@ -298,4 +303,49 @@ void VisualizationView::syncDeviceAlarmIndicators()
 		}
 		ta.invalidate();
 	}
+
+	// Авария подтверждения вытяжки (рассогласование выход/вход по Vent_Out)
+	const bool ventOutAlarm = (af & (1u << 8)) != 0;
+	Vent_Out_Alarm.setVisible(ventOutAlarm);
+	Vent_Out_Alarm.invalidate();
+}
+
+void VisualizationView::syncExhaustFanAndFlapFromInputs()
+{
+	// Входы с модуля DI (см. Model.hpp DI_DFR_REGISTERS_t).
+	const uint8_t ventOut = (uint8_t)Model::DI_DFR.Bits.Vent_Out;
+	if (ventOut != 0u)
+	{
+		if (!AnimFan_Out.isAnimatedImageRunning())
+			AnimFan_Out.startAnimation(false, false, true);
+		AnimFan_Out.setUpdateTicksInterval(3);
+	}
+	else
+	{
+		if (AnimFan_Out.isAnimatedImageRunning())
+			AnimFan_Out.pauseAnimation();
+	}
+	AnimFan_Out.invalidate();
+
+	const uint8_t airOpen = (uint8_t)Model::DI_DFR.Bits.Air_Open;
+	const uint8_t airClose = (uint8_t)Model::DI_DFR.Bits.Air_Close;
+
+	bool showFlap = false;
+	bool showOpen = false;
+	bool showClose = false;
+
+	if (airOpen == 0u && airClose == 0u)
+		showFlap = true;
+	else if (airOpen != 0u && airClose == 0u)
+		showOpen = true;
+	else if (airOpen == 0u && airClose != 0u)
+		showClose = true;
+	// Оба в 1 — противоречие датчиков: ни один виджет не показываем.
+
+	Flap.setVisible(showFlap);
+	Flap_Open.setVisible(showOpen);
+	Flap_Close.setVisible(showClose);
+	Flap.invalidate();
+	Flap_Open.invalidate();
+	Flap_Close.invalidate();
 }

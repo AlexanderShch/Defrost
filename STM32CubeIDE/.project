@@ -831,6 +831,21 @@
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/image_Fan_12.cpp</locationURI>
 		</link>
 		<link>
+			<name>Application/User/generated/image_Flap.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/image_Flap.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/generated/image_Flap_Close.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/image_Flap_Close.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/generated/image_Flap_Open.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/image_Flap_Open.cpp</locationURI>
+		</link>
+		<link>
 			<name>Application/User/generated/image_Heat_01.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/image_Heat_01.cpp</locationURI>
