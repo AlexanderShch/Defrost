@@ -1,5 +1,6 @@
 #include <gui/home_screen/HomeView.hpp>
 #include <gui/home_screen/HomePresenter.hpp>
+#include <gui/model/Model.hpp>
 #include "DefrostControl.h"
 
 HomePresenter::HomePresenter(HomeView& v)
@@ -13,6 +14,7 @@ void HomePresenter::activate()
 {
     lastRuntimeSeconds = 0;
     view.updateProgramRuntimeView(0);
+    view.updateAlarmBanner(Model::DFR._Alr != 0);
 }
 
 void HomePresenter::deactivate()
@@ -62,6 +64,9 @@ void HomePresenter::ValUpdatePresenter()
 
     // Синхронизация кнопки ПУСК/СТОП при изменении состояния по команде с сервера
     view.syncStartButtonState();
+
+    // Аварийное сообщение на главном экране (лампа/бит _Alr в регистре DFR)
+    view.updateAlarmBanner(Model::DFR._Alr != 0);
 }
 
 void HomePresenter::startDefrostRequested()

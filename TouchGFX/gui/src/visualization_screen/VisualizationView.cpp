@@ -1,5 +1,7 @@
 #include <gui/visualization_screen/VisualizationView.hpp>
+#include <gui/model/Model.hpp>
 #include <touchgfx/utils.hpp>
+#include <touchgfx/Color.hpp>
 
 //#include "string.h"
 #include "stdio.h"
@@ -254,4 +256,46 @@ void VisualizationView::AnimFan34_Switch()
 			AnimFan34.pauseAnimation();
 	};
 	AnimFan34.invalidate();
+}
+
+void VisualizationView::syncDeviceAlarmIndicators()
+{
+	const uint16_t af = Model::Device_AlarmFlags;
+	const auto colorNormal = touchgfx::Color::getColorFromRGB(232, 246, 251);
+	const auto colorAlarm = touchgfx::Color::getColorFromRGB(255, 0, 0); // #FF0000
+
+	// Порядок бит совпадает с kDeviceCheckMask в ModBus.cpp: Vent1_L, Vent2_L, Vent1_R, Vent2_R, Ten1_L, Ten2_L, Ten1_R, Ten2_R.
+	struct Row
+	{
+		touchgfx::TextArea* widget;
+		unsigned bit;
+		uint8_t dfrOn;
+	};
+	Row rows[8] = {
+		{ &StateFan1,  0u, (uint8_t)Model::DFR_current.Vent1_Left },
+		{ &StateFan2,  1u, (uint8_t)Model::DFR_current.Vent2_Left },
+		{ &StateFan3,  2u, (uint8_t)Model::DFR_current.Vent1_Right },
+		{ &StateFan4,  3u, (uint8_t)Model::DFR_current.Vent2_Right },
+		{ &StateHeat1, 4u, (uint8_t)Model::DFR_current.Ten1_Left },
+		{ &StateHeat2, 5u, (uint8_t)Model::DFR_current.Ten2_Left },
+		{ &StateHeat3, 6u, (uint8_t)Model::DFR_current.Ten1_Right },
+		{ &StateHeat4, 7u, (uint8_t)Model::DFR_current.Ten2_Right },
+	};
+
+	for (unsigned i = 0; i < 8; ++i)
+	{
+		const bool alarm = (af & (1u << rows[i].bit)) != 0;
+		touchgfx::TextArea& ta = *rows[i].widget;
+		if (alarm)
+		{
+			ta.setVisible(true);
+			ta.setColor(colorAlarm);
+		}
+		else
+		{
+			ta.setColor(colorNormal);
+			ta.setVisible(rows[i].dfrOn != 0);
+		}
+		ta.invalidate();
+	}
 }

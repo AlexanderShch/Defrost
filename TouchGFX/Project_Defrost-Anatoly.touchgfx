@@ -199,7 +199,7 @@
             "Type": "ToggleButton",
             "Name": "BTNStart",
             "X": 35,
-            "Y": 196,
+            "Y": 183,
             "Width": 170,
             "Height": 60,
             "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_large_rounded_text_on_action.png",
@@ -209,7 +209,7 @@
             "Type": "TextArea",
             "Name": "textArea1",
             "X": 85,
-            "Y": 160,
+            "Y": 159,
             "Width": 70,
             "Height": 24,
             "TextId": "__SingleUse_O02S",
@@ -218,6 +218,21 @@
               "Red": 232,
               "Green": 246,
               "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "textArea_Alarm",
+            "X": 85,
+            "Y": 243,
+            "Width": 75,
+            "Height": 24,
+            "Visible": false,
+            "TextId": "__SingleUse_G6TZ",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 255
             },
             "AutoSize": true
           }

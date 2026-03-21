@@ -26,6 +26,9 @@ public:
     /** Синхронизирует состояние BTNStart с DefrostControl_IsEnabled() (для обновления при команде ПУСК/СТОП с сервера). */
     void syncStartButtonState();
 
+    /** Показ/скрытие предупреждения об аварии по флагу Model::DFR._Alr. */
+    void updateAlarmBanner(bool alarmActive);
+
 protected:
     /** Обработчик нажатия кнопки «Старт» — запуск алгоритма разморозки. */
     void onBTNStartClicked(const touchgfx::AbstractButton& src);

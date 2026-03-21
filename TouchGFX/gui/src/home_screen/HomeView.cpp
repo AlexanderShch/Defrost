@@ -26,6 +26,10 @@ void HomeView::setupScreen()
 
     // Устанавливаем версию прошивки при инициализации экрана
     updateVersionDisplay();
+
+    // В сгенерированном Base видимость по умолчанию может отличаться от Designer — скрываем до появления _Alr.
+    textArea_Alarm.setVisible(false);
+    textArea_Alarm.invalidate();
 }
 
 void HomeView::onBTNStartClicked(const touchgfx::AbstractButton&)
@@ -88,6 +92,12 @@ void HomeView::syncStartButtonState()
         BTNStart.forceState(enabled);
         BTNStart.invalidate();
     }
+}
+
+void HomeView::updateAlarmBanner(bool alarmActive)
+{
+    textArea_Alarm.setVisible(alarmActive);
+    textArea_Alarm.invalidate();
 }
 
 void HomeView::updateVersionDisplay()

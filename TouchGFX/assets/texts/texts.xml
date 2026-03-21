@@ -372,6 +372,9 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Unsorted">
+      <Text Id="__SingleUse_G6TZ" Alignment="Left" TypographyId="Default">
+        <Translation Language="GB">Авария</Translation>
+      </Text>
       <Text Id="__SingleUse_O02S" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Работа</Translation>
       </Text>

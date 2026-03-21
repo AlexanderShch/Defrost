@@ -38,6 +38,10 @@ public:
     void AnimHeat34_Switch(void);
     void AnimFan12_Switch(void);
     void AnimFan34_Switch(void);
+
+    /** Аварийная подсветка StateHeat/StateFan по Model::Device_AlarmFlags; без аварии — как по DFR_current. */
+    void syncDeviceAlarmIndicators(void);
+
 protected:
 
 };

@@ -140,6 +140,9 @@ void VisualizationPresenter::ValUpdatePresenter()
     	view.Val_Water_Flap_UpdateView(Model::DFR_current.Water_Flap);
  	};
 
+	// Авария по рассогласованию выход/вход: красный текст и принудительная видимость метки
+	view.syncDeviceAlarmIndicators();
+
 //	DFR_chng_flag.Vent1_Left = 1;
 //	DFR_current.Vent2_Left = 1;
 //	FlagsTemp = *(uint16_t*) &DFR;
