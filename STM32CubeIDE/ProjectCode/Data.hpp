@@ -26,12 +26,15 @@ public:
 	Sensor(unsigned int Time, int T, int H){};		// конструктор
 	static void PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val);
 	static int GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param);
-	static void SetAverageTemperature(unsigned char SensNum, int Temp);
+	/** Сырая T (Param 2) → обрезание попомехе → слот T_Clamped → среднее в Param 4. timeSec = TimeFromStart. */
+	static void ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsigned int timeSec);
 
 protected:
+	static void SetAverageTemperature(unsigned char SensNum);
 	static unsigned int Time[TQ][SQ];	// номер такта измерения
-	static int T[TQ][SQ];			// температура
-	static int T_Average[TQ][SQ];	// температура усреднённая
+	static int T[TQ][SQ];			// сырая температура с датчика (Param 2): экран и телеметрия
+	static int T_Clamped[TQ][SQ];		// после ограничения скорости изменения (антиспайк, обрезка по помехе); участвует в среднем
+	static int T_Average[TQ][SQ];		// отфильтрованная T (Param 4): алгоритм и лог
 	static int H[TQ][SQ];			// влажность
 };
 

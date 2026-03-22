@@ -77,8 +77,9 @@ MB_Error_t result;
 // Текущее количество измерений (секунд от старта).
 unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// номер такта измерения
-int Sensor::T[TQ][SQ] = {{0}};		// температура
-int Sensor::T_Average[TQ][SQ] = {{0}};		// температура
+int Sensor::T[TQ][SQ] = {{0}};		// сырая температура (Param 2)
+int Sensor::T_Clamped[TQ][SQ] = {{0}};	// обрезанная по шагу ΔT (антиспайк)
+int Sensor::T_Average[TQ][SQ] = {{0}};	// усреднённая по буферу обрезанных (Param 4)
 int Sensor::H[TQ][SQ] = {{0}};		// влажность
 // !!! ВНИМАНИЕ! Если меняется структура MSGQUEUE_OBJ_t, надо поменять и размер буфера MAX_MB_BUFSIZE в ModBus.cpp
 
@@ -87,7 +88,7 @@ int Sensor::H[TQ][SQ] = {{0}};		// влажность
  * Параметры функции:
  * 	TimeFromStart - кол-во тиков с момента запуска программы,
  * 	SensNum - number of interesting sensor,
- * 	Param - место int Val в массиве данных: 1 for time, 2 for temperature, 3 for humidity, 4 for average T
+ * 	Param: 1 time, 2 сырая T (с шины), 3 H, 4 усреднённая по буферу обрезанных T (для алгоритма/лога)
  * 	Val - value of data
  */
 void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val) {
@@ -137,55 +138,54 @@ int Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned 
 	}
 }
 
-void Sensor::SetAverageTemperature(unsigned char SensNum, int Temp)
+void Sensor::SetAverageTemperature(unsigned char SensNum)
 {
-	int TempAverage = 0;
 	long sum = 0;
 	unsigned int count = 0;
-	// На начальном этапе работы, пока не набралось достаточно измерений, чтобы вычислить среднюю Т, используем текущее значение Т
+	// Усреднение только по уже заполненным тактам буфера «обрезанных» T (секунды 1..TimeFromStart, пока кольцо не заполнилось).
 	if (TimeFromStart <= TQ)
 	{
-		TempAverage = Temp;
+		for (unsigned int sec = 1u; sec <= TimeFromStart; ++sec)
+		{
+			const uint32_t idx = sec % TQ;
+			sum += (long)T_Clamped[idx][SensNum];
+			++count;
+		}
 	}
 	else
 	{
 		for (unsigned int idx = 0u; idx < TQ; ++idx)
 		{
-			sum += T[idx][SensNum];
+			sum += (long)T_Clamped[idx][SensNum];
 			++count;
 		}
-		TempAverage = (int)(sum / (long)count);
 	}
-
+	const int TempAverage = (count > 0) ? (int)(sum / (long)count) : 0;
 	PutData(TimeFromStart, SensNum, 4, TempAverage);
 }
 
-int ClatchSensorTemperature (unsigned char SensNum, int Temp) {
+/** Ограничение шага изменения сырой T относительно предыдущей обрезанной (подавление выбросов), единицы — десятые °C. */
+static int ClampRawTemperatureVsPrevClamped(int rawDeci, int prevClampedDeci)
+{
 	const int maxDeltaDeci = 11;
-	int TempClatched = 0;
-	int TempOld = 0;
+	int delta = rawDeci - prevClampedDeci;
+	if (delta > maxDeltaDeci)
+		delta = maxDeltaDeci;
+	else if (delta < -maxDeltaDeci)
+		delta = -maxDeltaDeci;
+	return prevClampedDeci + delta;
+}
 
-	// На начальном этапе работы, пока не набралось достаточно измерений, чтобы вычислить среднюю Т, используем текущее значение Т
-	if (TimeFromStart <= TQ)
-	{
-		TempClatched = Temp;
-	}
-	else
-	{
-		TempOld = Sensor::GetData(TimeFromStart-1, SensNum, 4); // предыдущее усредненное значение Т
-		int delta = Temp - TempOld;
-		if (delta > maxDeltaDeci)
-		{
-			delta = maxDeltaDeci;
-		}
-		else if (delta < -maxDeltaDeci)
-		{
-			delta = -maxDeltaDeci;
-		}
-		TempClatched = TempOld + delta;
-	}
-
-	return TempClatched;
+void Sensor::ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsigned int timeSec)
+{
+	const int rawDeci = GetData(timeSec, SensNum, 2);
+	const uint32_t slot = timeSec % TQ;
+	int prevClampedDeci = rawDeci;
+	if (timeSec > 1u)
+		prevClampedDeci = T_Clamped[(timeSec - 1u) % TQ][SensNum];
+	const int clampedDeci = ClampRawTemperatureVsPrevClamped(rawDeci, prevClampedDeci);
+	T_Clamped[slot][SensNum] = clampedDeci;
+	SetAverageTemperature(SensNum);
 }
 
 // 1. Operating system timer 1 sec will start this function
@@ -210,7 +210,6 @@ void DataTimerFunc()
 void ReadDataFunc() {
 	int TempOld, HumOld = 0;
 	int TempNew, HumNew = 0;
-	int TempClatched = 0;
 	int T_CORR_Old, H_CORR_Old = 0, R_CORR_Old = 0;
 	int T_CORR_New, H_CORR_New = 0, R_CORR_New = 0;
 
@@ -296,13 +295,12 @@ void ReadDataFunc() {
 				// Продолжаем для активного датчика
 				result = Sensor_Read(SensorIndex);
 
-				// Temperature: фильтруем по скорости изменения и усредняем по времени
-				TempClatched = ClatchSensorTemperature(SensorIndex, Sensor::GetData(TimeFromStart, SensorIndex, 2));
-				Sensor::SetAverageTemperature(SensorIndex, TempClatched);	// расчёт и запись в массив усредненное значение температуры за последние 10 секунд
+				// Температура: сырая T (Param 2) → антиспайк → буфер T_Clamped → среднее в Param 4 (алгоритм, лог).
+				Sensor::ApplyTemperatureClampedBufferAndAverage((unsigned char)SensorIndex, TimeFromStart);
 
 				// запись в переменные экрана, если есть изменения
 				TempOld = Model::getCurrentVal_T(SensorIndex);	// текущее значение температуры на экране
-				TempNew = Sensor::GetData(TimeFromStart, SensorIndex, 2);	// новое значение (необработанное) температуры с датчика
+				TempNew = Sensor::GetData(TimeFromStart, SensorIndex, 2);	// сырая T с датчика (телеметрия и UI)
 				if (TempOld != TempNew)
 				{
 					Model::setCurrentVal_T(SensorIndex, TempNew);

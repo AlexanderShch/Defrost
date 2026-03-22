@@ -24,7 +24,7 @@
  #include "Data.hpp"                 // индексы датчиков SQ
  #include "DefrostControl.h"
  #include "GateControl.hpp"
- #include <gui/model/Model.hpp>      // Model::getCurrentVal_* и битовый регистр Model::DFR
+ #include <gui/model/Model.hpp>      // Model::getCurrentVal_H, Model::DFR (T для алгоритма — Sensor Param 4)
  #include "ModBus.hpp"
 
  #define DEBUG_DISABLE_TARGET_T_STOP  1   /* 1 = отладка: не останавливать по целевой Т */
@@ -63,6 +63,13 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
      constexpr int8_t kSensReturn_T_H   = 2;
      constexpr int8_t kSensFish1_T      = 3;
      constexpr int8_t kSensFish2_T      = 4;
+
+     /** Температура для расчётов автоматики: Param 4 — усреднение по буферу + ограничение скорости (Clatch), см. Data.cpp.
+      *  В Model::setCurrentVal_T попадает сырая T с шины (Param 2) — для экрана; для ControlStep1s нужен Param 4, как в логе T_filt_C. */
+     inline int16_t FilteredSensorT_Deci(int8_t sensorIndex)
+     {
+         return (int16_t)Sensor::GetData(TimeFromStart, (unsigned char)sensorIndex, 4);
+     }
  
      // Масштаб "в десятых" (UI делит на 10.0).
      // Почему: преобразование должно быть в одинаковых единицах, чтобы не смешивать "сырые" и инженерные единицы.
@@ -579,17 +586,17 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
        СОБСТВЕННО АЛГОРИТМ АВТОМАТИЧЕСКОГО УПРАВЛЕНИЯ
        ************************************/  
        // Читаем последние значения из Model.
-         const float T_supL_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensSupLeft_T_H));
-         const float T_supR_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensSupRight_T_H));
+         const float T_supL_C = DeciToC(FilteredSensorT_Deci(kSensSupLeft_T_H));
+         const float T_supR_C = DeciToC(FilteredSensorT_Deci(kSensSupRight_T_H));
          const float RH_supL  = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupLeft_T_H));
          const float RH_supR  = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupRight_T_H));
-         const float T_ret_C  = DeciToC((int16_t)Model::getCurrentVal_T(kSensReturn_T_H));
+         const float T_ret_C  = DeciToC(FilteredSensorT_Deci(kSensReturn_T_H));
          const float RH_ret   = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
          const float RH_sup_avg = 0.5f * (RH_supL + RH_supR);  // среднее по подаче для единого управления форсунками
          (void)RH_ret;  // контур влажности по среднему подачи (w_sup_avg); возврат оставлен на случай доработок
 
-         const float fish1_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensFish1_T));
-         const float fish2_C = DeciToC((int16_t)Model::getCurrentVal_T(kSensFish2_T));
+         const float fish1_C = DeciToC(FilteredSensorT_Deci(kSensFish1_T));
+         const float fish2_C = DeciToC(FilteredSensorT_Deci(kSensFish2_T));
 
          // Почему: проверяем, что датчик активен и используется в алгоритме разморозки.
          const bool fish1Enabled = (Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0);
@@ -875,11 +882,11 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
      // Управление без датчиков продукта: только по T/RH подачи и возврата, фаза по времени, лимит T подачи и макс. время.
      static void ControlStep1s_AirOnly()
      {
-         const float T_supL_C   = DeciToC((int16_t)Model::getCurrentVal_T(kSensSupLeft_T_H));
-         const float T_supR_C   = DeciToC((int16_t)Model::getCurrentVal_T(kSensSupRight_T_H));
+         const float T_supL_C   = DeciToC(FilteredSensorT_Deci(kSensSupLeft_T_H));
+         const float T_supR_C   = DeciToC(FilteredSensorT_Deci(kSensSupRight_T_H));
          const float RH_supL    = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupLeft_T_H));
          const float RH_supR    = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupRight_T_H));
-         const float T_ret_C    = DeciToC((int16_t)Model::getCurrentVal_T(kSensReturn_T_H));
+         const float T_ret_C    = DeciToC(FilteredSensorT_Deci(kSensReturn_T_H));
          const float RH_ret     = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
          const float RH_sup_avg = 0.5f * (RH_supL + RH_supR);
          (void)RH_ret;
