@@ -8,6 +8,9 @@
 
 ### 📘 Основная документация
 
+#### [Defrost_AirTemperature_Sensors_Fault_RU.md](Defrost_AirTemperature_Sensors_Fault_RU.md)
+**Поведение алгоритма при отключении датчиков Т воздуха (подача левая/правая, возврат)**
+
 #### [CommandReceiver_Documentation.md](CommandReceiver_Documentation.md)
 **Полная документация модуля приема и обработки команд от сервера**
 

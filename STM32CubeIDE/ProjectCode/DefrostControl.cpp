@@ -70,10 +70,77 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
      {
          return (int16_t)Sensor::GetData(TimeFromStart, (unsigned char)sensorIndex, 4);
      }
- 
+
+     /** Бит аварии датчика (обрезки) или недоступность канала для контура управления. */
+     inline bool SensorExcludedByClampAlarm(int8_t sensorIndex)
+     {
+         if (sensorIndex < 0)
+             return true;
+         return (Model::Sensor_AlarmFlags & (1u << (unsigned char)sensorIndex)) != 0;
+     }
+
+     /** Левый/правый/возврат дефростера (индексы 0..2): участвует в автоматике, если датчик активен на шине и нет аварии обрезок. */
+     inline bool DefrostAirThChannelUsable(int8_t idx)
+     {
+         if (idx < kSensSupLeft_T_H || idx > kSensReturn_T_H)
+             return false;
+         return (Sensor_array[idx].Active == 1) && !SensorExcludedByClampAlarm(idx);
+     }
+
      // Масштаб "в десятых" (UI делит на 10.0).
      // Почему: преобразование должно быть в одинаковых единицах, чтобы не смешивать "сырые" и инженерные единицы.
      constexpr float kDeciToUnit = 0.1f;
+     inline float DeciToC(int16_t deciC)  { return (float)deciC * kDeciToUnit; }
+     inline float DeciToRH(int16_t deciRH) { return (float)deciRH * kDeciToUnit; }
+
+     /** Допущение при отсутствии обеих Т подачи, но исправном возврате: оценка T подачи = T_возврата + смещение, °C. */
+     constexpr float kSupplyTInferOffsetFromReturn_C = 2.0f;
+
+     /** Входы воздушного контура для ПИ: средние и подстановки при отключённых датчиках Т подачи/возврата. */
+     struct DefrostAirControlInputs
+     {
+         float mL, mR, mRet;   // отфильтрованные T, °C
+         uint8_t okL, okR, okRet;
+         float T_sup_avg_C;    // среднее по исправным подачам; при отказе обеих подач и исправном возврате — mRet + kSupplyTInferOffsetFromReturn_C; иначе 0
+         float T_ret_C;        // возврат или при отказе — T_sup_avg_C
+         float RH_sup_avg;     // RH для w_sup: подачи или при их отсутствии — RH возврата; при полном отказе 0..2 — 50 %
+     };
+
+     inline void ComputeDefrostAirControlInputs(DefrostAirControlInputs* a)
+     {
+         a->mL   = DeciToC(FilteredSensorT_Deci(kSensSupLeft_T_H));
+         a->mR   = DeciToC(FilteredSensorT_Deci(kSensSupRight_T_H));
+         a->mRet = DeciToC(FilteredSensorT_Deci(kSensReturn_T_H));
+         a->okL   = DefrostAirThChannelUsable(kSensSupLeft_T_H) ? 1u : 0u;
+         a->okR   = DefrostAirThChannelUsable(kSensSupRight_T_H) ? 1u : 0u;
+         a->okRet = DefrostAirThChannelUsable(kSensReturn_T_H) ? 1u : 0u;
+
+         const unsigned nSup = (unsigned)a->okL + (unsigned)a->okR;
+         if (nSup > 0u)
+             a->T_sup_avg_C = ((a->okL ? a->mL : 0.0f) + (a->okR ? a->mR : 0.0f)) / (float)nSup;
+         else if (a->okRet != 0u)
+             a->T_sup_avg_C = a->mRet + kSupplyTInferOffsetFromReturn_C;
+         else
+             a->T_sup_avg_C = 0.0f;
+
+         if (a->okRet != 0u)
+             a->T_ret_C = a->mRet;
+         else
+             a->T_ret_C = a->T_sup_avg_C;
+
+         const float RH_supL = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupLeft_T_H));
+         const float RH_supR = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupRight_T_H));
+         if (a->okL != 0u && a->okR != 0u)
+             a->RH_sup_avg = 0.5f * (RH_supL + RH_supR);
+         else if (a->okL != 0u)
+             a->RH_sup_avg = RH_supL;
+         else if (a->okR != 0u)
+             a->RH_sup_avg = RH_supR;
+         else if (a->okRet != 0u)
+             a->RH_sup_avg = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
+         else
+             a->RH_sup_avg = 50.0f;
+     }
  
      // Допущения по психрометрии.
      // Почему: без датчика давления для расчёта абсолютной влажности приходится принимать номинальное давление.
@@ -447,9 +514,6 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          g.haveLastFishHot = 0;         // флаг отсутствия последней измеренной температуры продукта.    
      }
  
-     static float DeciToC(int16_t deciC)  { return (float)deciC * kDeciToUnit; }
-     static float DeciToRH(int16_t deciRH){ return (float)deciRH * kDeciToUnit; }
- 
     enum class LampModeState : uint8_t
     {
         AutoActive = 0,
@@ -459,7 +523,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
     static void UpdateDeviceAlarmState()
     {
         // Общий флаг аварии устройства: авария ворот ИЛИ аварии из регистра Device_AlarmFlags.
-        Model::Device_Alarm = ((GateControl_IsAlarm() != 0) || (Model::Device_AlarmFlags != 0)) ? 1 : 0;
+        Model::Device_Alarm = ((GateControl_IsAlarm() != 0) || (Model::Device_AlarmFlags != 0) || (Model::Sensor_AlarmFlags != 0)) ? 1 : 0;
 
         if (Model::Device_Alarm != 0)
         {
@@ -585,22 +649,20 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
        /**********************************
        СОБСТВЕННО АЛГОРИТМ АВТОМАТИЧЕСКОГО УПРАВЛЕНИЯ
        ************************************/  
-       // Читаем последние значения из Model.
-         const float T_supL_C = DeciToC(FilteredSensorT_Deci(kSensSupLeft_T_H));
-         const float T_supR_C = DeciToC(FilteredSensorT_Deci(kSensSupRight_T_H));
-         const float RH_supL  = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupLeft_T_H));
-         const float RH_supR  = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupRight_T_H));
-         const float T_ret_C  = DeciToC(FilteredSensorT_Deci(kSensReturn_T_H));
+       // Воздушный контур: T/RH подачи и возврата с учётом отключённых датчиков (Active) и аварии обрезок.
+         DefrostAirControlInputs airIn = {};
+         ComputeDefrostAirControlInputs(&airIn);
          const float RH_ret   = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
-         const float RH_sup_avg = 0.5f * (RH_supL + RH_supR);  // среднее по подаче для единого управления форсунками
-         (void)RH_ret;  // контур влажности по среднему подачи (w_sup_avg); возврат оставлен на случай доработок
+         (void)RH_ret;
 
          const float fish1_C = DeciToC(FilteredSensorT_Deci(kSensFish1_T));
          const float fish2_C = DeciToC(FilteredSensorT_Deci(kSensFish2_T));
 
          // Почему: проверяем, что датчик активен и используется в алгоритме разморозки.
-         const bool fish1Enabled = (Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0);
-         const bool fish2Enabled = (Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0);
+         const bool fish1Enabled = (Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0)
+             && !SensorExcludedByClampAlarm(kSensFish1_T);
+         const bool fish2Enabled = (Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0)
+             && !SensorExcludedByClampAlarm(kSensFish2_T);
 
          float fishHot_C = 0.0f;
          float fishCold_C = 0.0f;
@@ -649,10 +711,10 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          const Limits lim = GetLimits(phase);
          const Targets tgt = GetTargets(phase);
  
-         // Переводим уставку влажности в абсолютную влажность. Текущая влажность — среднее по левой/правой подаче (единое управление форсунками).
-         const float T_sup_avg_C = 0.5f * (T_supL_C + T_supR_C);
-         const float w_sup_avg   = HumidityRatio_kgkg(T_sup_avg_C, RH_sup_avg);
-         const float w_ret_target = HumidityRatio_kgkg(T_ret_C, tgt.returnTargetRH_percent);
+         // Переводим уставку влажности в абсолютную влажность. Текущая влажность — по исправным каналам подачи.
+         const float T_sup_avg_C = airIn.T_sup_avg_C;
+         const float w_sup_avg   = HumidityRatio_kgkg(T_sup_avg_C, airIn.RH_sup_avg);
+         const float w_ret_target = HumidityRatio_kgkg(airIn.T_ret_C, tgt.returnTargetRH_percent);
  
          // ─────────────────────────────────────────────────────────────────────────
          // Ограничитель безопасности: уменьшаем нагрев при приближении к ограничениям качества продукта.
@@ -698,8 +760,18 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
              heatScale01 = 0.0f; // отключаем нагрев
          }
  
-         // Ограничение по температуре подачи, чтобы не получить слишком горячие струи воздуха.
-         if (T_supL_C > lim.supplyMax_C || T_supR_C > lim.supplyMax_C)
+         // Ограничение по температуре подачи — по исправным датчикам подачи или по оценке T_подачи = T_возврата + 2 °C.
+         if ((airIn.okL != 0u && airIn.mL > lim.supplyMax_C) || (airIn.okR != 0u && airIn.mR > lim.supplyMax_C))
+         {
+             heatScale01 = 0.0f;
+         }
+         if (airIn.okL == 0u && airIn.okR == 0u && airIn.okRet != 0u
+             && (airIn.mRet + kSupplyTInferOffsetFromReturn_C) > lim.supplyMax_C)
+         {
+             heatScale01 = 0.0f;
+         }
+         // Полный отказ каналов 0..2: не вести ПИ по воздуху.
+         if (airIn.okL == 0u && airIn.okR == 0u && airIn.okRet == 0u)
          {
              heatScale01 = 0.0f;
          }
@@ -715,8 +787,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          float uCommon_TEN = g.piSupplyCommon.Step(eT_common, kDt_s, 0.0f, 2.0f);
          uCommon_TEN *= heatScale01;
  
-         // Балансировка лево/право по разности температур потоков подачи.
-         const float eT_diff = (T_supL_C - T_supR_C); // цель: 0
+         // Балансировка лево/право только если обе подачи исправны; иначе симметричное управление (без перекоса по «нулю»).
+         const float eT_diff = (airIn.okL != 0u && airIn.okR != 0u) ? (airIn.mL - airIn.mR) : 0.0f;
         float trim_TEN = g.leftRightTrimGain * eT_diff;
         trim_TEN = Clamp(trim_TEN, -g_defrostParams.leftRightTrimMaxEq, g_defrostParams.leftRightTrimMaxEq);
  
@@ -882,25 +954,26 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
      // Управление без датчиков продукта: только по T/RH подачи и возврата, фаза по времени, лимит T подачи и макс. время.
      static void ControlStep1s_AirOnly()
      {
-         const float T_supL_C   = DeciToC(FilteredSensorT_Deci(kSensSupLeft_T_H));
-         const float T_supR_C   = DeciToC(FilteredSensorT_Deci(kSensSupRight_T_H));
-         const float RH_supL    = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupLeft_T_H));
-         const float RH_supR    = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupRight_T_H));
-         const float T_ret_C    = DeciToC(FilteredSensorT_Deci(kSensReturn_T_H));
+         DefrostAirControlInputs airIn = {};
+         ComputeDefrostAirControlInputs(&airIn);
          const float RH_ret     = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
-         const float RH_sup_avg = 0.5f * (RH_supL + RH_supR);
          (void)RH_ret;
 
-         const float T_sup_avg_C = 0.5f * (T_supL_C + T_supR_C);
-         const float w_sup_avg  = HumidityRatio_kgkg(T_sup_avg_C, RH_sup_avg);
+         const float T_sup_avg_C = airIn.T_sup_avg_C;
+         const float w_sup_avg  = HumidityRatio_kgkg(T_sup_avg_C, airIn.RH_sup_avg);
 
          const Phase phase = SelectPhaseByTime(g.runtimeSeconds);
          const Limits lim  = GetLimits(phase);
          const Targets tgt = GetTargets(phase);
-         const float w_ret_target = HumidityRatio_kgkg(T_ret_C, tgt.returnTargetRH_percent);
+         const float w_ret_target = HumidityRatio_kgkg(airIn.T_ret_C, tgt.returnTargetRH_percent);
 
          float heatScale01 = 1.0f;
-         if (T_sup_avg_C >= lim.supplyMax_C)
+         if ((airIn.okL != 0u && airIn.mL > lim.supplyMax_C) || (airIn.okR != 0u && airIn.mR > lim.supplyMax_C))
+             heatScale01 = 0.0f;
+         if (airIn.okL == 0u && airIn.okR == 0u && airIn.okRet != 0u
+             && (airIn.mRet + kSupplyTInferOffsetFromReturn_C) > lim.supplyMax_C)
+             heatScale01 = 0.0f;
+         if (airIn.okL == 0u && airIn.okR == 0u && airIn.okRet == 0u)
              heatScale01 = 0.0f;
          if (g.runtimeSeconds >= (uint32_t)g_defrostParams.maxRuntime_s)
              heatScale01 = 0.0f;
@@ -909,7 +982,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          float uCommon_TEN = g.piSupplyCommon.Step(eT_common, kDt_s, 0.0f, 2.0f);
          uCommon_TEN *= heatScale01;
 
-         const float eT_diff = T_supL_C - T_supR_C;
+         const float eT_diff = (airIn.okL != 0u && airIn.okR != 0u) ? (airIn.mL - airIn.mR) : 0.0f;
          float trim_TEN = g.leftRightTrimGain * eT_diff;
          trim_TEN = Clamp(trim_TEN, -g_defrostParams.leftRightTrimMaxEq, g_defrostParams.leftRightTrimMaxEq);
 

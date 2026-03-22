@@ -127,6 +127,8 @@ public:
     static uint8_t Gate_Alarm;  // флаг аварийного режима ворот
     static uint8_t Device_Alarm; // общий флаг аварии устройства (для красной лампы)
     static uint16_t Device_AlarmFlags; // регистр аварийных флагов устройств (битовая маска)
+    /** Аварии по Т-датчикам: бит i = канал i (0..SQ-1), защёлка — избыточная доля обрезок в буфере T_Clamped. */
+    static uint16_t Sensor_AlarmFlags;
     static uint8_t Gate_PosTop;    // флаг конечного положения "ворота вверху" (для аварийного режима)
     static uint8_t Gate_PosBottom; // флаг конечного положения "ворота внизу" (для аварийного режима)
 

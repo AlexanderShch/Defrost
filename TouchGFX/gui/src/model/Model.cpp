@@ -186,6 +186,7 @@ uint8_t Model::Gate_Close = 0;
 uint8_t Model::Gate_Alarm = 0;
 uint8_t Model::Device_Alarm = 0;
 uint16_t Model::Device_AlarmFlags = 0;
+uint16_t Model::Sensor_AlarmFlags = 0;
 uint8_t Model::Gate_PosTop = 0;
 uint8_t Model::Gate_PosBottom = 0;
 uint8_t Model::BaudRate_PR_sensor = 0;

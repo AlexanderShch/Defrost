@@ -79,6 +79,7 @@ unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// номер такта измерения
 int Sensor::T[TQ][SQ] = {{0}};		// сырая температура (Param 2)
 int Sensor::T_Clamped[TQ][SQ] = {{0}};	// обрезанная по шагу ΔT (антиспайк)
+uint8_t Sensor::T_ClampHit[TQ][SQ] = {{0}}; // факт обрезки на такте (для регистра аварии датчиков)
 int Sensor::T_Average[TQ][SQ] = {{0}};	// усреднённая по буферу обрезанных (Param 4)
 int Sensor::H[TQ][SQ] = {{0}};		// влажность
 // !!! ВНИМАНИЕ! Если меняется структура MSGQUEUE_OBJ_t, надо поменять и размер буфера MAX_MB_BUFSIZE в ModBus.cpp
@@ -164,16 +165,42 @@ void Sensor::SetAverageTemperature(unsigned char SensNum)
 	PutData(TimeFromStart, SensNum, 4, TempAverage);
 }
 
-/** Ограничение шага изменения сырой T относительно предыдущей обрезанной (подавление выбросов), единицы — десятые °C. */
-static int ClampRawTemperatureVsPrevClamped(int rawDeci, int prevClampedDeci)
+/** Ограничение шага изменения сырой T относительно предыдущей обрезанной (подавление выбросов), единицы — десятые °C.
+ *  outHit != NULL: *outHit=1 если сырая T потребовала обрезки (|Δ| > max за шаг). */
+static int ClampRawTemperatureVsPrevClamped(int rawDeci, int prevClampedDeci, uint8_t* outHit)
 {
 	const int maxDeltaDeci = 11;
 	int delta = rawDeci - prevClampedDeci;
+	const uint8_t hit = (delta > maxDeltaDeci || delta < -maxDeltaDeci) ? 1u : 0u;
 	if (delta > maxDeltaDeci)
 		delta = maxDeltaDeci;
 	else if (delta < -maxDeltaDeci)
 		delta = -maxDeltaDeci;
+	if (outHit != NULL)
+		*outHit = hit;
 	return prevClampedDeci + delta;
+}
+
+static bool SensorIndexIsTempThForClampAlarm(unsigned char sensNum)
+{
+	if (sensNum >= SQ)
+		return false;
+	const uint8_t t = Sensor_array[sensNum].TypeOfSensor;
+	return (t == 1u || t == 2u);
+}
+
+/** Если в полном кольце T_ClampHit больше TQ/2 единиц — защёлкнуть бит в Model::Sensor_AlarmFlags. */
+void Sensor::EvaluateClampAlarmForSensor(unsigned char SensNum)
+{
+	if (!SensorIndexIsTempThForClampAlarm(SensNum))
+		return;
+	if (TimeFromStart < TQ)
+		return;
+	unsigned int sumHits = 0u;
+	for (unsigned int idx = 0u; idx < TQ; ++idx)
+		sumHits += (unsigned int)T_ClampHit[idx][SensNum];
+	if (sumHits > (TQ / 2u))
+		Model::Sensor_AlarmFlags |= (uint16_t)(1u << SensNum);
 }
 
 void Sensor::ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsigned int timeSec)
@@ -183,9 +210,15 @@ void Sensor::ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsi
 	int prevClampedDeci = rawDeci;
 	if (timeSec > 1u)
 		prevClampedDeci = T_Clamped[(timeSec - 1u) % TQ][SensNum];
-	const int clampedDeci = ClampRawTemperatureVsPrevClamped(rawDeci, prevClampedDeci);
+	uint8_t hit = 0u;
+	const int clampedDeci = ClampRawTemperatureVsPrevClamped(rawDeci, prevClampedDeci, &hit);
 	T_Clamped[slot][SensNum] = clampedDeci;
+	if (SensorIndexIsTempThForClampAlarm(SensNum))
+		T_ClampHit[slot][SensNum] = hit;
+	else
+		T_ClampHit[slot][SensNum] = 0u;
 	SetAverageTemperature(SensNum);
+	EvaluateClampAlarmForSensor(SensNum);
 }
 
 // 1. Operating system timer 1 sec will start this function
@@ -246,7 +279,7 @@ void ReadDataFunc() {
 		 ************************************************************/
 		// Выбираем активный регистр управления в зависимости от режима.
 		// Общий флаг аварии: авария ворот ИЛИ любые аварийные биты устройств.
-		Model::Device_Alarm = ((Model::Gate_Alarm != 0) || (Model::Device_AlarmFlags != 0)) ? 1 : 0;
+		Model::Device_Alarm = ((Model::Gate_Alarm != 0) || (Model::Device_AlarmFlags != 0) || (Model::Sensor_AlarmFlags != 0)) ? 1 : 0;
 		const uint16_t activeRegister = (Model::Flag_DFR_manual == 0) ? *pDFR : *pDFR_manual;
 
 		// В модуль ввода-вывода всегда отправляем активный регистр.

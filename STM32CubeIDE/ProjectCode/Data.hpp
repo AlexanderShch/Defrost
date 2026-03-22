@@ -31,9 +31,12 @@ public:
 
 protected:
 	static void SetAverageTemperature(unsigned char SensNum);
+	/** Подсчёт T_ClampHit по кольцу и защёлка Model::Sensor_AlarmFlags при избытке обрезок. */
+	static void EvaluateClampAlarmForSensor(unsigned char SensNum);
 	static unsigned int Time[TQ][SQ];	// номер такта измерения
 	static int T[TQ][SQ];			// сырая температура с датчика (Param 2): экран и телеметрия
 	static int T_Clamped[TQ][SQ];		// после ограничения скорости изменения (антиспайк, обрезка по помехе); участвует в среднем
+	static uint8_t T_ClampHit[TQ][SQ];	// 1 = на такте была обрезка (|Δ сырая−пред.обрез.| > порога)
 	static int T_Average[TQ][SQ];		// отфильтрованная T (Param 4): алгоритм и лог
 	static int H[TQ][SQ];			// влажность
 };
