@@ -146,6 +146,9 @@ void VisualizationPresenter::ValUpdatePresenter()
 	// Вытяжка и положение заслонки по дискретным входам
 	view.syncExhaustFanAndFlapFromInputs();
 
+	// Анимации по DFR_current: при активном IO — факт с DI; иначе активный регистр команд (см. Data.cpp).
+	view.syncEquipmentAnimationsFromDisplayedState();
+
 //	DFR_chng_flag.Vent1_Left = 1;
 //	DFR_current.Vent2_Left = 1;
 //	FlagsTemp = *(uint16_t*) &DFR;

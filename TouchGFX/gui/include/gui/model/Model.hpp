@@ -122,15 +122,15 @@ public:
     static bool isDefrostManualGroupEnabled(uint8_t groupIndex1to4);
 
     // Состояние ворот от модуля ввода-вывода (входные сигналы)
-    static uint8_t Gate_Open;   // бит 13: ворота открыты
-    static uint8_t Gate_Close;  // бит 12: ворота закрыты
-    static uint8_t Gate_Alarm;  // флаг аварийного режима ворот
+    static uint8_t Gate_Alarm;  // программный флаг аварийного режима ворот, устанавливается алгоритмом, если за 10 секунд не поступит аппаратный сигнал откр/закр
+    static uint8_t Gate_Open;	// флаг открытых ворот (предыдущее состояние)
+    static uint8_t Gate_Close;	// флаг закрытых ворот (предыдущее состояние)
     static uint8_t Device_Alarm; // общий флаг аварии устройства (для красной лампы)
+    static uint8_t Gate_PosTop;    // флаг конечного положения "ворота вверху" (для аварийного режима) программный
+    static uint8_t Gate_PosBottom; // флаг конечного положения "ворота внизу" (для аварийного режима) программный
     static uint16_t Device_AlarmFlags; // регистр аварийных флагов устройств (битовая маска)
     /** Аварии по Т-датчикам: бит i = канал i (0..SQ-1), защёлка — избыточная доля обрезок в буфере T_Clamped. */
     static uint16_t Sensor_AlarmFlags;
-    static uint8_t Gate_PosTop;    // флаг конечного положения "ворота вверху" (для аварийного режима)
-    static uint8_t Gate_PosBottom; // флаг конечного положения "ворота внизу" (для аварийного режима)
 
     // программирование
     static int BaudRate_WR_to_sensor;		// скорость для записи в датчик
@@ -152,7 +152,7 @@ public:
     static int16_t CORR_H_sensor;			// значение H для корректировки
     static int16_t CORR_R_sensor;			// значение R для корректировки
     // регистры управления устройствами
-    static DI_DFR_REGISTERS_t DI_DFR;		// Регистр входных сигналов дефростера
+    static DI_DFR_REGISTERS_t DI_DFR;		// Регистр входных сигналов дефростера, считанных с модуля ввода-вывода.
     static DFR_REGISTERS_t DFR;				// Объявление регистра состояния управления устройствами
     static DFR_REGISTERS_t DFR_current;		// Объявление регистра текущего отображения состояния управления устройствами
     static DFR_REGISTERS_t DFR_chng_flag;	// Объявление регистра флагов изменения состояния управления устройствами

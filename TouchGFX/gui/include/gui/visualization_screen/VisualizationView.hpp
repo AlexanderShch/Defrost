@@ -45,6 +45,9 @@ public:
     /** Вытяжка AnimFan_Out по входу Vent_Out; заслонки Flap / Flap_Open / Flap_Close по Air_Open, Air_Close (Model::DI_DFR). */
     void syncExhaustFanAndFlapFromInputs(void);
 
+    /** Анимации по Model::DFR_current (работает/выключено); каждый тик, не зависит от DEVICE_SWITCH_CHECK_ENABLED. */
+    void syncEquipmentAnimationsFromDisplayedState(void);
+
 protected:
 
 };

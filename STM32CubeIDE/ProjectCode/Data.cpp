@@ -286,8 +286,8 @@ void ReadDataFunc() {
 		RelayRegister = activeRegister;
 
 		// Для визуализации обновляем "текущее отображаемое состояние" устройств.
-		// По возможности используем ФАКТИЧЕСКИЕ входные сигналы с модуля ввода-вывода (IN0..IN15),
-		// а не только командные биты управления.
+		// При активном модуле IO биты 0..8 в DFR_current — только факт с дискретных входов (работает/выключено).
+		// Если модуль IO не опрашивается — показываем активный регистр команд (DFR / DFR_manual).
 		uint16_t displayedRegister = activeRegister;
 		const int ioIndex = 6; // индекс модуля MB IO в Sensor_array при SQ=7
 		if (ioIndex < SQ && Sensor_array[ioIndex].TypeOfSensor == 4 && Sensor_array[ioIndex].Active == 1)

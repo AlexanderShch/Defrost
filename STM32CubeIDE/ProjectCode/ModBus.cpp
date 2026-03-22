@@ -166,12 +166,6 @@ MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreI
 #define PR_CheckAnswerCRC (MB->Rx_Buffer[1] == CMD && MB_GetCRC(MB->Rx_Buffer, 8) == 0)
 int Parametr_CORR;
 
-// Предыдущее "сырое" состояние входов MB IO.
-// Почему: флаги Gate_* в Model должны принимать аппаратное состояние только по факту
-// изменения входного сигнала, а не при каждом цикле опроса.
-static uint16_t g_prevDiRaw = 0;
-static uint8_t g_prevDiRawValid = 0;
-
 #if (DEVICE_SWITCH_CHECK_ENABLED != 0)
 // Биты устройств, для которых проверяем подтверждение по входам MB IO.
 // Vent1_Left, Vent2_Left, Vent1_Right, Vent2_Right, Ten1_Left, Ten2_Left, Ten1_Right, Ten2_Right, Vent_Out.
@@ -184,6 +178,8 @@ static uint8_t g_prevRelayCheckedValid = 0;
 // Ожидаемые состояния входов после переключения выходов.
 static uint16_t g_pendingCheckMask = 0;
 static uint16_t g_expectedDiBits = 0;
+// Флаг: предыдущее состояние входных сигналов от ворот было зафиксировано
+static uint8_t prevGateValid = 0;
 
 // Обработка случая, когда вход не переключился вслед за выходом на следующем опросе.
 // TODO: добавить нужную бизнес-логику (авария/лог/уведомление/останов и т.д.).
@@ -320,50 +316,43 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			// Модуль ввода-вывода имеет индекс 6 (SQ=7), входы лежат в Read_Data_2 (T).
 			if (SensIndex == 6 && Sensor_array[SensIndex].TypeOfSensor == 4)
 			{
-				Model::DI_DFR.Raw = SW.Read_Data_2;
-				// Обновляем связанные флаги ворот/аварии только при изменении аппаратного входа.
-				// Если вход не менялся, флаг не трогаем даже при рассогласовании.
-				if (g_prevDiRawValid == 0)
+				Model::DI_DFR.Raw = SW.Read_Data_2;		// Сохраняем считанные с входов модуля ввода/вывода сигналы от устройств
+
+				// Проверка аппаратной аварии ворот в дефростере
+				Model::Gate_Alarm = Model::DI_DFR.Bits.Gate_Alarm ? 1 : 0;
+				if (Model::Gate_Alarm != 0)
 				{
-					// Первичная инициализация от аппаратного состояния входов.
-					Model::Gate_Close = Model::DI_DFR.Bits.Gate_Close ? 1 : 0;
-					Model::Gate_Open = Model::DI_DFR.Bits.Gate_Open ? 1 : 0;
-					Model::Gate_Alarm = Model::DI_DFR.Bits.Gate_Alarm ? 1 : 0;
-					if (Model::Gate_Alarm != 0)
+					// Аппаратная авария ворот должна немедленно остановить дефростер.
+					DefrostControl_SetEnabled(0);
+				}
+
+				// Если поступил аппаратный сигнал от ворот, программный флаг нужно изменить
+				if (prevGateValid != 0)
+				{
+					// Если происходит смена аппаратного состояния ворот, то программные переменные поменяем
+					// Если смены состояния нет, а таймаут случился, то состояние ворот будет учтено программно в модуле GateControl.cpp
+					if ((Model::Gate_Close != Model::DI_DFR.Bits.Gate_Close))
 					{
-						// Аппаратная авария ворот должна немедленно остановить дефростер.
-						DefrostControl_SetEnabled(0);
+						Model::Gate_Close = (Model::DI_DFR.Bits.Gate_Close) ? 1 : 0;	// это флаг предыдущего состояния
+						Model::Gate_PosBottom = Model::Gate_Close;						// это флаг программный для аварийного режима
 					}
-					g_prevDiRaw = Model::DI_DFR.Raw;
-					g_prevDiRawValid = 1;
+					if ((Model::Gate_Open != Model::DI_DFR.Bits.Gate_Open))
+					{
+						Model::Gate_Open = Model::DI_DFR.Bits.Gate_Open ? 1 : 0;		// это флаг предыдущего состояния
+						Model::Gate_PosTop = Model::Gate_Open;							// это флаг программный для аварийного режима
+					}
 				}
 				else
 				{
-					const uint16_t currRaw = Model::DI_DFR.Raw;
-					const uint16_t changed = (uint16_t)(currRaw ^ g_prevDiRaw);
-
-					if ((changed & (1u << 12)) != 0u)
-					{
-						Model::Gate_Close = Model::DI_DFR.Bits.Gate_Close ? 1 : 0;
-					}
-					if ((changed & (1u << 13)) != 0u)
-					{
-						Model::Gate_Open = Model::DI_DFR.Bits.Gate_Open ? 1 : 0;
-					}
-					if ((changed & (1u << 11)) != 0u)
-					{
-						// Gate_Alarm - инверсный вход (1 = норма, 0 = авария),
-						// а Model::Gate_Alarm храним как 1 = авария.
-						Model::Gate_Alarm = Model::DI_DFR.Bits.Gate_Alarm ? 1 : 0;
-						if (Model::Gate_Alarm != 0)
-						{
-							// Аппаратная авария ворот должна немедленно остановить дефростер.
-							DefrostControl_SetEnabled(0);
-						}
-					}
-
-					g_prevDiRaw = currRaw;
+					prevGateValid = 1;
+					Model::Gate_Open = Model::DI_DFR.Bits.Gate_Open ? 1 : 0;
+					Model::Gate_Close = Model::DI_DFR.Bits.Gate_Close ? 1 : 0;
+					Model::Gate_PosBottom = Model::Gate_Close;						// это флаг программный для аварийного режима
+					Model::Gate_PosTop = Model::Gate_Open;							// это флаг программный для аварийного режима
 				}
+
+				}
+
 
 #if (DEVICE_SWITCH_CHECK_ENABLED != 0)
 				// Проверка переключения устройств:
@@ -400,7 +389,6 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 				// По входам вентиляторов контролируем межблокировку групп ТЭНов.
 				EnforceHeaterInterlockByFans();
 #endif
-			}
 			break;
 		}
 		case MB_ERROR_DMA_SEND:
@@ -419,6 +407,13 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			break;	}
 		case MB_ERROR_DMA_RECIEVE:
 			Sensor_array[SensIndex].RxErrorCnt++;
+			break;
+		case MB_ERROR_COMMAND:
+		case MB_ERROR_WRONG_ADDRESS:
+		case MB_ERROR_WRONG_VALUE:
+			// Неверная команда / адрес / значение в кадре ModBus — как прочие логические ошибки обмена.
+			Sensor_array[SensIndex].ErrCnt++;
+			result = MB_ERROR_UART_SEND;
 			break;
 		default:
 			Sensor_array[SensIndex].ErrCnt++;

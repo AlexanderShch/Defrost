@@ -31,6 +31,8 @@ void VisualizationView::setupScreen()
 		AnimFan_Out.pauseAnimation();
 	AnimFan_Out.invalidate();
 	syncExhaustFanAndFlapFromInputs();
+	// Подтянуть анимации к текущему DFR_current (в т.ч. если флаги смены не сработали).
+	syncEquipmentAnimationsFromDisplayedState();
 }
 
 void VisualizationView::tearDownScreen()
@@ -190,13 +192,19 @@ void VisualizationView::AnimHeat12_Switch()
 	// Если один из тэнов или оба включены, то видимость работы тэна включена
 	AnimHeat12.setVisible(val);
 
-	if ((Model::DFR_current.Ten1_Left ^ Model::DFR_current.Ten2_Left) == 1) {
-		// Если включен только один тэн, то скорость волны маленькая
-		AnimHeat12.setUpdateTicksInterval(8);
+	if (val) {
+		if (!(AnimHeat12.isAnimatedImageRunning()))
+			AnimHeat12.startAnimation(false, false, true);
+		if ((Model::DFR_current.Ten1_Left ^ Model::DFR_current.Ten2_Left) == 1) {
+			AnimHeat12.setUpdateTicksInterval(8);
+		}
+		else {
+			AnimHeat12.setUpdateTicksInterval(3);
+		}
 	}
 	else {
-		// Если включены два тэна, то скорость волны большая
-		AnimHeat12.setUpdateTicksInterval(3);
+		if (AnimHeat12.isAnimatedImageRunning())
+			AnimHeat12.pauseAnimation();
 	}
 	AnimHeat12.invalidate();
 }
@@ -207,13 +215,19 @@ void VisualizationView::AnimHeat34_Switch()
 	// а если оба тэна выключены, то видимость погашена
 	AnimHeat34.setVisible(val);
 
-	if ((Model::DFR_current.Ten1_Right ^ Model::DFR_current.Ten2_Right) == 1) {
-		// Если включен только один тэн, то скорость волны маленькая
-		AnimHeat34.setUpdateTicksInterval(8);
+	if (val) {
+		if (!(AnimHeat34.isAnimatedImageRunning()))
+			AnimHeat34.startAnimation(false, false, true);
+		if ((Model::DFR_current.Ten1_Right ^ Model::DFR_current.Ten2_Right) == 1) {
+			AnimHeat34.setUpdateTicksInterval(8);
+		}
+		else {
+			AnimHeat34.setUpdateTicksInterval(3);
+		}
 	}
 	else {
-		// Если включены два тэна, то скорость волны большая
-		AnimHeat34.setUpdateTicksInterval(3);
+		if (AnimHeat34.isAnimatedImageRunning())
+			AnimHeat34.pauseAnimation();
 	}
 	AnimHeat34.invalidate();
 }
@@ -349,3 +363,11 @@ void VisualizationView::syncExhaustFanAndFlapFromInputs()
 	Flap_Open.invalidate();
 	Flap_Close.invalidate();
 }
+void VisualizationView::syncEquipmentAnimationsFromDisplayedState()
+{
+	AnimFan12_Switch();
+	AnimFan34_Switch();
+	AnimHeat12_Switch();
+	AnimHeat34_Switch();
+}
+
