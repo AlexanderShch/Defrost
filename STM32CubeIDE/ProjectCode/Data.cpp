@@ -290,14 +290,15 @@ void ReadDataFunc() {
 														(1u << 4) | (1u << 5) | (1u << 6) | (1u << 7) |
 														(1u << 8));
 			const uint16_t blockedMask = (uint16_t)(Model::Device_AlarmFlags & deviceCheckMask);
+			// аварийные устройства блокируются
 			activeRegister &= (uint16_t)(~blockedMask);
 		}
 
 		// В модуль ввода-вывода всегда отправляем активный регистр.
-		RelayRegister = activeRegister;
-		const uint16_t prevDisplayedRegister = *pDFR_current;
-		*pDFR_chng_flag = activeRegister ^ prevDisplayedRegister;
-		*pDFR_current = activeRegister;
+		RelayRegister = activeRegister;	// эта переменная запишется в модуль ввода-вывода
+		const uint16_t prevDisplayedRegister = *pDFR_current;	// получаем предыдущее значение регистра управления
+		*pDFR_chng_flag = activeRegister ^ prevDisplayedRegister;	// вычисляем флаг изменений
+		*pDFR_current = activeRegister;	// записываем активный регистр в регистр управления
 
 		/**************************************************************
 		 * Цикл опроса датчиков
