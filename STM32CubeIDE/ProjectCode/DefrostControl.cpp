@@ -568,46 +568,64 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          uint8_t injOn,
          uint8_t outOn)
      {
-        // Почему: чтобы снизить пусковые токи, включаем вентиляторы и ТЭНы по одному каналу
-        // с интервалом 2 секунды между включениями. Выключение оставляем мгновенным.
+        // Почему: чтобы снизить пусковые токи/удары по сети, переключаем мощные каналы по одному
+        // с интервалом 2 секунды. При выключении приоритет: сначала ТЭНы, затем вентиляторы.
         const uint8_t kStartupInterval_s = 2;
         if (g.startupActuatorDelay_s > 0)
         {
             g.startupActuatorDelay_s--;
         }
 
-        bool switchedOnThisTick = false;
-        auto stageActuator = [&](uint8_t desiredOn, uint8_t& stagedOn)
+        bool switchedThisTick = false;
+        auto stageOff = [&](uint8_t desiredOn, uint8_t& stagedOn)
         {
-            if (desiredOn == 0) // Алгоритм хочет выключить устройство
+            if (desiredOn != 0 || stagedOn == 0)
             {
-                stagedOn = 0;   // Выключаем сразу
                 return;
             }
-            if (stagedOn != 0)  // Алгоритм хочет включить устройство, но оно уже включено
+            if (switchedThisTick || g.startupActuatorDelay_s != 0)
             {
-                return;  // Ничего не делаем
+                return;
             }
-            // Алгоритм хочет включить устройство
-            // Если устройство ещё не было включено за эту секунду, и время задержки равно 0, то включаем устройство
-            if (!switchedOnThisTick && g.startupActuatorDelay_s == 0)
-            {
-                stagedOn = 1;
-                // Устанавливаем флаг, что устройство было включено за эту секунду
-                switchedOnThisTick = true;
-                g.startupActuatorDelay_s = kStartupInterval_s;
-            }
+            stagedOn = 0;
+            switchedThisTick = true;
+            g.startupActuatorDelay_s = kStartupInterval_s;
         };
 
-        // Вентиляторы запускаем раньше ТЭНов.
-        stageActuator(ventLeftOn,  g.stagedVent1LeftOn);
-        stageActuator(ventLeftOn,  g.stagedVent2LeftOn);
-        stageActuator(ventRightOn, g.stagedVent1RightOn);
-        stageActuator(ventRightOn, g.stagedVent2RightOn);
-        stageActuator(ten1LeftOn,  g.stagedTen1LeftOn);
-        stageActuator(ten2LeftOn,  g.stagedTen2LeftOn);
-        stageActuator(ten1RightOn, g.stagedTen1RightOn);
-        stageActuator(ten2RightOn, g.stagedTen2RightOn);
+        auto stageOn = [&](uint8_t desiredOn, uint8_t& stagedOn)
+        {
+            if (desiredOn == 0 || stagedOn != 0)
+            {
+                return;
+            }
+            if (switchedThisTick || g.startupActuatorDelay_s != 0)
+            {
+                return;
+            }
+            stagedOn = 1;
+            switchedThisTick = true;
+            g.startupActuatorDelay_s = kStartupInterval_s;
+        };
+
+        // Поочередное выключение в обратном порядке: сначала ТЭНы, последними - вентиляторы.
+        stageOff(ten2RightOn, g.stagedTen2RightOn);
+        stageOff(ten1RightOn, g.stagedTen1RightOn);
+        stageOff(ten2LeftOn,  g.stagedTen2LeftOn);
+        stageOff(ten1LeftOn,  g.stagedTen1LeftOn);
+        stageOff(ventRightOn, g.stagedVent2RightOn);
+        stageOff(ventRightOn, g.stagedVent1RightOn);
+        stageOff(ventLeftOn,  g.stagedVent2LeftOn);
+        stageOff(ventLeftOn,  g.stagedVent1LeftOn);
+
+        // Поочередное включение в прямом порядке: сначала вентиляторы, потом ТЭНы.
+        stageOn(ventLeftOn,  g.stagedVent1LeftOn);
+        stageOn(ventLeftOn,  g.stagedVent2LeftOn);
+        stageOn(ventRightOn, g.stagedVent1RightOn);
+        stageOn(ventRightOn, g.stagedVent2RightOn);
+        stageOn(ten1LeftOn,  g.stagedTen1LeftOn);
+        stageOn(ten2LeftOn,  g.stagedTen2LeftOn);
+        stageOn(ten1RightOn, g.stagedTen1RightOn);
+        stageOn(ten2RightOn, g.stagedTen2RightOn);
 
         // Загружаем значения в регистр управления устройствами
         Model::DFR.Vent1_Left  = g.stagedVent1LeftOn ? 1 : 0;
@@ -1105,20 +1123,10 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
 {
     // Безопасное выключение всех исполнительных механизмов при остановке алгоритма
 
-    // ТЭНы: отключить все нагреватели
-    Model::DFR.Ten1_Left = 0;
-    Model::DFR.Ten2_Left = 0;
-    Model::DFR.Ten1_Right = 0;
-    Model::DFR.Ten2_Right = 0;
-
-    // Вентиляторы: отключить все вентиляторы подачи воздуха
-    Model::DFR.Vent1_Left = 0;
-    Model::DFR.Vent2_Left = 0;
-    Model::DFR.Vent1_Right = 0;
-    Model::DFR.Vent2_Right = 0;
-
-    // Форсунки: отключить увлажнение
-    Model::DFR._Inj = 0;
+    // Плавное выключение силовых каналов через ApplyOutputs:
+    // сначала ТЭНы, затем вентиляторы (обратный порядок реализован внутри ApplyOutputs).
+    // Важно: не гасим каналы напрямую, чтобы не выключались одновременно.
+    ApplyOutputs(0, 0, 0, 0, 0, 0, 0, 0);
 
     // Ворота: открываем через тот же алгоритм GateControl в текущем режиме.
     GateControl_SetCommand(GateControlCommand::Open, 1);
@@ -1846,6 +1854,9 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
 
             if (g.shutdownActive != 0)
              {
+                // Во время пост-выключения продолжаем шаги поочередного отключения силовых каналов.
+                ApplyOutputs(0, 0, 0, 0, 0, 0, 0, 0);
+
                 // Алгоритм выключен, но выполняется процесс завершения работы алгоритма
                 // В рамках остановки алгоритма открытие ворот выполняем через API GateControl.
                 if (g.shutdownGateOpening != 0)
