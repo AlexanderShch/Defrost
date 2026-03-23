@@ -295,36 +295,9 @@ void ReadDataFunc() {
 
 		// В модуль ввода-вывода всегда отправляем активный регистр.
 		RelayRegister = activeRegister;
-
-		// Для визуализации обновляем "текущее отображаемое состояние" устройств.
-		// При активном модуле IO биты 0..8 в DFR_current — только факт с дискретных входов (работает/выключено).
-		// Если модуль IO не опрашивается — показываем активный регистр команд (DFR / DFR_manual).
-		uint16_t displayedRegister = activeRegister;
-		const int ioIndex = 6; // индекс модуля MB IO в Sensor_array при SQ=7
-		if (ioIndex < SQ && Sensor_array[ioIndex].TypeOfSensor == 4 && Sensor_array[ioIndex].Active == 1)
-		{
-			displayedRegister = 0;
-			displayedRegister |= (Model::DI_DFR.Bits.Vent1_Left  ? (1u << 0)  : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Vent2_Left  ? (1u << 1)  : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Vent1_Right ? (1u << 2)  : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Vent2_Right ? (1u << 3)  : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Ten1_Left   ? (1u << 4)  : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Ten2_Left   ? (1u << 5)  : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Ten1_Right  ? (1u << 6)  : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Ten2_Right  ? (1u << 7)  : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Vent_Out    ? (1u << 8)  : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Air_Open    ? (1u << 9)  : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Air_Close   ? (1u << 10) : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Gate_Alarm  ? (1u << 11) : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Gate_Close  ? (1u << 12) : 0u);
-			displayedRegister |= (Model::DI_DFR.Bits.Gate_Open   ? (1u << 13) : 0u);
-			// Телеметрия/визуализация: бит14 = _Wrk (как в активном регистре), бит15 = _Alr (общая авария).
-			displayedRegister |= (activeRegister & (1u << 14));
-			displayedRegister |= (Model::Device_Alarm ? (1u << 15) : 0u);
-		}
 		const uint16_t prevDisplayedRegister = *pDFR_current;
-		*pDFR_chng_flag = displayedRegister ^ prevDisplayedRegister;
-		*pDFR_current = displayedRegister;
+		*pDFR_chng_flag = activeRegister ^ prevDisplayedRegister;
+		*pDFR_current = activeRegister;
 
 		/**************************************************************
 		 * Цикл опроса датчиков
