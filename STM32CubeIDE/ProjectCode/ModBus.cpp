@@ -332,9 +332,9 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			if (DEVICE_SWITCH_CHECK_ENABLED == 1)
 			{
 				// Проверка переключения устройств:
-				// если выходной бит изменился, то на следующем чтении DI соответствующий вход должен стать таким же
-				// т.е. если включили устройство, оно должно подтвердить свою работу
-				const uint16_t relayNow = (uint16_t)(RelayRegister & kDeviceCheckMask);
+				// если командный бит в DFR изменился, то на следующем чтении DI соответствующий вход должен стать таким же
+				// т.е. если алгоритм включил устройство в DFR, оно должно подтвердить свою работу
+				const uint16_t relayNow = (uint16_t)(*((uint16_t*)&Model::DFR) & kDeviceCheckMask);
 				if (g_prevRelayCheckedValid == 0)
 				{
 					g_prevRelayChecked = relayNow;	// Начальная установка предыдущих значений в регистре
@@ -368,10 +368,6 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 						// обработка несовпадений
 						HandleDeviceSwitchCheckMismatch(mismatchMask, g_expectedDiBits, diNow);
 					}
-					// Если после переключения входы DI совпали с ожидаемыми состояниями,
-					// очищаем ранее зафиксированные аварийные биты для этих каналов.
-					const uint16_t resolvedMask = (uint16_t)((~mismatchMask) & g_pendingCheckMask & kDeviceCheckMask);
-					Model::Device_AlarmFlags &= (uint16_t)(~resolvedMask);
 					// Проверка выполняется один раз на "следующем считывании входов" после переключения.
 					g_pendingCheckMask = 0u;
 				}

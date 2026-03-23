@@ -25,7 +25,7 @@
 
 // Флаг включения проверки, что входы MB IO повторяют переключения выходов.
 // 0 - проверка выключена, 1 - проверка включена.
-#define DEVICE_SWITCH_CHECK_ENABLED 1
+#define DEVICE_SWITCH_CHECK_ENABLED 0
 
 /* Описание набора датчиков дефростера */
 typedef struct {
