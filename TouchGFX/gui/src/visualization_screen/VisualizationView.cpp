@@ -26,10 +26,7 @@ VisualizationView::VisualizationView()
 void VisualizationView::setupScreen()
 {
     VisualizationViewBase::setupScreen();
-	// В Base анимация вытяжки стартует в конструкторе — останавливаем до синхронизации с DI.
-	if (AnimFan_Out.isAnimatedImageRunning())
-		AnimFan_Out.pauseAnimation();
-	AnimFan_Out.invalidate();
+	// Анимация вытяжки должна работать непрерывно (не останавливаем в setup).
 	syncExhaustFanAndFlapFromInputs();
 	// Подтянуть анимации к текущему DFR_current (в т.ч. если флаги смены не сработали).
 	syncEquipmentAnimationsFromDisplayedState();
@@ -326,8 +323,8 @@ void VisualizationView::syncDeviceAlarmIndicators()
 
 void VisualizationView::syncExhaustFanAndFlapFromInputs()
 {
-	// Входы с модуля DI (см. Model.hpp DI_DFR_REGISTERS_t).
-	const uint8_t ventOut = (uint8_t)Model::DI_DFR.Bits.Vent_Out;
+	// Анимация вытяжного вентилятора — по выходной команде (DFR_current), а не по входу DI.
+	const uint8_t ventOut = (uint8_t)Model::DFR_current._Out;
 	if (ventOut != 0u)
 	{
 		if (!AnimFan_Out.isAnimatedImageRunning())

@@ -280,7 +280,18 @@ void ReadDataFunc() {
 		// Выбираем активный регистр управления в зависимости от режима.
 		// Общий флаг аварии: авария ворот ИЛИ любые аварийные биты устройств.
 		Model::Device_Alarm = ((Model::Gate_Alarm != 0) || (Model::Device_AlarmFlags != 0) || (Model::Sensor_AlarmFlags != 0)) ? 1 : 0;
-		const uint16_t activeRegister = (Model::Flag_DFR_manual == 0) ? *pDFR : *pDFR_manual;
+		const uint16_t commandRegisterRaw = (Model::Flag_DFR_manual == 0) ? *pDFR : *pDFR_manual;
+		uint16_t activeRegister = commandRegisterRaw;
+		// В автоматическом режиме блокируем включение аварийных устройств:
+		// если по каналу зафиксирована авария подтверждения (Device_AlarmFlags), бит команды принудительно сбрасывается.
+		if (Model::Flag_DFR_manual == 0)
+		{
+			const uint16_t deviceCheckMask = (uint16_t)((1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) |
+														(1u << 4) | (1u << 5) | (1u << 6) | (1u << 7) |
+														(1u << 8));
+			const uint16_t blockedMask = (uint16_t)(Model::Device_AlarmFlags & deviceCheckMask);
+			activeRegister &= (uint16_t)(~blockedMask);
+		}
 
 		// В модуль ввода-вывода всегда отправляем активный регистр.
 		RelayRegister = activeRegister;

@@ -166,7 +166,7 @@ MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreI
 #define PR_CheckAnswerCRC (MB->Rx_Buffer[1] == CMD && MB_GetCRC(MB->Rx_Buffer, 8) == 0)
 int Parametr_CORR;
 
-#if (DEVICE_SWITCH_CHECK_ENABLED != 0)
+//if (DEVICE_SWITCH_CHECK_ENABLED != 0) 
 // Биты устройств, для которых проверяем подтверждение по входам MB IO.
 // Vent1_Left, Vent2_Left, Vent1_Right, Vent2_Right, Ten1_Left, Ten2_Left, Ten1_Right, Ten2_Right, Vent_Out.
 static const uint16_t kDeviceCheckMask = (1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) |
@@ -178,8 +178,6 @@ static uint8_t g_prevRelayCheckedValid = 0;
 // Ожидаемые состояния входов после переключения выходов.
 static uint16_t g_pendingCheckMask = 0;
 static uint16_t g_expectedDiBits = 0;
-// Флаг: предыдущее состояние входных сигналов от ворот было зафиксировано
-static uint8_t prevGateValid = 0;
 
 // Обработка случая, когда вход не переключился вслед за выходом на следующем опросе.
 // TODO: добавить нужную бизнес-логику (авария/лог/уведомление/останов и т.д.).
@@ -215,7 +213,7 @@ static void EnforceHeaterInterlockByFans(void)
 		RelayRegister &= (uint16_t)~((1u << 6) | (1u << 7));
 	}
 }
-#endif
+
 
 /************** ДАТЧИКИ ****************************/
 /***************************************************/
@@ -317,7 +315,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			if (SensIndex == 6 && Sensor_array[SensIndex].TypeOfSensor == 4)
 			{
 				Model::DI_DFR.Raw = SW.Read_Data_2;		// Сохраняем считанные с входов модуля ввода/вывода сигналы от устройств
-
+				/*********************************************************************************************/
 				// Проверка аппаратной аварии ворот в дефростере
 				Model::Gate_Alarm = Model::DI_DFR.Bits.Gate_Alarm ? 1 : 0;
 				if (Model::Gate_Alarm != 0)
@@ -325,70 +323,62 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 					// Аппаратная авария ворот должна немедленно остановить дефростер.
 					DefrostControl_SetEnabled(0);
 				}
+				/*********************************************************************************************/
+			}
 
-				// Если поступил аппаратный сигнал от ворот, программный флаг нужно изменить
-				if (prevGateValid != 0)
-				{
-					// Если происходит смена аппаратного состояния ворот, то программные переменные поменяем
-					// Если смены состояния нет, а таймаут случился, то состояние ворот будет учтено программно в модуле GateControl.cpp
-					if ((Model::Gate_Close != Model::DI_DFR.Bits.Gate_Close))
-					{
-						Model::Gate_Close = (Model::DI_DFR.Bits.Gate_Close) ? 1 : 0;	// это флаг предыдущего состояния
-						Model::Gate_PosBottom = Model::Gate_Close;						// это флаг программный для аварийного режима
-					}
-					if ((Model::Gate_Open != Model::DI_DFR.Bits.Gate_Open))
-					{
-						Model::Gate_Open = Model::DI_DFR.Bits.Gate_Open ? 1 : 0;		// это флаг предыдущего состояния
-						Model::Gate_PosTop = Model::Gate_Open;							// это флаг программный для аварийного режима
-					}
-				}
-				else
-				{
-					prevGateValid = 1;
-					Model::Gate_Open = Model::DI_DFR.Bits.Gate_Open ? 1 : 0;
-					Model::Gate_Close = Model::DI_DFR.Bits.Gate_Close ? 1 : 0;
-					Model::Gate_PosBottom = Model::Gate_Close;						// это флаг программный для аварийного режима
-					Model::Gate_PosTop = Model::Gate_Open;							// это флаг программный для аварийного режима
-				}
-
-				}
-
-
-#if (DEVICE_SWITCH_CHECK_ENABLED != 0)
+			/*****************************************************************************
+			 * КОНТРОЛЬ РАбОТОСПОСОбНОСТИ УСТРОЙСТВ
+			 *****************************************************************************/
+			if (DEVICE_SWITCH_CHECK_ENABLED == 1)
+			{
 				// Проверка переключения устройств:
-				// если выходной бит изменился, то на следующем чтении DI соответствующий вход должен стать таким же.
+				// если выходной бит изменился, то на следующем чтении DI соответствующий вход должен стать таким же
+				// т.е. если включили устройство, оно должно подтвердить свою работу
 				const uint16_t relayNow = (uint16_t)(RelayRegister & kDeviceCheckMask);
 				if (g_prevRelayCheckedValid == 0)
 				{
-					g_prevRelayChecked = relayNow;
+					g_prevRelayChecked = relayNow;	// Начальная установка предыдущих значений в регистре
 					g_prevRelayCheckedValid = 1;
 				}
 				else
 				{
+					// биты, которые только что поменялись
 					const uint16_t relayChanged = (uint16_t)(relayNow ^ g_prevRelayChecked);
 					if (relayChanged != 0u)
 					{
+						// маска для входов, на которых изменилось состояние
 						g_pendingCheckMask = (uint16_t)(g_pendingCheckMask | relayChanged);
-						g_expectedDiBits = (uint16_t)((g_expectedDiBits & (uint16_t)(~relayChanged)) | (relayNow & relayChanged));
+						// ожидаемые на входах DI сигналы подтверждения включения устройств
+						// Для битов, не вошедших в relayChanged, оставляем старое ожидание как было,
+						// т.е. должно прийти на входы DI в соответствии с включенными устройствами ранее
+						g_expectedDiBits = (uint16_t)((g_expectedDiBits & (uint16_t)(~relayChanged)) 
+						// Для битов из relayChanged подставляем новое командное состояние с выходов — relayNow на этих позициях
+													| (relayNow & relayChanged));
+						// проверенное состояние реле теперь записываем в предыдущее состояние реле
 						g_prevRelayChecked = relayNow;
 					}
 				}
 
-				if (g_pendingCheckMask != 0u)
+				if (g_pendingCheckMask != 0u)	// если есть изменения битов для проверки
 				{
-					const uint16_t diNow = (uint16_t)(Model::DI_DFR.Raw & kDeviceCheckMask);
-					const uint16_t mismatchMask = (uint16_t)((diNow ^ g_expectedDiBits) & g_pendingCheckMask);
-					if (mismatchMask != 0u)
+					const uint16_t diNow = (uint16_t)(Model::DI_DFR.Raw & kDeviceCheckMask);	// текущие входы DI
+					const uint16_t mismatchMask = (uint16_t)((diNow ^ g_expectedDiBits) & g_pendingCheckMask);	// маска несовпадений
+					if (mismatchMask != 0u)	// если есть несовпадения
 					{
+						// обработка несовпадений
 						HandleDeviceSwitchCheckMismatch(mismatchMask, g_expectedDiBits, diNow);
 					}
+					// Если после переключения входы DI совпали с ожидаемыми состояниями,
+					// очищаем ранее зафиксированные аварийные биты для этих каналов.
+					const uint16_t resolvedMask = (uint16_t)((~mismatchMask) & g_pendingCheckMask & kDeviceCheckMask);
+					Model::Device_AlarmFlags &= (uint16_t)(~resolvedMask);
 					// Проверка выполняется один раз на "следующем считывании входов" после переключения.
 					g_pendingCheckMask = 0u;
 				}
 
 				// По входам вентиляторов контролируем межблокировку групп ТЭНов.
 				EnforceHeaterInterlockByFans();
-#endif
+			}
 			break;
 		}
 		case MB_ERROR_DMA_SEND:
