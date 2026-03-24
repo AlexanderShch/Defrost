@@ -6,6 +6,8 @@
 //#include "string.h"
 #include "stdio.h"
 
+extern uint16_t RelayRegister;
+
 bool val = false;
 
 
@@ -185,6 +187,7 @@ void VisualizationView::Val_Water_Flap_UpdateView(uint8_t state)
 
 void VisualizationView::AnimHeat12_Switch()
 {
+	static uint8_t s_heat12LastInterval = 0u;
 	if ((Model::DFR_current.Ten1_Left || Model::DFR_current.Ten2_Left) == 1) val = true; else val = false;
 	// Если один из тэнов или оба включены, то видимость работы тэна включена
 	AnimHeat12.setVisible(val);
@@ -192,21 +195,22 @@ void VisualizationView::AnimHeat12_Switch()
 	if (val) {
 		if (!(AnimHeat12.isAnimatedImageRunning()))
 			AnimHeat12.startAnimation(false, false, true);
-		if ((Model::DFR_current.Ten1_Left ^ Model::DFR_current.Ten2_Left) == 1) {
-			AnimHeat12.setUpdateTicksInterval(8);
-		}
-		else {
-			AnimHeat12.setUpdateTicksInterval(3);
+		const uint8_t wantedInterval = ((Model::DFR_current.Ten1_Left ^ Model::DFR_current.Ten2_Left) == 1) ? 8u : 3u;
+		if (s_heat12LastInterval != wantedInterval) {
+			AnimHeat12.setUpdateTicksInterval(wantedInterval);
+			s_heat12LastInterval = wantedInterval;
 		}
 	}
 	else {
 		if (AnimHeat12.isAnimatedImageRunning())
 			AnimHeat12.pauseAnimation();
+		s_heat12LastInterval = 0u;
 	}
 	AnimHeat12.invalidate();
 }
 void VisualizationView::AnimHeat34_Switch()
 {
+	static uint8_t s_heat34LastInterval = 0u;
 	if ((Model::DFR_current.Ten1_Right || Model::DFR_current.Ten2_Right) == 1) val = true; else val = false;
 	// Если один из тэнов или оба включены, то видимость работы тэна включена
 	// а если оба тэна выключены, то видимость погашена
@@ -215,61 +219,59 @@ void VisualizationView::AnimHeat34_Switch()
 	if (val) {
 		if (!(AnimHeat34.isAnimatedImageRunning()))
 			AnimHeat34.startAnimation(false, false, true);
-		if ((Model::DFR_current.Ten1_Right ^ Model::DFR_current.Ten2_Right) == 1) {
-			AnimHeat34.setUpdateTicksInterval(8);
-		}
-		else {
-			AnimHeat34.setUpdateTicksInterval(3);
+		const uint8_t wantedInterval = ((Model::DFR_current.Ten1_Right ^ Model::DFR_current.Ten2_Right) == 1) ? 8u : 3u;
+		if (s_heat34LastInterval != wantedInterval) {
+			AnimHeat34.setUpdateTicksInterval(wantedInterval);
+			s_heat34LastInterval = wantedInterval;
 		}
 	}
 	else {
 		if (AnimHeat34.isAnimatedImageRunning())
 			AnimHeat34.pauseAnimation();
+		s_heat34LastInterval = 0u;
 	}
 	AnimHeat34.invalidate();
 }
 void VisualizationView::AnimFan12_Switch()
 {
+	static uint8_t s_fan12LastInterval = 0u;
 	if ((Model::DFR_current.Vent1_Left || Model::DFR_current.Vent2_Left) == 1) {
 		// Если один из вентиляторов или оба включены, то видимость вращения включена
 		// Если вентилятор был остановлен, то запустим его
 		if (!(AnimFan12.isAnimatedImageRunning()))
 			AnimFan12.startAnimation(false, false, true);
-		if ((Model::DFR_current.Vent1_Left ^ Model::DFR_current.Vent2_Left) == 1) {
-			// Если включен только один вентилятор, то скорость вращения маленькая
-			AnimFan12.setUpdateTicksInterval(8);
-		}
-		else {
-			// Если включены два вентилятора, то скорость вращения большая
-			AnimFan12.setUpdateTicksInterval(3);
+		const uint8_t wantedInterval = ((Model::DFR_current.Vent1_Left ^ Model::DFR_current.Vent2_Left) == 1) ? 8u : 3u;
+		if (s_fan12LastInterval != wantedInterval) {
+			AnimFan12.setUpdateTicksInterval(wantedInterval);
+			s_fan12LastInterval = wantedInterval;
 		}
 	}else {
 		// Все вентиляторы выключены, но анимация работает, вентилятор остановим
 		if (AnimFan12.isAnimatedImageRunning())
 			AnimFan12.pauseAnimation();
+		s_fan12LastInterval = 0u;
 	};
 
 	AnimFan12.invalidate();
 }
 void VisualizationView::AnimFan34_Switch()
 {
+	static uint8_t s_fan34LastInterval = 0u;
 	if ((Model::DFR_current.Vent1_Right || Model::DFR_current.Vent2_Right) == 1) {
 		// Если один из вентиляторов или оба включены, то видимость вращения включена
 		// Если вентилятор был остановлен, то запустим его
 		if (!(AnimFan34.isAnimatedImageRunning()))
 			AnimFan34.startAnimation(false, false, true);
-		if ((Model::DFR_current.Vent1_Right ^ Model::DFR_current.Vent2_Right) == 1) {
-			// Если включен только один вентилятор, то скорость вращения маленькая
-			AnimFan34.setUpdateTicksInterval(8);
-		}
-		else {
-			// Если включены два вентилятора, то скорость вращения большая
-			AnimFan34.setUpdateTicksInterval(3);
+		const uint8_t wantedInterval = ((Model::DFR_current.Vent1_Right ^ Model::DFR_current.Vent2_Right) == 1) ? 8u : 3u;
+		if (s_fan34LastInterval != wantedInterval) {
+			AnimFan34.setUpdateTicksInterval(wantedInterval);
+			s_fan34LastInterval = wantedInterval;
 		}
 	}else {
 		// Все вентиляторы выключены, но анимация работает, вентилятор остановим
 		if (AnimFan34.isAnimatedImageRunning())
 			AnimFan34.pauseAnimation();
+		s_fan34LastInterval = 0u;
 	};
 	AnimFan34.invalidate();
 }
@@ -323,18 +325,25 @@ void VisualizationView::syncDeviceAlarmIndicators()
 
 void VisualizationView::syncExhaustFanAndFlapFromInputs()
 {
+	static uint8_t s_fanOutLastInterval = 0u;
 	// Анимация вытяжного вентилятора — по выходной команде (DFR_current), а не по входу DI.
 	const uint8_t ventOut = (uint8_t)Model::DFR_current._Out;
 	if (ventOut != 0u)
 	{
 		if (!AnimFan_Out.isAnimatedImageRunning())
 			AnimFan_Out.startAnimation(false, false, true);
-		AnimFan_Out.setUpdateTicksInterval(3);
+		const uint8_t wantedInterval = 3u;
+		if (s_fanOutLastInterval != wantedInterval)
+		{
+			AnimFan_Out.setUpdateTicksInterval(wantedInterval);
+			s_fanOutLastInterval = wantedInterval;
+		}
 	}
 	else
 	{
 		if (AnimFan_Out.isAnimatedImageRunning())
 			AnimFan_Out.pauseAnimation();
+		s_fanOutLastInterval = 0u;
 	}
 	AnimFan_Out.invalidate();
 
