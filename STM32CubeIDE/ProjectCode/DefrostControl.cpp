@@ -454,6 +454,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         uint8_t shutdownGateOpening = 0; // при остановке: 1 если открытие ворот выполняется через API GateControl
         uint8_t alarmBlinkPhase = 0;    // фаза мигания аварийной лампы: 0/1 (1 Гц)
         uint8_t startupActuatorDelay_s = 0; // пауза между последовательными включениями вентиляторов и ТЭНов
+        uint8_t shutdownActuatorDelay_s = 0; // пауза между последовательными выключениями вентиляторов и ТЭНов
         uint8_t stagedVent1LeftOn = 0;
         uint8_t stagedVent2LeftOn = 0;
         uint8_t stagedVent1RightOn = 0;
@@ -494,6 +495,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
        g.shutdownGateOpening = 0;
        g.alarmBlinkPhase = 0;
        g.startupActuatorDelay_s = 0;
+       g.shutdownActuatorDelay_s = 0;
        g.stagedVent1LeftOn = 0;
        g.stagedVent2LeftOn = 0;
        g.stagedVent1RightOn = 0;
@@ -557,7 +559,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         Model::DFR_manual._Alr = 0;
     }
 
-    // Соблюдение порядка последовательного, с интервалами времени, включения мощных устройств 
+    // Это “диспетчер” задания состояний исполнительных механизмов на основе желаемых значений
+    // Соблюдение порядка последовательного, с интервалами времени, включения и выключения мощных устройств
     static void ApplyOutputs(
          uint8_t ventLeftOn,
          uint8_t ventRightOn,
@@ -569,45 +572,79 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          uint8_t outOn)
      {
         // Почему: чтобы снизить пусковые токи, включаем вентиляторы и ТЭНы по одному каналу
-        // с интервалом 2 секунды между включениями. Выключение оставляем мгновенным.
+        // с интервалом 2 секунды между включениями, а при выключении гасим в обратном порядке:
+        // сначала ТЭНы, затем вентиляторы.
         const uint8_t kStartupInterval_s = 2;
         if (g.startupActuatorDelay_s > 0)
         {
             g.startupActuatorDelay_s--;
         }
+        if (g.shutdownActuatorDelay_s > 0)
+        {
+            g.shutdownActuatorDelay_s--;
+        }
 
         bool switchedOnThisTick = false;
-        auto stageActuator = [&](uint8_t desiredOn, uint8_t& stagedOn)
+        bool switchedOffThisTick = false;
+
+        auto stageOn = [&](uint8_t desiredOn, uint8_t& stagedOn)
         {
             if (desiredOn == 0) // Алгоритм хочет выключить устройство
             {
-                stagedOn = 0;   // Выключаем сразу
                 return;
             }
-            if (stagedOn != 0)  // Алгоритм хочет включить устройство, но оно уже включено
+            if (stagedOn != 0)  // Устройство уже включено
             {
-                return;  // Ничего не делаем
+                return;
             }
-            // Алгоритм хочет включить устройство
-            // Если устройство ещё не было включено за эту секунду, и время задержки равно 0, то включаем устройство
+            // Если устройство ещё не было включено за эту секунду, и время задержки равно 0,
+            // то включаем устройство.
             if (!switchedOnThisTick && g.startupActuatorDelay_s == 0)
             {
                 stagedOn = 1;
-                // Устанавливаем флаг, что устройство было включено за эту секунду
                 switchedOnThisTick = true;
                 g.startupActuatorDelay_s = kStartupInterval_s;
             }
         };
 
+        auto stageOff = [&](uint8_t desiredOn, uint8_t& stagedOn)
+        {
+            if (desiredOn != 0) // Алгоритм хочет держать устройство включенным
+            {
+                return;
+            }
+            if (stagedOn == 0)  // Устройство уже выключено
+            {
+                return;
+            }
+            // Выключаем по одному каналу за тик.
+            if (!switchedOffThisTick && g.shutdownActuatorDelay_s == 0)
+            {
+                stagedOn = 0;
+                switchedOffThisTick = true;
+                g.shutdownActuatorDelay_s = kStartupInterval_s;
+            }
+        };
+
         // Вентиляторы запускаем раньше ТЭНов.
-        stageActuator(ventLeftOn,  g.stagedVent1LeftOn);
-        stageActuator(ventLeftOn,  g.stagedVent2LeftOn);
-        stageActuator(ventRightOn, g.stagedVent1RightOn);
-        stageActuator(ventRightOn, g.stagedVent2RightOn);
-        stageActuator(ten1LeftOn,  g.stagedTen1LeftOn);
-        stageActuator(ten2LeftOn,  g.stagedTen2LeftOn);
-        stageActuator(ten1RightOn, g.stagedTen1RightOn);
-        stageActuator(ten2RightOn, g.stagedTen2RightOn);
+        stageOn(ventLeftOn,  g.stagedVent1LeftOn);
+        stageOn(ventLeftOn,  g.stagedVent2LeftOn);
+        stageOn(ventRightOn, g.stagedVent1RightOn);
+        stageOn(ventRightOn, g.stagedVent2RightOn);
+        stageOn(ten1LeftOn,  g.stagedTen1LeftOn);
+        stageOn(ten2LeftOn,  g.stagedTen2LeftOn);
+        stageOn(ten1RightOn, g.stagedTen1RightOn);
+        stageOn(ten2RightOn, g.stagedTen2RightOn);
+
+        // Выключение делаем в обратном порядке: сначала ТЭНы, затем вентиляторы.
+        stageOff(ten2RightOn, g.stagedTen2RightOn);
+        stageOff(ten1RightOn, g.stagedTen1RightOn);
+        stageOff(ten2LeftOn,  g.stagedTen2LeftOn);
+        stageOff(ten1LeftOn,  g.stagedTen1LeftOn);
+        stageOff(ventRightOn, g.stagedVent2RightOn);
+        stageOff(ventRightOn, g.stagedVent1RightOn);
+        stageOff(ventLeftOn,  g.stagedVent2LeftOn);
+        stageOff(ventLeftOn,  g.stagedVent1LeftOn);
 
         // Загружаем значения в регистр управления устройствами
         Model::DFR.Vent1_Left  = g.stagedVent1LeftOn ? 1 : 0;
@@ -939,7 +976,6 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
          s_controlLogPayload.fishCold_C = fishCold_C;
 
          // Устанавливаем порядок включения мощных устройств с интервалом между включениями
-         // но выключаем сразу
          ApplyOutputs(
              /*ventLeftOn*/  ventL_on,
              /*ventRightOn*/ ventR_on,
@@ -1105,18 +1141,6 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
 {
     // Безопасное выключение всех исполнительных механизмов при остановке алгоритма
 
-    // ТЭНы: отключить все нагреватели
-    Model::DFR.Ten1_Left = 0;
-    Model::DFR.Ten2_Left = 0;
-    Model::DFR.Ten1_Right = 0;
-    Model::DFR.Ten2_Right = 0;
-
-    // Вентиляторы: отключить все вентиляторы подачи воздуха
-    Model::DFR.Vent1_Left = 0;
-    Model::DFR.Vent2_Left = 0;
-    Model::DFR.Vent1_Right = 0;
-    Model::DFR.Vent2_Right = 0;
-
     // Форсунки: отключить увлажнение
     Model::DFR._Inj = 0;
 
@@ -1134,6 +1158,11 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
     Model::DFR._Out = 0;
     g.shutdownOutFanRemain_s = 300;   // 5 минут после открытия клапана
     g.shutdownActive = 1;
+
+    // Запускаем последовательное выключение ТЭНов/вентиляторов через ApplyOutputs().
+    // ТЭНы гасим первыми, вентиляторы последними.
+    g.shutdownActuatorDelay_s = 0;
+    ApplyOutputs(0, 0, 0, 0, 0, 0, 0, 0);
 }
 
 static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId, DefrostParamValue_t *outValue)
@@ -1881,6 +1910,19 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
                         Model::DFR._Out = 0;  // выключение вытяжки один раз по истечении 5 мин
                     }
                 }
+
+                // Последовательное выключение энергоёмких устройств:
+                // сначала ТЭНы, затем вентиляторы (в обратном порядке включению).
+                // Вытяжку (_Out) и форсунку (_Inj) не трогаем этой очередью (они управляются отдельно).
+                ApplyOutputs(
+                    /*ventLeftOn*/ 0,
+                    /*ventRightOn*/ 0,
+                    /*ten1LeftOn*/ 0,
+                    /*ten2LeftOn*/ 0,
+                    /*ten1RightOn*/ 0,
+                    /*ten2RightOn*/ 0,
+                    /*injOn*/ 0,
+                    /*outOn*/ (Model::DFR._Out != 0u) ? 1u : 0u);
 
                 if (g.outFanOn == 0 && g.outDamperState >= 2 && g.shutdownOutFanRemain_s == 0)
                  {
