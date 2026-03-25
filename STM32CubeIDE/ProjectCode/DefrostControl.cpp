@@ -27,8 +27,7 @@
  #include <gui/model/Model.hpp>      // Model::getCurrentVal_H, Model::DFR (T для алгоритма — Sensor Param 4)
  #include "ModBus.hpp"
 
- #define DEBUG_DISABLE_TARGET_T_STOP  1   /* 1 = отладка: не останавливать по целевой Т */
-// #define DEBUG_DISABLE_TARGET_T_STOP  0   /* 0 = работа: останавливать по целевой Т */
+#define DEFAULT_DEBUG_DISABLE_TARGET_T_STOP  0u   /* 0 = автостоп по целевой Т включен (по умолчанию) */
 
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osSemaphoreId_t SensorsReadDone_SemHandle;
@@ -48,7 +47,7 @@ typedef struct {
 
 static DefrostParams_t g_defrostParams;
 static DefrostParamsStorage_t g_defrostParamsStorage;
-static const uint16_t kDefrostParamsVersion = 2;
+static const uint16_t kDefrostParamsVersion = 4;
 static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ : DEFROST_MAX_SENSOR_COUNT;
  
  namespace
@@ -227,6 +226,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         p->airOnlyPhasePlateau_s = 1800u; /* 30 мин от старта */
         p->maxRuntime_s = 7200u;           /* 2 ч */
         p->fishColdTarget_C = 6.0f;        /* целевая мин. Т рыбы °C; при достижении — автоостанов алгоритма */
+        p->debugDisableTargetTStop = (uint8_t)DEFAULT_DEBUG_DISABLE_TARGET_T_STOP;
+        p->debugDisableDeviceSwitchCheck = 0u; /* по умолчанию проверка DO->DI включена */
 
         for (uint8_t i = 0; i < kDefrostSensorCount; i++)
         {
@@ -735,13 +736,13 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         }
 
         // Останов алгоритма при достижении целевой мин. температуры рыбы (целевая Т задаётся в параметрах/на Settings1).
-        #if !defined(DEBUG_DISABLE_TARGET_T_STOP) || (DEBUG_DISABLE_TARGET_T_STOP == 0)
-        if (fishCold_C >= g_defrostParams.fishColdTarget_C)
+        // В отладке автостоп можно отключить параметром debugDisableTargetTStop.
+        if ((g_defrostParams.debugDisableTargetTStop == 0u) &&
+            (fishCold_C >= g_defrostParams.fishColdTarget_C))
         {
             DefrostControl_SetEnabled(0);
             return;
         }
-        #endif
 
          // Почему: выбираем фазу разморозки на основе температуры самой холодной точки продукта.
          const Phase phase = SelectPhase(fishCold_C);
@@ -1349,9 +1350,12 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
             if (paramId == 11) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.airOnlyPhaseWarmUp_s; return 1; }
             if (paramId == 12) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.airOnlyPhasePlateau_s; return 1; }
             if (paramId == 13) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.maxRuntime_s; return 1; }
-            if (paramId < 14u + DEFROST_MAX_SENSOR_COUNT)
+            if (paramId == 14) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.fishColdTarget_C; return 1; }
+            if (paramId == 15) { outValue->valueType = DEFROST_PARAM_TYPE_U8; outValue->value.u8 = g_defrostParams.debugDisableTargetTStop; return 1; }
+            if (paramId == 16) { outValue->valueType = DEFROST_PARAM_TYPE_U8; outValue->value.u8 = g_defrostParams.debugDisableDeviceSwitchCheck; return 1; }
+            if (paramId < 17u + DEFROST_MAX_SENSOR_COUNT)
             {
-                const uint8_t idx = (uint8_t)(paramId - 14u);
+                const uint8_t idx = (uint8_t)(paramId - 17u);
                 outValue->valueType = DEFROST_PARAM_TYPE_U8;
                 outValue->value.u8 = g_defrostParams.sensorUseInDefrost[idx];
                 return 1;
@@ -1684,6 +1688,8 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
             p.airOnlyPhasePlateau_s = g_defrostParams.airOnlyPhasePlateau_s;
             p.maxRuntime_s        = g_defrostParams.maxRuntime_s;
             p.fishColdTarget_C    = g_defrostParams.fishColdTarget_C;
+            p.debugDisableTargetTStop = g_defrostParams.debugDisableTargetTStop;
+            p.debugDisableDeviceSwitchCheck = g_defrostParams.debugDisableDeviceSwitchCheck;
             memcpy(p.sensorUseInDefrost, g_defrostParams.sensorUseInDefrost, sizeof(p.sensorUseInDefrost));
             const uint32_t sz = (uint32_t)sizeof(DefrostLogGlobalPayload_t);
             if (outCapacity < sz)
@@ -1777,6 +1783,8 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
             g_defrostParams.airOnlyPhasePlateau_s = p.airOnlyPhasePlateau_s;
             g_defrostParams.maxRuntime_s        = p.maxRuntime_s;
             g_defrostParams.fishColdTarget_C   = p.fishColdTarget_C;
+            g_defrostParams.debugDisableTargetTStop = (p.debugDisableTargetTStop != 0u) ? 1u : 0u;
+            g_defrostParams.debugDisableDeviceSwitchCheck = (p.debugDisableDeviceSwitchCheck != 0u) ? 1u : 0u;
             memcpy(g_defrostParams.sensorUseInDefrost, p.sensorUseInDefrost, sizeof(p.sensorUseInDefrost));
             for (uint8_t i = 0; i < kDefrostSensorCount; ++i)
             {
@@ -1860,6 +1868,11 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
     {
         g_defrostParams.fishColdTarget_C = val_C;
         DefrostControl_SaveParams();
+    }
+
+    uint8_t DefrostControl_IsDeviceSwitchCheckEnabled(void)
+    {
+        return (g_defrostParams.debugDisableDeviceSwitchCheck == 0u) ? 1u : 0u;
     }
  
      void DefrostControl_Update1s(void)

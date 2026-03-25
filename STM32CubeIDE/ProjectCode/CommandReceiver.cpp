@@ -688,6 +688,20 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
             CommandReceiver_SendResponse(&response);
             break;
         }
+        case REQ_CMD_GET_ALARM_FLAGS:
+        {
+            // Формат ответа:
+            // [0..1] Model::Device_AlarmFlags (uint16)
+            // [2..3] Model::Sensor_AlarmFlags (uint16)
+            const uint16_t deviceFlags = Model::Device_AlarmFlags;
+            const uint16_t sensorFlags = Model::Sensor_AlarmFlags;
+            memcpy(&response.data[0], &deviceFlags, sizeof(uint16_t));
+            memcpy(&response.data[2], &sensorFlags, sizeof(uint16_t));
+            response.dataLength = 4;
+
+            CommandReceiver_SendResponse(&response);
+            break;
+        }
         default:
             status = CMD_STATUS_INVALID_CODE;
             response.status = status;

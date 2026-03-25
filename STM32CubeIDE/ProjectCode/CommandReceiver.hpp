@@ -69,7 +69,8 @@ typedef enum {
     REQ_CMD_GET_BUILD_INFO = 0x05,  // Запросить информацию о сборке (версия + дата)
     REQ_CMD_GET_DEFROST_PARAM = 0x06, // Запрос одного параметра авто-дефроста
     REQ_CMD_GET_DEFROST_GROUP = 0x07, // Запрос пачки параметров группы
-    REQ_CMD_SEND_STATE       = 0x08  // Отправить состояние: телеметрия
+    REQ_CMD_SEND_STATE       = 0x08, // Отправить состояние: телеметрия
+    REQ_CMD_GET_ALARM_FLAGS  = 0x09  // Запрос регистров аварий: устройства и датчики
 } RequestCommand_t;
 
 // Статусы обработки команд

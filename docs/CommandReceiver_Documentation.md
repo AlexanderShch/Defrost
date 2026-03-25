@@ -212,6 +212,18 @@ CommandReceiver/
 | 0x01 | GET_STATUS     | Запросить текущий статус        | 2 байта - регистр DFR    |
 | 0x02 | GET_VERSION    | Запросить версию прошивки       | Строка версии            |
 | 0x03 | GET_CONFIG     | Запросить текущую конфигурацию  | 1 байт - режим работы    |
+| 0x09 | GET_ALARM_FLAGS| Запросить регистры аварий       | 4 байта: DevFlags+SensFlags |
+
+**Формат ответа `GET_ALARM_FLAGS` (Code=0x09):**
+- `data[0..1]` - `Device_AlarmFlags` (`uint16`, little-endian)
+- `data[2..3]` - `Sensor_AlarmFlags` (`uint16`, little-endian)
+
+**Обновление groupId=6 (REQ_CMD_GET_DEFROST_GROUP):**
+- В `DefrostLogGlobalPayload_t` добавлен параметр `debugDisableTargetTStop` (`uint8_t`).
+- Добавлен параметр `debugDisableDeviceSwitchCheck` (`uint8_t`) для отключения проверки соответствия входов/выходов.
+- Порядок полей: `fishColdTarget_C` → `debugDisableTargetTStop` → `debugDisableDeviceSwitchCheck` → `sensorUseInDefrost[]`.
+- Семантика: `0` — автостоп по `fishColdTarget_C` включён, `1` — автостоп отключён (отладка).
+- Семантика `debugDisableDeviceSwitchCheck`: `0` — проверка соответствия входов/выходов включена, `1` — проверка отключена (отладка).
 
 ---
 

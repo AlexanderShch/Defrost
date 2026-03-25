@@ -166,7 +166,7 @@ MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreI
 #define PR_CheckAnswerCRC (MB->Rx_Buffer[1] == CMD && MB_GetCRC(MB->Rx_Buffer, 8) == 0)
 int Parametr_CORR;
 
-//if (DEVICE_SWITCH_CHECK_ENABLED != 0) 
+// Проверка DO->DI управляется только runtime-параметром debugDisableDeviceSwitchCheck.
 // Биты устройств, для которых проверяем подтверждение по входам MB IO.
 // Vent1_Left, Vent2_Left, Vent1_Right, Vent2_Right, Ten1_Left, Ten2_Left, Ten1_Right, Ten2_Right, Vent_Out.
 static const uint16_t kDeviceCheckMask = (1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) |
@@ -329,7 +329,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			/*****************************************************************************
 			 * КОНТРОЛЬ РАбОТОСПОСОбНОСТИ УСТРОЙСТВ
 			 *****************************************************************************/
-			if (DEVICE_SWITCH_CHECK_ENABLED == 1)
+			if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
 			{
 				// Проверка переключения устройств:
 				// если командный бит в DFR изменился, то на следующем чтении DI соответствующий вход должен стать таким же
