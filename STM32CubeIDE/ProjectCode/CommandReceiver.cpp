@@ -61,6 +61,8 @@ static void WaitForUart4TxLineIdle(uint32_t timeoutMs)
 
 // Флаг: ответ на PROG_CONTROL START/STOP уже отправлен из обработчика (не дублировать в ProcessReceivedData)
 static volatile uint8_t s_progControlAckSentInHandler = 0;
+// Флаг: после выхода из обработчика выполнить ожидание отправки ACK и программный сброс.
+static volatile uint8_t s_resetPendingAfterHandler = 0;
 
 // Статистика работы модуля
 typedef struct {
@@ -72,6 +74,42 @@ typedef struct {
 } CommandStats_t;
 
 static CommandStats_t commandStats = {0};
+
+static void WaitForResetAckTransmission(uint32_t timeoutMs)
+{
+    uint32_t start = osKernelGetTickCount();
+
+    // Очищаем "старые" сигналы завершения передачи, чтобы дождаться именно новой отправки ACK RESET.
+    if (PR_TX_Compl_SemHandle != NULL)
+    {
+        while (osSemaphoreAcquire(PR_TX_Compl_SemHandle, 0) == osOK)
+        {
+            // drain
+        }
+    }
+
+    while (1)
+    {
+        uint32_t qCount = 0;
+        if (Data_QueueHandle != NULL)
+        {
+            qCount = osMessageQueueGetCount(Data_QueueHandle);
+        }
+
+        // Очередь опустела и линия UART завершила передачу.
+        if (qCount == 0 && __HAL_UART_GET_FLAG(&huart4, UART_FLAG_TC) != RESET)
+        {
+            break;
+        }
+
+        if ((osKernelGetTickCount() - start) >= timeoutMs)
+        {
+            break;
+        }
+
+        osDelay(1);
+    }
+}
 
 /*
  * Функция: CommandReceiver_Init
@@ -192,20 +230,20 @@ CommandStatus_t CommandReceiver_HandleTelemetry(Command_t *cmd)
         {
             // Сервер подтвердил приём телеметрии
             // ✅ Успешная передача телеметрии
-        	ControlLogPayload_t logPayload = {};
-
             // Сигнал TX_ToServer: можно продолжать (дать окно для приёма ответа перед следующим пакетом)
             if (ServerResponseReceived_SemHandle != NULL)
             {
                 osSemaphoreRelease(ServerResponseReceived_SemHandle);
             }
 
-            // Передаём лог параметров алгоритма управления в автоматическом режиме
-        	logPayload = DefrostControl_GetControlLogPayload();
-        	response.dataLength = (uint8_t)sizeof(logPayload);
-        	memcpy(response.data, &logPayload, response.dataLength);
-
-            CommandReceiver_SendResponse(&response);
+            // Лог параметров отправляем только в автоматическом режиме (_Wrk==1).
+            if (DefrostControl_IsEnabled() != 0u)
+            {
+                ControlLogPayload_t logPayload = DefrostControl_GetControlLogPayload();
+                response.dataLength = (uint8_t)sizeof(logPayload);
+                memcpy(response.data, &logPayload, response.dataLength);
+                CommandReceiver_SendResponse(&response);
+            }
 
             break;
         }
@@ -284,7 +322,8 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             break;
             
         case PROG_CTRL_CMD_RESET: {
-            // Сначала отправляем подтверждение серверу (как для START/STOP), затем сброс — после возврата и паузы в ProcessReceivedData.
+            // Сначала отправляем подтверждение серверу, затем выходим из обработчика.
+            // Сам сброс выполняется позже (в ProcessReceivedData), когда отправка ACK уже разблокирована.
             CommandResponse_t ack;
             memset(&ack, 0, sizeof(ack));
             ack.commandType = CMD_TYPE_PROG_CONTROL;
@@ -293,6 +332,7 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             ack.dataLength = 0;
             CommandReceiver_SendResponse(&ack);
             s_progControlAckSentInHandler = 1;
+            s_resetPendingAfterHandler = 1;
             status = CMD_STATUS_OK;
             break;
         }
@@ -1021,19 +1061,20 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         }
     }
     
-    // КРИТИЧНО: Проверяем команду сброса ПОСЛЕ отправки ответа
-    // Используем оригинальные значения команды
-    if (originalCommandType == CMD_TYPE_PROG_CONTROL && 
-        originalCommandCode == PROG_CTRL_CMD_RESET &&
-        cmdStatus == CMD_STATUS_OK)
+    g_commandReceiverHandling = 0;
+
+    // RESET выполняем только после выхода из обработчика:
+    // 1) отправка из очереди уже разблокирована (g_commandReceiverHandling=0),
+    // 2) дожидаемся ухода ACK RESET на линию,
+    // 3) выполняем программный сброс.
+    if (s_resetPendingAfterHandler != 0)
     {
+        s_resetPendingAfterHandler = 0;
+        WaitForResetAckTransmission(300);
         WaitForUart4TxLineIdle(50);
-        // Пауза, чтобы ответ успел уйти из очереди UART и мост TCP↔UART успел переслать его серверу
-        osDelay(200);
+        osDelay(20);
         HAL_NVIC_SystemReset();
     }
-
-    g_commandReceiverHandling = 0;
 }
 
 uint8_t CommandReceiver_IsHandling(void)
