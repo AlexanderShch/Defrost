@@ -122,8 +122,8 @@ void CommandReceiver_Init(void)
     // Это гарантирует правильное состояние после любого сброса системы
     // ═══════════════════════════════════════════════════════════════════════════
     HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
-    // Индикация режима PROGRAMMING (LD3/PG13): на старте всегда погашена.
-    HAL_GPIO_WritePin(GPIOG, LD3_Pin, GPIO_PIN_RESET);
+    // Индикация режима PROGRAMMING (LD4/PG14): на старте всегда погашена.
+    HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_RESET);
     
     // ═══════════════════════════════════════════════════════════════════════════
     // ПРИМЕЧАНИЕ: бит _Alr управляется алгоритмом аварийной индикации

@@ -226,8 +226,8 @@ void DataTimerFunc()
 {
 	// Датчики должны считываться строго 1 раз в секунду.
 	osEventFlagsSet(ReadDataEventHandle, FLAG_ReadData);
-	// моргнём светодиодом
-	HAL_GPIO_TogglePin(GPIOG, LD4_Pin);
+	// моргнём светодиодом (heartbeat работы контроллера)
+	HAL_GPIO_TogglePin(GPIOG, LD3_Pin);
 	// Нельзя блокироваться внутри callback таймера RTOS: это добавляет джиттер и может задерживать другие таймеры.
 }
 

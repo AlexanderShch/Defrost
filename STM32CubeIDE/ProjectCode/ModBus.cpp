@@ -631,8 +631,8 @@ void ProgrammingSensor()
 				// UART4 общий с сервером. В программировании меняется baud и RX DMA-буфер,
 				// поэтому серверный RX нужно приостановить на всё время программирования.
 				UART4_SetOwner_Programming();
-				// Индикация: UART4 в режиме PROGRAMMING (LD3/PG13).
-				HAL_GPIO_WritePin(GPIOG, LD3_Pin, GPIO_PIN_SET);
+				// Индикация: UART4 в режиме PROGRAMMING (LD4/PG14).
+				HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_SET);
 				HAL_UART_AbortReceive(&huart4);
 				osDelay(2);
 
@@ -693,8 +693,8 @@ void ProgrammingSensor()
 				// Возвращаем UART4 к настройкам сервера и возобновляем приём команд.
 				PR_UART4_Init(19200);
 				UART4_SetOwner_Server();
-				// Индикация: UART4 вышел из режима PROGRAMMING (LD3/PG13).
-				HAL_GPIO_WritePin(GPIOG, LD3_Pin, GPIO_PIN_RESET);
+				// Индикация: UART4 вышел из режима PROGRAMMING (LD4/PG14).
+				HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_RESET);
 				CommandReceiver_RestartReception();
 				break;
 			}
