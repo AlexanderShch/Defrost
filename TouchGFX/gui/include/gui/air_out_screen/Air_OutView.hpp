@@ -12,9 +12,12 @@ public:
     virtual void setupScreen();
     virtual void tearDownScreen();
     virtual void BTNManualClicked();
+    virtual void BTN_AirFlapClicked();
+    virtual void BTN_AirFanClicked();
     virtual void handleTickEvent();
 protected:
     void syncExhaustFanAndFlapFromInputs();
+    void updateAirOutManualControls();
 };
 
 #endif // AIR_OUTVIEW_HPP

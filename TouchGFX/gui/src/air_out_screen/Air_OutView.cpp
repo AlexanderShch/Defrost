@@ -3,11 +3,15 @@
 #include <gui/common/ExhaustOutputState.hpp>
 #include <gui/model/Model.hpp>
 
+#include <stdint.h>
+
 namespace
 {
+	const uint8_t MinAlpha = 50;
+
 	bool isToggleOn(const touchgfx::ToggleButton& button)
 	{
-		// Для BTN_Manual: Pressed = ON, Released = OFF.
+		// Pressed = ON, Released = OFF.
 		return button.getState() != 0;
 	}
 
@@ -28,6 +32,15 @@ void Air_OutView::setupScreen()
     Air_OutViewBase::setupScreen();
 	// Как в Settings2: на входе синхронизируем BTN_Manual с текущим режимом.
 	setToggleOn(BTN_Manual, Model::isDefrostManualModeEnabled());
+
+	// Инвариант: без команды открытия заслонки вентилятор вручную не включаем.
+	if (Model::DFR_manual.Water_Flap == 0)
+	{
+		Model::DFR_manual._Out = 0;
+	}
+	setToggleOn(BTN_AirFlap, Model::DFR_manual.Water_Flap != 0);
+	setToggleOn(BTN_AirFan, Model::DFR_manual._Out != 0);
+	updateAirOutManualControls();
 	syncExhaustFanAndFlapFromInputs();
 }
 
@@ -91,4 +104,74 @@ void Air_OutView::BTNManualClicked()
 	// По клику меняем режим дефростера (ручной/автоматический) согласно состоянию кнопки.
 	const bool manualEnabled = isToggleOn(BTN_Manual);
 	Model::setDefrostManualModeEnabled(manualEnabled);
+	if (!manualEnabled)
+	{
+		// Model обнулила DFR_manual; сбрасываем переключатели на экране.
+		setToggleOn(BTN_AirFlap, false);
+		setToggleOn(BTN_AirFan, false);
+	}
+	updateAirOutManualControls();
+}
+
+void Air_OutView::updateAirOutManualControls()
+{
+	const bool manual = Model::isDefrostManualModeEnabled();
+	const bool flapOn = isToggleOn(BTN_AirFlap);
+
+	if (!manual)
+	{
+		BTN_AirFlap.setTouchable(false);
+		BTN_AirFlap.setAlpha(MinAlpha);
+		BTN_AirFan.setTouchable(false);
+		BTN_AirFan.setAlpha(MinAlpha);
+		Label_AirFlap.setAlpha(MinAlpha);
+		Label_AirFan.setAlpha(MinAlpha);
+	}
+	else
+	{
+		BTN_AirFlap.setTouchable(true);
+		BTN_AirFlap.setAlpha(255);
+		Label_AirFlap.setAlpha(255);
+
+		const bool fanEnabled = flapOn;
+		BTN_AirFan.setTouchable(fanEnabled);
+		BTN_AirFan.setAlpha(fanEnabled ? 255 : MinAlpha);
+		Label_AirFan.setAlpha(fanEnabled ? 255 : MinAlpha);
+	}
+
+	BTN_AirFlap.invalidate();
+	BTN_AirFan.invalidate();
+	Label_AirFlap.invalidate();
+	Label_AirFan.invalidate();
+}
+
+void Air_OutView::BTN_AirFlapClicked()
+{
+	if (!Model::isDefrostManualModeEnabled())
+	{
+		return;
+	}
+
+	const bool flapOn = isToggleOn(BTN_AirFlap);
+	Model::DFR_manual.Water_Flap = flapOn ? 1 : 0;
+	if (!flapOn)
+	{
+		Model::DFR_manual._Out = 0;
+		setToggleOn(BTN_AirFan, false);
+	}
+	updateAirOutManualControls();
+}
+
+void Air_OutView::BTN_AirFanClicked()
+{
+	if (!Model::isDefrostManualModeEnabled())
+	{
+		return;
+	}
+	if (Model::DFR_manual.Water_Flap == 0)
+	{
+		return;
+	}
+
+	Model::DFR_manual._Out = isToggleOn(BTN_AirFan) ? 1 : 0;
 }
