@@ -2227,7 +2227,7 @@
           },
           {
             "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings5",
+            "Name": "BTNGoToAir_Out",
             "X": 195,
             "Y": 5,
             "Width": 36,
@@ -2525,18 +2525,6 @@
             }
           },
           {
-            "InteractionName": "GoToSettings5",
-            "Trigger": {
-              "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGoToSettings5"
-            },
-            "Action": {
-              "Type": "ActionGotoScreen",
-              "ScreenTransitionType": "ScreenTransitionNone",
-              "ActionComponent": "Settings5"
-            }
-          },
-          {
             "InteractionName": "BTNManual3Clicked",
             "Trigger": {
               "Type": "TriggerClicked",
@@ -2601,6 +2589,18 @@
               "Type": "ActionCustom",
               "FunctionName": "BTNHeatControl4Clicked"
             }
+          },
+          {
+            "InteractionName": "GoToAir_Out",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToAir_Out"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Air_Out"
+            }
           }
         ]
       },
@@ -2653,7 +2653,7 @@
           },
           {
             "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings5",
+            "Name": "BTNGoToSettings4",
             "X": 150,
             "Y": 5,
             "Width": 36,
@@ -2671,7 +2671,7 @@
           },
           {
             "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings4",
+            "Name": "BTNGoToSettings5",
             "X": 195,
             "Y": 5,
             "Width": 36,
@@ -2705,7 +2705,56 @@
             "LineSpacing": -1
           }
         ],
-        "Interactions": []
+        "Interactions": [
+          {
+            "InteractionName": "GoToHome",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToHome"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Home"
+            }
+          },
+          {
+            "InteractionName": "GoToSettingsMenu",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettingsMenu"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "SettingsMenu"
+            }
+          },
+          {
+            "InteractionName": "GoToSettings4",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettings4"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Settings4"
+            }
+          },
+          {
+            "InteractionName": "GoToSettings5",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettings5"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Settings5"
+            }
+          }
+        ]
       },
       {
         "Name": "Settings5",
@@ -2795,7 +2844,7 @@
           },
           {
             "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings4",
+            "Name": "BTNGoToAir_Out",
             "X": 150,
             "Y": 5,
             "Width": 36,
@@ -3442,18 +3491,6 @@
             }
           },
           {
-            "InteractionName": "GoToSettings4",
-            "Trigger": {
-              "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGoToSettings4"
-            },
-            "Action": {
-              "Type": "ActionGotoScreen",
-              "ScreenTransitionType": "ScreenTransitionNone",
-              "ActionComponent": "Settings4"
-            }
-          },
-          {
             "InteractionName": "GoToSettingsMenu",
             "Trigger": {
               "Type": "TriggerClicked",
@@ -3541,6 +3578,18 @@
             "Action": {
               "Type": "ActionCustom",
               "FunctionName": "BTNCancelClicked"
+            }
+          },
+          {
+            "InteractionName": "GoToAir_Out",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToAir_Out"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Air_Out"
             }
           }
         ]
