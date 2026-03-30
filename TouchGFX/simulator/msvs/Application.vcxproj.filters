@@ -292,6 +292,18 @@
     <Filter Include="Source Files\generated\gui_generated\settings6_screen">
       <UniqueIdentifier>C0BCD88C-797D-BCD7-69BD-4FC6788DD54B</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\gui\air_out_screen">
+      <UniqueIdentifier>97A74CC7-E6B3-3D0F-0152-9E81E68E53FA</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\gui\air_out_screen">
+      <UniqueIdentifier>0B578A06-3BD4-1C54-7682-C9F3E3CD312A</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\generated\gui_generated\air_out_screen">
+      <UniqueIdentifier>9329EEA6-2339-B098-1DF8-384675468A05</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\generated\gui_generated\air_out_screen">
+      <UniqueIdentifier>1A140407-78AC-C9B8-2AD8-7C8AE6BB90C5</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="$(TouchGFXReleasePath)\framework\source\platform\driver\touch\SDL2TouchController.cpp">
@@ -440,6 +452,15 @@
     </ClCompile>
     <ClCompile Include="..\..\generated\gui_generated\src\containers\TextSelectedContainerBase.cpp">
       <Filter>Source Files\generated\gui_generated\containers</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gui\src\air_out_screen\Air_OutPresenter.cpp">
+      <Filter>Source Files\gui\air_out_screen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\gui\src\air_out_screen\Air_OutView.cpp">
+      <Filter>Source Files\gui\air_out_screen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\generated\gui_generated\src\air_out_screen\Air_OutViewBase.cpp">
+      <Filter>Source Files\generated\gui_generated\air_out_screen</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -999,6 +1020,15 @@
     </ClInclude>
     <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\TextSelectedContainerBase.hpp">
       <Filter>Header Files\generated\gui_generated\containers</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\air_out_screen\Air_OutPresenter.hpp">
+      <Filter>Header Files\gui\air_out_screen</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\air_out_screen\Air_OutView.hpp">
+      <Filter>Header Files\gui\air_out_screen</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\air_out_screen\Air_OutViewBase.hpp">
+      <Filter>Header Files\generated\gui_generated\air_out_screen</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

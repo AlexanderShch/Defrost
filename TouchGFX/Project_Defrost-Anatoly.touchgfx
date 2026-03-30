@@ -2605,6 +2605,109 @@
         ]
       },
       {
+        "Name": "Air_Out",
+        "Components": [
+          {
+            "Type": "Image",
+            "Name": "IMGBackground",
+            "Width": 240,
+            "Height": 320,
+            "LockPosition": true,
+            "RelativeFilename": "__generated\\alternate_theme_images_backgrounds_240x320_gradient_light.png"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToHome",
+            "X": 5,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_action_home_filled_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_action_home_filled_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettingsMenu",
+            "X": 102,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_action_settings_applications_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_action_settings_applications_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings5",
+            "X": 150,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings4",
+            "X": 195,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelManualControl",
+            "X": 19,
+            "Y": 61,
+            "Width": 203,
+            "Height": 24,
+            "TextId": "LabelManualControl",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1
+          }
+        ],
+        "Interactions": []
+      },
+      {
         "Name": "Settings5",
         "CanvasBufferSize": 3600,
         "Components": [

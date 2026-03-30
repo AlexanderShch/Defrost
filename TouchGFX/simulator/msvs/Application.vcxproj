@@ -60,6 +60,9 @@
     <ClCompile Include="..\..\generated\gui_generated\src\containers\TextContainerBase.cpp"/>
     <ClCompile Include="..\..\gui\src\containers\TextSelectedContainer.cpp"/>
     <ClCompile Include="..\..\generated\gui_generated\src\containers\TextSelectedContainerBase.cpp"/>
+    <ClCompile Include="..\..\gui\src\air_out_screen\Air_OutPresenter.cpp"/>
+    <ClCompile Include="..\..\gui\src\air_out_screen\Air_OutView.cpp"/>
+    <ClCompile Include="..\..\generated\gui_generated\src\air_out_screen\Air_OutViewBase.cpp"/>
   </ItemGroup>
   <ItemGroup>
     <None Include="$(ApplicationRoot)\assets\texts\texts.xml"/>
@@ -249,6 +252,9 @@
     <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\TextContainerBase.hpp"/>
     <ClInclude Include="..\..\gui\include\gui\containers\TextSelectedContainer.hpp"/>
     <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\containers\TextSelectedContainerBase.hpp"/>
+    <ClInclude Include="..\..\gui\include\gui\air_out_screen\Air_OutPresenter.hpp"/>
+    <ClInclude Include="..\..\gui\include\gui\air_out_screen\Air_OutView.hpp"/>
+    <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\air_out_screen\Air_OutViewBase.hpp"/>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="$(ApplicationRoot)\generated\simulator\touchgfx.rc"/>
