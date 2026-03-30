@@ -282,9 +282,35 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			if (result != MB_ERROR_NO)
 				break;
 			// Запросим данные с выходного регистра модуля ввода-вывода, запишем в H (Read_Data_1)
-			result = Master_RW(&SW, SensAddress, MB_CMD_READ_COILS, Type4_DO, REG_COUNT, WR_Buffer);
+			for (uint8_t attempt = 0; attempt < 3; ++attempt)
+			{
+				result = Master_RW(&SW, SensAddress, MB_CMD_READ_COILS, Type4_DO, REG_COUNT, WR_Buffer);
+				if (result == MB_ERROR_NO)
+				{
+					break;
+				}
+				// Повторяем только при ошибке приёма.
+				if (result != MB_ERROR_UART_RECIEVE && result != MB_ERROR_DMA_RECIEVE)
+				{
+					break;
+				}
+			}
+			if (result != MB_ERROR_NO)
+				break;
 			// Запросим данные со входного регистра модуля ввода-вывода, запишем в Т (Read_Data_2)
-			result = Master_RW(&SW, SensAddress, MB_CMD_READ_INPUT, Type4_DI, REG_COUNT, WR_Buffer);
+			for (uint8_t attempt = 0; attempt < 3; ++attempt)
+			{
+				result = Master_RW(&SW, SensAddress, MB_CMD_READ_INPUT, Type4_DI, REG_COUNT, WR_Buffer);
+				if (result == MB_ERROR_NO)
+				{
+					break;
+				}
+				// Повторяем только при ошибке приёма.
+				if (result != MB_ERROR_UART_RECIEVE && result != MB_ERROR_DMA_RECIEVE)
+				{
+					break;
+				}
+			}
 			break;	}
 		default:	{
 			result = MB_ERROR_WRONG_ADDRESS;
