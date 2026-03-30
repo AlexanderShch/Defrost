@@ -2688,6 +2688,30 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
           },
           {
+            "Type": "ToggleButton",
+            "Name": "BTN_AirFlap",
+            "X": 139,
+            "Y": 187,
+            "Width": 62,
+            "Height": 34,
+            "Visible": false,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_light.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_normal.png",
+            "Preset": "alternate_theme\\presets\\togglebutton\\small\\rounded_neutral.json"
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTN_AirFan",
+            "X": 139,
+            "Y": 266,
+            "Width": 62,
+            "Height": 34,
+            "Visible": false,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_light.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_normal.png",
+            "Preset": "alternate_theme\\presets\\togglebutton\\small\\rounded_neutral.json"
+          },
+          {
             "Type": "TextArea",
             "Name": "LabelManualControl",
             "X": 19,
@@ -2703,6 +2727,91 @@
             },
             "AutoSize": true,
             "LineSpacing": -1
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "toggleButton1",
+            "X": 51,
+            "Y": 94,
+            "Width": 138,
+            "Height": 50,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_dark.png",
+            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded_text.json"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "Label_AirFlap",
+            "X": 74,
+            "Y": 154,
+            "Width": 96,
+            "Height": 24,
+            "TextId": "__SingleUse_1W2N",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "AnimatedImage",
+            "Name": "anim_AirFan",
+            "X": 36,
+            "Y": 264,
+            "Width": 38,
+            "Height": 38,
+            "FileNameFirst": "Fan_01.png",
+            "FileNameLast": "Fan_12.png",
+            "UpdateTicksInterval": 50,
+            "StartOnLoad": true,
+            "LoopEnabled": true
+          },
+          {
+            "Type": "Image",
+            "Name": "Flap",
+            "X": 42,
+            "Y": 193,
+            "Width": 25,
+            "Height": 22,
+            "RelativeFilename": "Flap.png"
+          },
+          {
+            "Type": "Image",
+            "Name": "Flap_On",
+            "X": 42,
+            "Y": 193,
+            "Width": 25,
+            "Height": 22,
+            "Visible": false,
+            "RelativeFilename": "Flap_Open.png"
+          },
+          {
+            "Type": "Image",
+            "Name": "Flap_Off",
+            "X": 42,
+            "Y": 193,
+            "Width": 25,
+            "Height": 22,
+            "Visible": false,
+            "RelativeFilename": "Flap_Close.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "Label_AirFan",
+            "X": 62,
+            "Y": 230,
+            "Width": 120,
+            "Height": 24,
+            "TextId": "__SingleUse_N607",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
           }
         ],
         "Interactions": [

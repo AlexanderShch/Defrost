@@ -372,6 +372,12 @@
       </Text>
     </TextGroup>
     <TextGroup Id="Unsorted">
+      <Text Id="__SingleUse_N607" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Вентилятор</Translation>
+      </Text>
+      <Text Id="__SingleUse_1W2N" Alignment="Center" TypographyId="Default">
+        <Translation Language="GB">Заслонка</Translation>
+      </Text>
       <Text Id="__SingleUse_G6TZ" Alignment="Left" TypographyId="Default">
         <Translation Language="GB">Авария</Translation>
       </Text>
