@@ -9,16 +9,27 @@ uint8_t MinAlpha = 50;
 
 namespace
 {
-	bool isToggleOn(const touchgfx::ToggleButton& button)
+	bool isManualToggleOn(const touchgfx::ToggleButton& button)
 	{
-		// Почему: в проекте перепутаны визуальные состояния ON/OFF (Pressed показывает OFF, Released показывает ON).
-		return button.getState() == 0;
+		// Для BTN_Manual: Pressed = ON, Released = OFF.
+		return button.getState() != 0;
 	}
 
-	void setToggleOn(touchgfx::ToggleButton& button, bool on)
+	void setManualToggleOn(touchgfx::ToggleButton& button, bool on)
 	{
-		// Почему: чтобы соответствие UI-состояния и смысла ON/OFF было задано в одном месте.
-		button.forceState(!on);
+		button.forceState(on);
+		button.invalidate();
+	}
+
+	bool isSprayToggleOn(const touchgfx::ToggleButton& button)
+	{
+		// Для BTN_Spray: Pressed = ON, Released = OFF.
+		return button.getState() != 0;
+	}
+
+	void setSprayToggleOn(touchgfx::ToggleButton& button, bool on)
+	{
+		button.forceState(on);
 		button.invalidate();
 	}
 
@@ -40,13 +51,13 @@ void Settings2View::setupScreen()
     Settings2ViewBase::setupScreen();
 
 	// Синхронизация положения переключателя с текущим режимом.
-	setToggleOn(BTN_Manual, Model::isDefrostManualModeEnabled());
+	setManualToggleOn(BTN_Manual, Model::isDefrostManualModeEnabled());
 
 	// В ручном режиме элементы активны, в автоматическом — приглушены.
 	Settings2View::SetAlpha(Model::isDefrostManualModeEnabled() ? 255 : MinAlpha);
 
 	// Синхронизация положения форсунки с регистром ручного управления.
-	setToggleOn(BTN_Spray, Model::DFR_manual._Inj != 0);
+	setSprayToggleOn(BTN_Spray, Model::DFR_manual._Inj != 0);
 
 	UpdateGateIndicators();
 }
@@ -58,7 +69,7 @@ void Settings2View::tearDownScreen()
 
 void Settings2View::BTNManualClicked()
 {
-	const bool manualEnabled = isToggleOn(BTN_Manual);
+	const bool manualEnabled = isManualToggleOn(BTN_Manual);
 	Model::setDefrostManualModeEnabled(manualEnabled);
 
 	// Визуально включаем/выключаем элементы ручного управления на странице.
@@ -100,7 +111,7 @@ void Settings2View::BTNSprayClicked()
 	}
 
 	// Форсунка воды: бит 9 (_Inj).
-	Model::DFR_manual._Inj = isToggleOn(BTN_Spray) ? 1 : 0;
+	Model::DFR_manual._Inj = isSprayToggleOn(BTN_Spray) ? 1 : 0;
 }
 
 void Settings2View::UpdateGateIndicators()

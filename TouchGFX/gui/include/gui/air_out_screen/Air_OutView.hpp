@@ -11,7 +11,10 @@ public:
     virtual ~Air_OutView() {}
     virtual void setupScreen();
     virtual void tearDownScreen();
+    virtual void BTNManualClicked();
+    virtual void handleTickEvent();
 protected:
+    void syncExhaustFanAndFlapFromInputs();
 };
 
 #endif // AIR_OUTVIEW_HPP

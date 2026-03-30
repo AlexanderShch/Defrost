@@ -1,4 +1,6 @@
 #include <gui/visualization_screen/VisualizationView.hpp>
+#include <gui/common/AirFlapState.hpp>
+#include <gui/common/ExhaustOutputState.hpp>
 #include <gui/model/Model.hpp>
 #include <touchgfx/utils.hpp>
 #include <touchgfx/Color.hpp>
@@ -328,7 +330,7 @@ void VisualizationView::syncExhaustFanAndFlapFromInputs()
 	static uint8_t s_fanOutLastInterval = 0u;
 	// Анимация вытяжного вентилятора — по выходной команде (DFR_current), а не по входу DI.
 	const uint8_t ventOut = (uint8_t)Model::DFR_current._Out;
-	if (ventOut != 0u)
+	if (IsExhaustFanOn(ventOut))
 	{
 		if (!AnimFan_Out.isAnimatedImageRunning())
 			AnimFan_Out.startAnimation(false, false, true);
@@ -347,20 +349,14 @@ void VisualizationView::syncExhaustFanAndFlapFromInputs()
 	}
 	AnimFan_Out.invalidate();
 
-	const uint8_t airOpen = (uint8_t)Model::DI_DFR.Bits.Air_Open;
-	const uint8_t airClose = (uint8_t)Model::DI_DFR.Bits.Air_Close;
+	const AirFlapState flapState = ResolveAirFlapState(
+		(uint8_t)Model::DI_DFR.Bits.Air_Open,
+		(uint8_t)Model::DI_DFR.Bits.Air_Close);
 
-	bool showFlap = false;
-	bool showOpen = false;
-	bool showClose = false;
-
-	if (airOpen == 0u && airClose == 0u)
-		showFlap = true;
-	else if (airOpen != 0u && airClose == 0u)
-		showOpen = true;
-	else if (airOpen == 0u && airClose != 0u)
-		showClose = true;
-	// Оба в 1 — противоречие датчиков: ни один виджет не показываем.
+	const bool showFlap = (flapState == AirFlapState::Moving);
+	const bool showOpen = (flapState == AirFlapState::Open);
+	const bool showClose = (flapState == AirFlapState::Closed);
+	// Состояние Invalid (оба входа = 1): ни один виджет не показываем.
 
 	Flap.setVisible(showFlap);
 	Flap_Open.setVisible(showOpen);
