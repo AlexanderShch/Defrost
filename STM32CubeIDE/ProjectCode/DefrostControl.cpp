@@ -453,6 +453,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         uint8_t startupGateClosing = 0; // при старте: 1 если нужно закрыть ворота через API GateControl
         uint8_t shutdownActive = 0;     // при остановке: 1 пока выполняется последовательность остановки
         uint8_t shutdownGateOpening = 0; // при остановке: 1 если открытие ворот выполняется через API GateControl
+        uint8_t shutdownGateLiftPulse_s = 0; // длительность импульса открытия ворот в начале продувки (с)
         uint8_t startPendingAfterShutdown = 0; // START получен во время post-shutdown; запуск отложен до полного завершения останова
         uint8_t alarmBlinkPhase = 0;    // фаза мигания аварийной лампы: 0/1 (1 Гц)
         uint8_t startupActuatorDelay_s = 0; // пауза между последовательными включениями вентиляторов и ТЭНов
@@ -499,6 +500,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
        g.startupGateClosing = 0;      // при старте: 1 если нужно закрыть ворота
        g.shutdownActive = 0;          // при остановке: 1 пока выполняется последовательность остановки
        g.shutdownGateOpening = 0;
+       g.shutdownGateLiftPulse_s = 0;
        g.startPendingAfterShutdown = 0;
        g.alarmBlinkPhase = 0;
        g.startupActuatorDelay_s = 0;
@@ -1221,9 +1223,10 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
     // Форсунки: отключить увлажнение
     Model::DFR._Inj = 0;
 
-    // Ворота: открываем через тот же алгоритм GateControl в текущем режиме.
+    // Ворота: в начале продувки приподнимаем (импульс открытия на 3 секунды).
     GateControl_SetCommand(GateControlCommand::Open, 1);
     g.shutdownGateOpening = 1;
+    g.shutdownGateLiftPulse_s = 3u;
 
     // Вытяжка: сначала открыть клапан, затем включить вентилятор на 5 минут.
     // Water_Flap: 1 = открыть/удерживать открытой, 0 = закрыть/удерживать закрытой.
@@ -1985,10 +1988,14 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
                 // В рамках остановки алгоритма открытие ворот выполняем через API GateControl.
                 if (g.shutdownGateOpening != 0)
                 {
-                    if (GateControl_IsCommandActive(GateControlCommand::Open) == 0)
+                    if (g.shutdownGateLiftPulse_s > 0u)
                     {
-                        g.shutdownGateOpening = 0;
-                        GateControl_SetCommand(GateControlCommand::Open, 0);  // один раз при завершении открытия
+                        g.shutdownGateLiftPulse_s--;
+                        if (g.shutdownGateLiftPulse_s == 0u)
+                        {
+                            g.shutdownGateOpening = 0;
+                            GateControl_SetCommand(GateControlCommand::Open, 0);  // снять импульс открытия ворот
+                        }
                     }
                 }
 
