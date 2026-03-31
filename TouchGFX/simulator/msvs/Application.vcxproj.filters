@@ -1030,6 +1030,12 @@
     <ClInclude Include="..\..\generated\gui_generated\include\gui_generated\air_out_screen\Air_OutViewBase.hpp">
       <Filter>Header Files\generated\gui_generated\air_out_screen</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\common\AirFlapState.hpp">
+      <Filter>Header Files\gui\common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\gui\include\gui\common\ExhaustOutputState.hpp">
+      <Filter>Header Files\gui\common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="$(ApplicationRoot)\generated\simulator\touchgfx.rc">

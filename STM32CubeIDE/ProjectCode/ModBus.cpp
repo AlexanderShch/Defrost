@@ -409,17 +409,24 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 		case MB_ERROR_UART_SEND:
 			Sensor_array[SensIndex].TxErrorCnt++;
 			break;
-		case MB_ERROR_UART_RECIEVE:	{
+		case MB_ERROR_UART_RECIEVE:	// Оба case идут подряд без break, поэтому попадают в один и тот же блок { ... }
+		case MB_ERROR_DMA_RECIEVE:	{
 			Sensor_array[SensIndex].RxErrorCnt++;
-			// При ошибке чтения используем предыдущее значение и сохраняем его как signed для температуры.
-			const int prevTemp = Sensor::GetData(TimeFromStart-1, SensIndex, 2);	// предыдущее значение T
-			const int prevHum = Sensor::GetData(TimeFromStart-1, SensIndex, 3);	// предыдущее значение H (Param 3 = H)
-			Sensor::PutData(TimeFromStart, SensIndex, 2, prevTemp);				// запись Т
-			Sensor::PutData(TimeFromStart, SensIndex, 3, prevHum);				// запись Н
+			// Для любой ошибки приёма: в текущий такт сохраняем предыдущее валидное значение.
+			// Это важно и для Type=4 (SQ=6): если ошибка была на любом из двух запросов (DO/DI),
+			// в буфер попадут прошлые валидные DI/DO без "дыр" и мусора.
+			const int prevTemp = Sensor::GetData(TimeFromStart - 1u, SensIndex, 2);	// предыдущее валидное T/DI
+			const int prevHum = Sensor::GetData(TimeFromStart - 1u, SensIndex, 3);	// предыдущее валидное H/DO
+			Sensor::PutData(TimeFromStart, SensIndex, 1, TimeFromStart);				// запись времени текущего такта
+			Sensor::PutData(TimeFromStart, SensIndex, 2, prevTemp);					// запись T/DI
+			Sensor::PutData(TimeFromStart, SensIndex, 3, prevHum);					// запись H/DO
+
+			if (SensIndex == 6 && Sensor_array[SensIndex].TypeOfSensor == 4)
+			{
+				// Поддерживаем DI_DFR согласованным с тем, что записано в буфер для модуля IO.
+				Model::DI_DFR.Raw = (uint16_t)prevTemp;
+			}
 			break;	}
-		case MB_ERROR_DMA_RECIEVE:
-			Sensor_array[SensIndex].RxErrorCnt++;
-			break;
 		case MB_ERROR_COMMAND:
 		case MB_ERROR_WRONG_ADDRESS:
 		case MB_ERROR_WRONG_VALUE:
