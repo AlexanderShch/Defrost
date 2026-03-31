@@ -1,4 +1,5 @@
 #include "GateControl.hpp"
+#include "DefrostControl.h"
 
 #include <gui/model/Model.hpp>
 
@@ -168,8 +169,12 @@ void GateControl_Update1s(void)
 			{
 				gateRegister.Gate_Up = 0;
 				gateUpElapsedSec = 0;
-				Model::Gate_Alarm_Program = 1;
-				Model::Gate_Alarm = 1;
+				// При debugDisableDeviceSwitchCheck=1 не формируем программную аварию ворот.
+				if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
+				{
+					Model::Gate_Alarm_Program = 1;
+					Model::Gate_Alarm = 1;
+				}
 				Model::Gate_PosTop = 1;
 				Model::Gate_PosBottom = 0;
 			}
@@ -202,8 +207,12 @@ void GateControl_Update1s(void)
 			{
 				gateRegister.Gate_Down = 0;
 				gateDownElapsedSec = 0;
-				Model::Gate_Alarm_Program = 1;
-				Model::Gate_Alarm = 1;
+				// При debugDisableDeviceSwitchCheck=1 не формируем программную аварию ворот.
+				if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
+				{
+					Model::Gate_Alarm_Program = 1;
+					Model::Gate_Alarm = 1;
+				}
 				Model::Gate_PosBottom = 1;
 				Model::Gate_PosTop = 0;
 			}

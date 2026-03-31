@@ -453,6 +453,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         uint8_t startupGateClosing = 0; // при старте: 1 если нужно закрыть ворота через API GateControl
         uint8_t shutdownActive = 0;     // при остановке: 1 пока выполняется последовательность остановки
         uint8_t shutdownGateOpening = 0; // при остановке: 1 если открытие ворот выполняется через API GateControl
+        uint8_t startPendingAfterShutdown = 0; // START получен во время post-shutdown; запуск отложен до полного завершения останова
         uint8_t alarmBlinkPhase = 0;    // фаза мигания аварийной лампы: 0/1 (1 Гц)
         uint8_t startupActuatorDelay_s = 0; // пауза между последовательными включениями вентиляторов и ТЭНов
         uint8_t shutdownActuatorDelay_s = 0; // пауза между последовательными выключениями вентиляторов и ТЭНов
@@ -498,6 +499,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
        g.startupGateClosing = 0;      // при старте: 1 если нужно закрыть ворота
        g.shutdownActive = 0;          // при остановке: 1 пока выполняется последовательность остановки
        g.shutdownGateOpening = 0;
+       g.startPendingAfterShutdown = 0;
        g.alarmBlinkPhase = 0;
        g.startupActuatorDelay_s = 0;
        g.shutdownActuatorDelay_s = 0;
@@ -537,41 +539,56 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         // bit9  - программная авария ворот (таймаут движения, нет фронта концевика за 10 с)
         // bit10 - аппаратная авария ворот (вход Gate_Alarm модуля IO)
         // bit11 - авария заслонки вытяжки (нет нужного сигнала Air_Open/Air_Close за 180 с)
+        // Биты 0..8 - аварии рассогласования выход/вход (в т.ч. _Out) из проверки DeviceSwitchCheck.
         const uint16_t kGateProgramAlarmBit = (uint16_t)(1u << 9);
         const uint16_t kGateHardwareAlarmBit = (uint16_t)(1u << 10);
         const uint16_t kFlapAlarmBit = (uint16_t)(1u << 11);
+        const uint16_t kDeviceSwitchCheckMask = (uint16_t)((1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) |
+                                                            (1u << 4) | (1u << 5) | (1u << 6) | (1u << 7) | (1u << 8));
+        const bool deviceSwitchCheckEnabled = (g_defrostParams.debugDisableDeviceSwitchCheck == 0u);
 
-        const uint8_t desiredOpen = ((Model::Flag_DFR_manual != 0u) ? Model::DFR_manual.Water_Flap : Model::DFR.Water_Flap) ? 1u : 0u;
-        const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
-        const uint8_t airClose = (Model::DI_DFR.Bits.Air_Close != 0u) ? 1u : 0u;
-        const uint8_t flapReached = desiredOpen ? ((airOpen != 0u && airClose == 0u) ? 1u : 0u)
-                                                : ((airClose != 0u && airOpen == 0u) ? 1u : 0u);
-        if (g.flapDesiredOpenPrevValid == 0u || g.flapDesiredOpenPrev != desiredOpen)
+        if (deviceSwitchCheckEnabled)
         {
-            g.flapDesiredOpenPrev = desiredOpen;
-            g.flapDesiredOpenPrevValid = 1u;
-            g.flapTransitionElapsed_s = 0u;
-            g.flapAlarm = 0u;
-        }
-        if (flapReached != 0u)
-        {
-            g.flapTransitionElapsed_s = 0u;
-            g.flapAlarm = 0u;
+            const uint8_t desiredOpen = ((Model::Flag_DFR_manual != 0u) ? Model::DFR_manual.Water_Flap : Model::DFR.Water_Flap) ? 1u : 0u;
+            const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
+            const uint8_t airClose = (Model::DI_DFR.Bits.Air_Close != 0u) ? 1u : 0u;
+            const uint8_t flapReached = desiredOpen ? ((airOpen != 0u && airClose == 0u) ? 1u : 0u)
+                                                    : ((airClose != 0u && airOpen == 0u) ? 1u : 0u);
+            if (g.flapDesiredOpenPrevValid == 0u || g.flapDesiredOpenPrev != desiredOpen)
+            {
+                g.flapDesiredOpenPrev = desiredOpen;
+                g.flapDesiredOpenPrevValid = 1u;
+                g.flapTransitionElapsed_s = 0u;
+                g.flapAlarm = 0u;
+            }
+            if (flapReached != 0u)
+            {
+                g.flapTransitionElapsed_s = 0u;
+                g.flapAlarm = 0u;
+            }
+            else
+            {
+                if (g.flapTransitionElapsed_s < 180u)
+                {
+                    ++g.flapTransitionElapsed_s;
+                }
+                if (g.flapTransitionElapsed_s >= 180u)
+                {
+                    g.flapAlarm = 1u;
+                }
+            }
         }
         else
         {
-            if (g.flapTransitionElapsed_s < 180u)
-            {
-                ++g.flapTransitionElapsed_s;
-            }
-            if (g.flapTransitionElapsed_s >= 180u)
-            {
-                g.flapAlarm = 1u;
-            }
+            // При отключённой проверке не формируем аварии _Out/заслонки и очищаем их.
+            g.flapTransitionElapsed_s = 0u;
+            g.flapDesiredOpenPrevValid = 0u;
+            g.flapAlarm = 0u;
+            Model::Device_AlarmFlags = (uint16_t)(Model::Device_AlarmFlags & (uint16_t)~kDeviceSwitchCheckMask);
         }
 
         Model::Device_AlarmFlags = (uint16_t)(Model::Device_AlarmFlags & (uint16_t)~(kGateProgramAlarmBit | kGateHardwareAlarmBit | kFlapAlarmBit));
-        if (Model::Gate_Alarm_Program != 0u)
+        if (deviceSwitchCheckEnabled && Model::Gate_Alarm_Program != 0u)
         {
             Model::Device_AlarmFlags |= kGateProgramAlarmBit;
         }
@@ -579,7 +596,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         {
             Model::Device_AlarmFlags |= kGateHardwareAlarmBit;
         }
-        if (g.flapAlarm != 0u)
+        if (deviceSwitchCheckEnabled && g.flapAlarm != 0u)
         {
             Model::Device_AlarmFlags |= kFlapAlarmBit;
         }
@@ -1225,6 +1242,50 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
     ApplyOutputs(0, 0, 0, 0, 0, 0, 0, 0);
 }
 
+static void StartAutomaticSequence()
+{
+    ResetState();
+    // Запуск автоматического алгоритма должен выполняться именно в автоматическом режиме.
+    GateControl_SetManualMode(0);
+    Model::setDefrostManualModeEnabled(false);
+
+    // Сбрасываем остатки post-shutdown и фиксируем рабочее начальное состояние.
+    g.shutdownActive = 0;
+    g.shutdownGateOpening = 0;
+    g.shutdownOutFanRemain_s = 0;
+    g.outFanOn = 0;
+    g.outOn = 0;
+    g.outDamperState = 0;
+    g.outDamperTimer_s = 0;
+    g.startPendingAfterShutdown = 0;
+    Model::DFR._Out = 0;
+    Model::DFR.Water_Flap = 0; // В рабочем (автоматическом) режиме заслонка закрыта.
+
+    // Сбрасываем команды ворот перед формированием команды на старт.
+    GateControl_SetCommand(GateControlCommand::Open, 0);
+    GateControl_SetCommand(GateControlCommand::Close, 0);
+    GateControl_SetCommand(GateControlCommand::Deblock, 0);
+
+    ApplyModeLamps(LampModeState::AutoActive);
+
+    // На старте авто-режима закрываем ворота, если они не в нижнем положении.
+    if (GateControl_IsClosedPosition() == 0)
+    {
+        GateControl_SetCommand(GateControlCommand::Close, 1);
+        g.startupGateClosing = 1;
+        ApplyOutputs(0, 0, 0, 0, 0, 0, 0, 0);  // один раз: все выходы выкл. до закрытия ворот
+    }
+    else
+    {
+        g.startupGateClosing = 0;
+        GateControl_SetCommand(GateControlCommand::Close, 0);
+    }
+
+    g.shutdownActive = 0;
+    g.shutdownOutFanRemain_s = 0;
+    g.enabled = 1;
+}
+
 static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId, DefrostParamValue_t *outValue)
 {
     if (outValue == nullptr)
@@ -1624,59 +1685,31 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
          // Почему: отдельный флаг enabled позволяет безопасно вводить алгоритм, не ломая существующую логику авто/ручного режима.
        UpdateDeviceAlarmState();
         const uint8_t newEnabled = enabled ? 1 : 0;
+        const uint8_t wasEnabled = g.enabled;
 
         if (newEnabled != 0)
         {
-            ResetState();
-           // Почему: запуск автоматического алгоритма должен выполняться именно в автоматическом режиме.
-           // Иначе на реле будет отправляться ручной регистр, а счётчик runtime не будет увеличиваться.
-           GateControl_SetManualMode(0);
-           Model::setDefrostManualModeEnabled(false);  // синхронизация с Model: переключатель «ручной» в Settings2 станет «выкл»
-
-           // При повторном старте во время post-shutdown вытяжки немедленно останавливаем
-           // вентилятор вытяжки и закрываем заслонку, не дожидаясь следующего тика 1 Гц.
-           g.shutdownActive = 0;
-           g.shutdownGateOpening = 0;
-           g.shutdownOutFanRemain_s = 0;
-           g.outFanOn = 0;
-           g.outOn = 0;
-           g.outDamperState = 0;
-           g.outDamperTimer_s = 0;
-           Model::DFR._Out = 0;
-           // В рабочем (автоматическом) режиме заслонка должна быть закрыта.
-           Model::DFR.Water_Flap = 0;
-
-           // Сбрасываем команды ворот перед формированием команды на старт.
-           GateControl_SetCommand(GateControlCommand::Open, 0);
-           GateControl_SetCommand(GateControlCommand::Close, 0);
-           GateControl_SetCommand(GateControlCommand::Deblock, 0);
-
-          // Автоматический режим: зелёная лампа включена, красная только по аварии.
-          ApplyModeLamps(LampModeState::AutoActive);
-
-            // На старте авто-режима закрываем ворота, если они не в нижнем положении.
-            if (GateControl_IsClosedPosition() == 0)
+            // Если ещё идёт post-shutdown (продувка/открытие ворот), откладываем новый START.
+            if (g.shutdownActive != 0u || g.shutdownGateOpening != 0u ||
+                g.shutdownOutFanRemain_s != 0u || g.outFanOn != 0u || g.outDamperState != 0u)
             {
-                GateControl_SetCommand(GateControlCommand::Close, 1);
-                g.startupGateClosing = 1;
-                ApplyOutputs(0, 0, 0, 0, 0, 0, 0, 0);  // один раз: все выходы выкл. до закрытия ворот
-            }
-            else
-            {
-                g.startupGateClosing = 0;
-                GateControl_SetCommand(GateControlCommand::Close, 0);
+                g.startPendingAfterShutdown = 1u;
+                g.enabled = 0u;
+                ApplyModeLamps(LampModeState::StoppedOrManual);
+                return;
             }
 
-            g.shutdownActive = 0;
-            g.shutdownOutFanRemain_s = 0;
-            g.enabled = 1;
+            StartAutomaticSequence();
             return;
         }
 
         g.enabled = 0;
-        if (g.enabled == 0)
-         {
-             ShutdownSequence();  // Безопасное выключение всех элементов
+        g.startPendingAfterShutdown = 0u; // Явный STOP отменяет любой отложенный автозапуск.
+        // Важно: последовательность останова запускаем только по переходу 1 -> 0.
+        // Иначе при повторных DefrostControl_SetEnabled(0) команда Gate_Up зацикливается.
+        if (wasEnabled != 0u)
+        {
+            ShutdownSequence();  // Безопасное выключение всех элементов
             g.runtimeSeconds = 0; // Время работы алгоритма обнуляется при остановке
             // Останов: зелёная лампа выключена, красная только по аварии.
             ApplyModeLamps(LampModeState::StoppedOrManual);
@@ -2003,6 +2036,11 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
                     GateControl_SetCommand(GateControlCommand::Open, 0);
                     GateControl_SetCommand(GateControlCommand::Close, 0);
                     GateControl_SetCommand(GateControlCommand::Deblock, 0);
+                    if (g.startPendingAfterShutdown != 0u)
+                    {
+                        StartAutomaticSequence();
+                        return;
+                    }
                  }
              }
            // В ручном режиме обе лампы должны быть выключены.

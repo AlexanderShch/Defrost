@@ -2749,6 +2749,21 @@
             "AutoSize": true
           },
           {
+            "Type": "TextArea",
+            "Name": "LabelFlapAlarm",
+            "X": 79,
+            "Y": 154,
+            "Width": 83,
+            "Height": 24,
+            "Visible": false,
+            "TextId": "__SingleUse_EBIH",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 255
+            },
+            "AutoSize": true
+          },
+          {
             "Type": "AnimatedImage",
             "Name": "anim_AirFan",
             "X": 36,
@@ -2803,21 +2818,6 @@
               "Red": 232,
               "Green": 246,
               "Blue": 251
-            },
-            "AutoSize": true
-          },
-          {
-            "Type": "TextArea",
-            "Name": "LabelFlapAlarm",
-            "X": 79,
-            "Y": 154,
-            "Width": 83,
-            "Height": 24,
-            "Visible": false,
-            "TextId": "__SingleUse_EBIH",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 255
             },
             "AutoSize": true
           },
