@@ -2021,6 +2021,10 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
                     {
                         g.outFanOn = 0;
                         Model::DFR._Out = 0;  // выключение вытяжки один раз по истечении 5 мин
+                        // Завершаем продувку: закрываем заслонку.
+                        Model::DFR.Water_Flap = 0;
+                        g.outDamperState = 0;
+                        g.outDamperTimer_s = 0;
                     }
                 }
 
@@ -2037,7 +2041,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
                     /*injOn*/ 0,
                     /*outOn*/ (Model::DFR._Out != 0u) ? 1u : 0u);
 
-                if (g.outFanOn == 0 && g.outDamperState >= 2 && g.shutdownOutFanRemain_s == 0)
+                if (g.outFanOn == 0 && g.shutdownOutFanRemain_s == 0 && g.shutdownGateOpening == 0)
                  {
                     g.shutdownActive = 0;
                     GateControl_SetCommand(GateControlCommand::Open, 0);
