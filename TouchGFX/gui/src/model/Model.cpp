@@ -183,6 +183,8 @@ uint8_t Model::Flag_WR_to_sensor = 0;
 uint8_t Model::Flag_Alert = 0;
 
 uint8_t Model::Gate_Alarm = 0;			// Флаг программной ошибки ворот
+uint8_t Model::Gate_Alarm_Program = 0;	// Программная авария ворот (таймаут движения)
+uint8_t Model::Gate_Alarm_Hardware = 0; // Аппаратная авария ворот (вход Gate_Alarm)
 uint8_t Model::Gate_PosTop = 0;			// Флаг верхнего положения для аварийного режима ворот
 uint8_t Model::Gate_PosBottom = 0;		// Флаг нижнего положения для аварийного режима ворот
 uint8_t Model::Device_Alarm = 0;

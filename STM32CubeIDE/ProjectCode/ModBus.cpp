@@ -342,8 +342,11 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			{
 				Model::DI_DFR.Raw = SW.Read_Data_2;		// Сохраняем считанные с входов модуля ввода/вывода сигналы от устройств
 				/*********************************************************************************************/
-				// Проверка аппаратной аварии ворот в дефростере
-				Model::Gate_Alarm = Model::DI_DFR.Bits.Gate_Alarm ? 1 : 0;
+				// Разделяем аварии ворот:
+				// - аппаратная авария с входа Gate_Alarm (DI bit 11),
+				// - программная авария (таймаут) выставляется в GateControl.
+				Model::Gate_Alarm_Hardware = (Model::DI_DFR.Bits.Gate_Alarm != 0) ? 1u : 0u;
+				Model::Gate_Alarm = ((Model::Gate_Alarm_Program != 0u) || (Model::Gate_Alarm_Hardware != 0u)) ? 1u : 0u;
 				if (Model::Gate_Alarm != 0)
 				{
 					// Аппаратная авария ворот должна немедленно остановить дефростер.

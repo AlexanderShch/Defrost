@@ -2805,6 +2805,36 @@
               "Blue": 251
             },
             "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelFlapAlarm",
+            "X": 79,
+            "Y": 154,
+            "Width": 83,
+            "Height": 24,
+            "Visible": false,
+            "TextId": "__SingleUse_EBIH",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 255
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelAirFanAlarm",
+            "X": 79,
+            "Y": 230,
+            "Width": 83,
+            "Height": 24,
+            "Visible": false,
+            "TextId": "__SingleUse_OURK",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 255
+            },
+            "AutoSize": true
           }
         ],
         "Interactions": [

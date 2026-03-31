@@ -153,7 +153,8 @@ void GateControl_Update1s(void)
 		{
 			gateRegister.Gate_Up = 0;
 			gateUpElapsedSec = 0;
-			Model::Gate_Alarm = 0;
+			Model::Gate_Alarm_Program = 0;
+			Model::Gate_Alarm = ((Model::Gate_Alarm_Program != 0u) || (Model::Gate_Alarm_Hardware != 0u)) ? 1u : 0u;
 			Model::Gate_PosTop = 1;
 			Model::Gate_PosBottom = 0;
 		}
@@ -167,6 +168,7 @@ void GateControl_Update1s(void)
 			{
 				gateRegister.Gate_Up = 0;
 				gateUpElapsedSec = 0;
+				Model::Gate_Alarm_Program = 1;
 				Model::Gate_Alarm = 1;
 				Model::Gate_PosTop = 1;
 				Model::Gate_PosBottom = 0;
@@ -185,7 +187,8 @@ void GateControl_Update1s(void)
 		{
 			gateRegister.Gate_Down = 0;
 			gateDownElapsedSec = 0;
-			Model::Gate_Alarm = 0;
+			Model::Gate_Alarm_Program = 0;
+			Model::Gate_Alarm = ((Model::Gate_Alarm_Program != 0u) || (Model::Gate_Alarm_Hardware != 0u)) ? 1u : 0u;
 			Model::Gate_PosBottom = 1;
 			Model::Gate_PosTop = 0;
 		}
@@ -199,6 +202,7 @@ void GateControl_Update1s(void)
 			{
 				gateRegister.Gate_Down = 0;
 				gateDownElapsedSec = 0;
+				Model::Gate_Alarm_Program = 1;
 				Model::Gate_Alarm = 1;
 				Model::Gate_PosBottom = 1;
 				Model::Gate_PosTop = 0;

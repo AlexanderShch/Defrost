@@ -53,6 +53,8 @@ void Air_OutView::handleTickEvent()
 void Air_OutView::syncExhaustFanAndFlapFromInputs()
 {
 	static uint8_t s_airFanLastInterval = 0u;
+	const uint16_t kOutFanAlarmBit = (uint16_t)(1u << 8);   // рассогласование _Out (DO->DI)
+	const uint16_t kFlapAlarmBit = (uint16_t)(1u << 11);    // таймаут перехода заслонки
 
 	if (IsExhaustFanOn((unsigned char)Model::DFR_current._Out))
 	{
@@ -92,6 +94,24 @@ void Air_OutView::syncExhaustFanAndFlapFromInputs()
 	Flap_On.invalidate();
 	Flap_Off.invalidate();
 	Flap.invalidate();
+
+	// Мигать аварийными надписями синхронно с красной лампой _Alr.
+	const bool alarmBlinkOnPhase = (Model::DFR_current._Alr != 0u);
+	const uint16_t deviceAlarmFlags = Model::Device_AlarmFlags;
+	const bool flapAlarmActive = (deviceAlarmFlags & kFlapAlarmBit) != 0u;
+	const bool outFanAlarmActive = (deviceAlarmFlags & kOutFanAlarmBit) != 0u;
+
+	const bool showFlapAlarmLabel = flapAlarmActive && alarmBlinkOnPhase;
+	const bool showFanAlarmLabel = outFanAlarmActive && alarmBlinkOnPhase;
+
+	LabelFlapAlarm.setVisible(showFlapAlarmLabel);
+	Label_AirFlap.setVisible(!showFlapAlarmLabel);
+	LabelAirFanAlarm.setVisible(showFanAlarmLabel);
+	Label_AirFan.setVisible(!showFanAlarmLabel);
+	LabelFlapAlarm.invalidate();
+	Label_AirFlap.invalidate();
+	LabelAirFanAlarm.invalidate();
+	Label_AirFan.invalidate();
 }
 
 void Air_OutView::tearDownScreen()
