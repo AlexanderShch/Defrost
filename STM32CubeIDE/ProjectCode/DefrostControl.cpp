@@ -29,6 +29,9 @@
 
 #define DEFAULT_DEBUG_DISABLE_TARGET_T_STOP  0u   /* 0 = автостоп по целевой Т включен (по умолчанию) */
 
+/* Таймаут достижения положения заслонки по концевикам Air_Open/Air_Close, с (искать: DEFROST_FLAP_POSITION_TIMEOUT_S). */
+#define DEFROST_FLAP_POSITION_TIMEOUT_S  18u
+
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osSemaphoreId_t SensorsReadDone_SemHandle;
 extern unsigned int TimeFromStart;
@@ -456,6 +459,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         uint8_t shutdownGateLiftPulse_s = 0; // длительность импульса открытия ворот в начале продувки (с)
        uint8_t shutdownGateFullOpenActive = 0; // при остановке: 1 если выполняется полное открытие ворот через GateControl
        uint8_t shutdownStage = 0; // текущее состояние post-shutdown (см. ShutdownStage)
+        uint16_t shutdownFlapOpenWait_s = 0; // при отладке без DeviceSwitchCheck: секунды ожидания Air_Open (DEFROST_FLAP_POSITION_TIMEOUT_S)
+        uint8_t shutdownFanConfirmWait_s = 0; // секунды после команды _Out=1 до подтверждения DI Vent_Out
         uint8_t startPendingAfterShutdown = 0; // START получен во время post-shutdown; запуск отложен до полного завершения останова
         uint8_t alarmBlinkPhase = 0;    // фаза мигания аварийной лампы: 0/1 (1 Гц)
         uint8_t startupActuatorDelay_s = 0; // пауза между последовательными включениями вентиляторов и ТЭНов
@@ -505,6 +510,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
        g.shutdownGateLiftPulse_s = 0;
       g.shutdownGateFullOpenActive = 0;
        g.shutdownStage = 0;
+       g.shutdownFlapOpenWait_s = 0;
+       g.shutdownFanConfirmWait_s = 0;
        g.startPendingAfterShutdown = 0;
        g.alarmBlinkPhase = 0;
        g.startupActuatorDelay_s = 0;
@@ -551,7 +558,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         // Биты Device_AlarmFlags для аварий ворот:
         // bit9  - программная авария ворот (таймаут движения, нет фронта концевика за 10 с)
         // bit10 - аппаратная авария ворот (вход Gate_Alarm модуля IO)
-        // bit11 - авария заслонки вытяжки (нет нужного сигнала Air_Open/Air_Close за 180 с)
+        // bit11 - авария заслонки вытяжки (нет нужного сигнала Air_Open/Air_Close за DEFROST_FLAP_POSITION_TIMEOUT_S с)
         // Биты 0..8 - аварии рассогласования выход/вход (в т.ч. _Out) из проверки DeviceSwitchCheck.
         const uint16_t kGateProgramAlarmBit = (uint16_t)(1u << 9);
         const uint16_t kGateHardwareAlarmBit = (uint16_t)(1u << 10);
@@ -581,11 +588,11 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
             }
             else
             {
-                if (g.flapTransitionElapsed_s < 180u)
+                if (g.flapTransitionElapsed_s < DEFROST_FLAP_POSITION_TIMEOUT_S)
                 {
                     ++g.flapTransitionElapsed_s;
                 }
-                if (g.flapTransitionElapsed_s >= 180u)
+                if (g.flapTransitionElapsed_s >= DEFROST_FLAP_POSITION_TIMEOUT_S)
                 {
                     g.flapAlarm = 1u;
                 }
@@ -1230,7 +1237,33 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
              ten1L_on, ten2L_on, ten1R_on, ten2R_on,
              inj_on, out_on);
      }
- } // namespace
+
+// Таймаут подтверждения Vent_Out на этапе Ventilation при завершении, с.
+static constexpr uint8_t kShutdownFanFeedbackTimeout_s = 10u;
+
+// Переход в шаг полного открытия ворот + немедленная команда Open.
+// Почему сразу: при переходе из Ventilation в этом же вызове ProcessShutdownStage1s ветка «шаг 3» не выполняется;
+// если только выставить shutdownStage, до следующей секунды shutdownGateFullOpenActive остаётся 0 и
+// DefrostControl_Update1s ошибочно считает этап завершённым (сбрасывает shutdownActive без _Opn/Gate_Up).
+static void ShutdownEnterFullGateOpenArm()
+{
+    g.shutdownStage = (uint8_t)ShutdownStage::FullGateOpen;
+    if (g.shutdownGateFullOpenActive == 0u) {
+        GateControl_SetCommand(GateControlCommand::Open, 1u);
+        g.shutdownGateFullOpenActive = 1u;
+    }
+}
+
+static void ShutdownGoToFullGateOpen_VentCleanup()
+{
+    g.outFanOn = 0u;
+    g.shutdownOutFanRemain_s = 0u;
+    g.shutdownFanConfirmWait_s = 0u;
+    g.shutdownFlapOpenWait_s = 0u;
+    Model::DFR._Out = 0u;
+    Model::DFR.Water_Flap = 0u;
+    ShutdownEnterFullGateOpenArm();
+}
  
  static void ShutdownSequence()
 {
@@ -1241,6 +1274,8 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
 
     // Подготавливаем state-machine завершения post-shutdown.
     g.shutdownStage = (uint8_t)ShutdownStage::StopActuatorsAndGatePulse;
+    g.shutdownFlapOpenWait_s = 0;
+    g.shutdownFanConfirmWait_s = 0;
     g.shutdownGateOpening = 0;
     g.shutdownGateLiftPulse_s = 0u;
     g.shutdownGateFullOpenActive = 0;
@@ -1301,49 +1336,80 @@ static void ProcessShutdownStage1s()
                     g.shutdownGateOpening = 0u;
                     GateControl_SetCommand(GateControlCommand::Open, 0u);
                     g.shutdownStage = (uint8_t)ShutdownStage::Ventilation;
+                    g.shutdownFlapOpenWait_s = 0u;
+                    g.shutdownFanConfirmWait_s = 0u;
                 }
             }
         }
     }
     else if (shutdownStage == ShutdownStage::Ventilation)
     {
-        // Шаг 2: открываем заслонку до концевика Air_Open или таймаута (flapAlarm), затем продувка.
+        // Шаг 2: заслонка по DI (всегда с входов); таймаут заслонки — g.flapAlarm или свой счёт при отладке без проверки DO/DI.
+        // Таймаут без Air_Open: вытяжку не включаем (опасно) — сразу шаг полного открытия ворот.
+        // Заслонка открылась, но нет подтверждения Vent_Out за kShutdownFanFeedbackTimeout_s — тоже без продувки, к воротам.
         Model::DFR.Water_Flap = 1u;
         const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
         const uint8_t airClose = (Model::DI_DFR.Bits.Air_Close != 0u) ? 1u : 0u;
         const uint8_t flapOpened = (airOpen != 0u && airClose == 0u) ? 1u : 0u;
-        const uint8_t flapTimedOut = (g.flapAlarm != 0u) ? 1u : 0u;
+        const uint8_t switchCheckOn = (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u) ? 1u : 0u;
+        const uint8_t flapTimedOut = (switchCheckOn != 0u)
+            ? ((g.flapAlarm != 0u) ? 1u : 0u)
+            : ((g.shutdownFlapOpenWait_s >= DEFROST_FLAP_POSITION_TIMEOUT_S) ? 1u : 0u);
 
-        if (g.outFanOn == 0u && (flapOpened != 0u || flapTimedOut != 0u))
-        {
-            g.outFanOn = 1u;
-            g.shutdownOutFanRemain_s = 300u;
-            Model::DFR._Out = 1u;
+        if (switchCheckOn == 0u && flapOpened == 0u) {
+            if (g.shutdownFlapOpenWait_s < DEFROST_FLAP_POSITION_TIMEOUT_S) {
+                ++g.shutdownFlapOpenWait_s;
+            }
         }
 
-        if (g.outFanOn != 0u)
-        {
-            const float RH_ret = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
-            if (g.shutdownOutFanRemain_s > 0u)
-                g.shutdownOutFanRemain_s--;
-
-            if (g.shutdownOutFanRemain_s == 0u || RH_ret < 50.0f)
-            {
-                g.outFanOn = 0u;
-                g.shutdownOutFanRemain_s = 0u;
-                Model::DFR._Out = 0u;
-                Model::DFR.Water_Flap = 0u;
-                g.shutdownStage = (uint8_t)ShutdownStage::FullGateOpen;
+        // 1) Таймаут открытия заслонки без концевика — без вытяжки, к воротам.
+        if (flapTimedOut != 0u && flapOpened == 0u) {
+            ShutdownGoToFullGateOpen_VentCleanup();
+        }
+        else if (flapOpened == 0u) {
+            // Ждём концевик или таймаут; вытяжку не командуем.
+        }
+        else {
+            // Заслонка по DI открыта — командуем _Out и ждём подтверждения Vent_Out на входе.
+            Model::DFR._Out = 1u;
+            const uint8_t ventOutFb = (Model::DI_DFR.Bits.Vent_Out != 0u) ? 1u : 0u;
+            if (ventOutFb == 0u) {
+                if (g.shutdownFanConfirmWait_s < kShutdownFanFeedbackTimeout_s) {
+                    ++g.shutdownFanConfirmWait_s;
+                }
+                if (g.shutdownFanConfirmWait_s >= kShutdownFanFeedbackTimeout_s) {
+                    // 2) Вытяжка не подтвердилась — к воротам без продувки.
+                    ShutdownGoToFullGateOpen_VentCleanup();
+                }
+            }
+            else {
+                g.shutdownFanConfirmWait_s = 0u;
+                if (g.outFanOn == 0u) {
+                    g.outFanOn = 1u;
+                    g.shutdownOutFanRemain_s = 300u;
+                }
+                const float RH_ret = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
+                if (g.shutdownOutFanRemain_s > 0u) {
+                    g.shutdownOutFanRemain_s--;
+                }
+                if (g.shutdownOutFanRemain_s == 0u || RH_ret < 50.0f) {
+                    g.outFanOn = 0u;
+                    g.shutdownOutFanRemain_s = 0u;
+                    Model::DFR._Out = 0u;
+                    Model::DFR.Water_Flap = 0u;
+                    g.shutdownFlapOpenWait_s = 0u;
+                    g.shutdownFanConfirmWait_s = 0u;
+                    ShutdownEnterFullGateOpenArm();
+                }
             }
         }
     }
     else
     {
-        // Шаг 3: полное открытие ворот штатной логикой GateControl.
-        if (g.shutdownGateFullOpenActive == 0u)
-        {
-            GateControl_SetCommand(GateControlCommand::Open, 1u);
-            g.shutdownGateFullOpenActive = 1u;
+        // Шаг 3: полное открытие ворот. Завершение процесса — когда GateControl снял команду Open
+        // (концевик Gate_Open или программный таймаут 10 с в GateControl_Update1s; в отладке без аварий — тот же таймаут).
+        if (g.shutdownGateFullOpenActive == 0u) {
+            ShutdownEnterFullGateOpenArm();
         }
         else if (GateControl_IsCommandActive(GateControlCommand::Open) == 0u)
         {
@@ -1365,6 +1431,8 @@ static void StartAutomaticSequence()
     g.shutdownGateOpening = 0;
     g.shutdownGateFullOpenActive = 0;
     g.shutdownStage = (uint8_t)ShutdownStage::StopActuatorsAndGatePulse;
+    g.shutdownFlapOpenWait_s = 0;
+    g.shutdownFanConfirmWait_s = 0;
     g.shutdownOutFanRemain_s = 0;
     g.outFanOn = 0;
     g.outOn = 0;
@@ -2137,6 +2205,8 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
          };
      }
  }
+
+} // namespace
 
  // 3. The task DataAnalysis processing data from sensors
  void DataFunc()
