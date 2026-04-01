@@ -68,6 +68,7 @@ typedef struct __attribute__((packed))   // формат данных для с�
     uint8_t Active[SQ];			// Активность сенсора
     int16_t T[SQ];				// Значение 1 сенсора (температура)
     int16_t H[SQ];				// Значение 2 сенсора (влажность)
+    uint8_t ShutdownActive;     // Флаг post-shutdown из алгоритма дефроста (0/1)
 } MSGQUEUE_OBJ_t;
 /*
  * MSGQUEUE_OBJ_t помечена как __attribute__((packed)), так что выравнивания нет, размер — просто сумма полей:

@@ -452,8 +452,10 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
 
         uint8_t startupGateClosing = 0; // при старте: 1 если нужно закрыть ворота через API GateControl
         uint8_t shutdownActive = 0;     // при остановке: 1 пока выполняется последовательность остановки
-        uint8_t shutdownGateOpening = 0; // при остановке: 1 если открытие ворот выполняется через API GateControl
+       uint8_t shutdownGateOpening = 0; // при остановке: 1 если выполняется стартовый импульс открытия ворот
         uint8_t shutdownGateLiftPulse_s = 0; // длительность импульса открытия ворот в начале продувки (с)
+       uint8_t shutdownGateFullOpenActive = 0; // при остановке: 1 если выполняется полное открытие ворот через GateControl
+       uint8_t shutdownStage = 0; // текущее состояние post-shutdown (см. ShutdownStage)
         uint8_t startPendingAfterShutdown = 0; // START получен во время post-shutdown; запуск отложен до полного завершения останова
         uint8_t alarmBlinkPhase = 0;    // фаза мигания аварийной лампы: 0/1 (1 Гц)
         uint8_t startupActuatorDelay_s = 0; // пауза между последовательными включениями вентиляторов и ТЭНов
@@ -499,8 +501,10 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         g.shutdownOutFanRemain_s = 0;  // остаток времени работы вытяжки после остановки алгоритма
        g.startupGateClosing = 0;      // при старте: 1 если нужно закрыть ворота
        g.shutdownActive = 0;          // при остановке: 1 пока выполняется последовательность остановки
-       g.shutdownGateOpening = 0;
+      g.shutdownGateOpening = 0;
        g.shutdownGateLiftPulse_s = 0;
+      g.shutdownGateFullOpenActive = 0;
+       g.shutdownStage = 0;
        g.startPendingAfterShutdown = 0;
        g.alarmBlinkPhase = 0;
        g.startupActuatorDelay_s = 0;
@@ -534,6 +538,13 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
         AutoActive = 0,
         StoppedOrManual = 1
     };
+
+   enum class ShutdownStage : uint8_t
+   {
+       StopActuatorsAndGatePulse = 0, // останов силовых выходов, затем импульс Open на 3 с
+       Ventilation = 1,               // открытие заслонки и продувка
+       FullGateOpen = 2               // полное открытие ворот
+   };
 
     static void UpdateDeviceAlarmState()
     {
@@ -1090,8 +1101,13 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
              heatScale01 = 0.0f;
          if (airIn.okL == 0u && airIn.okR == 0u && airIn.okRet == 0u)
              heatScale01 = 0.0f;
-         if (g.runtimeSeconds >= (uint32_t)g_defrostParams.maxRuntime_s)
-             heatScale01 = 0.0f;
+        if (g.runtimeSeconds >= (uint32_t)g_defrostParams.maxRuntime_s)
+        {
+            // Без рабочих датчиков продукта завершаем алгоритм по общему лимиту времени.
+            // Дальнейшая последовательность остановки выполняется в ShutdownSequence().
+            DefrostControl_SetEnabled(0);
+            return;
+        }
 
          const float eT_common = tgt.supplySet_C - T_sup_avg_C;
          float uCommon_TEN = g.piSupplyCommon.Step(eT_common, kDt_s, 0.0f, 2.0f);
@@ -1223,26 +1239,118 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
     // Форсунки: отключить увлажнение
     Model::DFR._Inj = 0;
 
-    // Ворота: в начале продувки приподнимаем (импульс открытия на 3 секунды).
-    GateControl_SetCommand(GateControlCommand::Open, 1);
-    g.shutdownGateOpening = 1;
-    g.shutdownGateLiftPulse_s = 3u;
-
-    // Вытяжка: сначала открыть клапан, затем включить вентилятор на 5 минут.
-    // Water_Flap: 1 = открыть/удерживать открытой, 0 = закрыть/удерживать закрытой.
-    Model::DFR.Water_Flap = 1;
-    g.outDamperState = 1;             // клапан открывается
-    g.outDamperTimer_s = g_defrostParams.outDamperTimer_s;
-    g.outFanOn = 0;                   // до открытия клапана вентилятор выключен
+    // Подготавливаем state-machine завершения post-shutdown.
+    g.shutdownStage = (uint8_t)ShutdownStage::StopActuatorsAndGatePulse;
+    g.shutdownGateOpening = 0;
+    g.shutdownGateLiftPulse_s = 0u;
+    g.shutdownGateFullOpenActive = 0;
+    // До шага продувки заслонка и вытяжка должны быть выключены.
+    Model::DFR.Water_Flap = 0;
+    g.outDamperState = 0;
+    g.outDamperTimer_s = 0;
+    g.outFanOn = 0;
     g.outOn = 0;
     Model::DFR._Out = 0;
-    g.shutdownOutFanRemain_s = 300;   // 5 минут после открытия клапана
+    g.shutdownOutFanRemain_s = 300;   // максимальное время продувки
     g.shutdownActive = 1;
 
     // Запускаем последовательное выключение ТЭНов/вентиляторов через ApplyOutputs().
     // ТЭНы гасим первыми, вентиляторы последними.
     g.shutdownActuatorDelay_s = 0;
     ApplyOutputs(0, 0, 0, 0, 0, 0, 0, 0);
+}
+
+static void ProcessShutdownStage1s()
+{
+    // Последовательное выключение энергоёмких устройств:
+    // сначала ТЭНы, затем вентиляторы (в обратном порядке включению).
+    // Вытяжку (_Out) и форсунку (_Inj) не трогаем этой очередью (они управляются отдельно).
+    ApplyOutputs(
+        /*ventLeftOn*/ 0,
+        /*ventRightOn*/ 0,
+        /*ten1LeftOn*/ 0,
+        /*ten2LeftOn*/ 0,
+        /*ten1RightOn*/ 0,
+        /*ten2RightOn*/ 0,
+        /*injOn*/ 0,
+        /*outOn*/ (Model::DFR._Out != 0u) ? 1u : 0u);
+
+    const uint8_t allPowerLoadsOff =
+        (g.stagedTen1LeftOn == 0u && g.stagedTen2LeftOn == 0u &&
+         g.stagedTen1RightOn == 0u && g.stagedTen2RightOn == 0u &&
+         g.stagedVent1LeftOn == 0u && g.stagedVent2LeftOn == 0u &&
+         g.stagedVent1RightOn == 0u && g.stagedVent2RightOn == 0u) ? 1u : 0u;
+
+    const ShutdownStage shutdownStage = (ShutdownStage)g.shutdownStage;
+    if (shutdownStage == ShutdownStage::StopActuatorsAndGatePulse)
+    {
+        // Шаг 1: только после полной остановки ТЭНов/вентиляторов приоткрываем ворота (Open на 3 с).
+        if (allPowerLoadsOff != 0u)
+        {
+            if (g.shutdownGateOpening == 0u)
+            {
+                GateControl_SetCommand(GateControlCommand::Open, 1u);
+                g.shutdownGateOpening = 1u;
+                g.shutdownGateLiftPulse_s = 3u;
+            }
+            else if (g.shutdownGateLiftPulse_s > 0u)
+            {
+                g.shutdownGateLiftPulse_s--;
+                if (g.shutdownGateLiftPulse_s == 0u)
+                {
+                    g.shutdownGateOpening = 0u;
+                    GateControl_SetCommand(GateControlCommand::Open, 0u);
+                    g.shutdownStage = (uint8_t)ShutdownStage::Ventilation;
+                }
+            }
+        }
+    }
+    else if (shutdownStage == ShutdownStage::Ventilation)
+    {
+        // Шаг 2: открываем заслонку до концевика Air_Open или таймаута (flapAlarm), затем продувка.
+        Model::DFR.Water_Flap = 1u;
+        const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
+        const uint8_t airClose = (Model::DI_DFR.Bits.Air_Close != 0u) ? 1u : 0u;
+        const uint8_t flapOpened = (airOpen != 0u && airClose == 0u) ? 1u : 0u;
+        const uint8_t flapTimedOut = (g.flapAlarm != 0u) ? 1u : 0u;
+
+        if (g.outFanOn == 0u && (flapOpened != 0u || flapTimedOut != 0u))
+        {
+            g.outFanOn = 1u;
+            g.shutdownOutFanRemain_s = 300u;
+            Model::DFR._Out = 1u;
+        }
+
+        if (g.outFanOn != 0u)
+        {
+            const float RH_ret = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
+            if (g.shutdownOutFanRemain_s > 0u)
+                g.shutdownOutFanRemain_s--;
+
+            if (g.shutdownOutFanRemain_s == 0u || RH_ret < 50.0f)
+            {
+                g.outFanOn = 0u;
+                g.shutdownOutFanRemain_s = 0u;
+                Model::DFR._Out = 0u;
+                Model::DFR.Water_Flap = 0u;
+                g.shutdownStage = (uint8_t)ShutdownStage::FullGateOpen;
+            }
+        }
+    }
+    else
+    {
+        // Шаг 3: полное открытие ворот штатной логикой GateControl.
+        if (g.shutdownGateFullOpenActive == 0u)
+        {
+            GateControl_SetCommand(GateControlCommand::Open, 1u);
+            g.shutdownGateFullOpenActive = 1u;
+        }
+        else if (GateControl_IsCommandActive(GateControlCommand::Open) == 0u)
+        {
+            g.shutdownGateFullOpenActive = 0u;
+            GateControl_SetCommand(GateControlCommand::Open, 0u);
+        }
+    }
 }
 
 static void StartAutomaticSequence()
@@ -1255,6 +1363,8 @@ static void StartAutomaticSequence()
     // Сбрасываем остатки post-shutdown и фиксируем рабочее начальное состояние.
     g.shutdownActive = 0;
     g.shutdownGateOpening = 0;
+    g.shutdownGateFullOpenActive = 0;
+    g.shutdownStage = (uint8_t)ShutdownStage::StopActuatorsAndGatePulse;
     g.shutdownOutFanRemain_s = 0;
     g.outFanOn = 0;
     g.outOn = 0;
@@ -1693,7 +1803,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
         if (newEnabled != 0)
         {
             // Если ещё идёт post-shutdown (продувка/открытие ворот), откладываем новый START.
-            if (g.shutdownActive != 0u || g.shutdownGateOpening != 0u ||
+            if (g.shutdownActive != 0u || g.shutdownGateOpening != 0u || g.shutdownGateFullOpenActive != 0u ||
                 g.shutdownOutFanRemain_s != 0u || g.outFanOn != 0u || g.outDamperState != 0u)
             {
                 g.startPendingAfterShutdown = 1u;
@@ -1729,6 +1839,11 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
         // Почему: в HOME нужен признак именно активного автоматического режима,
         // а не просто факт, что алгоритм ранее был запущен.
         return (g.enabled != 0 && GateControl_GetManualMode() == 0) ? 1 : 0;
+    }
+
+    uint8_t DefrostControl_IsShutdownActive(void)
+    {
+        return (g.shutdownActive != 0u) ? 1u : 0u;
     }
 
     uint8_t DefrostControl_GetParam(uint8_t groupId, uint8_t paramId, DefrostParamValue_t *outValue)
@@ -1984,64 +2099,10 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
 
             if (g.shutdownActive != 0)
              {
-                // Алгоритм выключен, но выполняется процесс завершения работы алгоритма
-                // В рамках остановки алгоритма открытие ворот выполняем через API GateControl.
-                if (g.shutdownGateOpening != 0)
-                {
-                    if (g.shutdownGateLiftPulse_s > 0u)
-                    {
-                        g.shutdownGateLiftPulse_s--;
-                        if (g.shutdownGateLiftPulse_s == 0u)
-                        {
-                            g.shutdownGateOpening = 0;
-                            GateControl_SetCommand(GateControlCommand::Open, 0);  // снять импульс открытия ворот
-                        }
-                    }
-                }
+                ProcessShutdownStage1s();
 
-                if (g.outDamperState == 1)
-                {
-                    if (g.outDamperTimer_s > 0)
-                    {
-                        g.outDamperTimer_s--;
-                    }
-                    else
-                    {
-                        g.outDamperState = 2;
-                        g.outFanOn = 1;
-                        g.shutdownOutFanRemain_s = 300;
-                        Model::DFR._Out = 1;  // включение вытяжки один раз при открытии заслонки
-                    }
-                }
-
-                if (g.outFanOn != 0 && g.shutdownOutFanRemain_s > 0)
-                {
-                    g.shutdownOutFanRemain_s--;
-                    if (g.shutdownOutFanRemain_s == 0)
-                    {
-                        g.outFanOn = 0;
-                        Model::DFR._Out = 0;  // выключение вытяжки один раз по истечении 5 мин
-                        // Завершаем продувку: закрываем заслонку.
-                        Model::DFR.Water_Flap = 0;
-                        g.outDamperState = 0;
-                        g.outDamperTimer_s = 0;
-                    }
-                }
-
-                // Последовательное выключение энергоёмких устройств:
-                // сначала ТЭНы, затем вентиляторы (в обратном порядке включению).
-                // Вытяжку (_Out) и форсунку (_Inj) не трогаем этой очередью (они управляются отдельно).
-                ApplyOutputs(
-                    /*ventLeftOn*/ 0,
-                    /*ventRightOn*/ 0,
-                    /*ten1LeftOn*/ 0,
-                    /*ten2LeftOn*/ 0,
-                    /*ten1RightOn*/ 0,
-                    /*ten2RightOn*/ 0,
-                    /*injOn*/ 0,
-                    /*outOn*/ (Model::DFR._Out != 0u) ? 1u : 0u);
-
-                if (g.outFanOn == 0 && g.shutdownOutFanRemain_s == 0 && g.shutdownGateOpening == 0)
+                if (g.shutdownStage == (uint8_t)ShutdownStage::FullGateOpen &&
+                    g.shutdownGateFullOpenActive == 0u)
                  {
                     g.shutdownActive = 0;
                     GateControl_SetCommand(GateControlCommand::Open, 0);

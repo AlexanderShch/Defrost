@@ -59,6 +59,7 @@ MSGQUEUE_OBJ_t Data_CurrentTelemetry(void)
 		DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 2);
 		DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
 	}
+    DataToServer.ShutdownActive = DefrostControl_IsShutdownActive();
 	return DataToServer;
 }
 

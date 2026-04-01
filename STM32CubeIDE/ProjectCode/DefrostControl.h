@@ -77,6 +77,7 @@ void DefrostControl_SetEnabled(uint8_t enabled);
 void DefrostControl_Update1s(void);
 uint32_t DefrostControl_GetRuntimeSeconds(void);
 uint8_t DefrostControl_IsEnabled(void);
+uint8_t DefrostControl_IsShutdownActive(void);
 uint8_t DefrostControl_GetParam(uint8_t groupId, uint8_t paramId, DefrostParamValue_t *outValue);
 uint8_t DefrostControl_SetParam(uint8_t groupId, uint8_t paramId, const DefrostParamValue_t *inValue);
 uint8_t DefrostControl_GetGroup(uint8_t groupId, uint8_t page, uint8_t *outData, uint8_t outCapacity, uint8_t *outLength);
