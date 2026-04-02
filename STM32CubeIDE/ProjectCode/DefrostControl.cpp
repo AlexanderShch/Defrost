@@ -1279,8 +1279,9 @@ static void ShutdownGoToFullGateOpen_VentCleanup()
     g.shutdownGateOpening = 0;
     g.shutdownGateLiftPulse_s = 0u;
     g.shutdownGateFullOpenActive = 0;
-    // До шага продувки заслонка и вытяжка должны быть выключены.
-    Model::DFR.Water_Flap = 0;
+    // Открываем заслонку сразу с началом завершения процесса.
+    // Вытяжка (_Out) остаётся выключенной до шага Ventilation.
+    Model::DFR.Water_Flap = 1u;
     g.outDamperState = 0;
     g.outDamperTimer_s = 0;
     g.outFanOn = 0;
