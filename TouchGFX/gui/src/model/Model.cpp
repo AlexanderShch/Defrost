@@ -201,6 +201,7 @@ DFR_REGISTERS_t Model::DFR;				// Регистр состояния управл
 DFR_REGISTERS_t Model::DFR_current;		// Регистр текущего отображения состояния управления устройствами
 DFR_REGISTERS_t Model::DFR_chng_flag;	// Регистр флагов изменения состояния управления устройствами
 DFR_REGISTERS_t Model::DFR_manual;		// Регистр ручного управления устройствами
+DO_DFR_REGISTERS_t Model::DO_DFR = {};	// Регистр выходных сигналов от модуля ввода-вывода
 DI_DFR_REGISTERS_t Model::DI_DFR = {};	// Регистр входных сигналов от устройств
 
 // определение переменных для корректировки

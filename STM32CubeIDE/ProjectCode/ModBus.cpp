@@ -340,6 +340,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			// Модуль ввода-вывода имеет индекс 6 (SQ=7), входы лежат в Read_Data_2 (T).
 			if (SensIndex == 6 && Sensor_array[SensIndex].TypeOfSensor == 4)
 			{
+				Model::DO_DFR.Raw = SW.Read_Data_1;		// Сохраняем считанные с выходов модуля ввода/вывода сигналы устройств
 				Model::DI_DFR.Raw = SW.Read_Data_2;		// Сохраняем считанные с входов модуля ввода/вывода сигналы от устройств
 				/*********************************************************************************************/
 				// Разделяем аварии ворот:
@@ -347,7 +348,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 				// - программная авария (таймаут) выставляется в GateControl.
 				Model::Gate_Alarm_Hardware = (Model::DI_DFR.Bits.Gate_Alarm != 0) ? 1u : 0u;
 				Model::Gate_Alarm = ((Model::Gate_Alarm_Program != 0u) || (Model::Gate_Alarm_Hardware != 0u)) ? 1u : 0u;
-				if (Model::Gate_Alarm != 0)
+				if (Model::Gate_Alarm_Hardware != 0u)
 				{
 					// Аппаратная авария ворот должна немедленно остановить дефростер.
 					DefrostControl_SetEnabled(0);
@@ -361,9 +362,9 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
 			{
 				// Проверка переключения устройств:
-				// если командный бит в DFR изменился, то на следующем чтении DI соответствующий вход должен стать таким же
-				// т.е. если алгоритм включил устройство в DFR, оно должно подтвердить свою работу
-				const uint16_t relayNow = (uint16_t)(*((uint16_t*)&Model::DFR) & kDeviceCheckMask);
+				// сравниваем входы DI с фактическим выходным регистром модуля IO (Read_Data_1),
+				// а не с внутренним желаемым состоянием DFR.
+				const uint16_t relayNow = (uint16_t)(Model::DO_DFR.Raw & kDeviceCheckMask);
 				if (g_prevRelayCheckedValid == 0)
 				{
 					g_prevRelayChecked = relayNow;	// Начальная установка предыдущих значений в регистре
@@ -426,6 +427,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 
 			if (SensIndex == 6 && Sensor_array[SensIndex].TypeOfSensor == 4)
 			{
+				Model::DO_DFR.Raw = (uint16_t)prevHum;
 				// Поддерживаем DI_DFR согласованным с тем, что записано в буфер для модуля IO.
 				Model::DI_DFR.Raw = (uint16_t)prevTemp;
 			}

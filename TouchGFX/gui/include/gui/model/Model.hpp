@@ -60,6 +60,13 @@ typedef struct
 
 } DFR_REGISTERS_t;
 
+// Регистр выходных сигналов дефростера, считанных с модуля ввода-вывода.
+typedef union
+{
+	uint16_t Raw;
+	DFR_REGISTERS_t Bits;
+} DO_DFR_REGISTERS_t;
+
 // Регистр входных сигналов дефростера, считанных с модуля ввода-вывода.
 typedef union
 {
@@ -152,6 +159,7 @@ public:
     static int16_t CORR_H_sensor;			// значение H для корректировки
     static int16_t CORR_R_sensor;			// значение R для корректировки
     // регистры управления устройствами
+    static DO_DFR_REGISTERS_t DO_DFR;	    // Регистр выходных сигналов дефростера, считанных с модуля ввода-вывода.
     static DI_DFR_REGISTERS_t DI_DFR;		// Регистр входных сигналов дефростера, считанных с модуля ввода-вывода.
     static DFR_REGISTERS_t DFR;				// Объявление регистра состояния управления устройствами
     static DFR_REGISTERS_t DFR_current;		// Объявление регистра текущего отображения состояния управления устройствами
