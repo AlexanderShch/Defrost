@@ -478,6 +478,14 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *Uart) {
 	else if (Uart == &huart4) 	// ошибка сканирования шины программирования
 	{
 		HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
+		// Критично: после ошибки UART4 в режиме связи с сервером Rx-DMA может остаться остановленным.
+		// Без явного перезапуска CommandReceiver больше не получает команды от сервера.
+		if (UART4_IsOwner_Programming() == 0)
+		{
+			// Возвращаем владение серверу и поднимаем приём в режиме ReceiveToIdle.
+			UART4_SetOwner_Server();
+			CommandReceiver_RestartReception();
+		}
 	}
 }
 
