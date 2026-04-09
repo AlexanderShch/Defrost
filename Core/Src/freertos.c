@@ -78,8 +78,12 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
 {
 	(void)xTask;
 	(void)pcTaskName;
-	/* Остановиться здесь в отладчике: по pcTaskName видно, какая задача переполнила стек. */
-	for (;;) { __asm volatile ("nop"); }
+	/* Фиксируем причину и перезапускаем МК, чтобы не оставлять "белый экран". */
+	g_bootFaultMarker = BOOT_FAULT_MARKER_STACKOVERFLOW;
+	g_bootFaultCounter++;
+	__DSB();
+	__ISB();
+	NVIC_SystemReset();
 }
 /* USER CODE END 1 */
 

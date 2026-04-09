@@ -42,6 +42,13 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
+/* Маркеры причин аварийного перезапуска (сохраняются в RAM между reset). */
+#define BOOT_FAULT_MARKER_NONE            0x00000000u
+#define BOOT_FAULT_MARKER_HARDFAULT       0x48415244u  /* 'HARD' */
+#define BOOT_FAULT_MARKER_MEMMANAGE       0x4D454D4Du  /* 'MEMM' */
+#define BOOT_FAULT_MARKER_BUSFAULT        0x42555346u  /* 'BUSF' */
+#define BOOT_FAULT_MARKER_USAGEFAULT      0x55534147u  /* 'USAG' */
+#define BOOT_FAULT_MARKER_STACKOVERFLOW   0x53544B4Fu  /* 'STKO' */
 
 /* USER CODE END EC */
 
@@ -54,6 +61,11 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+/* Диагностические переменные причины последнего reset/fault. */
+extern volatile uint32_t g_bootFaultMarker;
+extern volatile uint32_t g_bootResetFlagsSnapshot;
+extern volatile uint32_t g_bootFaultCounter;
+void BootDiag_CaptureResetFlags(void);
 
 /* USER CODE END EFP */
 

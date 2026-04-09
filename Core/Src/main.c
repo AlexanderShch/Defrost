@@ -264,6 +264,37 @@ static LCD_DrvTypeDef* LcdDrv;
 
 uint32_t I2c3Timeout = I2C3_TIMEOUT_MAX; /*<! таймаут при сбое обмена по I2C */
 uint32_t Spi5Timeout = SPI5_TIMEOUT_MAX; /*<! таймаут при сбое обмена по SPI */
+
+/* Диагностика перезапусков:
+ * g_bootFaultMarker/g_bootFaultCounter хранятся в .noinit и переживают программный reset.
+ * g_bootResetFlagsSnapshot — снимок флагов RCC_CSR на старте (очищается после чтения). */
+#if defined(__GNUC__)
+__attribute__((section(".noinit"))) volatile uint32_t g_bootFaultMarker;
+__attribute__((section(".noinit"))) volatile uint32_t g_bootFaultCounter;
+#else
+volatile uint32_t g_bootFaultMarker = BOOT_FAULT_MARKER_NONE;
+volatile uint32_t g_bootFaultCounter = 0u;
+#endif
+volatile uint32_t g_bootResetFlagsSnapshot = 0u;
+
+void BootDiag_CaptureResetFlags(void)
+{
+  uint32_t flags = 0u;
+  if (__HAL_RCC_GET_FLAG(RCC_FLAG_PORRST) != RESET)  flags |= (1u << 0);
+  if (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST) != RESET)  flags |= (1u << 1);
+  if (__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST) != RESET)  flags |= (1u << 2);
+  if (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST) != RESET) flags |= (1u << 3);
+  if (__HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST) != RESET) flags |= (1u << 4);
+  if (__HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST) != RESET) flags |= (1u << 5);
+  if (__HAL_RCC_GET_FLAG(RCC_FLAG_BORRST) != RESET)  flags |= (1u << 6);
+  g_bootResetFlagsSnapshot = flags;
+  /* На "холодном" старте сбрасываем маркеры прошлых падений. */
+  if ((flags & (1u << 0)) != 0u || (flags & (1u << 6)) != 0u) {
+    g_bootFaultMarker = BOOT_FAULT_MARKER_NONE;
+    g_bootFaultCounter = 0u;
+  }
+  __HAL_RCC_CLEAR_RESET_FLAGS();
+}
 /* USER CODE END 0 */
 
 /**
@@ -282,6 +313,8 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+  /* Снимаем и очищаем флаги причин перезапуска как можно раньше. */
+  BootDiag_CaptureResetFlags();
 
   /* USER CODE END Init */
 
