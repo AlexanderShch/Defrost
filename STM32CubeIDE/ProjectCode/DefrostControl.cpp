@@ -1359,11 +1359,11 @@ static void ProcessShutdownStage1s()
     }
     else if (shutdownStage == ShutdownStage::Ventilation)
     {
-        // Шаг 2: концевики заслонки по DI; таймаут — g.flapAlarm или счётчик при отладке без DeviceSwitchCheck.
+        // Шаг 2: концевики заслонки по DI; таймаут — g.flapAlarm в UpdateDeviceAlarmState() или счётчик при отладке без DeviceSwitchCheck.
         // Таймаут без Air_Open: вытяжку не включаем — сразу FullGateOpen (см. ShutdownGoToFullGateOpen_VentCleanup).
-        // Продувка только при включённой проверке: такт с _Out=0 — включить вытяжку (таймер продувки ещё не идёт);
-        // при _Out=1 — проверка бита Vent_Out в Device_AlarmFlags; без аварии — outFanOn и отсчёт 300 с + влажность возврата;
-        // при аварии или при выключенной проверке — без продувки, полное открытие ворот.
+        // После открытия заслонки: продувка по таймеру 300 с и/или по влажности возврата (RH < 50%).
+        // При включённой проверке устройств: при _Out=1 учитываем бит Vent_Out — при аварии без продувки в FullGateOpen.
+        // При выключенной проверке Vent_Out не используем, продувка так же по таймеру и влажности.
         Model::DFR.Water_Flap = 1u;
         const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;  // сигнал от концевика Air_Open
         const uint8_t airClose = (Model::DI_DFR.Bits.Air_Close != 0u) ? 1u : 0u;  // сигнал от концевика Air_Close
@@ -1374,13 +1374,19 @@ static void ProcessShutdownStage1s()
             : ((g.shutdownFlapOpenWait_s >= DEFROST_FLAP_POSITION_TIMEOUT_S) ? 1u : 0u);   // выключена - flapTimedOut = таймаут заслонки по времени
 
         if (flapTimedOut != 0u && flapOpened == 0u)
-        // если авария заслонки или заслонка не открылась, то переходим к шагу полного открытия ворот без продувки
+        // если авария заслонки (при включенной проверке устройств) ИЛИ заслонка не открылась (при таймауте при выключенной проверке устройств), 
+        // то переходим к шагу полного открытия ворот без продувки
         {
+            // Фиксируем аварийный бит заслонки в регистре аварий.
+            g.flapAlarm = 1u;   // это важно при выключенной проверке устройств
+            Model::Device_AlarmFlags |= (uint16_t)(1u << 11);   // устанавливаем бит аварии заслонки в регистре аварий
             ShutdownGoToFullGateOpen_VentCleanup();   // переходим к шагу полного открытия ворот без продувки
         }
         // заслонка открывается, ждем подтверждения открытия заслонки
         else if (flapOpened == 0u) {    // если заслонка ещё не открылась, но в процессе открытия
-            if (switchCheckOn == 0u) {   // если проверка устройств выключена
+            // ничего не делаем, ждём, т.к. при включенной проверке проверяется таймаут в UpdateDeviceAlarmState() — флаг g.flapAlarm
+            // НО:
+            if (switchCheckOn == 0u) {   // если проверка устройств выключена, то проверяем таймаут по времени
                 if (g.shutdownFlapOpenWait_s < DEFROST_FLAP_POSITION_TIMEOUT_S)    // если время ожидания открытия заслонки ещё меньше таймаута
                 {
                     ++g.shutdownFlapOpenWait_s;   // ожидаем и увеличиваем время ожидания открытия заслонки
@@ -1389,58 +1395,44 @@ static void ProcessShutdownStage1s()
         }
         else    // заслонка открылась
         {
-            if (switchCheckOn == 0u)
-            // Без проверки устройств
+            const uint16_t ventOutAlarm =   // сигнал аварии вентилятора Vent_Out (только при проверке устройств)
+                (uint16_t)(Model::Device_AlarmFlags & kDeviceAlarmVentOutBit);
+
+            if (Model::DFR._Out == 0u)    // если вентилятор вытяжки выключен
             {
-                // Без проверки устройств продувку не выполняем — сразу полное открытие ворот (вентилятор не включаем).
-                ShutdownGoToFullGateOpen_VentCleanup();
+                Model::DFR._Out = 1u;   // включаем вентилятор вытяжки
+                // До проверки аварии Vent_Out на следующем такте (DeviceSwitchCheck в ModBus) таймер продувки не ведём (remain=0, outFanOn=0).
+                g.shutdownOutFanRemain_s = 0u;   // сбрасываем таймер продувки
             }
-            // С проверкой устройств
-            else
+            else    // если вентилятор вытяжки включен
             {
-                const uint16_t ventOutAlarm =   // сигнал аварии вентилятора Vent_Out
-                    (uint16_t)(Model::Device_AlarmFlags & kDeviceAlarmVentOutBit);
-
-                if (Model::DFR._Out == 0u)    // если вентилятор вытяжки выключен
+                if (switchCheckOn != 0u && ventOutAlarm != 0u)   // авария Vent_Out только при включённой проверке устройств
                 {
-                    Model::DFR._Out = 1u;   // включаем вентилятор вытяжки
-                    // До проверки аварии Vent_Out на следующем такте (DeviceSwitchCheck в ModBus) таймер продувки не ведём (remain=0, outFanOn=0).
-                    g.shutdownOutFanRemain_s = 0u;   // сбрасываем таймер продувки
+                    ShutdownGoToFullGateOpen_VentCleanup();   // переходим к шагу полного открытия ворот без продувки
                 }
-                else
+                else    // если авария Vent_Out не произошла
                 {
-                    if (ventOutAlarm != 0u)   // если сигнал аварии вентилятора Vent_Out получен
+                    // Продувка: таймер 300 с и/или влажность воздуха на вытяжке (RH < 50%).
+                    if (g.shutdownOutFanRemain_s == 0u && g.outFanOn == 0u)
                     {
-                        ShutdownGoToFullGateOpen_VentCleanup();   // переходим к шагу полного открытия ворот без продувки
+                        g.outFanOn = 1u;   // в состоянии дефростера отмечаем, что вентилятор вытяжки включен
+                        g.shutdownOutFanRemain_s = 300u;   // устанавливаем таймер продувки на 300 секунд
                     }
-                    else
-                    // Норма: выполняем продувку
+
+                    const float RH_ret = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));   // влажность воздуха на вытяжке
+                    if (g.shutdownOutFanRemain_s > 0u)   // если таймер продувки больше 0
                     {
-                        // Первый такт после включения _Out без аварии: старт продувки (до этого outFanOn=0, remain=0).
-                        if (g.shutdownOutFanRemain_s == 0u && g.outFanOn == 0u)
-                        {
-                            g.outFanOn = 1u;   // устанавливаем флаг состояния вентилятора вытяжки
-                            g.shutdownOutFanRemain_s = 300u;   // устанавливаем время продувки
-                        }
+                        g.shutdownOutFanRemain_s--;   // уменьшаем таймер продувки
+                    }
 
-                        // Нормальная работа: проверяем влажность воздуха на вытяжке
-                        const float RH_ret = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
-                        if (g.shutdownOutFanRemain_s > 0u)
-                        {   
-                            g.shutdownOutFanRemain_s--;   // уменьшаем время продувки
-                        }
-
-                        // Если время продувки равно 0 или влажность воздуха на вытяжке меньше 50%, 
-                        // то переходим к шагу полного открытия ворот без продувки и выключаем вентилятор вытяжки
-                        if (g.shutdownOutFanRemain_s == 0u || RH_ret < 50.0f)
-                        {
-                            g.outFanOn = 0u;   // сбрасываем флаг состояния вентилятора вытяжки
-                            g.shutdownOutFanRemain_s = 0u;   // сбрасываем время продувки
-                            Model::DFR._Out = 0u;   // выключаем вентилятор вытяжки
-                            Model::DFR.Water_Flap = 0u;   // закрываем заслонку
-                            g.shutdownFlapOpenWait_s = 0u;   // сбрасываем время ожидания открытия заслонки
-                            ShutdownEnterFullGateOpenArm();   // переходим к шагу полного открытия ворот без продувки
-                        }
+                    if (g.shutdownOutFanRemain_s == 0u || RH_ret < 50.0f)   // если таймер продувки равен 0 ИЛИ влажность воздуха на вытяжке меньше 50%
+                    {
+                        g.outFanOn = 0u;   // в состоянии дефростера отмечаем, что вентилятор вытяжки выключен
+                        g.shutdownOutFanRemain_s = 0u;   // сбрасываем таймер продувки
+                        Model::DFR._Out = 0u;   // выключаем вентилятор вытяжки
+                        Model::DFR.Water_Flap = 0u;   // закрываем заслонку
+                        g.shutdownFlapOpenWait_s = 0u;   // сбрасываем время ожидания открытия заслонки
+                        ShutdownEnterFullGateOpenArm();   // переходим к шагу полного открытия ворот
                     }
                 }
             }

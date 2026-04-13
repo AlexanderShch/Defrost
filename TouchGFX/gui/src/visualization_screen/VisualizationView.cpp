@@ -319,10 +319,18 @@ void VisualizationView::syncDeviceAlarmIndicators()
 		ta.invalidate();
 	}
 
+	// Мигание синхронно с общей индикацией АВАРИЯ (_Alr).
+	const bool alarmBlinkOn = (Model::DFR_current._Alr != 0);
+
 	// Авария подтверждения вытяжки (рассогласование выход/вход по Vent_Out)
 	const bool ventOutAlarm = (af & (1u << 8)) != 0;
-	Vent_Out_Alarm.setVisible(ventOutAlarm);
+	Vent_Out_Alarm.setVisible(ventOutAlarm && alarmBlinkOn);
 	Vent_Out_Alarm.invalidate();
+
+	// Авария заслонки (бит 11)
+	const bool flapAlarm = (af & (1u << 11)) != 0;
+	Flap_Alarm.setVisible(flapAlarm && alarmBlinkOn);
+	Flap_Alarm.invalidate();
 }
 
 void VisualizationView::syncExhaustFanAndFlapFromInputs()

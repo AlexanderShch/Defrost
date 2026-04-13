@@ -718,6 +718,18 @@
             "Radius": 10.0,
             "EndAngle": 360.0,
             "CapPrecision": "Butt"
+          },
+          {
+            "Type": "Box",
+            "Name": "Flap_Alarm",
+            "X": 108,
+            "Y": 6,
+            "Width": 25,
+            "Height": 23,
+            "Visible": false,
+            "Color": {
+              "Red": 255
+            }
           }
         ],
         "Interactions": [
