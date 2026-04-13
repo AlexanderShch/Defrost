@@ -178,6 +178,8 @@ static uint8_t g_prevRelayCheckedValid = 0;
 // Ожидаемые состояния входов после переключения выходов.
 static uint16_t g_pendingCheckMask = 0;
 static uint16_t g_expectedDiBits = 0;
+// Защита от многократного автозапуска при удержании кнопки ПУСК.
+static uint8_t g_prevButStart = 0u;
 
 // Обработка случая, когда вход не переключился вслед за выходом на следующем опросе.
 // TODO: добавить нужную бизнес-логику (авария/лог/уведомление/останов и т.д.).
@@ -342,6 +344,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			{
 				Model::DO_DFR.Raw = SW.Read_Data_1;		// Сохраняем считанные с выходов модуля ввода/вывода сигналы устройств
 				Model::DI_DFR.Raw = SW.Read_Data_2;		// Сохраняем считанные с входов модуля ввода/вывода сигналы от устройств
+				const uint8_t butStartNow = (Model::DI_DFR.Bits.But_Start != 0u) ? 1u : 0u;
 				/*********************************************************************************************/
 				// Разделяем аварии ворот:
 				// - аппаратная авария с входа Gate_Alarm (DI bit 11),
@@ -353,6 +356,13 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 					// Аппаратная авария ворот должна немедленно остановить дефростер.
 					DefrostControl_SetEnabled(0);
 				}
+
+				else if (butStartNow != 0u && g_prevButStart == 0u && DefrostControl_IsEnabled() == 0u)
+				{
+					// Вход But_Start (бит 14, IN14) запускает автоалгоритм только по фронту и только если авто ещё не запущен.
+					DefrostControl_SetEnabled(1);
+				}
+				g_prevButStart = butStartNow;
 				/*********************************************************************************************/
 			}
 

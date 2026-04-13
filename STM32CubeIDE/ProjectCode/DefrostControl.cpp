@@ -1281,7 +1281,7 @@ static void ShutdownGoToFullGateOpen_VentCleanup()
     // Форсунки: отключить увлажнение
     Model::DFR._Inj = 0;
 
-    // Подготавливаем state-machine завершения post-shutdown.
+    // Подготавливаем состояния для завершения post-shutdown.
     g.shutdownStage = (uint8_t)ShutdownStage::StopActuatorsAndGatePulse;
     g.shutdownFlapOpenWait_s = 0;
     g.shutdownGateOpening = 0;
