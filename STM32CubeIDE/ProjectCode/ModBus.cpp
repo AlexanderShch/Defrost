@@ -345,6 +345,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 				Model::DO_DFR.Raw = SW.Read_Data_1;		// Сохраняем считанные с выходов модуля ввода/вывода сигналы устройств
 				Model::DI_DFR.Raw = SW.Read_Data_2;		// Сохраняем считанные с входов модуля ввода/вывода сигналы от устройств
 				const uint8_t butStartNow = (Model::DI_DFR.Bits.But_Start != 0u) ? 1u : 0u;
+				const uint8_t butStopNow = (Model::DI_DFR.Bits.But_Stop != 0u) ? 1u : 0u;
 				/*********************************************************************************************/
 				// Разделяем аварии ворот:
 				// - аппаратная авария с входа Gate_Alarm (DI bit 11),
@@ -354,6 +355,12 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 				if (Model::Gate_Alarm_Hardware != 0u)
 				{
 					// Аппаратная авария ворот должна немедленно остановить дефростер.
+					DefrostControl_SetEnabled(0);
+				}
+
+				else if (butStopNow == 0u && DefrostControl_IsEnabled() != 0u)
+				{
+					// В норме But_Stop=1. Уровень 0 при активном автоалгоритме трактуем как команду STOP (как от сервера).
 					DefrostControl_SetEnabled(0);
 				}
 
