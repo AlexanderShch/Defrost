@@ -10,6 +10,8 @@
 
 #define DEFROST_PHASE_COUNT 3
 #define DEFROST_MAX_SENSOR_COUNT 6   /* в алгоритме участвуют только датчики 0..5 */
+/** Таймаут достижения положения заслонки по Air_Open/Air_Close, с (UpdateDeviceAlarmState + ModBus). */
+#define DEFROST_FLAP_POSITION_TIMEOUT_S  18u
 
 typedef enum {
     DEFROST_PARAM_GROUP_SENSORS = 1,
@@ -91,6 +93,10 @@ void DefrostControl_LoadParams(void);
 float DefrostControl_GetFishColdTarget_C(void);
 void DefrostControl_SetFishColdTarget_C(float val_C);
 uint8_t DefrostControl_IsDeviceSwitchCheckEnabled(void);
+/** Рассогласование Water_Flap и концевиков (ModBus, каждый опрос): защёлкнуть g.flapAlarm и бит 11 в Device_AlarmFlags. */
+void DefrostControl_NotifyFlapWaterDiMismatchFromIo(void);
+/** Секунды с момента смены Water_Flap при включённой проверке (0, если проверка выключена). Для грации в ModBus. */
+uint16_t DefrostControl_GetFlapTransitionElapsedSForSwitchCheck(void);
 
 /* Ответ GET_DEFROST_GROUP(groupId=5): фиксированная структура — копирование памяти, без TLV. */
 typedef struct __attribute__((packed)) {

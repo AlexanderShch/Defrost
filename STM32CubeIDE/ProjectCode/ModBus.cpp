@@ -172,12 +172,6 @@ int Parametr_CORR;
 static const uint16_t kDeviceCheckMask = (1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) |
                                          (1u << 4) | (1u << 5) | (1u << 6) | (1u << 7) |
                                          (1u << 8);
-// Последний снимок выходного регистра для отслеживания переключений.
-static uint16_t g_prevRelayChecked = 0;
-static uint8_t g_prevRelayCheckedValid = 0;
-// Ожидаемые состояния входов после переключения выходов.
-static uint16_t g_pendingCheckMask = 0;
-static uint16_t g_expectedDiBits = 0;
 // Защита от многократного автозапуска при удержании кнопки ПУСК.
 static uint8_t g_prevButStart = 0u;
 
@@ -189,6 +183,71 @@ static void HandleDeviceSwitchCheckMismatch(uint16_t mismatchMask, uint16_t expe
 	Model::Device_AlarmFlags |= (uint16_t)(mismatchMask & kDeviceCheckMask);
 	(void)expectedBits;
 	(void)actualBits;
+}
+
+// При включённой проверке устройств: каждый успешный опрос IO — DO/DI по маске + соответствие Water_Flap концевикам.
+// Исключение «закрытие/открытие по таймауту» при debugDisableDeviceSwitchCheck: этот блок не вызывается.
+// Промежуток Air_Open=0, Air_Close=0 — ход заслонки, не считаем ошибкой соответствия Water_Flap.
+static void RunContinuousDeviceSwitchCheckAfterIoRead(void)
+{
+	const uint16_t doNow = (uint16_t)(Model::DO_DFR.Raw & kDeviceCheckMask);
+	const uint16_t diNow = (uint16_t)(Model::DI_DFR.Raw & kDeviceCheckMask);
+	const uint16_t mismatchDevices = (uint16_t)(doNow ^ diNow);
+	if (mismatchDevices != 0u)
+	{
+		HandleDeviceSwitchCheckMismatch(mismatchDevices, 0u, 0u);
+	}
+
+	const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
+	const uint8_t airClose = (Model::DI_DFR.Bits.Air_Close != 0u) ? 1u : 0u;
+	const uint8_t flapOpened = (airOpen != 0u && airClose == 0u) ? 1u : 0u;
+	const uint8_t flapClosedOk = (airClose != 0u && airOpen == 0u) ? 1u : 0u;
+	const uint8_t diMoving = (airOpen == 0u && airClose == 0u) ? 1u : 0u;
+	const uint8_t diInvalid = (airOpen != 0u && airClose != 0u) ? 1u : 0u;
+
+	const uint8_t desiredOpen =
+		((Model::Flag_DFR_manual != 0u) ? Model::DFR_manual.Water_Flap : Model::DFR.Water_Flap) ? 1u : 0u;
+
+	uint8_t flapMismatch = 0u;
+	if (diInvalid != 0u)
+	{
+		flapMismatch = 1u;
+	}
+	else if (diMoving != 0u)
+	{
+		// Оба концевика 0 — ход заслонки; не сравниваем с Water_Flap.
+		flapMismatch = 0u;
+	}
+	else
+	{
+		// Та же грация по времени, что в UpdateDeviceAlarmState (секунды после смены Water_Flap).
+		const uint16_t flapElapsed = DefrostControl_GetFlapTransitionElapsedSForSwitchCheck();
+		const uint8_t flapGrace = (flapElapsed < (uint16_t)DEFROST_FLAP_POSITION_TIMEOUT_S) ? 1u : 0u;
+		if (flapGrace == 0u)
+		{
+			if (desiredOpen != 0u)
+			{
+				if (flapOpened == 0u)
+				{
+					flapMismatch = 1u;
+				}
+			}
+			else
+			{
+				if (flapClosedOk == 0u)
+				{
+					flapMismatch = 1u;
+				}
+			}
+		}
+	}
+
+	if (flapMismatch != 0u)
+	{
+		DefrostControl_NotifyFlapWaterDiMismatchFromIo();
+	}
+
+	EnforceHeaterInterlockByFans();
 }
 
 // Принудительное отключение ТЭНов, если не подтверждена работа вентиляторов в группе.
@@ -374,53 +433,11 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			}
 
 			/*****************************************************************************
-			 * КОНТРОЛЬ РАбОТОСПОСОбНОСТИ УСТРОЙСТВ
+			 * КОНТРОЛЬ РАбОТОСПОСОбНОСТИ УСТРОЙСТВ (каждый успешный опрос IO при включённой проверке)
 			 *****************************************************************************/
 			if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
 			{
-				// Проверка переключения устройств:
-				// сравниваем входы DI с фактическим выходным регистром модуля IO (Read_Data_1),
-				// а не с внутренним желаемым состоянием DFR.
-				const uint16_t relayNow = (uint16_t)(Model::DO_DFR.Raw & kDeviceCheckMask);
-				if (g_prevRelayCheckedValid == 0)
-				{
-					g_prevRelayChecked = relayNow;	// Начальная установка предыдущих значений в регистре
-					g_prevRelayCheckedValid = 1;
-				}
-				else
-				{
-					// биты, которые только что поменялись
-					const uint16_t relayChanged = (uint16_t)(relayNow ^ g_prevRelayChecked);
-					if (relayChanged != 0u)
-					{
-						// маска для входов, на которых изменилось состояние
-						g_pendingCheckMask = (uint16_t)(g_pendingCheckMask | relayChanged);
-						// ожидаемые на входах DI сигналы подтверждения включения устройств
-						// Для битов, не вошедших в relayChanged, оставляем старое ожидание как было,
-						// т.е. должно прийти на входы DI в соответствии с включенными устройствами ранее
-						g_expectedDiBits = (uint16_t)((g_expectedDiBits & (uint16_t)(~relayChanged)) 
-						// Для битов из relayChanged подставляем новое командное состояние с выходов — relayNow на этих позициях
-													| (relayNow & relayChanged));
-						// проверенное состояние реле теперь записываем в предыдущее состояние реле
-						g_prevRelayChecked = relayNow;
-					}
-				}
-
-				if (g_pendingCheckMask != 0u)	// если есть изменения битов для проверки
-				{
-					const uint16_t diNow = (uint16_t)(Model::DI_DFR.Raw & kDeviceCheckMask);	// текущие входы DI
-					const uint16_t mismatchMask = (uint16_t)((diNow ^ g_expectedDiBits) & g_pendingCheckMask);	// маска несовпадений
-					if (mismatchMask != 0u)	// если есть несовпадения
-					{
-						// обработка несовпадений
-						HandleDeviceSwitchCheckMismatch(mismatchMask, g_expectedDiBits, diNow);
-					}
-					// Проверка выполняется один раз на "следующем считывании входов" после переключения.
-					g_pendingCheckMask = 0u;
-				}
-
-				// По входам вентиляторов контролируем межблокировку групп ТЭНов.
-				EnforceHeaterInterlockByFans();
+				RunContinuousDeviceSwitchCheckAfterIoRead();
 			}
 			break;
 		}

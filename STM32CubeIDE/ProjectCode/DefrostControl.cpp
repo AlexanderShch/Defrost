@@ -29,9 +29,6 @@
 
 #define DEFAULT_DEBUG_DISABLE_TARGET_T_STOP  0u   /* 0 = автостоп по целевой Т включен (по умолчанию) */
 
-/* Таймаут достижения положения заслонки по концевикам Air_Open/Air_Close, с (искать: DEFROST_FLAP_POSITION_TIMEOUT_S). */
-#define DEFROST_FLAP_POSITION_TIMEOUT_S  18u
-
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern osSemaphoreId_t SensorsReadDone_SemHandle;
 extern unsigned int TimeFromStart;
@@ -2246,6 +2243,21 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
     uint8_t DefrostControl_IsDeviceSwitchCheckEnabled(void)
     {
         return (g_defrostParams.debugDisableDeviceSwitchCheck == 0u) ? 1u : 0u;
+    }
+
+    void DefrostControl_NotifyFlapWaterDiMismatchFromIo(void)
+    {
+        g.flapAlarm = 1u;
+        Model::Device_AlarmFlags |= (uint16_t)(1u << 11);
+    }
+
+    uint16_t DefrostControl_GetFlapTransitionElapsedSForSwitchCheck(void)
+    {
+        if (g_defrostParams.debugDisableDeviceSwitchCheck != 0u)
+        {
+            return 0u;
+        }
+        return (uint16_t)g.flapTransitionElapsed_s;
     }
  
      void DefrostControl_Update1s(void)
