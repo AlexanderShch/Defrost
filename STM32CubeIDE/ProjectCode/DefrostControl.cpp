@@ -24,6 +24,7 @@
  #include "Data.hpp"                 // индексы датчиков SQ
  #include "DefrostControl.h"
  #include "GateControl.hpp"
+#include "main.h"
  #include <gui/model/Model.hpp>      // Model::getCurrentVal_H, Model::DFR (T для алгоритма — Sensor Param 4)
  #include "ModBus.hpp"
 
@@ -107,38 +108,44 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
 
      inline void ComputeDefrostAirControlInputs(DefrostAirControlInputs* a)
      {
-         a->mL   = DeciToC(FilteredSensorT_Deci(kSensSupLeft_T_H));
-         a->mR   = DeciToC(FilteredSensorT_Deci(kSensSupRight_T_H));
-         a->mRet = DeciToC(FilteredSensorT_Deci(kSensReturn_T_H));
-         a->okL   = DefrostAirThChannelUsable(kSensSupLeft_T_H) ? 1u : 0u;
-         a->okR   = DefrostAirThChannelUsable(kSensSupRight_T_H) ? 1u : 0u;
-         a->okRet = DefrostAirThChannelUsable(kSensReturn_T_H) ? 1u : 0u;
+         a->mL   = DeciToC(FilteredSensorT_Deci(kSensSupLeft_T_H)); // получаем значения с левого датчика воздушного потока
+         a->mR   = DeciToC(FilteredSensorT_Deci(kSensSupRight_T_H)); // получаем значения с правого датчика воздушного потока
+         a->mRet = DeciToC(FilteredSensorT_Deci(kSensReturn_T_H)); // получаем значения с датчика возврата
+         a->okL   = DefrostAirThChannelUsable(kSensSupLeft_T_H) ? 1u : 0u; // проверяем, исправен ли левый датчик воздушного потока
+         a->okR   = DefrostAirThChannelUsable(kSensSupRight_T_H) ? 1u : 0u; // проверяем, исправен ли правый датчик воздушного потока
+         a->okRet = DefrostAirThChannelUsable(kSensReturn_T_H) ? 1u : 0u; // проверяем, исправен ли датчик возврата
 
-         const unsigned nSup = (unsigned)a->okL + (unsigned)a->okR;
-         if (nSup > 0u)
-             a->T_sup_avg_C = ((a->okL ? a->mL : 0.0f) + (a->okR ? a->mR : 0.0f)) / (float)nSup;
+         const unsigned nSup = (unsigned)a->okL + (unsigned)a->okR; // считаем количество исправных датчиков воздушного потока
+         if (nSup > 0u) // если есть исправные датчики воздушного потока, то среднее значение температуры воздушного потока равно среднему значению температуры с левого и правого датчиков воздушного потока
+             a->T_sup_avg_C = ((a->okL ? a->mL : 0.0f) + (a->okR ? a->mR : 0.0f)) / (float)nSup; // среднее значение температуры воздушного потока
+         // НЕТ исправных датчиков воздушного потока, но есть исправный датчик возврата
          else if (a->okRet != 0u)
-             a->T_sup_avg_C = a->mRet + kSupplyTInferOffsetFromReturn_C;
-         else
-             a->T_sup_avg_C = 0.0f;
+            // если датчик возврата исправен, то среднее значение температуры воздушного потока равно значению датчика возврата плюс смещение    
+            a->T_sup_avg_C = a->mRet + kSupplyTInferOffsetFromReturn_C; 
+         // НЕТ исправных датчиков воздушного потока и НЕТ исправного датчика возврата
+         else 
+            // если все датчики воздушного потока НЕисправны, то среднее значение температуры воздушного потока равно 0
+            a->T_sup_avg_C = 0.0f;  // если =0, то heatScale01 принудительно обнуляется — нагрев по воздушному контуру отключается
 
-         if (a->okRet != 0u)
-             a->T_ret_C = a->mRet;
-         else
-             a->T_ret_C = a->T_sup_avg_C;
+         if (a->okRet != 0u) 
+            // если датчик возврата исправен, то температура возврата равна значению датчика возврата
+            a->T_ret_C = a->mRet;
+         else 
+            // если датчик возврата НЕисправен, то температура возврата равна среднему значению температуры воздушного потока
+            a->T_ret_C = a->T_sup_avg_C;
 
-         const float RH_supL = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupLeft_T_H));
-         const float RH_supR = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupRight_T_H));
+         const float RH_supL = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupLeft_T_H)); // получаем значение относительной влажности с левого датчика воздушного потока
+         const float RH_supR = DeciToRH((int16_t)Model::getCurrentVal_H(kSensSupRight_T_H)); // получаем значение относительной влажности с правого датчика воздушного потока
          if (a->okL != 0u && a->okR != 0u)
-             a->RH_sup_avg = 0.5f * (RH_supL + RH_supR);
+             a->RH_sup_avg = 0.5f * (RH_supL + RH_supR); // если оба датчика воздушного потока исправны, то среднее значение относительной влажности равно среднему значению относительной влажности с левого и правого датчиков воздушного потока
          else if (a->okL != 0u)
-             a->RH_sup_avg = RH_supL;
+             a->RH_sup_avg = RH_supL; // если левый датчик воздушного потока исправен, то среднее значение относительной влажности равно значению относительной влажности с левого датчика воздушного потока
          else if (a->okR != 0u)
-             a->RH_sup_avg = RH_supR;
+             a->RH_sup_avg = RH_supR; // если правый датчик воздушного потока исправен, то среднее значение относительной влажности равно значению относительной влажности с правого датчика воздушного потока
          else if (a->okRet != 0u)
              a->RH_sup_avg = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
          else
-             a->RH_sup_avg = 50.0f;
+             a->RH_sup_avg = 50.0f; // если все датчики воздушного потока неисправны, то среднее значение относительной влажности равно 50%
      }
  
      // Допущения по психрометрии.
@@ -786,7 +793,7 @@ static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ 
        ************************************/  
        // Воздушный контур: T/RH подачи и возврата с учётом отключённых датчиков (Active) и аварии обрезок.
          DefrostAirControlInputs airIn = {};
-         ComputeDefrostAirControlInputs(&airIn);
+         ComputeDefrostAirControlInputs(&airIn);    // получаем значения с датчиков воздушного потока
          const float RH_ret   = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
          (void)RH_ret;
 
@@ -1405,6 +1412,7 @@ static void ProcessShutdownStage1s()
             {
                 if (switchCheckOn != 0u && ventOutAlarm != 0u)   // авария Vent_Out только при включённой проверке устройств
                 {
+ //                   HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_SET);
                     ShutdownGoToFullGateOpen_VentCleanup();   // переходим к шагу полного открытия ворот без продувки
                 }
                 else    // если авария Vent_Out не произошла

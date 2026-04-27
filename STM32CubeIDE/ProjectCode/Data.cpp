@@ -73,6 +73,9 @@ MSGQUEUE_OBJ_t Data_CurrentTelemetry(void)
 uint16_t RelayRegister = 0;				// Объявление регистра аппаратного управления устройствами
 
 MB_Error_t result;
+static uint8_t s_rxErrorStreak[SQ] = {0};           // подряд идущие ошибки приёма по каждому датчику
+static uint16_t s_sensorCommLostMask = 0u;          // датчики, отключённые из-за 3 подряд ошибок приёма
+static const uint16_t kDeviceAlarmSensorCommBit = (uint16_t)(1u << 12); // агрегированный флаг "есть потерянный датчик"
 
 // Определение статических переменных.
 // Текущее количество измерений (секунд от старта).
@@ -313,6 +316,29 @@ void ReadDataFunc() {
 			{
 				// Продолжаем для активного датчика
 				result = Sensor_Read(SensorIndex);
+				if (result == MB_ERROR_UART_RECIEVE || result == MB_ERROR_DMA_RECIEVE)
+				{
+					if (s_rxErrorStreak[SensorIndex] < 255u)
+					{
+						s_rxErrorStreak[SensorIndex]++;
+					}
+					// Если ошибка приёма повторилась 3 раза подряд — отключаем датчик и фиксируем аварию.
+					if (s_rxErrorStreak[SensorIndex] >= 3u)
+					{
+						Sensor_array[SensorIndex].Active = 0u;
+						if (SensorIndex < 16)
+						{
+							const uint16_t sensorBit = (uint16_t)(1u << SensorIndex);
+							s_sensorCommLostMask |= sensorBit;
+							Model::Sensor_AlarmFlags |= sensorBit;
+						}
+						Model::Device_AlarmFlags |= kDeviceAlarmSensorCommBit;
+					}
+				}
+				else
+				{
+					s_rxErrorStreak[SensorIndex] = 0u;
+				}
 
 				// Температура: сырая T (Param 2) → антиспайк → буфер T_Clamped → среднее в Param 4 (алгоритм, лог).
 				Sensor::ApplyTemperatureClampedBufferAndAverage((unsigned char)SensorIndex, TimeFromStart);
@@ -347,6 +373,28 @@ void ReadDataFunc() {
 
 		// проверим не активные датчики на активность
 		MB_Master_Init();
+		// Если ранее отключённый по связи датчик снова ответил и стал Active=1 — снимаем его аварийный признак.
+		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
+		{
+			if (SensorIndex < 16)
+			{
+				const uint16_t sensorBit = (uint16_t)(1u << SensorIndex);
+				if (((s_sensorCommLostMask & sensorBit) != 0u) && (Sensor_array[SensorIndex].Active == 1u))	// если датчик снова активен, то сбрасываем аварийный бит в регистре Sensor_AlarmFlags
+				{
+					s_sensorCommLostMask &= (uint16_t)~sensorBit;		// сбрасываем аварийный бит в регистре Sensor_AlarmFlags
+					Model::Sensor_AlarmFlags &= (uint16_t)~sensorBit;	// сбрасываем аварийный бит в регистре Sensor_AlarmFlags
+					s_rxErrorStreak[SensorIndex] = 0u;				// сбрасываем счётчик ошибок приёма
+				}
+			}
+		}
+		if (s_sensorCommLostMask != 0u)		// если ещё остались отключённые датчики, то фиксируем аварийный бит в регистре Device_AlarmFlags
+		{
+			Model::Device_AlarmFlags |= kDeviceAlarmSensorCommBit;
+		}
+		else // если все датчики снова активны, то сбрасываем аварийный бит в регистре Device_AlarmFlags
+		{
+			Model::Device_AlarmFlags &= (uint16_t)~kDeviceAlarmSensorCommBit;
+		}
 
 		// работа с корректировкой датчика
 			if (Model::Flag_CORR_ready == 1) {

@@ -56,6 +56,7 @@ extern "C" uint8_t UART4_IsOwner_Programming(void)
 // Объявления функций CommandReceiver для обработки данных от сервера
 void CommandReceiver_OnDataReceived(uint16_t receivedSize);
 void CommandReceiver_RestartReception(void);
+static void EnforceHeaterInterlockByFans(void);
 
 extern unsigned int TimeFromStart;
 extern uint16_t RelayRegister;	// временная переменная, заменяющая регистр аппаратного управления устройствами
@@ -180,7 +181,7 @@ static uint8_t g_prevButStart = 0u;
 static void HandleDeviceSwitchCheckMismatch(uint16_t mismatchMask, uint16_t expectedBits, uint16_t actualBits)
 {
 	// Накопительно фиксируем аварийные биты рассогласования "выход->вход".
-	Model::Device_AlarmFlags |= (uint16_t)(mismatchMask & kDeviceCheckMask);
+	Model::Device_AlarmFlags |= (uint16_t)(mismatchMask & kDeviceCheckMask);	// mismatchMask - маска рассогласования, kDeviceCheckMask - маска устройств для проверки
 	(void)expectedBits;
 	(void)actualBits;
 }
@@ -193,7 +194,7 @@ static void RunContinuousDeviceSwitchCheckAfterIoRead(void)
 	const uint16_t doNow = (uint16_t)(Model::DO_DFR.Raw & kDeviceCheckMask);
 	const uint16_t diNow = (uint16_t)(Model::DI_DFR.Raw & kDeviceCheckMask);
 	const uint16_t mismatchDevices = (uint16_t)(doNow ^ diNow);
-	if (mismatchDevices != 0u)
+	if (mismatchDevices != 0u)		// если есть рассогласование, то фиксируем аварийный бит
 	{
 		HandleDeviceSwitchCheckMismatch(mismatchDevices, 0u, 0u);
 	}
@@ -711,8 +712,6 @@ void ProgrammingSensor()
 				// UART4 общий с сервером. В программировании меняется baud и RX DMA-буфер,
 				// поэтому серверный RX нужно приостановить на всё время программирования.
 				UART4_SetOwner_Programming();
-				// Индикация: UART4 в режиме PROGRAMMING (LD4/PG14).
-				HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_SET);
 				HAL_UART_AbortReceive(&huart4);
 				osDelay(2);
 
@@ -773,8 +772,6 @@ void ProgrammingSensor()
 				// Возвращаем UART4 к настройкам сервера и возобновляем приём команд.
 				PR_UART4_Init(19200);
 				UART4_SetOwner_Server();
-				// Индикация: UART4 вышел из режима PROGRAMMING (LD4/PG14).
-				HAL_GPIO_WritePin(GPIOG, LD4_Pin, GPIO_PIN_RESET);
 				CommandReceiver_RestartReception();
 				break;
 			}
