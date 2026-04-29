@@ -1,7 +1,27 @@
 #include <gui/home_screen/HomeView.hpp>
 #include <gui/model/Model.hpp>
 #include <touchgfx/Unicode.hpp>
+#include <touchgfx/Color.hpp>
 #include "DefrostControl.h"
+#include "ModBus.hpp"
+
+extern SENSOR_typedef_t Sensor_array[SQ];
+
+namespace
+{
+constexpr int kNoDataMarker = -32768;
+const touchgfx::colortype kColorNormal = touchgfx::Color::getColorFromRGB(232, 246, 251);
+const touchgfx::colortype kColorAlarm = touchgfx::Color::getColorFromRGB(255, 0, 0);
+
+inline bool IsProductSensorInactiveAlarm(int sensorIndex)
+{
+	if (sensorIndex < 0 || sensorIndex >= SQ)
+	{
+		return false;
+	}
+	return (Sensor_array[sensorIndex].Active == 0u) && ((Model::Sensor_AlarmFlags & (1u << sensorIndex)) != 0u);
+}
+}
 
 HomeView::HomeView()
 {
@@ -51,14 +71,32 @@ void HomeView::tearDownScreen()
 // 3 - fish left temperature
 void HomeView::Val_T_3UpdateView(int Val)
 {
-	Unicode::snprintfFloat(ValueCoreT1Buffer, sizeof(ValueCoreT1Buffer), "%.1f", (float)Val/10);
+	if (IsProductSensorInactiveAlarm(3) || Val == kNoDataMarker)
+	{
+		Unicode::snprintf(ValueCoreT1Buffer, sizeof(ValueCoreT1Buffer), "--");
+		ValueCoreT1.setColor(kColorAlarm);
+	}
+	else
+	{
+		Unicode::snprintfFloat(ValueCoreT1Buffer, sizeof(ValueCoreT1Buffer), "%.1f", (float)Val/10);
+		ValueCoreT1.setColor(kColorNormal);
+	}
 	ValueCoreT1.invalidate();
 }
 
 // 4 - fish right temperature
 void HomeView::Val_T_4UpdateView(int Val)
 {
-	Unicode::snprintfFloat(ValueCoreT2Buffer, sizeof(ValueCoreT2Buffer), "%.1f", (float)Val/10);
+	if (IsProductSensorInactiveAlarm(4) || Val == kNoDataMarker)
+	{
+		Unicode::snprintf(ValueCoreT2Buffer, sizeof(ValueCoreT2Buffer), "--");
+		ValueCoreT2.setColor(kColorAlarm);
+	}
+	else
+	{
+		Unicode::snprintfFloat(ValueCoreT2Buffer, sizeof(ValueCoreT2Buffer), "%.1f", (float)Val/10);
+		ValueCoreT2.setColor(kColorNormal);
+	}
 	ValueCoreT2.invalidate();
 }
 

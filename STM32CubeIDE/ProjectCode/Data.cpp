@@ -56,8 +56,17 @@ MSGQUEUE_OBJ_t Data_CurrentTelemetry(void)
 	{
 		DataToServer.SensorType[SensorIndex] = Sensor_array[SensorIndex].TypeOfSensor;
 		DataToServer.Active[SensorIndex] = Sensor_array[SensorIndex].Active;
-		DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 2);
-		DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
+		if (Sensor_array[SensorIndex].Active == 0u)
+		{
+			// Для неактивного датчика явно передаём маркер отсутствия данных.
+			DataToServer.T[SensorIndex] = SENSOR_NO_DATA_MARKER;
+			DataToServer.H[SensorIndex] = SENSOR_NO_DATA_MARKER;
+		}
+		else
+		{
+			DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 2);
+			DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
+		}
 	}
     DataToServer.ShutdownActive = DefrostControl_IsShutdownActive();
 	return DataToServer;

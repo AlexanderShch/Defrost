@@ -1,10 +1,26 @@
 #include <gui/settings6_screen/Settings6View.hpp>
 #include <gui_generated/containers/TextContainerBase.hpp>
+#include <touchgfx/Color.hpp>
 
 #include "string.h"
 
 extern SENSOR_Type_t Sensor_type[STQ];
 extern SENSOR_typedef_t Sensor_array[SQ];
+
+namespace
+{
+const touchgfx::colortype kColorNormal = touchgfx::Color::getColorFromRGB(232, 246, 251);
+const touchgfx::colortype kColorAlarm = touchgfx::Color::getColorFromRGB(255, 0, 0);
+
+inline bool IsSelectedSensorInactiveAlarm(uint8_t sensorIndex)
+{
+	if (sensorIndex >= SQ)
+	{
+		return false;
+	}
+	return (Sensor_array[sensorIndex].Active == 0u) && ((Model::Sensor_AlarmFlags & (1u << sensorIndex)) != 0u);
+}
+}
 
 Settings6View::Settings6View():
 	//Создание смарт-пойнтеров на функции Handler для Callback
@@ -434,26 +450,57 @@ void Settings6View::Print_Whole_Digit()
 // отображение считанных из датчика значений
 void Settings6View::CorrData_T_View()
 {
-	// Показываем текущее значение коррекции T всегда (включая 0 и отрицательные).
-	Unicode::snprintfFloat(CurrentValue_TBuffer, sizeof(CurrentValue_TBuffer), "%5.1f", (float)Model::T_CORR_sensor/10);
+	if (IsSelectedSensorInactiveAlarm(SetAddress))
+	{
+		Unicode::strncpy(CurrentValue_TBuffer, "--", 3);
+		CurrentValue_T.setColor(kColorAlarm);
+	}
+	else
+	{
+		// Показываем текущее значение коррекции T всегда (включая 0 и отрицательные).
+		Unicode::snprintfFloat(CurrentValue_TBuffer, sizeof(CurrentValue_TBuffer), "%5.1f", (float)Model::T_CORR_sensor/10);
+		CurrentValue_T.setColor(kColorNormal);
+	}
 	CurrentValue_T.invalidate();
 }
 void Settings6View::CorrData_H_View()
 {
 	SwitchHRvisible();
-	if (Model::H_CORR_sensor != 0)
+	if (IsSelectedSensorInactiveAlarm(SetAddress))
+	{
+		Unicode::strncpy(CurrentValue_HBuffer, "--", 3);
+		CurrentValue_H.setColor(kColorAlarm);
+	}
+	else if (Model::H_CORR_sensor != 0)
+	{
 		Unicode::snprintfFloat(CurrentValue_HBuffer, sizeof(CurrentValue_HBuffer), "%5.1f", (float)Model::H_CORR_sensor/10);
+		CurrentValue_H.setColor(kColorNormal);
+	}
 	else
+	{
 		Unicode::strncpy(CurrentValue_HBuffer, "---", 4); //buffer belongs to textArea
+		CurrentValue_H.setColor(kColorNormal);
+	}
 	CurrentValue_H.invalidate();
 }
 void Settings6View::CorrData_R_View()
 {
 	SwitchHRvisible();
-	if (Model::R_CORR_sensor != 0)
+	if (IsSelectedSensorInactiveAlarm(SetAddress))
+	{
+		Unicode::strncpy(CurrentValue_RBuffer, "--", 3);
+		CurrentValue_R.setColor(kColorAlarm);
+	}
+	else if (Model::R_CORR_sensor != 0)
+	{
 		Unicode::snprintfFloat(CurrentValue_RBuffer, sizeof(CurrentValue_RBuffer), "%5.1f", (float)Model::R_CORR_sensor/10);
+		CurrentValue_R.setColor(kColorNormal);
+	}
 	else
+	{
 		Unicode::strncpy(CurrentValue_RBuffer, "---", 4); //buffer belongs to textArea
+		CurrentValue_R.setColor(kColorNormal);
+	}
 	CurrentValue_R.invalidate();
 }
 

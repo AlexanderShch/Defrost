@@ -100,6 +100,17 @@ void VisualizationPresenter::ValUpdatePresenter()
 			}
 		}
 	}
+	// Принудительно обновляем отображение датчиков каждый тик,
+	// чтобы сразу показать/снять маркер "--" при смене активности датчика.
+	view.Val_T_0UpdateView(Model::getCurrentVal_T(0));
+	view.Val_T_1UpdateView(Model::getCurrentVal_T(1));
+	view.Val_T_2UpdateView(Model::getCurrentVal_T(2));
+	view.Val_T_3UpdateView(Model::getCurrentVal_T(3));
+	view.Val_T_4UpdateView(Model::getCurrentVal_T(4));
+	view.Val_H_0UpdateView(Model::getCurrentVal_H(0));
+	view.Val_H_1UpdateView(Model::getCurrentVal_H(1));
+	view.Val_H_2UpdateView(Model::getCurrentVal_H(2));
+
 	// Закончено обновление Т и Н
 	// Обновим работу оборудования
 	// Проверим флаги смены состояния и передадим флаг состояния во view

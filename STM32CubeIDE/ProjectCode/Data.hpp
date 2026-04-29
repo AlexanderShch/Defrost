@@ -59,6 +59,8 @@ void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds);
 // Один поток TX_ToServer забирает из очереди и вызывает WriteToServerWithSync при возможности (нет приёма).
 // ═══════════════════════════════════════════════════════════════════════════
 #define SERVER_TX_ITEM_SIZE  98u   /* размер элемента очереди (type + length + payload); регулярный лог только группа 3 ~68 байт */
+// Маркер "нет данных" для телеметрии неактивного датчика.
+#define SENSOR_NO_DATA_MARKER ((int16_t)-32768)
 
 typedef struct __attribute__((packed))   // формат данных для сервера
 {

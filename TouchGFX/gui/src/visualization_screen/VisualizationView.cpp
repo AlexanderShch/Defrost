@@ -4,13 +4,31 @@
 #include <gui/model/Model.hpp>
 #include <touchgfx/utils.hpp>
 #include <touchgfx/Color.hpp>
+#include "ModBus.hpp"
 
 //#include "string.h"
 #include "stdio.h"
 
 extern uint16_t RelayRegister;
+extern SENSOR_typedef_t Sensor_array[SQ];
 
 bool val = false;
+
+namespace
+{
+constexpr short kNoDataMarker = (short)-32768;
+const touchgfx::colortype kColorNormal = touchgfx::Color::getColorFromRGB(232, 246, 251);
+const touchgfx::colortype kColorAlarm = touchgfx::Color::getColorFromRGB(255, 0, 0);
+
+inline bool IsSensorInactiveAlarm(int sensorIndex)
+{
+	if (sensorIndex < 0 || sensorIndex >= SQ)
+	{
+		return false;
+	}
+	return (Sensor_array[sensorIndex].Active == 0u) && ((Model::Sensor_AlarmFlags & (1u << sensorIndex)) != 0u);
+}
+}
 
 
 /*	Current temperature from sensor saved in CurrentValue[SQ] array
@@ -45,35 +63,80 @@ void VisualizationView::tearDownScreen()
 // 0 - defroster left temperature
 void VisualizationView::Val_T_0UpdateView(short Val)
 {
-	Unicode::snprintfFloat(ValueDefrosterT1Buffer, sizeof(ValueDefrosterT1Buffer), "%.1f", (float)Val/10);
+	if (IsSensorInactiveAlarm(0) || Val == kNoDataMarker)
+	{
+		Unicode::snprintf(ValueDefrosterT1Buffer, sizeof(ValueDefrosterT1Buffer), "--");
+		ValueDefrosterT1.setColor(kColorAlarm);
+	}
+	else
+	{
+		Unicode::snprintfFloat(ValueDefrosterT1Buffer, sizeof(ValueDefrosterT1Buffer), "%.1f", (float)Val/10);
+		ValueDefrosterT1.setColor(kColorNormal);
+	}
 	ValueDefrosterT1.invalidate();
 }
 
 // 1 - defroster right temperature
 void VisualizationView::Val_T_1UpdateView(short Val)
 {
-	Unicode::snprintfFloat(ValueDefrosterT2Buffer, sizeof(ValueDefrosterT2Buffer), "%.1f", (float)Val/10);
+	if (IsSensorInactiveAlarm(1) || Val == kNoDataMarker)
+	{
+		Unicode::snprintf(ValueDefrosterT2Buffer, sizeof(ValueDefrosterT2Buffer), "--");
+		ValueDefrosterT2.setColor(kColorAlarm);
+	}
+	else
+	{
+		Unicode::snprintfFloat(ValueDefrosterT2Buffer, sizeof(ValueDefrosterT2Buffer), "%.1f", (float)Val/10);
+		ValueDefrosterT2.setColor(kColorNormal);
+	}
 	ValueDefrosterT2.invalidate();
 }
 
 // 2 - defroster center temperature
 void VisualizationView::Val_T_2UpdateView(short Val)
 {
-	Unicode::snprintfFloat(ValueDefrosterTBuffer, sizeof(ValueDefrosterTBuffer), "%.1f", (float)Val/10);
+	if (IsSensorInactiveAlarm(2) || Val == kNoDataMarker)
+	{
+		Unicode::snprintf(ValueDefrosterTBuffer, sizeof(ValueDefrosterTBuffer), "--");
+		ValueDefrosterT.setColor(kColorAlarm);
+	}
+	else
+	{
+		Unicode::snprintfFloat(ValueDefrosterTBuffer, sizeof(ValueDefrosterTBuffer), "%.1f", (float)Val/10);
+		ValueDefrosterT.setColor(kColorNormal);
+	}
 	ValueDefrosterT.invalidate();
 }
 
 // 3 - fish left temperature
 void VisualizationView::Val_T_3UpdateView(short Val)
 {
-	Unicode::snprintfFloat(ValueCoreT1SmallBuffer, sizeof(ValueCoreT1SmallBuffer), "%.1f", (float)Val/10);
+	if (IsSensorInactiveAlarm(3) || Val == kNoDataMarker)
+	{
+		Unicode::snprintf(ValueCoreT1SmallBuffer, sizeof(ValueCoreT1SmallBuffer), "--");
+		ValueCoreT1Small.setColor(kColorAlarm);
+	}
+	else
+	{
+		Unicode::snprintfFloat(ValueCoreT1SmallBuffer, sizeof(ValueCoreT1SmallBuffer), "%.1f", (float)Val/10);
+		ValueCoreT1Small.setColor(kColorNormal);
+	}
 	ValueCoreT1Small.invalidate();
 }
 
 // 4 - fish right temperature
 void VisualizationView::Val_T_4UpdateView(short Val)
 {
-	Unicode::snprintfFloat(ValueCoreT2SmallBuffer, sizeof(ValueCoreT2SmallBuffer), "%.1f", (float)Val/10);
+	if (IsSensorInactiveAlarm(4) || Val == kNoDataMarker)
+	{
+		Unicode::snprintf(ValueCoreT2SmallBuffer, sizeof(ValueCoreT2SmallBuffer), "--");
+		ValueCoreT2Small.setColor(kColorAlarm);
+	}
+	else
+	{
+		Unicode::snprintfFloat(ValueCoreT2SmallBuffer, sizeof(ValueCoreT2SmallBuffer), "%.1f", (float)Val/10);
+		ValueCoreT2Small.setColor(kColorNormal);
+	}
 	ValueCoreT2Small.invalidate();
 }
 
@@ -81,21 +144,48 @@ void VisualizationView::Val_T_4UpdateView(short Val)
 // 0 - defroster left humidity
 void VisualizationView::Val_H_0UpdateView(short Val)
 {
-	Unicode::snprintfFloat(ValueDefrosterH1Buffer, sizeof(ValueDefrosterH1Buffer), "%.1f", (float)Val/10);
+	if (IsSensorInactiveAlarm(0) || Val == kNoDataMarker)
+	{
+		Unicode::snprintf(ValueDefrosterH1Buffer, sizeof(ValueDefrosterH1Buffer), "--");
+		ValueDefrosterH1.setColor(kColorAlarm);
+	}
+	else
+	{
+		Unicode::snprintfFloat(ValueDefrosterH1Buffer, sizeof(ValueDefrosterH1Buffer), "%.1f", (float)Val/10);
+		ValueDefrosterH1.setColor(kColorNormal);
+	}
 	ValueDefrosterH1.invalidate();
 }
 
 // 1 - defroster right humidity
 void VisualizationView::Val_H_1UpdateView(short Val)
 {
-	Unicode::snprintfFloat(ValueDefrosterH2Buffer, sizeof(ValueDefrosterH2Buffer), "%.1f", (float)Val/10);
+	if (IsSensorInactiveAlarm(1) || Val == kNoDataMarker)
+	{
+		Unicode::snprintf(ValueDefrosterH2Buffer, sizeof(ValueDefrosterH2Buffer), "--");
+		ValueDefrosterH2.setColor(kColorAlarm);
+	}
+	else
+	{
+		Unicode::snprintfFloat(ValueDefrosterH2Buffer, sizeof(ValueDefrosterH2Buffer), "%.1f", (float)Val/10);
+		ValueDefrosterH2.setColor(kColorNormal);
+	}
 	ValueDefrosterH2.invalidate();
 }
 
 // 2 - defroster center humidity
 void VisualizationView::Val_H_2UpdateView(short Val)
 {
-	Unicode::snprintfFloat(ValueDefrosterHBuffer, sizeof(ValueDefrosterHBuffer), "%.1f", (float)Val/10);
+	if (IsSensorInactiveAlarm(2) || Val == kNoDataMarker)
+	{
+		Unicode::snprintf(ValueDefrosterHBuffer, sizeof(ValueDefrosterHBuffer), "--");
+		ValueDefrosterH.setColor(kColorAlarm);
+	}
+	else
+	{
+		Unicode::snprintfFloat(ValueDefrosterHBuffer, sizeof(ValueDefrosterHBuffer), "%.1f", (float)Val/10);
+		ValueDefrosterH.setColor(kColorNormal);
+	}
 	ValueDefrosterH.invalidate();
 }
 

@@ -54,6 +54,10 @@ void HomePresenter::ValUpdatePresenter()
 			}
 		}
 	}
+	// Обновляем продуктовые датчики каждый тик,
+	// чтобы маркер "--" появлялся/исчезал сразу при смене активности.
+	view.Val_T_3UpdateView(Model::getCurrentVal_T(3));
+	view.Val_T_4UpdateView(Model::getCurrentVal_T(4));
 
     const uint32_t runtimeSeconds = DefrostControl_GetRuntimeSeconds();
     if (runtimeSeconds != lastRuntimeSeconds)
