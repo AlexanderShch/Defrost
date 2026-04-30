@@ -120,6 +120,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          float RH_sup_avg;     // RH для w_sup: подачи или при их отсутствии — RH возврата; при полном отказе 0..2 — 50 %
      };
 
+     // вычисление входных данных для управления дефростом и заполнение структуры DefrostAirControlInputs
+     // a - указатель на структуру DefrostAirControlInputs
+     // учитываются только исправные датчики воздушного потока и датчик возврата
      inline void ComputeDefrostAirControlInputs(DefrostAirControlInputs* a)
      {
          a->mL   = DeciToC(FilteredSensorT_Deci(kSensSupLeft_T_H)); // получаем значения с левого датчика воздушного потока
@@ -532,28 +535,28 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
  
      static void ResetState()
      {
-         // Почему: при (пере)запуске нужны предсказуемые состояния без "хвоста" интегратора/ШИМ-памяти.
-        g.runtimeSeconds = 0;
-         g.piSupplyCommon = PI{ g_defrostParams.piKp, g_defrostParams.piKi, 0.0f };
-        g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
-        g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
-         g.injPwm.Reset();              // сброс ШИМ-памяти для форсунки.
-         g.injHold.Reset(0);            // сброс времени удержания форсунки.
-        g.outOn = 0;                   // флаг отключения вытяжки.
+       // Почему: при (пере)запуске нужны предсказуемые состояния без "хвоста" интегратора/ШИМ-памяти.
+       g.runtimeSeconds = 0;
+       g.piSupplyCommon = PI{ g_defrostParams.piKp, g_defrostParams.piKi, 0.0f };
+       g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
+       g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
+       g.injPwm.Reset();              // сброс ШИМ-памяти для форсунки.
+       g.injHold.Reset(0);            // сброс времени удержания форсунки.
+       g.outOn = 0;                   // флаг отключения вытяжки.
        g.outHold_s = 0;               // время удержания вытяжки.
-        g.outDamperState = 0;          // заслонка закрыта.
-        g.outDamperTimer_s = 0;        // таймер открытия заслонки.
+       g.outDamperState = 0;          // заслонка закрыта.
+       g.outDamperTimer_s = 0;        // таймер открытия заслонки.
        g.outFanDelay_s = g_defrostParams.outFanDelay_s;
-        g.outFanOn = 0;                // вентилятор вытяжки выключен.
-        g.shutdownOutFanRemain_s = 0;  // остаток времени работы вытяжки после остановки алгоритма
+       g.outFanOn = 0;                // вентилятор вытяжки выключен.
+       g.shutdownOutFanRemain_s = 0;  // остаток времени работы вытяжки после остановки алгоритма
        g.startupGateClosing = 0;      // при старте: 1 если нужно закрыть ворота
        g.shutdownActive = 0;          // при остановке: 1 пока выполняется последовательность остановки
-      g.shutdownGateOpening = 0;
+       g.shutdownGateOpening = 0;
        g.shutdownGateLiftPulse_s = 0;
-      g.shutdownGateFullOpenActive = 0;
-      g.shutdownGateOpenReleased = 0;
-      g.shutdownGateOpenSawActive = 0;
-      g.shutdownGateOpenPhase_s = 0;
+       g.shutdownGateFullOpenActive = 0;
+       g.shutdownGateOpenReleased = 0;
+       g.shutdownGateOpenSawActive = 0;
+       g.shutdownGateOpenPhase_s = 0;
        g.shutdownStage = 0;
        g.shutdownFlapOpenWait_s = 0;
        g.startPendingAfterShutdown = 0;
@@ -572,16 +575,16 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.stagedTen2LeftOn = 0;
        g.stagedTen1RightOn = 0;
        g.stagedTen2RightOn = 0;
-         g.left.ten1.Reset();           // сброс ШИМ-памяти для левого ТЭНа 1.
-         g.left.ten2.Reset();           // сброс ШИМ-памяти для левого ТЭНа 2.
-         g.left.ten1Hold.Reset(0);      // сброс времени удержания левого ТЭНа 1.
-         g.left.ten2Hold.Reset(0);      // сброс времени удержания левого ТЭНа 2.
-         g.right.ten1.Reset();          // сброс ШИМ-памяти для правого ТЭНа 1.
-         g.right.ten2.Reset();          // сброс ШИМ-памяти для правого ТЭНа 2.
-         g.right.ten1Hold.Reset(0);     // сброс времени удержания правого ТЭНа 1.
-         g.right.ten2Hold.Reset(0);     // сброс времени удержания правого ТЭНа 2.
-         g.lastFishHot_C = 0.0f;        // последняя измеренная температура продукта.
-         g.haveLastFishHot = 0;         // флаг отсутствия последней измеренной температуры продукта.    
+       g.left.ten1.Reset();           // сброс ШИМ-памяти для левого ТЭНа 1.
+       g.left.ten2.Reset();           // сброс ШИМ-памяти для левого ТЭНа 2.
+       g.left.ten1Hold.Reset(0);      // сброс времени удержания левого ТЭНа 1.
+       g.left.ten2Hold.Reset(0);      // сброс времени удержания левого ТЭНа 2.
+       g.right.ten1.Reset();          // сброс ШИМ-памяти для правого ТЭНа 1.
+       g.right.ten2.Reset();          // сброс ШИМ-памяти для правого ТЭНа 2.
+       g.right.ten1Hold.Reset(0);     // сброс времени удержания правого ТЭНа 1.
+       g.right.ten2Hold.Reset(0);     // сброс времени удержания правого ТЭНа 2.
+       g.lastFishHot_C = 0.0f;        // последняя измеренная температура продукта.
+       g.haveLastFishHot = 0;         // флаг отсутствия последней измеренной температуры продукта.    
      }
  
     enum class LampModeState : uint8_t
@@ -1424,6 +1427,10 @@ static void ProcessShutdownStage1s()
         }
         // заслонка открывается, ждем подтверждения открытия заслонки
         else if (flapOpened == 0u) {    // если заслонка ещё не открылась, но в процессе открытия
+            // Без подтверждения Air_Open вытяжной вентилятор не должен работать.
+            g.outFanOn = 0u;
+            g.shutdownOutFanRemain_s = 0u;
+            Model::DFR._Out = 0u;
             // ничего не делаем, ждём, т.к. при включенной проверке проверяется таймаут в UpdateDeviceAlarmState() — флаг g.flapAlarm
             // НО:
             if (switchCheckOn == 0u) {   // если проверка устройств выключена, то проверяем таймаут по времени
