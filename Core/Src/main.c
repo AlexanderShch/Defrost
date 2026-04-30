@@ -98,7 +98,7 @@ SDRAM_HandleTypeDef hsdram1;
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4,  // Увеличено: запас под служебные вызовы/хуки RTOS
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Описания для GUI_Task */
@@ -112,21 +112,21 @@ const osThreadAttr_t GUI_Task_attributes = {
 osThreadId_t DataProcessingHandle;
 const osThreadAttr_t DataProcessing_attributes = {
   .name = "DataProcessing",
-  .stack_size = 128 * 4,
+  .stack_size = 768 * 4,  // Увеличено: обнаружен stack overflow в задаче DataProcessing
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Описания для ReadData */
 osThreadId_t ReadDataHandle;
 const osThreadAttr_t ReadData_attributes = {
   .name = "ReadData",
-  .stack_size = 448 * 4,  // Увеличено: C++/Modbus/датчики; при overflow в vApplicationStackOverflowHook смотреть pcTaskName
+  .stack_size = 768 * 4,  // Увеличено: Modbus/датчики и сервисные вызовы в одном потоке
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Описания для RX_From_Server */
 osThreadId_t RX_From_ServerHandle;
 const osThreadAttr_t RX_From_Server_attributes = {
   .name = "RX_From_Server",
-  .stack_size = 448 * 4,  // Увеличено: CommandReceiver -> DefrostControl_SetParam/SaveParams; при overflow смотреть vApplicationStackOverflowHook
+  .stack_size = 768 * 4,  // Увеличено: запас для парсинга команд/параметров и C++-цепочек вызовов
   .priority = (osPriority_t) osPriorityAboveNormal,
 };
 
@@ -196,7 +196,7 @@ const osSemaphoreAttr_t SensorsReadDone_Sem_attributes = {
 osThreadId_t TX_To_ServerHandle;
 const osThreadAttr_t TX_To_Server_attributes = {
   .name = "TX_To_Server",
-  .stack_size = 512 * 4,  // Увеличено: поток TX_To_Server переполнял стек (см. vApplicationStackOverflowHook, pcTaskName)
+  .stack_size = 768 * 4,  // Увеличено: ранее фиксировался overflow; оставляем стабильный запас
   .priority = (osPriority_t) osPriorityLow,
 };
 

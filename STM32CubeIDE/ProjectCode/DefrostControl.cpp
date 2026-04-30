@@ -98,7 +98,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      {
          if (idx < kSensSupLeft_T_H || idx > kSensReturn_T_H)
              return false;
-         return (Sensor_array[idx].Active == 1) && !SensorExcludedByClampAlarm(idx);
+        return (Sensor_array[idx].Active == 1) &&
+               (Sensor_array[idx].UseInDefrost != 0) &&
+               !SensorExcludedByClampAlarm(idx);
      }
 
      // Масштаб "в десятых" (UI делит на 10.0).
