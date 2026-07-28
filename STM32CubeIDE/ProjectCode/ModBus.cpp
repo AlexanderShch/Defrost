@@ -161,10 +161,12 @@ MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, MB_Reg_t ST
 MB_Error_t ScanSensor(MB_Active_t *MB);
 MB_Error_t WriteToSensor(MB_Active_t *PR);
 MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreId_t *sem_rx);
-// при чтении из датчика значение кол-ва переданных байт данных в Rx_Buffer[2] + всегда передаётся 5 байт
-#define CheckAnswerCRC (MB->Rx_Buffer[1] == CMD && MB_GetCRC(MB->Rx_Buffer, MB->Rx_Buffer[2] + 5) == 0)
-// при записи в датчик всегда передаётся 8 байт
-#define PR_CheckAnswerCRC (MB->Rx_Buffer[1] == CMD && MB_GetCRC(MB->Rx_Buffer, 8) == 0)
+// Ответ с полем ByteCount (0x01/0x02/0x03): [Addr][FC][ByteCount][Data…][CRC16], длина кадра = ByteCount+5
+#define CheckAnswerCRC (MB->Rx_Buffer[1] == (uint8_t)(CMD) && \
+	MB->Rx_Buffer[2] >= 1u && \
+	MB_GetCRC(MB->Rx_Buffer, (uint16_t)(MB->Rx_Buffer[2] + 5u)) == 0)
+// Ответ фиксированной длины 8 байт (0x05/0x06/0x0F/0x10 — echo запроса)
+#define PR_CheckAnswerCRC (MB->Rx_Buffer[1] == (uint8_t)(CMD) && MB_GetCRC(MB->Rx_Buffer, 8) == 0)
 int Parametr_CORR;
 
 // Проверка DO->DI управляется только runtime-параметром debugDisableDeviceSwitchCheck.
@@ -443,41 +445,42 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			break;
 		}
 		case MB_ERROR_DMA_SEND:
-			Sensor_array[SensIndex].TxErrorCnt++;
-			break;
 		case MB_ERROR_UART_SEND:
 			Sensor_array[SensIndex].TxErrorCnt++;
-			break;
-		case MB_ERROR_UART_RECIEVE:	// Оба case идут подряд без break, поэтому попадают в один и тот же блок { ... }
-		case MB_ERROR_DMA_RECIEVE:	{
+			goto sensor_hold_previous;
+		case MB_ERROR_COMMAND:
+		case MB_ERROR_WRONG_ADDRESS:
+		case MB_ERROR_WRONG_VALUE:
+			Sensor_array[SensIndex].ErrCnt++;
+			result = MB_ERROR_UART_RECIEVE;
 			Sensor_array[SensIndex].RxErrorCnt++;
-			// Для любой ошибки приёма: в текущий такт сохраняем предыдущее валидное значение.
-			// Это важно и для Type=4 (SQ=6): если ошибка была на любом из двух запросов (DO/DI),
-			// в буфер попадут прошлые валидные DI/DO без "дыр" и мусора.
-			const int prevTemp = Sensor::GetData(TimeFromStart - 1u, SensIndex, 2);	// предыдущее валидное T/DI
-			const int prevHum = Sensor::GetData(TimeFromStart - 1u, SensIndex, 3);	// предыдущее валидное H/DO
-			Sensor::PutData(TimeFromStart, SensIndex, 1, TimeFromStart);				// запись времени текущего такта
-			Sensor::PutData(TimeFromStart, SensIndex, 2, prevTemp);					// запись T/DI
-			Sensor::PutData(TimeFromStart, SensIndex, 3, prevHum);					// запись H/DO
+			goto sensor_hold_previous;
+		case MB_ERROR_UART_RECIEVE:
+		case MB_ERROR_DMA_RECIEVE:
+			Sensor_array[SensIndex].RxErrorCnt++;
+			goto sensor_hold_previous;
+		default:
+			Sensor_array[SensIndex].ErrCnt++;
+			Sensor_array[SensIndex].RxErrorCnt++;
+			result = MB_ERROR_UART_RECIEVE;
+			goto sensor_hold_previous;
+sensor_hold_previous:
+			{
+			// Hold: текущий такт = прошлые валидные T/H (для IO — DI/DO), без мусора с шины.
+			const unsigned int prevSec = (TimeFromStart > 0u) ? (TimeFromStart - 1u) : 0u;
+			const int prevTemp = Sensor::GetData(prevSec, SensIndex, 2);
+			const int prevHum = Sensor::GetData(prevSec, SensIndex, 3);
+			Sensor::PutData(TimeFromStart, SensIndex, 1, TimeFromStart);
+			Sensor::PutData(TimeFromStart, SensIndex, 2, prevTemp);
+			Sensor::PutData(TimeFromStart, SensIndex, 3, prevHum);
 
 			if (SensIndex == 6 && Sensor_array[SensIndex].TypeOfSensor == 4)
 			{
 				Model::DO_DFR.Raw = (uint16_t)prevHum;
-				// Поддерживаем DI_DFR согласованным с тем, что записано в буфер для модуля IO.
 				Model::DI_DFR.Raw = (uint16_t)prevTemp;
 			}
-			break;	}
-		case MB_ERROR_COMMAND:
-		case MB_ERROR_WRONG_ADDRESS:
-		case MB_ERROR_WRONG_VALUE:
-			// Неверная команда / адрес / значение в кадре ModBus — как прочие логические ошибки обмена.
-			Sensor_array[SensIndex].ErrCnt++;
-			result = MB_ERROR_UART_SEND;
 			break;
-		default:
-			Sensor_array[SensIndex].ErrCnt++;
-			result = MB_ERROR_UART_SEND;
-			break;
+			}
 	}
 	osDelay(FrameDelay1);	// обеспечение выдержки между фреймами
 	return result;
@@ -946,58 +949,54 @@ MB_Error_t Master_RW(MB_Active_t *MB, int SensAddress, MB_Command_t CMD, MB_Reg_
 
 	if (result == MB_ERROR_NO)
 	{
-		// данные приняты - проверяем достоверность и сохраняем принятые данные в переменные
+		// Данные приняты по UART — проверяем FC+CRC; при провале Read_Data_* не трогаем.
 		switch (CMD)	{
 			case MB_CMD_READ_COILS:	{
-				if (CMD == *(uint8_t*) &MB->Rx_Buffer[1])
-					// читаем два байта
+				// DO модуля ВВ: ожидаем ByteCount>=2 (16 катушек)
+				if (CheckAnswerCRC && MB->Rx_Buffer[2] >= 2u)
 					MB->Read_Data_1 = *(uint16_t*) &MB->Rx_Buffer[3];
-				else	{
-					// возможно, была ошибка. Код ошибки сохраним в Read_Data_1
-					MB->Read_Data_1 = *(uint16_t*) &MB->Rx_Buffer[2];
-					result = MB_ERROR_UART_SEND;	}
+				else
+					result = MB_ERROR_UART_RECIEVE;
 				break;	}
 			case MB_CMD_READ_INPUT:	{
-				if (CMD == *(uint8_t*) &MB->Rx_Buffer[1])
-					// читаем два байта
+				// DI модуля ВВ: ожидаем ByteCount>=2 (16 входов)
+				if (CheckAnswerCRC && MB->Rx_Buffer[2] >= 2u)
 					MB->Read_Data_2 = *(uint16_t*) &MB->Rx_Buffer[3];
-				else	{
-					// возможно, была ошибка. Код ошибки сохраним в Read_Data_2
-					MB->Read_Data_2 = *(uint16_t*) &MB->Rx_Buffer[2];
-					result = MB_ERROR_UART_SEND;	}
+				else
+					result = MB_ERROR_UART_RECIEVE;
 				break;	}
-			case MB_CMD_READ_REGS: {	// был запрос на чтение одного или нескольких регистров
-				if CheckAnswerCRC
-				{	// все проверки ОК
-					if (DATA == 1) // заказывали один регистр на чтение
-					{// все проверки ОК, читаем одно значение
+			case MB_CMD_READ_REGS: {	// holding-регистры (датчики TH/PT100, сканирование ВВ)
+				if (CheckAnswerCRC)
+				{
+					if (DATA == 1)
+					{
 						MB->Read_Data_1 = 0;
 						MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
 					}
 					else
-					{// все проверки ОК, читаем два значения
+					{
 						MB->Read_Data_1 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
 						MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
 					}
 				}
 				else
-				{	// проверки не пройдены, ошибка в принятых данных
-					result = MB_ERROR_UART_SEND;
-				};
+					result = MB_ERROR_UART_RECIEVE;
 				break;	}
-			case MB_CMD_WRITE_REG: {	// был запрос на запись одного регистра
-				if PR_CheckAnswerCRC
-				{	// Считанные из датчика данные после записи помещаем в переменную
+			case MB_CMD_WRITE_REG: {
+				if (PR_CheckAnswerCRC)
 					Sens_WR_value = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[4]);
-				}
 				else
-				{	// проверки не пройдены, ошибка в принятых данных
-					result = MB_ERROR_UART_SEND;
-				};
+					result = MB_ERROR_UART_RECIEVE;
 				break;	}
-			case MB_CMD_WRITE_REGS: {	// был запрос на запись нескольких регистров
+			case MB_CMD_WRITE_COIL:
+			case MB_CMD_WRITE_COILS:
+			case MB_CMD_WRITE_REGS: {
+				// Echo 8 байт — подтверждение записи без полезной нагрузки
+				if (!PR_CheckAnswerCRC)
+					result = MB_ERROR_UART_RECIEVE;
 				break;	}
-			default:	{	//
+			default:	{
+				result = MB_ERROR_UART_RECIEVE;
 				break;	}
 		}
 	}

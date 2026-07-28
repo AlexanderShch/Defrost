@@ -50,12 +50,14 @@ void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
 MSGQUEUE_OBJ_t Data_CurrentTelemetry(void)
 {
 	MSGQUEUE_OBJ_t DataToServer = {};
+	static_assert(sizeof(MSGQUEUE_OBJ_t) == 60u, "MSGQUEUE_OBJ_t size must stay in sync with ProjectServerW");
 	DataToServer.Time = (uint16_t)TimeFromStart;
 	DataToServer.SensorQuantity = SQ;
 	for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
 	{
 		DataToServer.SensorType[SensorIndex] = Sensor_array[SensorIndex].TypeOfSensor;
 		DataToServer.Active[SensorIndex] = Sensor_array[SensorIndex].Active;
+		DataToServer.RxErrorCnt[SensorIndex] = Sensor_array[SensorIndex].RxErrorCnt;
 		if (Sensor_array[SensorIndex].Active == 0u)
 		{
 			// Для неактивного датчика явно передаём маркер отсутствия данных.

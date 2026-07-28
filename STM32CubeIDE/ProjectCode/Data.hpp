@@ -68,21 +68,15 @@ typedef struct __attribute__((packed))   // формат данных для с�
     uint8_t SensorQuantity;		// Количество сенсоров
     uint8_t SensorType[SQ];		// Тип сенсора
     uint8_t Active[SQ];			// Активность сенсора
-    int16_t T[SQ];				// Значение 1 сенсора (температура)
-    int16_t H[SQ];				// Значение 2 сенсора (влажность)
+    int16_t T[SQ];				// Значение 1 сенсора (температура / DI для IO)
+    int16_t H[SQ];				// Значение 2 сенсора (влажность / DO для IO)
     uint8_t ShutdownActive;     // Флаг post-shutdown из алгоритма дефроста (0/1)
+    uint16_t RxErrorCnt[SQ];	// Накопленные ошибки приёма ModBus (таймаут/CRC/FC) по каждому клиенту
 } MSGQUEUE_OBJ_t;
 /*
- * MSGQUEUE_OBJ_t помечена как __attribute__((packed)), так что выравнивания нет, размер — просто сумма полей:
-uint16_t Time — 2 байта
-uint8_t SensorQuantity — 1 байт
-uint8_t SensorType[SQ] — SQ байт
-uint8_t Active[SQ] — SQ байт
-int16_t T[SQ] — 2 * SQ байта
-int16_t H[SQ] — 2 * SQ байта
-Итого: 2+1+SQ+SQ+2SQ+2SQ=6SQ+3 байт
-если SQ = 6, размер = 6*6 + 3 = 39 байт;
-если SQ = 7, размер = 6*7 + 3 = 45 байт;
+ * MSGQUEUE_OBJ_t packed: Time2 + SQ1 + Type SQ + Active SQ + T 2SQ + H 2SQ + Shd1 + RxErr 2SQ
+ * = 3 + 6*SQ + 1 + 2*SQ = 4 + 8*SQ
+ * SQ=7 → 4+56 = 60 байт.
  */
  
 typedef enum {

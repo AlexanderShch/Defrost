@@ -41,29 +41,26 @@ static_assert(sizeof(ControlLogPayload_t) == 89, "ControlLogPayload_t size must 
 /* Текущая фаза для ответа по REQ_CMD_GET_DEFROST_GROUP groupId 5 (группа 1 лога). */
 static uint8_t s_lastPhase = 0;
 
-typedef struct {
-    uint16_t version;
-    uint16_t payloadCrc;
-    DefrostParams_t params;
-} DefrostParamsStorage_t;
-
-static DefrostParams_t g_defrostParams;
-static DefrostParamsStorage_t g_defrostParamsStorage;
-static const uint16_t kDefrostParamsVersion = 4;
-static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ : DEFROST_MAX_SENSOR_COUNT;
+// структура для хранения параметров в EEPROM
 typedef struct
 {
-    uint16_t version;
-    uint8_t autoModeEnabled;
-    uint8_t reserved;
-    DefrostParams_t params;
-    uint16_t payloadCrc;
+    uint16_t version; // версия структуры
+    uint8_t autoModeEnabled; // бит, определяющий, включен ли режим авто-дефроста
+    uint8_t reserved; // резервные байты
+    DefrostParams_t params; // параметры дефростера
+    uint16_t payloadCrc; // CRC записи в EEPROM параметров
 } DefrostEepromStorage_t;
-static const uint16_t kDefrostEepromVersion = 1u;
-static const uint16_t kDefrostEepromBaseAddress = 0u;
-static bool g_defrostEepromAvailable = false;
-static uint8_t g_defrostPersistedAutoMode = 0u;
-static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEPROM payload exceeds M24C02 capacity");
+
+static DefrostParams_t g_defrostParams; // рабочие параметры дефростера
+static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ : DEFROST_MAX_SENSOR_COUNT;
+static const uint16_t kDefrostEepromVersion = 1u; // версия структуры в EEPROM
+static const uint16_t kDefrostEepromBaseAddress = 0u; // адрес начала записи в EEPROM
+static bool g_defrostEepromAvailable = false; // флаг, определяющий, доступна ли EEPROM
+static uint8_t g_defrostPersistedAutoMode = 0u; // бит, определяющий, включен ли режим авто-дефроста
+/* Отложенная запись в EEPROM: не пишем в LoadParams до старта RTOS (блокирующая запись
+ * по страницам на I2C3 может надолго задержать main и сорвать запуск опроса датчиков). */
+static bool g_defrostEepromPersistPending = false;
+static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEPROM payload exceeds M24C16 capacity");
  
  namespace
  {
@@ -194,47 +191,42 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          float returnTargetRH_percent;  // уставка влажности как RH при T возврата (далее переводится в абсолютную влажность)
      };
 
-    static uint16_t ParamsCrc16(const uint8_t *data, uint32_t size)
-    {
-        uint16_t crc = 0xFFFFu;
-        for (uint32_t i = 0; i < size; ++i)
-        {
-            crc ^= data[i];
-            for (uint8_t b = 0; b < 8; ++b)
-            {
-                if ((crc & 1u) != 0u)
-                {
-                    crc = (crc >> 1) ^ 0xA001u;
-                }
-                else
-                {
-                    crc >>= 1;
-                }
-            }
-        }
-        return crc;
-    }
-    
-    // вычисление CRC для данных в EEPROM
+    // CRC записи EEPROM: тот же ModBus CRC16, что MB_GetCRC (датчики / сервер).
     static uint16_t EepromPayloadCrc(const DefrostEepromStorage_t *rec)
     {
-        uint8_t payload[1u + sizeof(DefrostParams_t)] = {}; // payload - это массив байтов, который содержит данные для вычисления CRC
-        payload[0] = rec->autoModeEnabled; // autoModeEnabled - это бит, который определяет, включен ли режим авто-дефроста
-        memcpy(&payload[1], &rec->params, sizeof(DefrostParams_t)); // params - это данные, для которых вычисляется CRC
-        return ParamsCrc16(payload, sizeof(payload)); // ParamsCrc16 - это функция, которая вычисляет CRC
+        uint8_t payload[1u + sizeof(DefrostParams_t)] = {};
+        payload[0] = rec->autoModeEnabled;
+        memcpy(&payload[1], &rec->params, sizeof(DefrostParams_t));
+        return MB_GetCRC((volatile uint8_t *)payload, (uint16_t)sizeof(payload));
     }
 
     // сохранение параметров в EEPROM, если EEPROM доступна
     static void PersistParamsToEepromIfAvailable(void)
     {
         if (!g_defrostEepromAvailable) return;
-        DefrostEepromStorage_t rec = {}; // rec - это структура, которая содержит данные для сохранения в EEPROM
-        rec.version = kDefrostEepromVersion; // version - это версия данных, которые сохраняются в EEPROM
-        rec.autoModeEnabled = g_defrostPersistedAutoMode; // autoModeEnabled - это бит, который определяет, включен ли режим авто-дефроста
-        rec.reserved = 0u; // reserved - это зарезервированное поле, которое не используется
-        memcpy(&rec.params, &g_defrostParams, sizeof(DefrostParams_t)); // params - это данные, которые сохраняются в EEPROM
-        rec.payloadCrc = EepromPayloadCrc(&rec); // payloadCrc - это CRC данных, которые сохраняются в EEPROM
-        (void)EEPROM::Write(kDefrostEepromBaseAddress, (const uint8_t *)&rec, (uint16_t)sizeof(rec)); // EEPROM::Write - это функция, которая сохраняет данные в EEPROM
+        DefrostEepromStorage_t rec = {};
+        rec.version = kDefrostEepromVersion;
+        rec.autoModeEnabled = g_defrostPersistedAutoMode;
+        rec.reserved = 0u;
+        memcpy(&rec.params, &g_defrostParams, sizeof(DefrostParams_t));
+        rec.payloadCrc = EepromPayloadCrc(&rec);
+        if (EEPROM::Write(kDefrostEepromBaseAddress, (const uint8_t *)&rec, (uint16_t)sizeof(rec)) == HAL_OK)
+        {
+            g_defrostEepromPersistPending = false;
+        }
+        else
+        {
+            // Повторим на следующем тике Update1s.
+            g_defrostEepromPersistPending = true;
+        }
+    }
+
+    static void FlushPendingEepromPersistIfNeeded(void)
+    {
+        if (g_defrostEepromPersistPending)
+        {
+            PersistParamsToEepromIfAvailable();
+        }
     }
     // загрузка параметров из EEPROM, если EEPROM доступна
     static void LoadDefaultParams(DefrostParams_t *p)
@@ -2001,8 +1993,8 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
  {
      void DefrostControl_Init(void)
      {
-        DefrostControl_LoadParams();
-         ResetState();
+        DefrostControl_LoadParams();    // загрузка параметров из EEPROM
+        ResetState();  // сброс состояния ШИМ алгоритма дефростера
      }
  
      void DefrostControl_SetEnabled(uint8_t enabled)
@@ -2256,66 +2248,55 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
 
     void DefrostControl_SaveParams(void)
     {
-        g_defrostParamsStorage.version = kDefrostParamsVersion;
-        memcpy(&g_defrostParamsStorage.params, &g_defrostParams, sizeof(DefrostParams_t));
-        g_defrostParamsStorage.payloadCrc = ParamsCrc16(
-            (const uint8_t *)&g_defrostParamsStorage.params,
-            sizeof(DefrostParams_t));
-        PersistParamsToEepromIfAvailable(); // сохранение параметров в EEPROM, если EEPROM доступна
+        PersistParamsToEepromIfAvailable();
     }
 
     void DefrostControl_LoadParams(void)
     {
-        const uint16_t crc = ParamsCrc16(
-            (const uint8_t *)&g_defrostParamsStorage.params,
-            sizeof(DefrostParams_t));
+        // Рабочие параметры всегда начинаем с дефолтов; устойчивое хранилище — только EEPROM
+        // (RAM-буфер после сброса питания не инициализирован и для загрузки непригоден).
+        LoadDefaultParams(&g_defrostParams);
 
-        if (g_defrostParamsStorage.version == kDefrostParamsVersion &&
-            g_defrostParamsStorage.payloadCrc == crc)
-        {
-            memcpy(&g_defrostParams, &g_defrostParamsStorage.params, sizeof(DefrostParams_t));
-        }
-        else
-        {
-            LoadDefaultParams(&g_defrostParams);
-            DefrostControl_SaveParams();
-        }
-
-        g_defrostEepromAvailable = EEPROM::Init(); // инициализация EEPROM
+        // Только Init+Read до старта RTOS. Запись (~130 байт, страницы по 16) откладываем:
+        // иначе при пустой/битой EEPROM main блокируется на I2C3 до osKernelStart.
+        g_defrostEepromAvailable = EEPROM::Init();
+        g_defrostEepromPersistPending = false;  // флаг ожидания записи в EEPROM
         if (g_defrostEepromAvailable)
         {
-            DefrostEepromStorage_t rec = {}; // rec - это структура, которая содержит данные, считанные из EEPROM
-            const HAL_StatusTypeDef readStatus = EEPROM::Read(kDefrostEepromBaseAddress, (uint8_t *)&rec, (uint16_t)sizeof(rec)); // считывание данных из EEPROM
-            const uint16_t payloadCrc = EepromPayloadCrc(&rec); // вычисление CRC для данных, считанных из EEPROM
-            const bool recValid = (readStatus == HAL_OK) && (rec.version == kDefrostEepromVersion) && (rec.payloadCrc == payloadCrc); // проверка, являются ли данные, считанные из EEPROM, корректными
-            // если данные, считанные из EEPROM, корректны, то устанавливаем флаг persistedAutoMode в зависимости от значения autoModeEnabled
-            if (recValid)
+            DefrostEepromStorage_t rec = {};  // инициализация структуры
+            // чтение данных из EEPROM
+            const HAL_StatusTypeDef readStatus = EEPROM::Read(
+                kDefrostEepromBaseAddress, (uint8_t *)&rec, (uint16_t)sizeof(rec));
+            const uint16_t payloadCrc = EepromPayloadCrc(&rec);
+            const bool recValid = (readStatus == HAL_OK) &&
+                                  (rec.version == kDefrostEepromVersion) &&
+                                  (rec.payloadCrc == payloadCrc);
+            if (recValid)  // если данные валидны
             {
                 g_defrostPersistedAutoMode = (rec.autoModeEnabled != 0u) ? 1u : 0u;
-                // если флаг persistedAutoMode установлен, то копируем данные из структуры rec в структуру g_defrostParams
-                if (g_defrostPersistedAutoMode != 0u)
+                if (g_defrostPersistedAutoMode != 0u)  // если авторежим включен
                 {
+                    // Восстановление после сбоя: подтянуть параметры, с которыми шёл авторежим.
                     memcpy(&g_defrostParams, &rec.params, sizeof(DefrostParams_t));
                 }
-                else    
-                {
-                    PersistParamsToEepromIfAvailable(); // сохранение параметров в EEPROM, если EEPROM доступна
-                }
+                // autoMode=0 и запись валидна — EEPROM уже согласована, писать на старте не нужно.
             }
-            else    // если данные, считанные из EEPROM, некорректны, то устанавливаем флаг persistedAutoMode в 0
+            else  // если данные не валидны
             {
-                g_defrostPersistedAutoMode = 0u;
-                PersistParamsToEepromIfAvailable(); // сохранение параметров в EEPROM, если EEPROM доступна
+                // Пустая/битая EEPROM: синхронизируем после старта RTOS (Update1s).
+                g_defrostPersistedAutoMode = 0u;  // сбрасываем флаг авторежима
+                g_defrostEepromPersistPending = true;
             }
         }
-        else    // если данные, считанные из EEPROM, некорректны, то устанавливаем флаг persistedAutoMode в 0
+        else  // если EEPROM не доступна
         {
-            g_defrostPersistedAutoMode = 0u; // устанавливаем флаг persistedAutoMode в 0
+            g_defrostPersistedAutoMode = 0u;  // сбрасываем флаг авторежима
         }
 
-        for (uint8_t i = 0; i < kDefrostSensorCount; ++i) // для каждого датчика устанавливаем флаг UseInDefrost в зависимости от значения sensorUseInDefrost
+        // для каждого датчика устанавливаем флаг UseInDefrost в зависимости от значения UseInDefrost из массива Sensor_array
+        for (uint8_t i = 0; i < kDefrostSensorCount; ++i)
         {
-            Sensor_array[i].UseInDefrost = (g_defrostParams.sensorUseInDefrost[i] != 0u) ? 1u : 0u; // устанавливаем флаг UseInDefrost в зависимости от значения sensorUseInDefrost
+            Sensor_array[i].UseInDefrost = (g_defrostParams.sensorUseInDefrost[i] != 0u) ? 1u : 0u;
         }
     }
 
@@ -2352,6 +2333,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
  
      void DefrostControl_Update1s(void)
      {
+        FlushPendingEepromPersistIfNeeded();
         UpdateDeviceAlarmState();
          // Уважаем ручной режим и внешний флаг enabled.
          // Почему: ручной режим должен быть главным; алгоритм не должен "бороться" с оператором.

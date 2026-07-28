@@ -37,9 +37,9 @@ uint8_t TypeOfSensor;		// тип датчика: 1 - совмещённый да
 char PositionName[11];	// наименование позиции датчика
 // статистика полученных ответов от датчика
 uint16_t OkCnt;				// счётчик ответов
-uint16_t ErrCnt;			// счётчик неответов
-uint16_t TxErrorCnt;		// счётчик ошибок передачи данных, CRC
-uint16_t RxErrorCnt;		// счётчик ошибок приёма данных, CRC
+uint16_t ErrCnt;			// счётчик логических ошибок кадра (команда/адрес/значение)
+uint16_t TxErrorCnt;		// счётчик ошибок передачи (DMA/UART TX)
+uint16_t RxErrorCnt;		// счётчик ошибок приёма (таймаут, CRC, неверный FC)
 uint8_t UseInDefrost;      // 1=использовать датчик в алгоритме дефростации, 0=игнорировать
 } SENSOR_typedef_t;
 
@@ -70,28 +70,28 @@ typedef struct {
 typedef enum
 {
 	// Регистры хранения
-	MB_CMD_READ_REGS = 0x03,
-    MB_CMD_WRITE_REG = 0x06,
-    MB_CMD_WRITE_REGS = 0x10,
+	MB_CMD_READ_REGS = 0x03,		// чтение одного или нескольких регистров хранения
+    MB_CMD_WRITE_REG = 0x06,		// запись одного регистра хранения	
+    MB_CMD_WRITE_REGS = 0x10,		// запись одного или нескольких регистров хранения
 	// Регистры катушек
-	MB_CMD_READ_COILS = 0x01,		// чтение одного или нескольких регистров катушек
+	MB_CMD_READ_COILS = 0x01,		// чтение одного или нескольких регистров катушек (выходов дискретных сигналов)
     MB_CMD_WRITE_COIL = 0x05,		// запись одного регистра катушки
-    MB_CMD_WRITE_COILS = 0x0F,		// запись одного или нескольких регистров катушек
-	// Дискретные входы
-	MB_CMD_READ_INPUT = 0x02,		// чтение дискретных входов
+    MB_CMD_WRITE_COILS = 0x0F,		// запись одного или нескольких регистров катушек (выходов дискретных сигналов)
+	// Дискретные входы (входы дискретных сигналов)
+	MB_CMD_READ_INPUT = 0x02,		// чтение дискретных входов (входов дискретных сигналов)
 }MB_Command_t;
 
 // Ошибки работы с шиной ModBus
 typedef enum
 {
-	MB_ERROR_NO = 0x00,
-	MB_ERROR_COMMAND = 0x01,
-	MB_ERROR_WRONG_ADDRESS = 0x02,
-	MB_ERROR_WRONG_VALUE = 0x03,
-	MB_ERROR_DMA_SEND = 0x04,
-	MB_ERROR_UART_SEND = 0x05,
-	MB_ERROR_UART_RECIEVE = 0x06,
-	MB_ERROR_DMA_RECIEVE = 0x07
+	MB_ERROR_NO = 0x00,			// ошибок нет
+	MB_ERROR_COMMAND = 0x01,	// неверная команда
+	MB_ERROR_WRONG_ADDRESS = 0x02,	// неверный адрес
+	MB_ERROR_WRONG_VALUE = 0x03,	// неверное значение
+	MB_ERROR_DMA_SEND = 0x04,	// ошибка DMA при отправке
+	MB_ERROR_UART_SEND = 0x05,	// ошибка UART при отправке
+	MB_ERROR_UART_RECIEVE = 0x06,	// ошибка UART при приёме
+	MB_ERROR_DMA_RECIEVE = 0x07,	// ошибка DMA при приёме
 }MB_Error_t;
 
 // Адреса регистров устройств на шине
