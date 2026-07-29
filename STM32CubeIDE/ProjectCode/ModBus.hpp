@@ -134,6 +134,8 @@ extern osMessageQId MB_MasterQHandle;
 MB_Error_t Sensor_Read(uint8_t SensIndex);
 
 void MB_Master_Init(void);
+/* Подготовка UART5 (датчики): abort/flush RX, DE=приём, сброс семафоров TX/RX. */
+void MB_Master_RxChannelPrepare(void);
 void ProgrammingSensor(void);
 void PR_UART4_Init(int BaudRateValue);
 void WriteToServer(uint8_t* Data, int length);

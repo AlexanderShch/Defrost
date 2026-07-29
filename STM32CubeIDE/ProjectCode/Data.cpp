@@ -266,7 +266,10 @@ void ReadDataFunc() {
 	// Гарантируем, что DE pin в правильном состоянии для приёма команд от сервера
 	// ═══════════════════════════════════════════════════════════════════════════
 	HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
-	
+	HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
+	// Канал опроса датчиков (UART5) — abort/flush/семафоры до первого Sensor_Read в Init.
+	MB_Master_RxChannelPrepare();
+
 	// Инициализация датчиков при запуске задачи
 	MB_Master_Init();
 	uint16_t *pDFR = (uint16_t*) &Model::DFR;	// указатель на регистр состояния устройств при авт.управлении DFR

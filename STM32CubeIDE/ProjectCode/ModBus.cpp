@@ -35,6 +35,68 @@ typedef enum
 // Глобальная переменная владения UART4
 static volatile UART4_Owner_t g_uart4Owner = UART4_OWNER_SERVER;
 
+/* Вооружение RX DMA сразу в TxCplt — чтобы не потерять первые байты ответа датчика
+ * из‑за задержки планировщика между Acquire(Sem_Tx) и ReceiveToIdle_DMA в задаче. */
+static volatile uint8_t *s_mbArmRxBuf = nullptr;
+static volatile uint16_t s_mbArmRxSize = 0;
+static volatile UART_HandleTypeDef *s_mbArmRxUart = nullptr;
+static volatile uint8_t s_mbArmRxPending = 0;
+static volatile uint8_t s_mbArmRxOk = 0;
+
+/* Сброс флагов ошибок и вычитка DR — готовность аппаратного приёмника к новому кадру. */
+static void MB_FlushUartReceiver(UART_HandleTypeDef *huart)
+{
+	if (huart == nullptr || huart->Instance == nullptr)
+	{
+		return;
+	}
+	__HAL_UART_CLEAR_OREFLAG(huart);
+	__HAL_UART_CLEAR_NEFLAG(huart);
+	__HAL_UART_CLEAR_FEFLAG(huart);
+	__HAL_UART_CLEAR_PEFLAG(huart);
+	while (__HAL_UART_GET_FLAG(huart, UART_FLAG_RXNE) != RESET)
+	{
+		volatile uint32_t tmp = huart->Instance->DR;
+		(void)tmp;
+	}
+	__HAL_UART_CLEAR_IDLEFLAG(huart);
+}
+
+/* Abort RX/TX leftovers, flush, DE=приём. Вызывать до первой транзакции и перед каждым запросом. */
+static void MB_PrepareUartForMasterRx(UART_HandleTypeDef *huart, GPIO_TypeDef *dePort, uint16_t dePin)
+{
+	if (huart == nullptr)
+	{
+		return;
+	}
+	(void)HAL_UART_AbortReceive(huart);
+	(void)HAL_UART_AbortTransmit(huart);
+	MB_FlushUartReceiver(huart);
+	if (dePort != nullptr)
+	{
+		HAL_GPIO_WritePin(dePort, dePin, GPIO_PIN_RESET);
+	}
+	huart->ErrorCode = HAL_UART_ERROR_NONE;
+}
+
+/* Старт ReceiveToIdle из TxCplt (или fallback из задачи). */
+static HAL_StatusTypeDef MB_StartReceiveToIdle(UART_HandleTypeDef *huart, uint8_t *rxBuf, uint16_t rxSize)
+{
+	if (huart == nullptr || rxBuf == nullptr || rxSize == 0u)
+	{
+		return HAL_ERROR;
+	}
+	MB_FlushUartReceiver(huart);
+	HAL_StatusTypeDef st = HAL_UARTEx_ReceiveToIdle_DMA(huart, rxBuf, rxSize);
+	if (st == HAL_OK && huart->hdmarx != nullptr)
+	{
+		__HAL_DMA_DISABLE_IT(huart->hdmarx, DMA_IT_HT);
+	}
+	return st;
+}
+
+static void DrainBinarySemaphore(osSemaphoreId_t sem);
+
 // Функция установки владения UART4 сервером
 extern "C" void UART4_SetOwner_Server(void)
 {
@@ -285,6 +347,8 @@ static void EnforceHeaterInterlockByFans(void)
 void MB_Master_Init(void)
 {
 	MB_Error_t result = MB_ERROR_NO;
+	// Канал UART5 должен быть готов к приёму до первого Sensor_Read (буферы/флаги/DE/семафоры).
+	MB_Master_RxChannelPrepare();
 	// Запросим каждый не активный датчик, если ответит - пометим как активный
 //	while (1)	{ // тестовый цикл
 	for (int i=0; i<SQ; i++)
@@ -346,6 +410,9 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			if (result != MB_ERROR_NO)
 				break;	// если ошибка, то выходим из функции case 4
 
+			// Пауза между запросами к модулю ВВ (запас над t3.5 при 19200).
+			osDelay(5);
+
 			// Попробуем прочитать данные с выходного регистра модуля ввода-вывода, запишем в H (Read_Data_1)
 			for (uint8_t attempt = 0; attempt < 3; ++attempt)
 			{
@@ -364,6 +431,9 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			}
 			if (result != MB_ERROR_NO)
 				break;	// если ошибка, то выходим из функции case 4
+
+			// Пауза между запросами к модулю ВВ (запас над t3.5 при 19200).
+			osDelay(5);
 
 			// Попробуем прочитать данные со входного регистра модуля ввода-вывода, запишем в Т (Read_Data_2)
 			for (uint8_t attempt = 0; attempt < 3; ++attempt)
@@ -524,8 +594,11 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *Uart) {
 	HAL_UART_AbortTransmit_IT(Uart);
 	if (Uart == &huart5)		// ошибка датчика
 	{
-		// Включим направление - приём
+		// Включим направление - приём и разбудим ожидание RX (иначе только таймаут pauseMs).
 		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
+		HAL_UART_AbortReceive_IT(Uart);
+		MB_FlushUartReceiver(Uart);
+		osSemaphoreRelease(RX_Compl_SemHandle);
 	}
 	else if (Uart == &huart4) 	// ошибка сканирования шины программирования
 	{
@@ -537,6 +610,11 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *Uart) {
 			// Возвращаем владение серверу и поднимаем приём в режиме ReceiveToIdle.
 			UART4_SetOwner_Server();
 			CommandReceiver_RestartReception();
+		}
+		else
+		{
+			HAL_UART_AbortReceive_IT(Uart);
+			osSemaphoreRelease(PR_RX_Compl_SemHandle);
 		}
 	}
 }
@@ -566,17 +644,25 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 
 // обработка прерывания - передача завершена
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *Uart) {
-	// Включим направление - приём
-	HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
-
 	if (Uart == &huart5)
 	{
-		// Установим семафор окончания передачи, продолжится задача ModBus
+		// DE на приём сразу после последнего бита TX — до возврата в задачу.
+		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
+		if (s_mbArmRxPending != 0u && s_mbArmRxUart == Uart && s_mbArmRxBuf != nullptr)
+		{
+			s_mbArmRxPending = 0;
+			s_mbArmRxOk = (MB_StartReceiveToIdle(Uart, (uint8_t *)s_mbArmRxBuf, s_mbArmRxSize) == HAL_OK) ? 1u : 0u;
+		}
 		osSemaphoreRelease(TX_Compl_SemHandle);
 	}
 	else if (Uart == &huart4)
 	{
 		HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
+		if (s_mbArmRxPending != 0u && s_mbArmRxUart == Uart && s_mbArmRxBuf != nullptr)
+		{
+			s_mbArmRxPending = 0;
+			s_mbArmRxOk = (MB_StartReceiveToIdle(Uart, (uint8_t *)s_mbArmRxBuf, s_mbArmRxSize) == HAL_OK) ? 1u : 0u;
+		}
 		osSemaphoreRelease(PR_TX_Compl_SemHandle);
 	}
 }
@@ -1114,6 +1200,18 @@ static void DrainBinarySemaphore(osSemaphoreId_t sem)
 	}
 }
 
+/* Публичная подготовка канала датчиков (UART5) после Init / перед опросом. */
+void MB_Master_RxChannelPrepare(void)
+{
+	s_mbArmRxPending = 0;
+	s_mbArmRxOk = 0;
+	s_mbArmRxBuf = nullptr;
+	s_mbArmRxUart = nullptr;
+	DrainBinarySemaphore(TX_Compl_SemHandle);
+	DrainBinarySemaphore(RX_Compl_SemHandle);
+	MB_PrepareUartForMasterRx(&huart5, MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin);
+}
+
 static MB_Error_t WaitUntilUART4RxFrameCompletes(void)
 {
 	// Хелпер актуален только для UART4 RX-to-IDLE DMA режима, используемого со связью с сервером.
@@ -1207,58 +1305,69 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 		}
 	}
 
+	// Перед TX: abort leftovers, сброс ORE/FE/NE, DE=приём — чистый старт кадра.
+	MB_PrepareUartForMasterRx(MB->UART, MB->PORT, MB->PORT_PIN);
+	DrainBinarySemaphore(*MB->Sem_Rx);
+
 	// ПЕРЕДАЧА DMA ********************************
 	// Включим направление - передача
 	HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_SET);
 	// Начинаем передачу отправкой буфера с записанной структурой в порт UART через DMA
 	osDelay(1);	// задержка перед стартовым битом
 
+	// Заказать вооружение RX в TxCplt сразу после DE→RX (минимальное окно до ответа датчика).
+	s_mbArmRxBuf = MB->Rx_Buffer;
+	s_mbArmRxSize = (uint16_t)MAX_MB_BUFSIZE;
+	s_mbArmRxUart = MB->UART;
+	s_mbArmRxOk = 0;
+	s_mbArmRxPending = 1;
+
 	result = HAL_UART_Transmit_DMA(MB->UART, MB->Tx_Buffer, N_Bytes);
 	if (result == HAL_OK)
 	{
 		// ПЕРЕДАЧА UART ***************************
-		// Ждём, пока UART всё передаст в шину и обработчик прерывания HAL_UART_TxCpltCallback выдаст токен семафора
+		// Ждём, пока UART всё передаст; в TxCplt уже DE=RX и (обычно) ReceiveToIdle_DMA.
 		resultSem = osSemaphoreAcquire(*MB->Sem_Tx, pauseMs);
 		if (resultSem != osOK)
 		{	// обработка ошибки передачи по UART
+			s_mbArmRxPending = 0;
 			MB_ERR = MB_ERROR_UART_SEND;
 			HAL_UART_AbortTransmit_IT(MB->UART);
-			// Включим направление - приём
+			HAL_UART_AbortReceive_IT(MB->UART);
 			HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_RESET);
 			return MB_ERR;
 		}
-		// Направление на приём включается в обработчике прерывания HAL_UART_TxCpltCallback
 
-		// ПРИЁМ DMA *******************************
-		// Функция принимает объем данных в режиме DMA до тех пор,
-		// пока не будет получено ожидаемое количество данных или не произойдет событие ПРОСТОЯ.
-		result = HAL_UARTEx_ReceiveToIdle_DMA(MB->UART, MB->Rx_Buffer, MAX_MB_BUFSIZE);
-	    // Отключаем прерывание половины приёма
-	    __HAL_DMA_DISABLE_IT(MB->UART->hdmarx, DMA_IT_HT);
+		// Fallback: если TxCplt не смог поднять RX — поднимаем из задачи.
+		if (s_mbArmRxOk == 0u)
+		{
+			result = MB_StartReceiveToIdle(MB->UART, MB->Rx_Buffer, (uint16_t)MAX_MB_BUFSIZE);
+			s_mbArmRxOk = (result == HAL_OK) ? 1u : 0u;
+		}
 
-		if (result == HAL_OK)
-		{	// ReceiveToIdle_DMA отработал и вышел либо по заполнению буфера, либо по событию IDLE (0x00)
-			// Ждём, когда приём закончится и прерывание выдаст токен семафора
-			// ответ должен нормально уложиться в 11 байт (1200 -> 9.1 ms на байт, всего на фрейм 72,8 ms), это время функция ждёт токен семафора в состоянии блокировки
+		if (s_mbArmRxOk != 0u)
+		{
+			// Ждём IDLE/полный буфер (токен из RxEvent/RxCplt или ErrorCallback).
 			resultSem = osSemaphoreAcquire(*MB->Sem_Rx, pauseMs);
 			if (resultSem != osOK)
-			{	// прерывания не случилось, семафора не дождались, вышли по тайм-ауту
+			{
 				MB_ERR = MB_ERROR_UART_RECIEVE;
-				// датчик не ответил, прекращаем ReceiveToIdle_DMA
 				HAL_UART_AbortReceive_IT(MB->UART);
+				MB_PrepareUartForMasterRx(MB->UART, MB->PORT, MB->PORT_PIN);
 				return MB_ERR;
 			}
 		}
 		else
-		{  // обработка ошибки приёма
+		{
 			MB_ERR = MB_ERROR_DMA_RECIEVE;
+			MB_PrepareUartForMasterRx(MB->UART, MB->PORT, MB->PORT_PIN);
 		}
 	}
 	else
 	{  // обработка ошибки передачи по DMA
+		s_mbArmRxPending = 0;
 		MB_ERR = MB_ERROR_DMA_SEND;
 		HAL_UART_AbortTransmit_IT(MB->UART);
-		// Включим направление - приём
 		HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_RESET);
 	}
 	return MB_ERR;
