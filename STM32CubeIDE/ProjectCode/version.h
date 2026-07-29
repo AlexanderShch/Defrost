@@ -12,7 +12,7 @@
 // Версия прошивки (семантическое версионирование: MAJOR.MINOR.PATCH)
 #define FW_VERSION_MAJOR    2   // несовместимые изменения API
 #define FW_VERSION_MINOR    6   // новая функциональность, обратно совместимая
-#define FW_VERSION_PATCH    4   // исправления багов и небольшие улучшения, обратно совместимые
+#define FW_VERSION_PATCH    5   // исправления багов и небольшие улучшения, обратно совместимые
 
 // Строковое представление строится из числовых частей, чтобы не допустить расхождений при ручном редактировании.
 #define FW_VERSION_STRINGIFY_IMPL(x)  #x
@@ -33,6 +33,12 @@
 #endif /* VERSION_H_ */
 
 /*
+Версия 2.6.5
+- Для повторных запросов модуля ВВ (READ_COILS/READ_INPUT) добавлена пауза osDelay(FrameDelay1)
+  между попытками при ошибках приёма MB_ERROR_UART_RECIEVE/MB_ERROR_DMA_RECIEVE.
+- Переработана обработка ошибок в Sensor_Read без goto (через флаг needHoldPrevious),
+  чтобы исключить ошибки компиляции jump-to-case и сохранить логику hold предыдущего такта.
+
 Версия 2.6.4
 - Проверка CRC16 (и кода функции) для всех ответов на шине датчиков/модуля ВВ:
   READ_COILS, READ_INPUT, READ_REGS, WRITE_REG, WRITE_COIL/COILS/REGS.

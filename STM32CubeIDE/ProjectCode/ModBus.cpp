@@ -344,45 +344,55 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			WR_Buffer[2] = (RelayRegister>>8) & 0xFF;		// старший байт
 			result = Master_RW(&SW, SensAddress, MB_CMD_WRITE_COILS, Type4_DO, REG_COUNT, WR_Buffer);
 			if (result != MB_ERROR_NO)
-				break;
-			// Запросим данные с выходного регистра модуля ввода-вывода, запишем в H (Read_Data_1)
+				break;	// если ошибка, то выходим из функции case 4
+
+			// Попробуем прочитать данные с выходного регистра модуля ввода-вывода, запишем в H (Read_Data_1)
 			for (uint8_t attempt = 0; attempt < 3; ++attempt)
 			{
 				result = Master_RW(&SW, SensAddress, MB_CMD_READ_COILS, Type4_DO, REG_COUNT, WR_Buffer);
 				if (result == MB_ERROR_NO)
 				{
-					break;
+					break;	// если данные приняты, то выходим из цикла
 				}
-				// Повторяем только при ошибке приёма.
+				// Повторяем цикл только при ошибке приёма.
 				if (result != MB_ERROR_UART_RECIEVE && result != MB_ERROR_DMA_RECIEVE)
 				{
-					break;
+					break;	// если данные приняты, то выходим из цикла
 				}
+				// RTU пауза t3.5 перед следующей попыткой (после ошибок приёма).
+				osDelay(FrameDelay1);
 			}
 			if (result != MB_ERROR_NO)
-				break;
-			// Запросим данные со входного регистра модуля ввода-вывода, запишем в Т (Read_Data_2)
+				break;	// если ошибка, то выходим из функции case 4
+
+			// Попробуем прочитать данные со входного регистра модуля ввода-вывода, запишем в Т (Read_Data_2)
 			for (uint8_t attempt = 0; attempt < 3; ++attempt)
 			{
 				result = Master_RW(&SW, SensAddress, MB_CMD_READ_INPUT, Type4_DI, REG_COUNT, WR_Buffer);
 				if (result == MB_ERROR_NO)
 				{
-					break;
+					break;	// если данные приняты, то выходим из цикла
 				}
-				// Повторяем только при ошибке приёма.
+				// Повторяем цикл только при ошибке приёма.
 				if (result != MB_ERROR_UART_RECIEVE && result != MB_ERROR_DMA_RECIEVE)
 				{
-					break;
+					break;	// если данные приняты, то выходим из цикла
 				}
+				// RTU пауза t3.5 перед следующей попыткой (после ошибок приёма).
+				osDelay(FrameDelay1);
 			}
-			break;	}
+			// в любом случае выходим из функции case 4 с ошибкой или без ошибки
+			break;	// выходим из функции case 4
+		}
 		default:	{
 			result = MB_ERROR_WRONG_ADDRESS;
 			break;	}
 	}
 	// Если тайминги между разными типами датчиков на шине будут разными, сохраним тип считанного датчика в переменной
 	SW.PreviosTypeOfSensor = Sensor_array[SensIndex].TypeOfSensor;
+
 	// Обработка считанных данных
+	bool needHoldPrevious = false;
 	switch (result)
 	{
 		case MB_ERROR_NO: {
@@ -447,40 +457,44 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 		case MB_ERROR_DMA_SEND:
 		case MB_ERROR_UART_SEND:
 			Sensor_array[SensIndex].TxErrorCnt++;
-			goto sensor_hold_previous;
+			needHoldPrevious = true;
+			break;
 		case MB_ERROR_COMMAND:
 		case MB_ERROR_WRONG_ADDRESS:
 		case MB_ERROR_WRONG_VALUE:
 			Sensor_array[SensIndex].ErrCnt++;
 			result = MB_ERROR_UART_RECIEVE;
 			Sensor_array[SensIndex].RxErrorCnt++;
-			goto sensor_hold_previous;
+			needHoldPrevious = true;
+			break;
 		case MB_ERROR_UART_RECIEVE:
 		case MB_ERROR_DMA_RECIEVE:
 			Sensor_array[SensIndex].RxErrorCnt++;
-			goto sensor_hold_previous;
+			needHoldPrevious = true;
+			break;
 		default:
 			Sensor_array[SensIndex].ErrCnt++;
 			Sensor_array[SensIndex].RxErrorCnt++;
 			result = MB_ERROR_UART_RECIEVE;
-			goto sensor_hold_previous;
-sensor_hold_previous:
-			{
-			// Hold: текущий такт = прошлые валидные T/H (для IO — DI/DO), без мусора с шины.
-			const unsigned int prevSec = (TimeFromStart > 0u) ? (TimeFromStart - 1u) : 0u;
-			const int prevTemp = Sensor::GetData(prevSec, SensIndex, 2);
-			const int prevHum = Sensor::GetData(prevSec, SensIndex, 3);
-			Sensor::PutData(TimeFromStart, SensIndex, 1, TimeFromStart);
-			Sensor::PutData(TimeFromStart, SensIndex, 2, prevTemp);
-			Sensor::PutData(TimeFromStart, SensIndex, 3, prevHum);
-
-			if (SensIndex == 6 && Sensor_array[SensIndex].TypeOfSensor == 4)
-			{
-				Model::DO_DFR.Raw = (uint16_t)prevHum;
-				Model::DI_DFR.Raw = (uint16_t)prevTemp;
-			}
+			needHoldPrevious = true;
 			break;
-			}
+	}
+
+	// "Хранение" (Hold): текущий такт = прошлые валидные T/H (для IO — DI/DO) при ошибке чтения с шины.
+	if (needHoldPrevious)
+	{
+		const unsigned int prevSec = (TimeFromStart > 0u) ? (TimeFromStart - 1u) : 0u;
+		const int prevTemp = Sensor::GetData(prevSec, SensIndex, 2);
+		const int prevHum = Sensor::GetData(prevSec, SensIndex, 3);
+		Sensor::PutData(TimeFromStart, SensIndex, 1, TimeFromStart);
+		Sensor::PutData(TimeFromStart, SensIndex, 2, prevTemp);
+		Sensor::PutData(TimeFromStart, SensIndex, 3, prevHum);
+
+		if (SensIndex == 6 && Sensor_array[SensIndex].TypeOfSensor == 4)
+		{
+			Model::DO_DFR.Raw = (uint16_t)prevHum;
+			Model::DI_DFR.Raw = (uint16_t)prevTemp;
+		}
 	}
 	osDelay(FrameDelay1);	// обеспечение выдержки между фреймами
 	return result;
@@ -933,59 +947,81 @@ MB_Error_t Master_RW(MB_Active_t *MB, int SensAddress, MB_Command_t CMD, MB_Reg_
 	// посылка для передачи подготовлена
 	// Теперь нужно скорректировать посылку для команд mult записи
 
-	if (CMD >= 0x0F) // это команды mult записи 0x0F, 0x10?
+	if (CMD >= 0x0F) // это команды mult записи 0x0F, 0x10, 0x13, 0x16
 	{
+		// заполним буфер для отправки команды датчику всеми байтами из буфера WR_Buf
+		// WR_Buf[0] — длина блока данных (в байтах),
+		// цикл копирует и сам байт длины, и все байты полезных данных (поэтому <=).
 		for (var = 0; var <= WR_Buf[0]; ++var) {
 			MB->Tx_Buffer[var + (N_Bytes-2)] = WR_Buf[var];
 		}
-		// пересчитаем CRC
+		// пересчитаем CRC для отправки и отправим посылку
 		valCRC = MB_GetCRC(MB->Tx_Buffer, (N_Bytes-2) + var);
 		MB->Tx_Buffer[var++ + (N_Bytes-2)] = valCRC & 0xFF;			// CRC Lo
 		MB->Tx_Buffer[var++ + (N_Bytes-2)] = valCRC>>8 & 0xFF;		// CRC Hi
 		result = Master_Request(MB, var + (N_Bytes-2));
 	}
-	else
+	else	
+		// для обычных команд кадр фиксированного размера (N_Bytes, обычно 8 байт) уже готов, просто отправляется без дополнительной сборки.
 		result = Master_Request(MB, N_Bytes);
-
+	
+	// проверяем результат отправки и приёма данных
 	if (result == MB_ERROR_NO)
 	{
-		// Данные приняты по UART — проверяем FC+CRC; при провале Read_Data_* не трогаем.
+		// Данные приняты по UART — проверяем Command+CRC; при провале Read_Data_* не трогаем.
 		switch (CMD)	{
 			case MB_CMD_READ_COILS:	{
-				// DO модуля ВВ: ожидаем ByteCount>=2 (16 катушек)
+				// DOutput Coils модуля ВВ: ожидаем ByteCount>=2 (16 катушек)
+				// проверяем с CheckAnswerCRC: код функции в ответе совпадает с запрошенным CMD, CRC всего принятого кадра корректен,
+				// & ByteCount>=2 (16 катушек)
 				if (CheckAnswerCRC && MB->Rx_Buffer[2] >= 2u)
 					MB->Read_Data_1 = *(uint16_t*) &MB->Rx_Buffer[3];
 				else
+					// если не прошли проверку, то возвращаем ошибку
 					result = MB_ERROR_UART_RECIEVE;
 				break;	}
 			case MB_CMD_READ_INPUT:	{
-				// DI модуля ВВ: ожидаем ByteCount>=2 (16 входов)
+				// DInput модуля ВВ: ожидаем ByteCount>=2 (16 входов)
+				// проверяем с CheckAnswerCRC: код функции в ответе совпадает с запрошенным CMD, CRC всего принятого кадра корректен,
+				// & ByteCount>=2 (16 входов)
 				if (CheckAnswerCRC && MB->Rx_Buffer[2] >= 2u)
 					MB->Read_Data_2 = *(uint16_t*) &MB->Rx_Buffer[3];
 				else
+					// если не прошли проверку, то возвращаем ошибку
 					result = MB_ERROR_UART_RECIEVE;
 				break;	}
-			case MB_CMD_READ_REGS: {	// holding-регистры (датчики TH/PT100, сканирование ВВ)
+			case MB_CMD_READ_REGS: {	
+				// holding-регистры - это регистры для хранения данных (датчики TH/PT100, сканирование ВВ)
+				// проверяем с CheckAnswerCRC: код функции в ответе совпадает с запрошенным CMD, CRC всего принятого кадра корректен,
 				if (CheckAnswerCRC)
 				{
+					// если DATA == 1, то считываем один регистр
 					if (DATA == 1)
 					{
 						MB->Read_Data_1 = 0;
 						MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
 					}
 					else
+					// если DATA != 1, то считываем два регистра
 					{
 						MB->Read_Data_1 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
 						MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
 					}
 				}
 				else
+					// если не прошли проверку, то возвращаем ошибку
 					result = MB_ERROR_UART_RECIEVE;
 				break;	}
 			case MB_CMD_WRITE_REG: {
+				// holding-регистры - это регистры для хранения данных (датчики TH/PT100, сканирование ВВ)
+				// проверяем с PR_CheckAnswerCRC: код функции в ответе совпадает с запрошенным CMD, CRC всего принятого кадра корректен,
 				if (PR_CheckAnswerCRC)
+				{
+					// если прошли проверку, то считываем значение из регистра
 					Sens_WR_value = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[4]);
+				}
 				else
+					// если не прошли проверку, то возвращаем ошибку
 					result = MB_ERROR_UART_RECIEVE;
 				break;	}
 			case MB_CMD_WRITE_COIL:
@@ -1201,12 +1237,11 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 	    __HAL_DMA_DISABLE_IT(MB->UART->hdmarx, DMA_IT_HT);
 
 		if (result == HAL_OK)
-		{	// ReceiveToIdle_DMA отработал и вышел по тайм-ауту
-			// последнее значение в очереди = 0, ждём прерывание приёма по IDLE
+		{	// ReceiveToIdle_DMA отработал и вышел либо по заполнению буфера, либо по событию IDLE (0x00)
 			// Ждём, когда приём закончится и прерывание выдаст токен семафора
-			//ответ должен нормально уложиться в 11 байт (1200 -> 9.1 ms на байт, всего на фрейм 72,8 ms), это время функция ждёт токен семафора в состоянии блокировки
-		resultSem = osSemaphoreAcquire(*MB->Sem_Rx, pauseMs);
-		if (resultSem != osOK)
+			// ответ должен нормально уложиться в 11 байт (1200 -> 9.1 ms на байт, всего на фрейм 72,8 ms), это время функция ждёт токен семафора в состоянии блокировки
+			resultSem = osSemaphoreAcquire(*MB->Sem_Rx, pauseMs);
+			if (resultSem != osOK)
 			{	// прерывания не случилось, семафора не дождались, вышли по тайм-ауту
 				MB_ERR = MB_ERROR_UART_RECIEVE;
 				// датчик не ответил, прекращаем ReceiveToIdle_DMA
