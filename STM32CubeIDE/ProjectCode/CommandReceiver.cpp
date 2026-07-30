@@ -404,16 +404,9 @@ CommandStatus_t CommandReceiver_HandleConfiguration(Command_t *cmd)
         
         case CFG_CMD_SET_INTERVAL:
         {
-            // Ожидаем 2 байта с uint16_t значением интервала в секундах
-            if (cmd->dataLength == 2)
-            {
-                uint16_t intervalSeconds = 0;
-                memcpy(&intervalSeconds, cmd->data, sizeof(uint16_t));
-
-                // Установить интервал отправки телеметрии на сервер (сек).
-                Telemetry_SetIntervalSeconds(intervalSeconds);
-            }
-            else
+            // Ведущий — сервер: интервал SEND_STATE держит он. На МК значение не хранится и не используется.
+            // Команда оставлена для совместимости со стартовой последовательностью сервера (ACK при dataLength==2).
+            if (cmd->dataLength != 2)
             {
                 status = CMD_STATUS_INVALID_LENGTH;
             }

@@ -54,7 +54,7 @@ typedef enum {
 // Коды команд конфигурации (ConfigCommand)
 typedef enum {
     CFG_CMD_SET_TEMPERATURE = 0x01,  // Установить целевую температуру
-    CFG_CMD_SET_INTERVAL    = 0x02,  // Установить интервал измерений
+    CFG_CMD_SET_INTERVAL    = 0x02,  // Совместимость: интервал на МК не используется (ведущий — сервер)
     CFG_CMD_SET_MODE        = 0x03,  // Установить режим работы
     CFG_CMD_SET_DEFROST_PARAM = 0x04, // Установить один параметр авто-дефроста
     CFG_CMD_SET_DEFROST_GROUP  = 0x05  // Записать группу параметров (payload: groupId + данные группы 5 или 6)

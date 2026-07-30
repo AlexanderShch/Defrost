@@ -16,7 +16,6 @@
 
 // ReadDataEventHandle определён в main.c
 extern osEventFlagsId_t ReadDataEventHandle;
-extern osEventFlagsId_t Start_TX_EventHandle;
 extern osSemaphoreId_t ServerResponseReceived_SemHandle;  // ответ на телеметрию (DATA_OK/DATA_FALSE)
 extern osSemaphoreId_t SensorsReadDone_SemHandle;
 extern SENSOR_typedef_t Sensor_array[SQ];
@@ -31,20 +30,6 @@ uint32_t flags;				// флаги для ожидания событий
 int8_t SensorNumber;
 uint16_t CirStop = 0b0001111000000000;	// стоповое слово, из которого будет выполняться перенос "бегущей единицы"
 uint8_t CirNum= 4;						// счётчик паузы для цикла "бегущей единицы"
-
-// Текущий интервал отправки телеметрии на сервер (сек).
-// Почему: интервал меняется командой CFG_CMD_SET_INTERVAL и должен применяться без перезагрузки.
-volatile uint16_t g_TelemetryIntervalSeconds = TELEMETRY_INTERVAL_DEFAULT_SEC;
-
-void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
-{
-	// Почему: защищаемся от нулевого интервала (зависание в постоянной отправке).
-	if (intervalSeconds == 0)
-	{
-		intervalSeconds = TELEMETRY_INTERVAL_DEFAULT_SEC;
-	}
-	g_TelemetryIntervalSeconds = intervalSeconds;
-}
 
 // Последний полностью записанный в кольцо такт (0 = ещё не было завершённого опроса).
 volatile unsigned int g_CommittedTick = 0;

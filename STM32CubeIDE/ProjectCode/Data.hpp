@@ -16,8 +16,6 @@
 #define SQ 7				// датчики TH дефростера (0-2) + датчики продукта (3, 4) + T корпуса (5) + MB_IO (6)
 #define STQ 5				// количество типов датчиков и IO-модулей
 #define FLAG_ReadData 1ul	// флаг события чтения данных 0x00000001ul
-// Интервал отправки телеметрии и лога на сервер по умолчанию (сек). Лог передаётся только в автоматическом режиме.
-#define TELEMETRY_INTERVAL_DEFAULT_SEC 10u
 
 class Sensor
 {
@@ -47,16 +45,9 @@ void ResendLastTelemetry(void);
 /* Сохранить готовый байтовый пакет телеметрии [Type][Code][Status][DataLen][Data...][CRC16] для повтора при TELEMETRY_DATA_FALSE. */
 void Data_SaveLastSentTelemetryPacket(const uint8_t* packet, uint16_t length);
 
-/* Последний такт, для которого кольцо T/H полностью записано (после всех PutData опроса).
+/* Последний такт, для которого данные в строку кольца T/H полностью записаны (после всех PutData опроса).
  * SEND_STATE / Data_CurrentTelemetry читают только этот тик — без гонки с незавершённым опросом. */
 extern volatile unsigned int g_CommittedTick;
-
-// Текущий интервал отправки телеметрии (сек). Изменяется командой CFG_CMD_SET_INTERVAL.
-extern volatile uint16_t g_TelemetryIntervalSeconds;
-
-// Установить новый интервал отправки телеметрии (сек).
-// Почему: интервал меняется из обработчика команд и должен применяться сразу (сброс счётчика).
-void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Единая очередь отправки на сервер (телеметрия, лог, ответы на команды).

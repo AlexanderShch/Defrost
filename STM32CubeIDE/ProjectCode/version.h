@@ -12,7 +12,7 @@
 // Версия прошивки (семантическое версионирование: MAJOR.MINOR.PATCH)
 #define FW_VERSION_MAJOR    2   // несовместимые изменения API
 #define FW_VERSION_MINOR    6   // новая функциональность, обратно совместимая
-#define FW_VERSION_PATCH    7   // исправления багов и небольшие улучшения, обратно совместимые
+#define FW_VERSION_PATCH    8   // исправления багов и небольшие улучшения, обратно совместимые
 
 // Строковое представление строится из числовых частей, чтобы не допустить расхождений при ручном редактировании.
 #define FW_VERSION_STRINGIFY_IMPL(x)  #x
@@ -33,6 +33,11 @@
 #endif /* VERSION_H_ */
 
 /*
+Версия 2.6.8
+- Удалён неиспользуемый код интервала автономной телеметрии на МК (ведущий — сервер):
+  g_TelemetryIntervalSeconds, Telemetry_SetIntervalSeconds, TELEMETRY_INTERVAL_DEFAULT_SEC,
+  лишний Start_TX_EventHandle. CFG_CMD_SET_INTERVAL только ACK для совместимости со стартом сервера.
+
 Версия 2.6.7
 - Телеметрия SEND_STATE читает кольцевой буфер только по g_CommittedTick (такт после всех PutData),
   чтобы не отдавать на сервер слот Time%TQ со старыми DI/DO (сдвиг на TQ=16 тактов).
