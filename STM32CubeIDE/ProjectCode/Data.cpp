@@ -46,28 +46,33 @@ void Telemetry_SetIntervalSeconds(uint16_t intervalSeconds)
 	g_TelemetryIntervalSeconds = intervalSeconds;
 }
 
+// Последний полностью записанный в кольцо такт (0 = ещё не было завершённого опроса).
+volatile unsigned int g_CommittedTick = 0;
+
 // Подготовка данных текущей телеметрии
 MSGQUEUE_OBJ_t Data_CurrentTelemetry(void)
 {
 	MSGQUEUE_OBJ_t DataToServer = {};
 	static_assert(sizeof(MSGQUEUE_OBJ_t) == 60u, "MSGQUEUE_OBJ_t size must stay in sync with ProjectServerW");
-	DataToServer.Time = (uint16_t)TimeFromStart;
+	// Только committed-тик: иначе GetData(TimeFromStart) может отдать слот N%TQ со значениями N-TQ.
+	const unsigned int tick = g_CommittedTick;
+	DataToServer.Time = (uint16_t)tick;
 	DataToServer.SensorQuantity = SQ;
 	for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
 	{
 		DataToServer.SensorType[SensorIndex] = Sensor_array[SensorIndex].TypeOfSensor;
 		DataToServer.Active[SensorIndex] = Sensor_array[SensorIndex].Active;
 		DataToServer.RxErrorCnt[SensorIndex] = Sensor_array[SensorIndex].RxErrorCnt;
-		if (Sensor_array[SensorIndex].Active == 0u)
+		if (tick == 0u || Sensor_array[SensorIndex].Active == 0u)
 		{
-			// Для неактивного датчика явно передаём маркер отсутствия данных.
+			// Нет завершённого опроса или датчик неактивен — маркер отсутствия данных.
 			DataToServer.T[SensorIndex] = SENSOR_NO_DATA_MARKER;
 			DataToServer.H[SensorIndex] = SENSOR_NO_DATA_MARKER;
 		}
 		else
 		{
-			DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 2);
-			DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(TimeFromStart, SensorIndex, 3);
+			DataToServer.T[SensorIndex] = (int16_t)Sensor::GetData(tick, SensorIndex, 2);
+			DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(tick, SensorIndex, 3);
 		}
 	}
     DataToServer.ShutdownActive = DefrostControl_IsShutdownActive();
@@ -374,6 +379,9 @@ void ReadDataFunc() {
 				}
 			}
 		}	// конец цикла опроса датчиков
+
+		// Фиксируем такт только после всех PutData активных датчиков/ВВ — барьер для SEND_STATE.
+		g_CommittedTick = TimeFromStart;
 
 		// Телеметрия и лог отправляются только по команде SEND_STATE от сервера (см. CommandReceiver REQ_CMD_SEND_STATE).
 		/* отпускаем семафор SensorsReadDone для запуска задачи DataAnalysis

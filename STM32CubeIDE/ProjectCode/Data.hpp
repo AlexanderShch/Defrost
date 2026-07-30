@@ -47,6 +47,10 @@ void ResendLastTelemetry(void);
 /* Сохранить готовый байтовый пакет телеметрии [Type][Code][Status][DataLen][Data...][CRC16] для повтора при TELEMETRY_DATA_FALSE. */
 void Data_SaveLastSentTelemetryPacket(const uint8_t* packet, uint16_t length);
 
+/* Последний такт, для которого кольцо T/H полностью записано (после всех PutData опроса).
+ * SEND_STATE / Data_CurrentTelemetry читают только этот тик — без гонки с незавершённым опросом. */
+extern volatile unsigned int g_CommittedTick;
+
 // Текущий интервал отправки телеметрии (сек). Изменяется командой CFG_CMD_SET_INTERVAL.
 extern volatile uint16_t g_TelemetryIntervalSeconds;
 
