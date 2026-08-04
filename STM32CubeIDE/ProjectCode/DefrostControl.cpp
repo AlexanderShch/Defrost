@@ -60,6 +60,8 @@ static uint8_t g_defrostPersistedAutoMode = 0u; // бит, определяющ�
 /* Отложенная запись в EEPROM: не пишем в LoadParams до старта RTOS (блокирующая запись
  * по страницам на I2C3 может надолго задержать main и сорвать запуск опроса датчиков). */
 static bool g_defrostEepromPersistPending = false;
+/* Восстановить авторежим после сбоя питания: StartAutomaticSequence — на первом Update1s (уже RTOS, есть DI). */
+static uint8_t g_defrostAutoRestorePending = 0u;
 static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEPROM payload exceeds M24C16 capacity");
  
  namespace
@@ -2273,24 +2275,24 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
                                   (rec.payloadCrc == payloadCrc);
             if (recValid)  // если данные валидны
             {
+                // Параметры всегда берём из валидной записи (не только при autoMode=1).
+                memcpy(&g_defrostParams, &rec.params, sizeof(DefrostParams_t));
                 g_defrostPersistedAutoMode = (rec.autoModeEnabled != 0u) ? 1u : 0u;
-                if (g_defrostPersistedAutoMode != 0u)  // если авторежим включен
-                {
-                    // Восстановление после сбоя: подтянуть параметры, с которыми шёл авторежим.
-                    memcpy(&g_defrostParams, &rec.params, sizeof(DefrostParams_t));
-                }
-                // autoMode=0 и запись валидна — EEPROM уже согласована, писать на старте не нужно.
+                // Сам автозапуск — после старта RTOS (Update1s), не в Init до osKernelStart.
+                g_defrostAutoRestorePending = g_defrostPersistedAutoMode;
             }
             else  // если данные не валидны
             {
                 // Пустая/битая EEPROM: синхронизируем после старта RTOS (Update1s).
                 g_defrostPersistedAutoMode = 0u;  // сбрасываем флаг авторежима
+                g_defrostAutoRestorePending = 0u;
                 g_defrostEepromPersistPending = true;
             }
         }
         else  // если EEPROM не доступна
         {
             g_defrostPersistedAutoMode = 0u;  // сбрасываем флаг авторежима
+            g_defrostAutoRestorePending = 0u;
         }
 
         // для каждого датчика устанавливаем флаг UseInDefrost в зависимости от значения UseInDefrost из массива Sensor_array
@@ -2334,6 +2336,18 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
      void DefrostControl_Update1s(void)
      {
         FlushPendingEepromPersistIfNeeded();
+        // Восстановление авторежима после сброса питания (autoModeEnabled из EEPROM).
+        // Делаем здесь, а не в Init: нужны RTOS и уже считанные концевики ворот.
+        if (g_defrostAutoRestorePending != 0u)
+        {
+            // Если есть флаг восстановления авторежима и алгоритм выключен, то запускаем автоматический режим из EEPROM
+            g_defrostAutoRestorePending = 0u;
+            if (g_defrostPersistedAutoMode != 0u && g.enabled == 0u)
+            {
+                StartAutomaticSequence();
+                // EEPROM уже согласована (autoMode=1); повторная запись не требуется.
+            }
+        }
         UpdateDeviceAlarmState();
          // Уважаем ручной режим и внешний флаг enabled.
          // Почему: ручной режим должен быть главным; алгоритм не должен "бороться" с оператором.
