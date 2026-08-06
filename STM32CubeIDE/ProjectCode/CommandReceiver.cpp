@@ -511,6 +511,17 @@ CommandStatus_t CommandReceiver_HandleConfiguration(Command_t *cmd)
             break;
         }
 
+        case CFG_CMD_LOAD_DEFROST_DEFAULTS:
+        {
+            if (cmd->dataLength != 0u)
+            {
+                status = CMD_STATUS_INVALID_LENGTH;
+                break;
+            }
+            DefrostControl_RestoreDefaultParams();
+            break;
+        }
+
         default:
             status = CMD_STATUS_INVALID_CODE;
             break;

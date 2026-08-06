@@ -89,6 +89,8 @@ void DefrostControl_GetParams(DefrostParams_t *outParams);
 uint8_t DefrostControl_SetParams(const DefrostParams_t *inParams);
 void DefrostControl_SaveParams(void);
 void DefrostControl_LoadParams(void);
+/** Заводские параметры дефростации: RAM + EEPROM. Режим работы (autoMode) не меняется. */
+void DefrostControl_RestoreDefaultParams(void);
 /** Целевая мин. температура рыбы °C (для автоостанова). Чтение/запись с экрана Settings1 (ValueCoreTSet). */
 float DefrostControl_GetFishColdTarget_C(void);
 void DefrostControl_SetFishColdTarget_C(float val_C);

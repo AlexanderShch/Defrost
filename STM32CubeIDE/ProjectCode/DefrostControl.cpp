@@ -2253,6 +2253,19 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
         PersistParamsToEepromIfAvailable();
     }
 
+    void DefrostControl_RestoreDefaultParams(void)
+    {
+        LoadDefaultParams(&g_defrostParams);
+        for (uint8_t i = 0; i < kDefrostSensorCount; ++i)
+        {
+            Sensor_array[i].UseInDefrost = (g_defrostParams.sensorUseInDefrost[i] != 0u) ? 1u : 0u;
+        }
+        g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
+        g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
+        g.outFanDelay_s = g_defrostParams.outFanDelay_s;
+        DefrostControl_SaveParams();
+    }
+
     void DefrostControl_LoadParams(void)
     {
         // Рабочие параметры всегда начинаем с дефолтов; устойчивое хранилище — только EEPROM

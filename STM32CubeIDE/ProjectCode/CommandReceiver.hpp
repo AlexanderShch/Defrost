@@ -57,7 +57,8 @@ typedef enum {
     CFG_CMD_SET_INTERVAL    = 0x02,  // Совместимость: интервал на МК не используется (ведущий — сервер)
     CFG_CMD_SET_MODE        = 0x03,  // Установить режим работы
     CFG_CMD_SET_DEFROST_PARAM = 0x04, // Установить один параметр авто-дефроста
-    CFG_CMD_SET_DEFROST_GROUP  = 0x05  // Записать группу параметров (payload: groupId + данные группы 5 или 6)
+    CFG_CMD_SET_DEFROST_GROUP  = 0x05, // Записать группу параметров (payload: groupId + данные группы 5 или 6)
+    CFG_CMD_LOAD_DEFROST_DEFAULTS = 0x06  // Загрузить заводские параметры дефростации в RAM и EEPROM
 } ConfigCommand_t;
 
 // Коды команд запроса (RequestCommand)
