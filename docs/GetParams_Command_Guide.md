@@ -1,6 +1,6 @@
 # Считывание и запись параметров контроллера Defrost
 
-Документация по командам **запроса и записи параметров** авто-дефроста: один параметр или группа параметров. Чтение — команды типа `REQUEST` (ответ с префиксом `AA 55` на линии). Запись групп 5 и 6 — команда конфигурации **CFG_CMD_SET_DEFROST_GROUP** (тип `CONFIGURATION`, код `0x05`).
+Документация по командам **запроса и записи параметров** авто-дефроста: один параметр или группа параметров. Чтение — команды типа `REQUEST` (ответ с префиксом `AA 55` на линии). Запись групп 5 и 6 — команда конфигурации **CFG_CMD_SET_DEFROST_GROUP** (тип `CONFIGURATION`, код `0x05`). Заводские параметры целиком — **CFG_CMD_LOAD_DEFROST_DEFAULTS** (код `0x06`, прошивка ≥ 2.7.0).
 
 **Файлы реализации:**  
 Контроллер: `STM32CubeIDE/ProjectCode/CommandReceiver.cpp`, `DefrostControl.cpp`, `DefrostControl.h`.  
@@ -125,7 +125,43 @@
 ### 4.3. Обработка на контроллере
 
 - **CommandReceiver:** по коду `CFG_CMD_SET_DEFROST_GROUP` извлекает `groupId` из `Data[0]`, payload — из `Data[1]…Data[DataLen-1]`, вызывает `DefrostControl_SetGroupPayload(groupId, payload, payloadLen)`.
-- **DefrostControl_SetGroupPayload:** для groupId 5 копирует payload в `DefrostLogPhasePayload_t` и переносит поля в `g_defrostParams`; для groupId 6 — в `DefrostLogGlobalPayload_t`, переносит в `g_defrostParams`, обновляет `Sensor_array` и глобальные переменные. После применения вызывается **DefrostControl_SaveParams()**: параметры сохраняются в статическую структуру **в RAM** (без записи во Flash); после сброса питания загружаются значения по умолчанию.
+- **DefrostControl_SetGroupPayload:** для groupId 5 копирует payload в `DefrostLogPhasePayload_t` и переносит поля в `g_defrostParams`; для groupId 6 — в `DefrostLogGlobalPayload_t`, переносит в `g_defrostParams`, обновляет `Sensor_array` и глобальные переменные. После применения вызывается **DefrostControl_SaveParams()**: параметры сохраняются в EEPROM (и в рабочей RAM).
+
+---
+
+## 4a. Загрузка заводских параметров (CFG_CMD_LOAD_DEFROST_DEFAULTS)
+
+**Тип команды:** `CommandType = 0x02` (CONFIGURATION).  
+**Код команды:** `0x06` (CFG_CMD_LOAD_DEFROST_DEFAULTS).  
+**Прошивка:** ≥ **2.7.0**. Сервер: ≥ **2.3.0** (кнопка «По умолчанию» / «Исх.знач.» на вкладке «Параметры»).
+
+Сбрасывает параметры авто-дефроста к заводским значениям (`LoadDefaultParams` в `DefrostControl.cpp`), записывает их в EEPROM. **Не меняет** включённость авторежима (`autoModeEnabled` / `g.enabled`).
+
+### 4a.1. Формат команды
+
+| Байт  | Поле      | Значение | Описание |
+|-------|-----------|----------|----------|
+| 0     | Type      | `0x02`   | CONFIGURATION |
+| 1     | Code      | `0x06`   | LOAD_DEFROST_DEFAULTS |
+| 2     | DataLen   | `0x00`   | без полезной нагрузки |
+| 3–4   | CRC16     | —        | ModBus CRC16 по Type+Code+DataLen |
+
+Пример кадра (без учёта CRC): `02 06 00 …`
+
+### 4a.2. Ответ контроллера
+
+Стандартный ответ CONFIGURATION: `Type=0x02`, `Code=0x06`, `Status=0x00` (OK) при успехе.  
+При `DataLen ≠ 0` — `Status=0x04` (INVALID_LENGTH).  
+Неизвестная команда на старой прошивке — `Status=0x03` (INVALID_CODE) или таймаут.
+
+**Важно:** ACK уходит **после** синхронной записи EEPROM. На сервере для этой команды таймаут ожидания ответа — **1000 мс** (как у `SET_DEFROST_GROUP`).
+
+### 4a.3. Обработка на контроллере
+
+- **CommandReceiver:** `CFG_CMD_LOAD_DEFROST_DEFAULTS` → `DefrostControl_RestoreDefaultParams()`.
+- **DefrostControl_RestoreDefaultParams:** `LoadDefaultParams(&g_defrostParams)`, синхронизация `Sensor_array[].UseInDefrost`, `g.leftRightTrimGain` / `g.wDeadband_kgkg` / `g.outFanDelay_s`, затем `DefrostControl_SaveParams()` (EEPROM).
+
+После успеха сервер обычно перечитывает группы 5 и 6 (`GET_DEFROST_GROUP`), чтобы обновить таблицы параметров в UI.
 
 ---
 

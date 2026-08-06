@@ -61,6 +61,9 @@ class DefrostCommandClient:
     CFG_CMD_SET_TEMPERATURE = 0x01
     CFG_CMD_SET_INTERVAL = 0x02
     CFG_CMD_SET_MODE = 0x03
+    CFG_CMD_SET_DEFROST_PARAM = 0x04
+    CFG_CMD_SET_DEFROST_GROUP = 0x05
+    CFG_CMD_LOAD_DEFROST_DEFAULTS = 0x06
     
     # Коды команд запроса
     REQ_CMD_GET_STATUS = 0x01
@@ -255,6 +258,10 @@ class DefrostCommandClient:
         """Установка режима работы (0=авто, 1=ручной)"""
         data = struct.pack('B', mode)
         return self.send_command(self.CMD_TYPE_CONFIGURATION, self.CFG_CMD_SET_MODE, data)
+
+    def load_defrost_defaults(self):
+        """Заводские параметры дефростации (прошивка >= 2.7.0). Без payload."""
+        return self.send_command(self.CMD_TYPE_CONFIGURATION, self.CFG_CMD_LOAD_DEFROST_DEFAULTS)
     
     def get_status(self):
         """Запрос текущего статуса"""
