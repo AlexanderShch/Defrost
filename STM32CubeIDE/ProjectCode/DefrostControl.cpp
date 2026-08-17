@@ -122,7 +122,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          uint8_t okL, okR, okRet;
          float T_sup_avg_C;    // среднее по исправным подачам; при отказе обеих подач и исправном возврате — mRet + kSupplyTInferOffsetFromReturn_C; иначе 0
          float T_ret_C;        // возврат или при отказе — T_sup_avg_C
-         float RH_sup_avg;     // RH для w_sup: подачи или при их отсутствии — RH возврата; при полном отказе 0..2 — 50 %
+         float RH_sup_avg;     // RH для w_sup: подачи или при их отсутствии — RH возврата; при полном отказе 0..2 — 50 % (не для контура форсунки/вытяжки)
+         uint8_t humidityMeasOk; // 1 = есть хотя бы один канал 0..2 для контура влажности
      };
 
      // вычисление входных данных для управления дефростом и заполнение структуры DefrostAirControlInputs
@@ -167,7 +168,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          else if (a->okRet != 0u)
              a->RH_sup_avg = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
          else
-             a->RH_sup_avg = 50.0f; // если все датчики воздушного потока неисправны, то среднее значение относительной влажности равно 50%
+             a->RH_sup_avg = 50.0f; // заглушка для лога; контур форсунки/вытяжки при полном отказе 0..2 не ведём
+         a->humidityMeasOk = ((a->okL | a->okR | a->okRet) != 0u) ? 1u : 0u;
      }
  
      // Допущения по психрометрии.
@@ -976,6 +978,16 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
 
          g.outOn = g.outFanOn;
      }
+
+     static void StopExhaustHumidity(void)
+     {
+         g.outDamperState = 0u;
+         g.outDamperTimer_s = 0u;
+         g.outFanOn = 0u;
+         g.outOn = 0u;
+         g.outHold_s = 0u;
+         Model::DFR.Water_Flap = 0u;
+     }
  
     static void ControlStep1s()
      {
@@ -1190,22 +1202,21 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          // ─────────────────────────────────────────────────────────────────────────
          const float wErr = w_ret_target - w_sup_avg;
  
-         // Форсунка как медленный актуатор по скважности.
-         // Почему: у форсунки есть инерция/перенос капель — модуляция скважностью мягче, чем жёсткий ON/OFF.
          float injDuty = 0.0f;
-         if (wErr > g.wDeadband_kgkg)
+         if (airIn.humidityMeasOk != 0u)
          {
-             injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
+             if (wErr > g.wDeadband_kgkg)
+             {
+                 injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
+             }
+             StepExhaustByHumidityError(wErr);
+             if (g.outOn != 0)
+                 injDuty = 0.0f;
          }
- 
-        // Вытяжка: сначала Water_Flap, вентилятор — после открытия заслонки (см. StepExhaustByHumidityError).
-        StepExhaustByHumidityError(wErr);
- 
-         // Предпочитаем взаимоисключение: если вытяжка включена, форсунку не используем.
-         // Почему: совместная работа тратит энергию и делает управление плохо идентифицируемым.
-         if (g.outOn != 0)
+         else
          {
-             injDuty = 0.0f;
+             // Нет T/RH воздуха 0..2: не гонять форсунку и вытяжку по заглушкам T=0 / RH=50%.
+             StopExhaustHumidity();
          }
  
          const uint8_t inj_desired = g.injPwm.Step(injDuty);
@@ -1319,13 +1330,18 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
 
          const float wErr = w_ret_target - w_sup_avg;
          float injDuty = 0.0f;
-         if (wErr > g.wDeadband_kgkg)
-             injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
-
-         StepExhaustByHumidityError(wErr);
-
-         if (g.outOn != 0)
-             injDuty = 0.0f;
+         if (airIn.humidityMeasOk != 0u)
+         {
+             if (wErr > g.wDeadband_kgkg)
+                 injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
+             StepExhaustByHumidityError(wErr);
+             if (g.outOn != 0)
+                 injDuty = 0.0f;
+         }
+         else
+         {
+             StopExhaustHumidity();
+         }
 
          const uint8_t inj_desired = g.injPwm.Step(injDuty);
          const uint16_t kInjMinHold_s = g_defrostParams.injMinHold_s;
