@@ -84,7 +84,7 @@ unsigned int TimeFromStart = 0;
 unsigned int Sensor::Time[TQ][SQ] = {{0}};	// номер такта измерения
 int Sensor::T[TQ][SQ] = {{0}};		// сырая температура (Param 2)
 int Sensor::T_Clamped[TQ][SQ] = {{0}};	// обрезанная по шагу ΔT (антиспайк)
-uint8_t Sensor::T_ClampHit[TQ][SQ] = {{0}}; // факт обрезки на такте (для регистра аварии датчиков)
+int8_t Sensor::T_ClampHit[TQ][SQ] = {{0}}; // знак/факт обрезки на такте (продукт −1/0/+1, воздух 0/1)
 int Sensor::T_Average[TQ][SQ] = {{0}};	// усреднённая по буферу обрезанных (Param 4)
 int Sensor::H[TQ][SQ] = {{0}};		// влажность
 // !!! ВНИМАНИЕ! Если меняется структура MSGQUEUE_OBJ_t, надо поменять и размер буфера MAX_MB_BUFSIZE в ModBus.cpp
@@ -170,19 +170,35 @@ void Sensor::SetAverageTemperature(unsigned char SensNum)
 	PutData(TimeFromStart, SensNum, 4, TempAverage);
 }
 
+static constexpr unsigned char kSensProductLeft = 3u;
+static constexpr unsigned char kSensProductRight = 4u;
+/** Для продукта: меньшее из nPos/nNeg не ниже этого — считаем двусторонним шумом, а не тепловой переходной. */
+static constexpr unsigned kClampNoiseMinorityMin = 3u;
+
+static bool IsProductTempSensor(unsigned char sensNum)
+{
+	return (sensNum == kSensProductLeft) || (sensNum == kSensProductRight);
+}
+
 /** Ограничение шага изменения сырой T относительно предыдущей обрезанной (подавление выбросов), единицы — десятые °C.
- *  outHit != NULL: *outHit=1 если сырая T потребовала обрезки (|Δ| > max за шаг). */
-static int ClampRawTemperatureVsPrevClamped(int rawDeci, int prevClampedDeci, uint8_t* outHit)
+ *  outHitSign: +1 нагрев быстрее порога, −1 охлаждение, 0 без обрезки. */
+static int ClampRawTemperatureVsPrevClamped(int rawDeci, int prevClampedDeci, int8_t* outHitSign)
 {
 	const int maxDeltaDeci = 11;
 	int delta = rawDeci - prevClampedDeci;
-	const uint8_t hit = (delta > maxDeltaDeci || delta < -maxDeltaDeci) ? 1u : 0u;
+	int8_t hitSign = 0;
 	if (delta > maxDeltaDeci)
+	{
 		delta = maxDeltaDeci;
+		hitSign = 1;
+	}
 	else if (delta < -maxDeltaDeci)
+	{
 		delta = -maxDeltaDeci;
-	if (outHit != NULL)
-		*outHit = hit;
+		hitSign = -1;
+	}
+	if (outHitSign != NULL)
+		*outHitSign = hitSign;
 	return prevClampedDeci + delta;
 }
 
@@ -194,18 +210,80 @@ static bool SensorIndexIsTempThForClampAlarm(unsigned char sensNum)
 	return (t == 1u || t == 2u);
 }
 
-/** Если в полном кольце T_ClampHit больше TQ/2 единиц — защёлкнуть бит в Model::Sensor_AlarmFlags. */
+void Sensor::CountClampHitSigns(unsigned char SensNum, unsigned* nPos, unsigned* nNeg)
+{
+	unsigned pos = 0u;
+	unsigned neg = 0u;
+	for (unsigned int idx = 0u; idx < TQ; ++idx)
+	{
+		const int8_t s = T_ClampHit[idx][SensNum];
+		if (s > 0)
+			++pos;
+		else if (s < 0)
+			++neg;
+	}
+	if (nPos != NULL)
+		*nPos = pos;
+	if (nNeg != NULL)
+		*nNeg = neg;
+}
+
+uint8_t Sensor::IsProductThermalTransient(unsigned char SensNum)
+{
+	return (GetProductThermalChaseDir(SensNum) != 0) ? 1u : 0u;
+}
+
+int8_t Sensor::GetProductThermalChaseDir(unsigned char SensNum)
+{
+	if (!IsProductTempSensor(SensNum))
+		return 0;
+	unsigned nPos = 0u;
+	unsigned nNeg = 0u;
+	CountClampHitSigns(SensNum, &nPos, &nNeg);
+	const unsigned nHit = nPos + nNeg;
+	if (nHit == 0u)
+		return 0;
+	const unsigned minority = (nPos < nNeg) ? nPos : nNeg;
+	if (minority >= kClampNoiseMinorityMin)
+		return 0;
+	return (nPos > nNeg) ? (int8_t)1 : (int8_t)-1;
+}
+
+/** Воздух: защёлка при sumHits > TQ/2. Продукт: авария только при двустороннем шуме; иначе бит снимается. */
 void Sensor::EvaluateClampAlarmForSensor(unsigned char SensNum)
 {
 	if (!SensorIndexIsTempThForClampAlarm(SensNum))
 		return;
+
+	const uint16_t sensorBit = (uint16_t)(1u << SensNum);
+
+	if (IsProductTempSensor(SensNum))
+	{
+		unsigned nPos = 0u;
+		unsigned nNeg = 0u;
+		CountClampHitSigns(SensNum, &nPos, &nNeg);
+		const unsigned nHit = nPos + nNeg;
+		const unsigned minority = (nPos < nNeg) ? nPos : nNeg;
+		const uint8_t mixedNoise = ((TimeFromStart >= TQ) &&
+			(nHit > (TQ / 2u)) &&
+			(minority >= kClampNoiseMinorityMin)) ? 1u : 0u;
+		if (mixedNoise != 0u)
+			Model::Sensor_AlarmFlags |= sensorBit;
+		else if (Sensor_array[SensNum].Active == 1)
+			Model::Sensor_AlarmFlags &= (uint16_t)~sensorBit;
+		return;
+	}
+
 	if (TimeFromStart < TQ)
 		return;
 	unsigned int sumHits = 0u;
 	for (unsigned int idx = 0u; idx < TQ; ++idx)
-		sumHits += (unsigned int)T_ClampHit[idx][SensNum];
+	{
+		if (T_ClampHit[idx][SensNum] != 0)
+			++sumHits;
+	}
 	if (sumHits > (TQ / 2u))
-		Model::Sensor_AlarmFlags |= (uint16_t)(1u << SensNum);
+		Model::Sensor_AlarmFlags |= sensorBit;
 }
 
 void Sensor::ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsigned int timeSec)
@@ -215,13 +293,18 @@ void Sensor::ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsi
 	int prevClampedDeci = rawDeci;
 	if (timeSec > 1u)
 		prevClampedDeci = T_Clamped[(timeSec - 1u) % TQ][SensNum];
-	uint8_t hit = 0u;
-	const int clampedDeci = ClampRawTemperatureVsPrevClamped(rawDeci, prevClampedDeci, &hit);
+	int8_t hitSign = 0;
+	const int clampedDeci = ClampRawTemperatureVsPrevClamped(rawDeci, prevClampedDeci, &hitSign);
 	T_Clamped[slot][SensNum] = clampedDeci;
 	if (SensorIndexIsTempThForClampAlarm(SensNum))
-		T_ClampHit[slot][SensNum] = hit;
+	{
+		// Продукт: знак обрезки (тепловая переходная вверх/вниз). Воздух: только факт.
+		T_ClampHit[slot][SensNum] = IsProductTempSensor(SensNum) ? hitSign : ((hitSign != 0) ? (int8_t)1 : (int8_t)0);
+	}
 	else
-		T_ClampHit[slot][SensNum] = 0u;
+	{
+		T_ClampHit[slot][SensNum] = 0;
+	}
 	SetAverageTemperature(SensNum);
 	EvaluateClampAlarmForSensor(SensNum);
 }

@@ -26,15 +26,20 @@ public:
 	static int GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param);
 	/** Сырая T (Param 2) → обрезание попомехе → слот T_Clamped → среднее в Param 4. timeSec = TimeFromStart. */
 	static void ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsigned int timeSec);
+	/** Датчики продукта 3/4: однонаправленная тепловая догонка. */
+	static uint8_t IsProductThermalTransient(unsigned char SensNum);
+	/** Знак догонки продукта: +1 рост T (выпадение), −1 падение T (установка в продукт), 0 нет переходной. */
+	static int8_t GetProductThermalChaseDir(unsigned char SensNum);
 
 protected:
 	static void SetAverageTemperature(unsigned char SensNum);
-	/** Подсчёт T_ClampHit по кольцу и защёлка Model::Sensor_AlarmFlags при избытке обрезок. */
+	/** Подсчёт T_ClampHit по кольцу и защёлка/сброс Model::Sensor_AlarmFlags. */
 	static void EvaluateClampAlarmForSensor(unsigned char SensNum);
+	static void CountClampHitSigns(unsigned char SensNum, unsigned* nPos, unsigned* nNeg);
 	static unsigned int Time[TQ][SQ];	// номер такта измерения
 	static int T[TQ][SQ];			// сырая температура с датчика (Param 2): экран и телеметрия
 	static int T_Clamped[TQ][SQ];		// после ограничения скорости изменения (антиспайк, обрезка по помехе); участвует в среднем
-	static uint8_t T_ClampHit[TQ][SQ];	// 1 = на такте была обрезка (|Δ сырая−пред.обрез.| > порога)
+	static int8_t T_ClampHit[TQ][SQ];	// продукт: −1/0/+1 (знак обрезки); воздух: 0/1
 	static int T_Average[TQ][SQ];		// отфильтрованная T (Param 4): алгоритм и лог
 	static int H[TQ][SQ];			// влажность
 };

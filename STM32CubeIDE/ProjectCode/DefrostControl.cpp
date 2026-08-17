@@ -76,6 +76,10 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      constexpr int8_t kSensReturn_T_H   = 2;
      constexpr int8_t kSensFish1_T      = 3;
      constexpr int8_t kSensFish2_T      = 4;
+     // Device_AlarmFlags: бит 13 — выпадение датчика продукта 3, бит 14 — датчика 4.
+     constexpr uint16_t kProductFallenLeftBit  = (uint16_t)(1u << 13);
+     constexpr uint16_t kProductFallenRightBit = (uint16_t)(1u << 14);
+     constexpr float kProductReinsertMatch_C = 3.0f;
 
      /** Температура для расчётов автоматики: Param 4 — усреднение по буферу + ограничение скорости (Clatch), см. Data.cpp.
       *  В Model::setCurrentVal_T попадает сырая T с шины (Param 2) — для экрана; для ControlStep1s нужен Param 4, как в логе T_filt_C. */
@@ -525,6 +529,12 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          float lastFishHot_C = 0.0f;
          // Флаг, указывающий на наличие предыдущего измерения температуры самой горячей точки продукта
          uint8_t haveLastFishHot = 0;
+         // Бит0 = датчик 3, бит1 = датчик 4; смена состава сбрасывает rate_Cps.
+         uint8_t prevFishEnableMask = 0;
+         // Выпадение зонда из продукта (рост T): авария, канал выключен из алгоритма до возврата в продукт.
+         uint8_t productFallen[2] = {0, 0};
+         // После выпадения видели переходную вниз (повторная установка).
+         uint8_t productCoolRecover[2] = {0, 0};
      };
  
      static ControllerState g;
@@ -580,7 +590,12 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.right.ten1Hold.Reset(0);     // сброс времени удержания правого ТЭНа 1.
        g.right.ten2Hold.Reset(0);     // сброс времени удержания правого ТЭНа 2.
        g.lastFishHot_C = 0.0f;        // последняя измеренная температура продукта.
-       g.haveLastFishHot = 0;         // флаг отсутствия последней измеренной температуры продукта.    
+       g.haveLastFishHot = 0;         // флаг отсутствия последней измеренной температуры продукта.
+       g.prevFishEnableMask = 0;
+       g.productFallen[0] = 0;
+       g.productFallen[1] = 0;
+       g.productCoolRecover[0] = 0;
+       g.productCoolRecover[1] = 0; 
      }
  
     enum class LampModeState : uint8_t
@@ -596,12 +611,103 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        FullGateOpen = 2               // полное открытие ворот
    };
 
+    static void UpdateProductSensorFallout(void)
+    {
+        // Выпадение: односторонний рост T зонда (лёд растаял, датчик в воздухе).
+        // Возврат в алгоритм: переходная вниз и T близка ко второму рабочему датчику продукта.
+        const int8_t idx[2] = { kSensFish1_T, kSensFish2_T };
+        const int8_t dir[2] = {
+            Sensor::GetProductThermalChaseDir((unsigned char)kSensFish1_T),
+            Sensor::GetProductThermalChaseDir((unsigned char)kSensFish2_T)
+        };
+        const float tC[2] = {
+            DeciToC(FilteredSensorT_Deci(kSensFish1_T)),
+            DeciToC(FilteredSensorT_Deci(kSensFish2_T))
+        };
+        const uint8_t usable[2] = {
+            ((Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0)) ? 1u : 0u,
+            ((Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0)) ? 1u : 0u
+        };
+
+        for (uint8_t i = 0u; i < 2u; ++i)
+        {
+            if (usable[i] == 0u)
+            {
+                g.productFallen[i] = 0u;
+                g.productCoolRecover[i] = 0u;
+                continue;
+            }
+            if (dir[i] > 0)
+            {
+                g.productFallen[i] = 1u;
+                g.productCoolRecover[i] = 0u;
+                continue;
+            }
+            if (g.productFallen[i] == 0u)
+                continue;
+            if (dir[i] < 0)
+                g.productCoolRecover[i] = 1u;
+            if ((g.productCoolRecover[i] == 0u) || (dir[i] != 0))
+                continue;
+
+            const uint8_t j = (uint8_t)(1u - i);
+            const uint8_t otherStable = ((usable[j] != 0u) &&
+                (g.productFallen[j] == 0u) &&
+                (dir[j] == 0) &&
+                (SensorExcludedByClampAlarm(idx[j]) == false)) ? 1u : 0u;
+            if (otherStable != 0u)
+            {
+                float d = tC[i] - tC[j];
+                if (d < 0.0f)
+                    d = -d;
+                if (d <= kProductReinsertMatch_C)
+                {
+                    g.productFallen[i] = 0u;
+                    g.productCoolRecover[i] = 0u;
+                }
+            }
+            else if (usable[j] == 0u)
+            {
+                // Второго датчика продукта нет — после переходной вниз возвращаем канал.
+                g.productFallen[i] = 0u;
+                g.productCoolRecover[i] = 0u;
+            }
+        }
+
+        // Оба выпали и оба снова в продукте: взаимная близость T — достаточный критерий.
+        if ((g.productFallen[0] != 0u) && (g.productFallen[1] != 0u) &&
+            (g.productCoolRecover[0] != 0u) && (g.productCoolRecover[1] != 0u) &&
+            (dir[0] == 0) && (dir[1] == 0) &&
+            (usable[0] != 0u) && (usable[1] != 0u))
+        {
+            float d = tC[0] - tC[1];
+            if (d < 0.0f)
+                d = -d;
+            if (d <= kProductReinsertMatch_C)
+            {
+                g.productFallen[0] = 0u;
+                g.productFallen[1] = 0u;
+                g.productCoolRecover[0] = 0u;
+                g.productCoolRecover[1] = 0u;
+            }
+        }
+
+        Model::Device_AlarmFlags = (uint16_t)(Model::Device_AlarmFlags &
+            (uint16_t)~(kProductFallenLeftBit | kProductFallenRightBit));
+        if (g.productFallen[0] != 0u)
+            Model::Device_AlarmFlags |= kProductFallenLeftBit;
+        if (g.productFallen[1] != 0u)
+            Model::Device_AlarmFlags |= kProductFallenRightBit;
+    }
+
     static void UpdateDeviceAlarmState()
     {
         // Биты Device_AlarmFlags для аварий ворот:
         // bit9  - программная авария ворот (таймаут движения, нет фронта концевика за 10 с)
         // bit10 - аппаратная авария ворот (вход Gate_Alarm модуля IO)
         // bit11 - авария заслонки вытяжки (нет нужного сигнала Air_Open/Air_Close за DEFROST_FLAP_POSITION_TIMEOUT_S с)
+        // bit13 - выпадение датчика продукта 3 (зонд в воздухе)
+        // bit14 - выпадение датчика продукта 4
         // Биты 0..8 - аварии рассогласования выход/вход (в т.ч. _Out) из проверки DeviceSwitchCheck.
         const uint16_t kGateProgramAlarmBit = (uint16_t)(1u << 9);
         const uint16_t kGateHardwareAlarmBit = (uint16_t)(1u << 10);
@@ -835,11 +941,23 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          const float fish1_C = DeciToC(FilteredSensorT_Deci(kSensFish1_T));
          const float fish2_C = DeciToC(FilteredSensorT_Deci(kSensFish2_T));
 
-         // Почему: проверяем, что датчик активен и используется в алгоритме разморозки.
+         // Почему: проверяем, что датчик активен, используется в дефросте и не в тепловой догонке/аварии обрезок.
          const bool fish1Enabled = (Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0)
-             && !SensorExcludedByClampAlarm(kSensFish1_T);
+             && !SensorExcludedByClampAlarm(kSensFish1_T)
+             && (g.productFallen[0] == 0u)
+             && (Sensor::IsProductThermalTransient((unsigned char)kSensFish1_T) == 0u);
          const bool fish2Enabled = (Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0)
-             && !SensorExcludedByClampAlarm(kSensFish2_T);
+             && !SensorExcludedByClampAlarm(kSensFish2_T)
+             && (g.productFallen[1] == 0u)
+             && (Sensor::IsProductThermalTransient((unsigned char)kSensFish2_T) == 0u);
+
+         const uint8_t fishEnableMask = (uint8_t)((fish1Enabled ? 1u : 0u) | (fish2Enabled ? 2u : 0u));
+         if (fishEnableMask != g.prevFishEnableMask)
+         {
+             // Смена набора рабочих датчиков продукта: не считать rate_Cps от несравнимых T.
+             g.haveLastFishHot = 0;
+             g.prevFishEnableMask = fishEnableMask;
+         }
 
          float fishHot_C = 0.0f;
          float fishCold_C = 0.0f;
@@ -2349,6 +2467,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
      void DefrostControl_Update1s(void)
      {
         FlushPendingEepromPersistIfNeeded();
+        UpdateProductSensorFallout();
         // Восстановление авторежима после сброса питания (autoModeEnabled из EEPROM).
         // Делаем здесь, а не в Init: нужны RTOS и уже считанные концевики ворот.
         if (g_defrostAutoRestorePending != 0u)
