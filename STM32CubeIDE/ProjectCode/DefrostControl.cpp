@@ -312,6 +312,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      }
 
      static void ControlStep1s_AirOnly();
+     static void StepExhaustByHumidityError(float wErr);
 
      static Limits GetLimits(Phase p)
      {
@@ -625,8 +626,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
             DeciToC(FilteredSensorT_Deci(kSensFish2_T))
         };
         const uint8_t usable[2] = {
-            ((Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0)) ? 1u : 0u,
-            ((Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0)) ? 1u : 0u
+            (uint8_t)(((Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0)) ? 1u : 0u),
+            (uint8_t)(((Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0)) ? 1u : 0u)
         };
 
         for (uint8_t i = 0u; i < 2u; ++i)
@@ -907,10 +908,78 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          Model::DFR._Out        = outOn ? 1 : 0;
         ApplyModeLamps(LampModeState::AutoActive);
      }
+
+     // Вытяжка по ошибке влажности: сначала команда Water_Flap, вентилятор (_Out) — только после открытия заслонки.
+     static void StepExhaustByHumidityError(float wErr)
+     {
+         if (g.outHold_s > 0u)
+             g.outHold_s--;
+
+         if (g.outHold_s == 0u)
+         {
+             if (wErr < -g.wDeadband_kgkg)
+             {
+                 if (g.outDamperState == 0u)
+                 {
+                     g.outDamperState = 1u;
+                     g.outDamperTimer_s = g_defrostParams.outDamperTimer_s;
+                     g.outFanOn = 0u;
+                     g.outHold_s = g_defrostParams.outHold_s;
+                 }
+             }
+             else if (wErr > 0.0f)
+             {
+                 g.outDamperState = 0u;
+                 g.outDamperTimer_s = 0u;
+                 g.outFanOn = 0u;
+                 g.outHold_s = g_defrostParams.outHold_s;
+             }
+         }
+
+         if (g.outDamperState != 0u)
+             Model::DFR.Water_Flap = 1u;
+         else
+             Model::DFR.Water_Flap = 0u;
+
+         const uint8_t flapOpened =
+             ((Model::DI_DFR.Bits.Air_Open != 0u) && (Model::DI_DFR.Bits.Air_Close == 0u)) ? 1u : 0u;
+
+         if (g.outDamperState == 1u)
+         {
+             g.outFanOn = 0u;
+             if (flapOpened != 0u)
+             {
+                 g.outDamperState = 2u;
+                 g.outDamperTimer_s = g_defrostParams.outFanDelay_s;
+             }
+             else if (g.outDamperTimer_s > 0u)
+             {
+                 g.outDamperTimer_s--;
+             }
+             else if (DefrostControl_IsDeviceSwitchCheckEnabled() == 0u)
+             {
+                 // Концевики не используем: после таймера считаем заслонку открытой.
+                 g.outDamperState = 2u;
+                 g.outDamperTimer_s = g_defrostParams.outFanDelay_s;
+             }
+         }
+         else if (g.outDamperState == 2u)
+         {
+             if (g.outDamperTimer_s > 0u)
+                 g.outDamperTimer_s--;
+             else
+             {
+                 g.outDamperState = 3u;
+                 g.outFanOn = 1u;
+             }
+         }
+
+         g.outOn = g.outFanOn;
+     }
  
     static void ControlStep1s()
      {
-       // Клапан вытяжки в рабочем режиме закрыт (Water_Flap = 0 задаётся при входе в авто-режим, стр. ~1587).
+       // Water_Flap в авто-режиме открывается только когда контур влажности включает вытяжку.
 
         if (g.startupGateClosing != 0)
         {
@@ -1129,68 +1198,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
              injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
          }
  
-        // Вытяжка: последовательное управление заслонкой и вентилятором для предотвращения частых переключений.
-        // Почему: вытяжка влияет и на влажность, и на теплопотери; частые переключения раскачивают температуру.
-        // Сначала полностью открывается заслонка, потом включается вентилятор.
-        if (g.outHold_s > 0)
-        {
-            g.outHold_s--;
-        }
-
-        if (g.outHold_s == 0)
-        {
-            if (wErr < -g.wDeadband_kgkg)
-            {
-                // Нужно включить вытяжку
-                if (g.outDamperState == 0)
-                {
-                    // Начинаем открытие заслонки
-                    g.outDamperState = 1;      // состояние: открывается
-                    g.outDamperTimer_s = g_defrostParams.outDamperTimer_s;
-                    g.outFanOn = 0;            // вентилятор пока выключен
-                    g.outHold_s = g_defrostParams.outHold_s;
-                }
-            }
-            else if (wErr > 0.0f)
-            {
-                // Нужно выключить вытяжку
-                g.outDamperState = 0;          // заслонка закрыта
-                g.outDamperTimer_s = 0;        // сброс таймера
-                g.outFanOn = 0;                // выключить вентилятор
-                g.outHold_s = g_defrostParams.outHold_s;
-            }
-        }
-
-        // Управление последовательностью открытия заслонки и включения вентилятора
-        if (g.outDamperState == 1)
-        {
-            // Заслонка открывается
-            if (g.outDamperTimer_s > 0)
-            {
-                g.outDamperTimer_s--;
-            }
-            else
-            {
-                // Заслонка открылась: ждём настраиваемую задержку перед включением вентилятора.
-                g.outDamperState = 2;
-                g.outDamperTimer_s = g_defrostParams.outFanDelay_s;
-            }
-        }
-        else if (g.outDamperState == 2)
-        {
-            if (g.outDamperTimer_s > 0)
-            {
-                g.outDamperTimer_s--;
-            }
-            else
-            {
-                g.outDamperState = 3;
-                g.outFanOn = 1;
-            }
-        }
-
-        // Обновление общего состояния вытяжки (для совместимости с существующим кодом)
-        g.outOn = g.outFanOn;
+        // Вытяжка: сначала Water_Flap, вентилятор — после открытия заслонки (см. StepExhaustByHumidityError).
+        StepExhaustByHumidityError(wErr);
  
          // Предпочитаем взаимоисключение: если вытяжка включена, форсунку не используем.
          // Почему: совместная работа тратит энергию и делает управление плохо идентифицируемым.
@@ -1313,49 +1322,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          if (wErr > g.wDeadband_kgkg)
              injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
 
-         if (g.outHold_s > 0)
-             g.outHold_s--;
-         if (g.outHold_s == 0)
-         {
-             if (wErr < -g.wDeadband_kgkg)
-             {
-                 if (g.outDamperState == 0)
-                 {
-                     g.outDamperState = 1;
-                     g.outDamperTimer_s = g_defrostParams.outDamperTimer_s;
-                     g.outFanOn = 0;
-                     g.outHold_s = g_defrostParams.outHold_s;
-                 }
-             }
-             else if (wErr > 0.0f)
-             {
-                 g.outDamperState = 0;
-                 g.outDamperTimer_s = 0;
-                 g.outFanOn = 0;
-                 g.outHold_s = g_defrostParams.outHold_s;
-             }
-         }
-         if (g.outDamperState == 1)
-         {
-             if (g.outDamperTimer_s > 0)
-                 g.outDamperTimer_s--;
-             else
-             {
-                 g.outDamperState = 2;
-                 g.outDamperTimer_s = g_defrostParams.outFanDelay_s;
-             }
-         }
-         else if (g.outDamperState == 2)
-         {
-             if (g.outDamperTimer_s > 0)
-                 g.outDamperTimer_s--;
-             else
-             {
-                 g.outDamperState = 3;
-                 g.outFanOn = 1;
-             }
-         }
-         g.outOn = g.outFanOn;
+         StepExhaustByHumidityError(wErr);
 
          if (g.outOn != 0)
              injDuty = 0.0f;
