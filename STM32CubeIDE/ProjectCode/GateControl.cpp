@@ -19,6 +19,16 @@ DFR_REGISTERS_t& GateRegisterByCurrentMode()
 	// Команды ворот должны писаться в тот же регистр, чтобы выполняться без принудительного переключения режима.
 	return (Model::Flag_DFR_manual != 0) ? Model::DFR_manual : Model::DFR;
 }
+
+// Контроллер роллерных ворот принимает Gate_Up/Gate_Down только при активном Gate_Dbl.
+// После снятия обеих команд движения Gate_Dbl тоже выключаем.
+void GateControl_ReleaseDblIfIdle(DFR_REGISTERS_t& gateRegister)
+{
+	if ((gateRegister.Gate_Up == 0) && (gateRegister.Gate_Down == 0))
+	{
+		gateRegister.Gate_Dbl = 0;
+	}
+}
 }
 
 void GateControl_SetManualMode(uint8_t enabled)
@@ -48,8 +58,11 @@ void GateControl_SetCommand(GateControlCommand command, uint8_t enabled)
 		if (en)
 		{
 			gateRegister.Gate_Down = 0;
-			if (GateControl_GetManualMode() == 0)
-				gateRegister.Gate_Dbl = 0;
+			gateRegister.Gate_Dbl = 1;
+		}
+		else
+		{
+			GateControl_ReleaseDblIfIdle(gateRegister);
 		}
 		break;
 
@@ -63,18 +76,19 @@ void GateControl_SetCommand(GateControlCommand command, uint8_t enabled)
 		if (en)
 		{
 			gateRegister.Gate_Up = 0;
-			if (GateControl_GetManualMode() == 0)
-				gateRegister.Gate_Dbl = 0;
+			gateRegister.Gate_Dbl = 1;
+		}
+		else
+		{
+			GateControl_ReleaseDblIfIdle(gateRegister);
 		}
 		break;
 
 	case GateControlCommand::Deblock:
 		gateRegister.Gate_Dbl = en ? 1 : 0;
-		if (en)
-		{
-			gateRegister.Gate_Up = 0;
-			gateRegister.Gate_Down = 0;
-		}
+		// Разблокировка без движения; при снятии Dbl останавливаем и команды хода.
+		gateRegister.Gate_Up = 0;
+		gateRegister.Gate_Down = 0;
 		break;
 
 	default:
@@ -153,6 +167,7 @@ void GateControl_Update1s(void)
 		if (gateOpenEdge)
 		{
 			gateRegister.Gate_Up = 0;
+			GateControl_ReleaseDblIfIdle(gateRegister);
 			gateUpElapsedSec = 0;
 			Model::Gate_Alarm_Program = 0;
 			Model::Gate_Alarm = ((Model::Gate_Alarm_Program != 0u) || (Model::Gate_Alarm_Hardware != 0u)) ? 1u : 0u;
@@ -168,6 +183,7 @@ void GateControl_Update1s(void)
 			if (gateUpElapsedSec >= 10)
 			{
 				gateRegister.Gate_Up = 0;
+				GateControl_ReleaseDblIfIdle(gateRegister);
 				gateUpElapsedSec = 0;
 				// При debugDisableDeviceSwitchCheck=1 не формируем программную аварию ворот.
 				if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
@@ -191,6 +207,7 @@ void GateControl_Update1s(void)
 		if (gateCloseEdge)
 		{
 			gateRegister.Gate_Down = 0;
+			GateControl_ReleaseDblIfIdle(gateRegister);
 			gateDownElapsedSec = 0;
 			Model::Gate_Alarm_Program = 0;
 			Model::Gate_Alarm = ((Model::Gate_Alarm_Program != 0u) || (Model::Gate_Alarm_Hardware != 0u)) ? 1u : 0u;
@@ -206,6 +223,7 @@ void GateControl_Update1s(void)
 			if (gateDownElapsedSec >= 10)
 			{
 				gateRegister.Gate_Down = 0;
+				GateControl_ReleaseDblIfIdle(gateRegister);
 				gateDownElapsedSec = 0;
 				// При debugDisableDeviceSwitchCheck=1 не формируем программную аварию ворот.
 				if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
