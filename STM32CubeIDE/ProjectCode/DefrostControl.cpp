@@ -534,6 +534,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          SideActuators right;
          // Последняя зафиксированная самая высокая Т продукта
          float lastFishHot_C = 0.0f;
+         float lastFishCold_C = 0.0f;
          // Флаг, указывающий на наличие предыдущего измерения температуры самой горячей точки продукта
          uint8_t haveLastFishHot = 0;
          // Бит0 = датчик 3, бит1 = датчик 4; смена состава сбрасывает rate_Cps.
@@ -599,6 +600,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.right.ten1Hold.Reset(0);     // сброс времени удержания правого ТЭНа 1.
        g.right.ten2Hold.Reset(0);     // сброс времени удержания правого ТЭНа 2.
        g.lastFishHot_C = 0.0f;        // последняя измеренная температура продукта.
+       g.lastFishCold_C = 0.0f;
        g.haveLastFishHot = 0;         // флаг отсутствия последней измеренной температуры продукта.
        g.prevFishEnableMask = 0;
        g.productFallen[0] = 1;
@@ -1061,7 +1063,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          const float fish1_C = DeciToC(FilteredSensorT_Deci(kSensFish1_T));
          const float fish2_C = DeciToC(FilteredSensorT_Deci(kSensFish2_T));
 
-         // Почему: проверяем, что датчик активен, используется в дефросте и не в тепловой догонке/аварии обрезок.
+         // Датчик продукта в расчёте: на шине, в алгоритме, не выпал, нет T-перехода.
+         // Если оба вне продукта (старт на воздухе) — ниже уйдём в ControlStep1s_AirOnly.
          const bool fish1Enabled = (Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0)
              && !SensorExcludedByClampAlarm(kSensFish1_T)
              && (g.productFallen[0] == 0u)
@@ -1072,6 +1075,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
              && (Sensor::IsProductThermalTransient((unsigned char)kSensFish2_T) == 0u);
 
          const uint8_t fishEnableMask = (uint8_t)((fish1Enabled ? 1u : 0u) | (fish2Enabled ? 2u : 0u));
+         const uint8_t hadProductSensors = (g.prevFishEnableMask != 0u) ? 1u : 0u;
          if (fishEnableMask != g.prevFishEnableMask)
          {
              // Смена набора рабочих датчиков продукта: не считать rate_Cps от несравнимых T.
@@ -1104,7 +1108,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
              fishCold_C = fish2_C;
              fishDelta_C = 0.0f;
          }
-        // Без датчиков продукта — режим «только по воздуху» (фаза дефроста определяется по времени, лимит T подачи).
+        // Без рабочих датчиков продукта (в т.ч. оба ещё в воздухе) — режим «только по воздуху».
         else
         {
             g.haveLastFishHot = 0;
@@ -1112,9 +1116,12 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
             return;
         }
 
-        // Останов алгоритма при достижении целевой мин. температуры рыбы (целевая Т задаётся в параметрах/на Settings1).
-        // В отладке автостоп можно отключить параметром debugDisableTargetTStop.
+        // Автостоп по целевой T: только переход снизу вверх, и только если уже работали по продукту.
+        // После подхвата зонда из воздуха fishCold может сразу быть выше уставки — это не конец цикла.
         if ((g_defrostParams.debugDisableTargetTStop == 0u) &&
+            (hadProductSensors != 0u) &&
+            (g.haveLastFishHot != 0u) &&
+            (g.lastFishCold_C < g_defrostParams.fishColdTarget_C) &&
             (fishCold_C >= g_defrostParams.fishColdTarget_C))
         {
             DefrostControl_SetEnabled(0);
@@ -1166,6 +1173,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
              }
          }
          g.lastFishHot_C = fishHot_C;
+         g.lastFishCold_C = fishCold_C;
          g.haveLastFishHot = 1;
  
          // Ограничение по неравномерности прогрева (Т поверхности - Т сердцевины).
@@ -2499,7 +2507,8 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
             if (g_defrostPersistedAutoMode != 0u && g.enabled == 0u)
             {
                 StartAutomaticSequence();
-                // EEPROM уже согласована (autoMode=1); повторная запись не требуется.
+                // После ResetState заново классифицируем зонды (воздух / продукт), затем ControlStep1s.
+                UpdateProductSensorFallout();
             }
         }
         UpdateDeviceAlarmState();
