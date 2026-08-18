@@ -178,6 +178,71 @@ static bool IsProductTempSensor(unsigned char sensNum)
 	return (sensNum == kSensProductLeft) || (sensNum == kSensProductRight);
 }
 
+/** T-переход продукта: устойчивый знак (сырая − фильтрованная), не по обрезкам антиспайка. */
+static constexpr int kProductChaseEnterDeci = 15;   // вход: |сырая − фильтр| > 1.5 °C
+static constexpr int kProductChaseExitDeci = 8;     // выход: |сырая − фильтр| < 0.8 °C
+static constexpr uint8_t kProductChaseEnterSteps = 5u;
+static constexpr uint8_t kProductChaseExitSteps = 8u;
+static int8_t s_productChaseDir[SQ] = {0};
+static uint8_t s_productConsecUp[SQ] = {0};
+static uint8_t s_productConsecDown[SQ] = {0};
+static uint8_t s_productConsecClear[SQ] = {0};
+
+static void ResetProductChaseState(unsigned char SensNum)
+{
+	if (SensNum >= SQ)
+		return;
+	s_productChaseDir[SensNum] = 0;
+	s_productConsecUp[SensNum] = 0;
+	s_productConsecDown[SensNum] = 0;
+	s_productConsecClear[SensNum] = 0;
+}
+
+static void UpdateProductChaseFromRawVsFilt(unsigned char SensNum, int rawDeci, int filtDeci)
+{
+	if (!IsProductTempSensor(SensNum))
+		return;
+	if (Sensor_array[SensNum].Active != 1u)
+	{
+		ResetProductChaseState(SensNum);
+		return;
+	}
+	const int d = rawDeci - filtDeci;
+	if (d > kProductChaseEnterDeci)
+	{
+		if (s_productConsecUp[SensNum] < 255u)
+			++s_productConsecUp[SensNum];
+		s_productConsecDown[SensNum] = 0;
+		s_productConsecClear[SensNum] = 0;
+		if (s_productConsecUp[SensNum] >= kProductChaseEnterSteps)
+			s_productChaseDir[SensNum] = 1;
+	}
+	else if (d < -kProductChaseEnterDeci)
+	{
+		if (s_productConsecDown[SensNum] < 255u)
+			++s_productConsecDown[SensNum];
+		s_productConsecUp[SensNum] = 0;
+		s_productConsecClear[SensNum] = 0;
+		if (s_productConsecDown[SensNum] >= kProductChaseEnterSteps)
+			s_productChaseDir[SensNum] = (int8_t)-1;
+	}
+	else if ((d > -kProductChaseExitDeci) && (d < kProductChaseExitDeci))
+	{
+		if (s_productConsecClear[SensNum] < 255u)
+			++s_productConsecClear[SensNum];
+		s_productConsecUp[SensNum] = 0;
+		s_productConsecDown[SensNum] = 0;
+		if (s_productConsecClear[SensNum] >= kProductChaseExitSteps)
+			s_productChaseDir[SensNum] = 0;
+	}
+	else
+	{
+		s_productConsecUp[SensNum] = 0;
+		s_productConsecDown[SensNum] = 0;
+		s_productConsecClear[SensNum] = 0;
+	}
+}
+
 /** Ограничение шага изменения сырой T относительно предыдущей обрезанной (подавление выбросов), единицы — десятые °C.
  *  outHitSign: +1 нагрев быстрее порога, −1 охлаждение, 0 без обрезки. */
 static int ClampRawTemperatureVsPrevClamped(int rawDeci, int prevClampedDeci, int8_t* outHitSign)
@@ -235,24 +300,19 @@ int8_t Sensor::GetProductThermalChaseDir(unsigned char SensNum)
 {
 	if (!IsProductTempSensor(SensNum))
 		return 0;
-	unsigned nPos = 0u;
-	unsigned nNeg = 0u;
-	CountClampHitSigns(SensNum, &nPos, &nNeg);
-	const unsigned nHit = nPos + nNeg;
-	if (nHit == 0u)
+	if (Sensor_array[SensNum].Active != 1u)
+	{
+		ResetProductChaseState(SensNum);
 		return 0;
-	const unsigned minority = (nPos < nNeg) ? nPos : nNeg;
-	if (minority >= kClampNoiseMinorityMin)
-		return 0;
-	return (nPos > nNeg) ? (int8_t)1 : (int8_t)-1;
+	}
+	return s_productChaseDir[SensNum];
 }
 
 uint8_t Sensor::IsProductTransitionRateBelowNoise(unsigned char SensNum)
 {
 	if (!IsProductTempSensor(SensNum))
 		return 0u;
-	const unsigned int slot = TimeFromStart % TQ;
-	return (T_ClampHit[slot][SensNum] == 0) ? 1u : 0u;
+	return (GetProductThermalChaseDir(SensNum) == 0) ? 1u : 0u;
 }
 
 /** Воздух: защёлка при sumHits > TQ/2. Продукт: авария только при двустороннем шуме; иначе бит снимается. */
@@ -304,7 +364,7 @@ void Sensor::ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsi
 	T_Clamped[slot][SensNum] = clampedDeci;
 	if (SensorIndexIsTempThForClampAlarm(SensNum))
 	{
-		// Продукт: знак обрезки (тепловая переходная вверх/вниз). Воздух: только факт.
+		// Знак обрезки — только антиспайк и авария помехи. T-переход продукта — по сырой vs фильтр.
 		T_ClampHit[slot][SensNum] = IsProductTempSensor(SensNum) ? hitSign : ((hitSign != 0) ? (int8_t)1 : (int8_t)0);
 	}
 	else
@@ -313,6 +373,8 @@ void Sensor::ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsi
 	}
 	SetAverageTemperature(SensNum);
 	EvaluateClampAlarmForSensor(SensNum);
+	if (IsProductTempSensor(SensNum))
+		UpdateProductChaseFromRawVsFilt(SensNum, rawDeci, GetData(timeSec, SensNum, 4));
 }
 
 // 1. Operating system timer 1 sec will start this function

@@ -28,11 +28,11 @@ public:
 	static int GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param);
 	/** Сырая T (Param 2) → обрезание попомехе → слот T_Clamped → среднее в Param 4. timeSec = TimeFromStart. */
 	static void ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsigned int timeSec);
-	/** Датчики продукта 3/4: однонаправленная тепловая догонка. */
+	/** Датчики продукта 3/4: идёт T-переход (сырая устойчиво расходится с фильтрованной). */
 	static uint8_t IsProductThermalTransient(unsigned char SensNum);
-	/** Знак догонки продукта: +1 рост T (выпадение), −1 падение T (установка в продукт), 0 нет переходной. */
+	/** Знак перехода: +1 сырая выше фильтра (выпадение), −1 ниже (установка в продукт), 0 нет переходной. */
 	static int8_t GetProductThermalChaseDir(unsigned char SensNum);
-	/** Текущий шаг T продукта не обрезается (|dT| <= шумового порога). */
+	/** Переход закончился: сырая и фильтрованная сошлись (|ΔT| < 0.8 °C заданное число шагов). */
 	static uint8_t IsProductTransitionRateBelowNoise(unsigned char SensNum);
 
 protected:

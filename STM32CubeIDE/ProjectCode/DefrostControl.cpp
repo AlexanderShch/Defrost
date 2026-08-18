@@ -539,9 +539,11 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          // Бит0 = датчик 3, бит1 = датчик 4; смена состава сбрасывает rate_Cps.
          uint8_t prevFishEnableMask = 0;
          // Выпадение зонда из продукта (рост T): авария, канал выключен из алгоритма до возврата в продукт.
-         uint8_t productFallen[2] = {0, 0};
+         uint8_t productFallen[2] = {1, 1};
          // После выпадения видели переходную вниз (повторная установка).
          uint8_t productCoolRecover[2] = {0, 0};
+         // 0: ещё не сравнили с T воздуха после старта или потери канала.
+         uint8_t productClassified[2] = {0, 0};
      };
  
      static ControllerState g;
@@ -599,10 +601,12 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.lastFishHot_C = 0.0f;        // последняя измеренная температура продукта.
        g.haveLastFishHot = 0;         // флаг отсутствия последней измеренной температуры продукта.
        g.prevFishEnableMask = 0;
-       g.productFallen[0] = 0;
-       g.productFallen[1] = 0;
+       g.productFallen[0] = 1;
+       g.productFallen[1] = 1;
        g.productCoolRecover[0] = 0;
-       g.productCoolRecover[1] = 0; 
+       g.productCoolRecover[1] = 0;
+       g.productClassified[0] = 0;
+       g.productClassified[1] = 0; 
      }
  
     enum class LampModeState : uint8_t
@@ -620,8 +624,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
 
     static void UpdateProductSensorFallout(void)
     {
-        // Выпадение: односторонний рост T зонда (лёд растаял, датчик в воздухе).
-        // Возврат в алгоритм: только после переходной вниз и стабилизации скорости ниже шумового порога.
+        // Выпадение: сырая T устойчиво выше фильтрованной, либо T близка к воздуху (в т.ч. старт контроллера).
+        // Возврат в алгоритм только по критерию после переходной вниз.
         const int8_t dir[2] = {   // знаки догонки продукта
             Sensor::GetProductThermalChaseDir((unsigned char)kSensFish1_T),
             Sensor::GetProductThermalChaseDir((unsigned char)kSensFish2_T)
@@ -630,7 +634,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
             (uint8_t)(((Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0)) ? 1u : 0u),
             (uint8_t)(((Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0)) ? 1u : 0u)
         };
-        const uint8_t rateStable[2] = {   // стабильность скорости изменения T продукта
+        const uint8_t rateStable[2] = {   // переход закончился (сырая сошлась с фильтром)
             Sensor::IsProductTransitionRateBelowNoise((unsigned char)kSensFish1_T),
             Sensor::IsProductTransitionRateBelowNoise((unsigned char)kSensFish2_T)
         };
@@ -658,9 +662,29 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         {
             if (usable[i] == 0u)
             {
-                g.productFallen[i] = 0u;
+                g.productFallen[i] = 1u;
+                g.productCoolRecover[i] = 0u;
+                g.productClassified[i] = 0u;
+                continue;
+            }
+            if (airRefValid == 0u)
+            {
+                // Нет опоры по воздуху — не считаем зонд установленным в продукт.
+                g.productFallen[i] = 1u;
                 g.productCoolRecover[i] = 0u;
                 continue;
+            }
+            const float fishT_C = DeciToC(FilteredSensorT_Deci((i == 0u) ? kSensFish1_T : kSensFish2_T));
+            float dAir = fishT_C - airRef_C;
+            if (dAir < 0.0f)
+                dAir = -dAir;
+            const uint8_t closeToAir = (dAir <= kProductVsAirClose_C) ? 1u : 0u;
+
+            if (g.productClassified[i] == 0u)
+            {
+                g.productClassified[i] = 1u;
+                g.productCoolRecover[i] = 0u;
+                g.productFallen[i] = closeToAir; // старт при T воздуха → вне расчёта до переходной вниз
             }
             if (dir[i] > 0)
             {
@@ -668,18 +692,11 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
                 g.productCoolRecover[i] = 0u;
                 continue;
             }
-            if (airRefValid != 0u)
+            if (closeToAir != 0u)
             {
-                const float fishT_C = DeciToC(FilteredSensorT_Deci((i == 0u) ? kSensFish1_T : kSensFish2_T));
-                float dAir = fishT_C - airRef_C;
-                if (dAir < 0.0f)
-                    dAir = -dAir;
-                if (dAir <= kProductVsAirClose_C)
-                {
-                    g.productFallen[i] = 1u;
-                    g.productCoolRecover[i] = 0u;
-                    continue;
-                }
+                g.productFallen[i] = 1u;
+                g.productCoolRecover[i] = 0u;
+                continue;
             }
             if (g.productFallen[i] == 0u)
                 continue;
@@ -688,7 +705,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
             if (g.productCoolRecover[i] == 0u)
                 continue;
 
-            // Базовый критерий возврата: переходная вниз завершилась, текущая скорость ниже шумового порога.
+            // Критерий включения после переходной вниз: фильтр догнал сырую, зонд не у воздуха.
             if (rateStable[i] != 0u)
             {
                 g.productFallen[i] = 0u;
@@ -701,15 +718,27 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
             (uint16_t)~(kProductFallenLeftBit | kProductFallenRightBit));
         Model::Sensor_AlarmFlags = (uint16_t)(Model::Sensor_AlarmFlags &
             (uint16_t)~(kProductTDownLeftBit | kProductTDownRightBit));
-        if (g.productFallen[0] != 0u)
-            Model::Device_AlarmFlags |= kProductFallenLeftBit;
-        if (g.productFallen[1] != 0u)
-            Model::Device_AlarmFlags |= kProductFallenRightBit;
-        // Переход вниз без выпадения: установка зонда в продукт (отдельный аварийный бит для экрана и сервера).
-        if ((usable[0] != 0u) && (dir[0] < 0) && (g.productFallen[0] == 0u))
-            Model::Sensor_AlarmFlags |= kProductTDownLeftBit;
-        if ((usable[1] != 0u) && (dir[1] < 0) && (g.productFallen[1] == 0u))
-            Model::Sensor_AlarmFlags |= kProductTDownRightBit;
+
+        // Авария по T-переходу — сразу по знаку детектора, если датчик на шине.
+        // UseInDefrost влияет только на участие в алгоритме (productFallen), не на аварию.
+        const uint8_t onBus[2] = {
+            (uint8_t)((Sensor_array[kSensFish1_T].Active == 1) ? 1u : 0u),
+            (uint8_t)((Sensor_array[kSensFish2_T].Active == 1) ? 1u : 0u)
+        };
+        if (onBus[0] != 0u)
+        {
+            if ((dir[0] > 0) || (g.productFallen[0] != 0u))
+                Model::Device_AlarmFlags |= kProductFallenLeftBit;
+            if (dir[0] < 0)
+                Model::Sensor_AlarmFlags |= kProductTDownLeftBit;
+        }
+        if (onBus[1] != 0u)
+        {
+            if ((dir[1] > 0) || (g.productFallen[1] != 0u))
+                Model::Device_AlarmFlags |= kProductFallenRightBit;
+            if (dir[1] < 0)
+                Model::Sensor_AlarmFlags |= kProductTDownRightBit;
+        }
     }
 
     static void UpdateDeviceAlarmState()
