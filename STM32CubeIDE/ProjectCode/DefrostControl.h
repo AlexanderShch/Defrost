@@ -80,6 +80,8 @@ void DefrostControl_Update1s(void);
 uint32_t DefrostControl_GetRuntimeSeconds(void);
 /** Остаток времени «только воздух» (с) после выпадения обоих зондов или старта без продукта; 0 если работают датчики продукта. */
 uint32_t DefrostControl_GetAirOnlyRemainSeconds(void);
+/** 1 — сейчас шаг «только воздух» (нет рабочих датчиков продукта). */
+uint8_t DefrostControl_IsAirOnlyMode(void);
 uint8_t DefrostControl_IsEnabled(void);
 uint8_t DefrostControl_IsShutdownActive(void);
 uint8_t DefrostControl_GetParam(uint8_t groupId, uint8_t paramId, DefrostParamValue_t *outValue);

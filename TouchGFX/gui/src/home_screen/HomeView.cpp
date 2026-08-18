@@ -2,6 +2,8 @@
 #include <gui/model/Model.hpp>
 #include <touchgfx/Unicode.hpp>
 #include <touchgfx/Color.hpp>
+#include <touchgfx/TypedText.hpp>
+#include <texts/TextKeysAndLanguages.hpp>
 #include "DefrostControl.h"
 #include "ModBus.hpp"
 
@@ -58,10 +60,10 @@ void HomeView::setupScreen()
     BTNStart.forceState(DefrostControl_IsEnabled() != 0 ? 1 : 0);
     BTNStart.invalidate();
 
-    // Счётчик отработанного времени (ValuePRGTimeWrk): подключаем свой буфер и выводим 00:00:00.
+    // Счётчик времени программы: заголовок и HH:MM:SS задаёт presenter.
     ValuePRGTimeWrk.setWildcard(ValuePRGTimeWrkBuffer);
     ValuePRGTimeWrk.setPosition(0, 111, 240, 24);
-    updateProgramRuntimeView(0);
+    updateProgramTimeView(false, 0);
 
     // Устанавливаем версию прошивки при инициализации экрана
     updateVersionDisplay();
@@ -119,16 +121,23 @@ void HomeView::Val_T_4UpdateView(int Val)
 	ValueCoreT2.invalidate();
 }
 
-void HomeView::updateProgramRuntimeView(uint32_t runtimeSeconds)
+void HomeView::updateProgramTimeView(bool airOnly, uint32_t seconds)
 {
-    const uint32_t hours = (runtimeSeconds / 3600u) % 100u;
-    const uint32_t minutes = (runtimeSeconds / 60u) % 60u;
-    const uint32_t seconds = runtimeSeconds % 60u;
+    const touchgfx::TypedText title(
+        airOnly ? T_LABELPRGTIMELEFT : T_LABELPRGTIMEELAPSED);
+    LabelPRGTimeLeft.setTypedText(title);
+    LabelPRGTimeLeft.resizeToCurrentText();
+    LabelPRGTimeLeft.setX((240 - LabelPRGTimeLeft.getWidth()) / 2);
+    LabelPRGTimeLeft.invalidate();
+
+    const uint32_t hours = (seconds / 3600u) % 100u;
+    const uint32_t minutes = (seconds / 60u) % 60u;
+    const uint32_t secs = seconds % 60u;
 
     Unicode::snprintf(ValuePRGTimeWrkBuffer, PRGTIMEWRK_SIZE, "%02u:%02u:%02u",
                       static_cast<unsigned int>(hours),
                       static_cast<unsigned int>(minutes),
-                      static_cast<unsigned int>(seconds));
+                      static_cast<unsigned int>(secs));
 
     ValuePRGTimeWrk.resizeToCurrentText();
     ValuePRGTimeWrk.setX((240 - ValuePRGTimeWrk.getWidth()) / 2);

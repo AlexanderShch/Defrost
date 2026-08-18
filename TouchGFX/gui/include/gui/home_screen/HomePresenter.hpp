@@ -39,7 +39,9 @@ private:
     HomePresenter();
 
     HomeView& view;
-    uint32_t lastRuntimeSeconds;
+    void refreshProgramTimeView();
+    uint8_t lastAirOnly;
+    uint32_t lastTimeSeconds;
 };
 
 #endif // HOMEPRESENTER_HPP

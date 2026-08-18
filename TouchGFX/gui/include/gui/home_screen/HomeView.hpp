@@ -19,7 +19,8 @@ public:
 
     virtual void Val_T_3UpdateView(int val);
     virtual void Val_T_4UpdateView(int val);
-    void updateProgramRuntimeView(uint32_t runtimeSeconds);
+    /** Заголовок и HH:MM:SS: авторежим — «Отработано»/runtime; только воздух — «Осталось»/остаток. */
+    void updateProgramTimeView(bool airOnly, uint32_t seconds);
 
     void updateVersionDisplay();
 

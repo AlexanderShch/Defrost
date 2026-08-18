@@ -5,15 +5,32 @@
 
 HomePresenter::HomePresenter(HomeView& v)
     : view(v),
-      lastRuntimeSeconds(0)
+      lastAirOnly(0xFFu),
+      lastTimeSeconds(0xFFFFFFFFu)
 {
 
 }
 
+void HomePresenter::refreshProgramTimeView()
+{
+    const uint8_t airOnly = DefrostControl_IsAirOnlyMode();
+    const uint32_t seconds = (airOnly != 0u)
+        ? DefrostControl_GetAirOnlyRemainSeconds()
+        : DefrostControl_GetRuntimeSeconds();
+    if (airOnly == lastAirOnly && seconds == lastTimeSeconds)
+    {
+        return;
+    }
+    lastAirOnly = airOnly;
+    lastTimeSeconds = seconds;
+    view.updateProgramTimeView(airOnly != 0u, seconds);
+}
+
 void HomePresenter::activate()
 {
-    lastRuntimeSeconds = 0;
-    view.updateProgramRuntimeView(0);
+    lastAirOnly = 0xFFu;
+    lastTimeSeconds = 0xFFFFFFFFu;
+    refreshProgramTimeView();
     view.updateAlarmBanner(Model::DFR._Alr != 0);
 }
 
@@ -59,12 +76,7 @@ void HomePresenter::ValUpdatePresenter()
 	view.Val_T_3UpdateView(Model::getCurrentVal_T(3));
 	view.Val_T_4UpdateView(Model::getCurrentVal_T(4));
 
-    const uint32_t runtimeSeconds = DefrostControl_GetRuntimeSeconds();
-    if (runtimeSeconds != lastRuntimeSeconds)
-    {
-        lastRuntimeSeconds = runtimeSeconds;
-        view.updateProgramRuntimeView(runtimeSeconds);
-    }
+    refreshProgramTimeView();
 
     // Синхронизация кнопки ПУСК/СТОП при изменении состояния по команде с сервера
     view.syncStartButtonState();
@@ -76,13 +88,15 @@ void HomePresenter::ValUpdatePresenter()
 void HomePresenter::startDefrostRequested()
 {
 	DefrostControl_SetEnabled(1);
-    lastRuntimeSeconds = 0;
-    view.updateProgramRuntimeView(0);
+    lastAirOnly = 0xFFu;
+    lastTimeSeconds = 0xFFFFFFFFu;
+    refreshProgramTimeView();
 }
 
 void HomePresenter::stopDefrostRequested()
 {
 	DefrostControl_SetEnabled(0);
-    lastRuntimeSeconds = 0;
-    view.updateProgramRuntimeView(0);
+    lastAirOnly = 0xFFu;
+    lastTimeSeconds = 0xFFFFFFFFu;
+    refreshProgramTimeView();
 }

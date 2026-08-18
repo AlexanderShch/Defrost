@@ -567,6 +567,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          uint32_t airOnlySwitchRuntime_s = 0;
          uint8_t airOnlySwitchPhase = 0;
          uint32_t airOnlyRemain_s = 0;
+         // 1: текущий шаг — ControlStep1s_AirOnly (нет рабочих зондов продукта).
+         uint8_t airOnlyActive = 0;
      };
  
      static ControllerState g;
@@ -634,7 +636,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.airOnlyFromProduct = 0;
        g.airOnlySwitchRuntime_s = 0;
        g.airOnlySwitchPhase = 0;
-       g.airOnlyRemain_s = 0; 
+       g.airOnlyRemain_s = 0;
+       g.airOnlyActive = 0; 
      }
  
     enum class LampModeState : uint8_t
@@ -1151,6 +1154,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
 
         g.airOnlyFromProduct = 0u;
         g.airOnlyRemain_s = 0u;
+        g.airOnlyActive = 0u;
 
         // Автостоп по целевой T: только переход снизу вверх, и только если уже работали по продукту.
         // После подхвата зонда из воздуха fishCold может сразу быть выше уставки — это не конец цикла.
@@ -1356,6 +1360,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      // Управление без датчиков продукта: только по T/RH подачи и возврата, фаза по времени, лимит T подачи и макс. время.
      static void ControlStep1s_AirOnly()
      {
+         g.airOnlyActive = 1u;
          DefrostAirControlInputs airIn = {};
          ComputeDefrostAirControlInputs(&airIn);
          const float RH_ret     = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
@@ -2234,6 +2239,8 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
         {
             ShutdownSequence();  // Безопасное выключение всех элементов
             g.runtimeSeconds = 0; // Время работы алгоритма обнуляется при остановке
+            g.airOnlyActive = 0;
+            g.airOnlyRemain_s = 0;
             // Останов: зелёная лампа выключена, красная только по аварии.
             ApplyModeLamps(LampModeState::StoppedOrManual);
         }
@@ -2252,6 +2259,11 @@ uint32_t DefrostControl_GetAirOnlyRemainSeconds(void)
     if (g.enabled == 0u)
         return 0u;
     return g.airOnlyRemain_s;
+}
+
+uint8_t DefrostControl_IsAirOnlyMode(void)
+{
+    return (g.enabled != 0u && g.airOnlyActive != 0u) ? 1u : 0u;
 }
 
     uint8_t DefrostControl_IsEnabled(void)
@@ -2613,7 +2625,7 @@ uint32_t DefrostControl_GetAirOnlyRemainSeconds(void)
              ApplyModeLamps(LampModeState::AutoActive);
              ControlStep1s();
  
-             // Счётчик времени "Отработано" увеличиваем только когда реально работает автоматика.
+             // Счётчик runtime (для остатка «только воздух» на Home) — только в автоматике.
              if (g.runtimeSeconds < UINT32_MAX)
              {
                  g.runtimeSeconds++;

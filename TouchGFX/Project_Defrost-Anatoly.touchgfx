@@ -125,9 +125,9 @@
           {
             "Type": "TextArea",
             "Name": "LabelPRGTimeLeft",
-            "X": 55,
-            "Y": 88,
-            "Width": 121,
+            "X": 73,
+            "Y": 87,
+            "Width": 95,
             "Height": 24,
             "TextId": "LabelPRGTimeLeft",
             "TextRotation": "0",
