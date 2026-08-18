@@ -136,8 +136,34 @@ public:
     static uint8_t Gate_PosTop;    // флаг конечного положения "ворота вверху" (для аварийного режима) программный
     static uint8_t Gate_PosBottom; // флаг конечного положения "ворота внизу" (для аварийного режима) программный
     static uint16_t Device_AlarmFlags; // регистр аварийных флагов устройств (битовая маска)
-    /** Аварии по Т-датчикам: бит i = канал i (0..SQ-1), защёлка — избыточная доля обрезок в буфере T_Clamped. */
+    /** Аварии по Т-датчикам: бит i = канал i (0..SQ-1), защёлка — избыточная доля обрезок в буфере T_Clamped.
+     *  Дополнительно: бит 8/9 — T-переход вниз датчиков продукта 3/4. */
     static uint16_t Sensor_AlarmFlags;
+
+    /** Device_AlarmFlags: T-переход вверх (выпадение зонда) датчика продукта 3. */
+    static const uint16_t kDeviceAlarmProductTUpLeft = (uint16_t)(1u << 13);
+    /** Device_AlarmFlags: T-переход вверх (выпадение зонда) датчика продукта 4. */
+    static const uint16_t kDeviceAlarmProductTUpRight = (uint16_t)(1u << 14);
+    /** Sensor_AlarmFlags: T-переход вниз (установка в продукт) датчика 3. */
+    static const uint16_t kSensorAlarmProductTDownLeft = (uint16_t)(1u << 8);
+    /** Sensor_AlarmFlags: T-переход вниз (установка в продукт) датчика 4. */
+    static const uint16_t kSensorAlarmProductTDownRight = (uint16_t)(1u << 9);
+
+    /** Авария T-перехода вверх или вниз для датчика продукта 3 или 4. */
+    static bool isProductTTransitionAlarm(int sensorIndex)
+    {
+        if (sensorIndex == 3)
+        {
+            return ((Device_AlarmFlags & kDeviceAlarmProductTUpLeft) != 0u)
+                || ((Sensor_AlarmFlags & kSensorAlarmProductTDownLeft) != 0u);
+        }
+        if (sensorIndex == 4)
+        {
+            return ((Device_AlarmFlags & kDeviceAlarmProductTUpRight) != 0u)
+                || ((Sensor_AlarmFlags & kSensorAlarmProductTDownRight) != 0u);
+        }
+        return false;
+    }
 
     // программирование
     static int BaudRate_WR_to_sensor;		// скорость для записи в датчик

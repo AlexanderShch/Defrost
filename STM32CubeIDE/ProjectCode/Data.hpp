@@ -17,6 +17,8 @@
 #define STQ 5				// количество типов датчиков и IO-модулей
 #define FLAG_ReadData 1ul	// флаг события чтения данных 0x00000001ul
 
+extern unsigned int TimeFromStart;	// секунды с момента запуска (тик ReadData)
+
 class Sensor
 {
 public:

@@ -76,9 +76,12 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      constexpr int8_t kSensReturn_T_H   = 2;
      constexpr int8_t kSensFish1_T      = 3;
      constexpr int8_t kSensFish2_T      = 4;
-     // Device_AlarmFlags: бит 13 — выпадение датчика продукта 3, бит 14 — датчика 4.
-     constexpr uint16_t kProductFallenLeftBit  = (uint16_t)(1u << 13);
-     constexpr uint16_t kProductFallenRightBit = (uint16_t)(1u << 14);
+     // Device_AlarmFlags: бит 13/14 — T-переход вверх (выпадение) датчиков продукта 3/4.
+     // Sensor_AlarmFlags: бит 8/9 — T-переход вниз датчиков продукта 3/4 (пока нет выпадения).
+     constexpr uint16_t kProductFallenLeftBit  = Model::kDeviceAlarmProductTUpLeft;
+     constexpr uint16_t kProductFallenRightBit = Model::kDeviceAlarmProductTUpRight;
+     constexpr uint16_t kProductTDownLeftBit   = Model::kSensorAlarmProductTDownLeft;
+     constexpr uint16_t kProductTDownRightBit  = Model::kSensorAlarmProductTDownRight;
      // Если T датчика продукта близка к T воздуха дефростера — считаем, что зонд не в продукте.
      constexpr float kProductVsAirClose_C = 3.0f;
 
@@ -696,10 +699,17 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
 
         Model::Device_AlarmFlags = (uint16_t)(Model::Device_AlarmFlags &
             (uint16_t)~(kProductFallenLeftBit | kProductFallenRightBit));
+        Model::Sensor_AlarmFlags = (uint16_t)(Model::Sensor_AlarmFlags &
+            (uint16_t)~(kProductTDownLeftBit | kProductTDownRightBit));
         if (g.productFallen[0] != 0u)
             Model::Device_AlarmFlags |= kProductFallenLeftBit;
         if (g.productFallen[1] != 0u)
             Model::Device_AlarmFlags |= kProductFallenRightBit;
+        // Переход вниз без выпадения: установка зонда в продукт (отдельный аварийный бит для экрана и сервера).
+        if ((usable[0] != 0u) && (dir[0] < 0) && (g.productFallen[0] == 0u))
+            Model::Sensor_AlarmFlags |= kProductTDownLeftBit;
+        if ((usable[1] != 0u) && (dir[1] < 0) && (g.productFallen[1] == 0u))
+            Model::Sensor_AlarmFlags |= kProductTDownRightBit;
     }
 
     static void UpdateDeviceAlarmState()
@@ -708,8 +718,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         // bit9  - программная авария ворот (таймаут движения, нет фронта концевика за 10 с)
         // bit10 - аппаратная авария ворот (вход Gate_Alarm модуля IO)
         // bit11 - авария заслонки вытяжки (нет нужного сигнала Air_Open/Air_Close за DEFROST_FLAP_POSITION_TIMEOUT_S с)
-        // bit13 - выпадение датчика продукта 3 (зонд в воздухе)
-        // bit14 - выпадение датчика продукта 4
+        // bit12 - агрегированная потеря связи с датчиком (выставляется в Data.cpp)
+        // bit13 - T-переход вверх / выпадение датчика продукта 3 (зонд в воздухе)
+        // bit14 - T-переход вверх / выпадение датчика продукта 4
         // Биты 0..8 - аварии рассогласования выход/вход (в т.ч. _Out) из проверки DeviceSwitchCheck.
         const uint16_t kGateProgramAlarmBit = (uint16_t)(1u << 9);
         const uint16_t kGateHardwareAlarmBit = (uint16_t)(1u << 10);

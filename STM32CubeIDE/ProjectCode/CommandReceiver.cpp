@@ -22,8 +22,8 @@ extern osSemaphoreId_t PR_TX_Compl_SemHandle;  // завершение пере�
 extern osSemaphoreId_t UART4_CMD_RX_SemHandle;  // завершение приёма сервера (UART4)
 extern osSemaphoreId_t ServerResponseReceived_SemHandle;  // ответ на телеметрию получен (DATA_OK/DATA_FALSE)
 extern SENSOR_typedef_t Sensor_array[SQ];  // массив датчиков
-extern unsigned int TimeFromStart;  // время устройства в секундах
 }
+// TimeFromStart объявлен в Data.hpp (C++), определение в Data.cpp.
 
 // Буферы для приема команд
 static uint8_t RX_CMD_Buffer[CMD_MAX_LENGTH];
@@ -736,7 +736,9 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
         {
             // Формат ответа:
             // [0..1] Model::Device_AlarmFlags (uint16)
+            //        бит 13/14 — T-переход вверх (выпадение) датчиков продукта 3/4
             // [2..3] Model::Sensor_AlarmFlags (uint16)
+            //        бит 0..SQ-1 — помехи/обрезки канала; бит 8/9 — T-переход вниз датчиков 3/4
             const uint16_t deviceFlags = Model::Device_AlarmFlags;
             const uint16_t sensorFlags = Model::Sensor_AlarmFlags;
             memcpy(&response.data[0], &deviceFlags, sizeof(uint16_t));

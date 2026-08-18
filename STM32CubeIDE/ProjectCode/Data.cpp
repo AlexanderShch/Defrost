@@ -24,8 +24,6 @@ extern osThreadId_t TouchGFX_Task;
 
 #define LOG_PACKET_SIZE  (2u + sizeof(ControlLogPayload_t) + 2u)
 
-extern unsigned int TimeFromStart;  // определение ниже в файле
-
 uint32_t flags;				// флаги для ожидания событий
 int8_t SensorNumber;
 uint16_t CirStop = 0b0001111000000000;	// стоповое слово, из которого будет выполняться перенос "бегущей единицы"

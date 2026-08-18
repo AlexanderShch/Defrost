@@ -21,6 +21,25 @@ inline bool IsProductSensorInactiveAlarm(int sensorIndex)
 	}
 	return (Sensor_array[sensorIndex].Active == 0u) && ((Model::Sensor_AlarmFlags & (1u << sensorIndex)) != 0u);
 }
+
+/** Мигание красным ~1 Гц по секундному тику контроллера. */
+inline bool ProductTAlarmBlinkOn()
+{
+	return (TimeFromStart % 2u) == 0u;
+}
+
+inline touchgfx::colortype ProductTempColor(int sensorIndex, bool noData)
+{
+	if (IsProductSensorInactiveAlarm(sensorIndex) || noData)
+	{
+		return kColorAlarm;
+	}
+	if (Model::isProductTTransitionAlarm(sensorIndex) && ProductTAlarmBlinkOn())
+	{
+		return kColorAlarm;
+	}
+	return kColorNormal;
+}
 }
 
 HomeView::HomeView()
@@ -71,32 +90,32 @@ void HomeView::tearDownScreen()
 // 3 - fish left temperature
 void HomeView::Val_T_3UpdateView(int Val)
 {
-	if (IsProductSensorInactiveAlarm(3) || Val == kNoDataMarker)
+	const bool noData = (Val == kNoDataMarker);
+	if (IsProductSensorInactiveAlarm(3) || noData)
 	{
 		Unicode::snprintf(ValueCoreT1Buffer, sizeof(ValueCoreT1Buffer), "--");
-		ValueCoreT1.setColor(kColorAlarm);
 	}
 	else
 	{
 		Unicode::snprintfFloat(ValueCoreT1Buffer, sizeof(ValueCoreT1Buffer), "%.1f", (float)Val/10);
-		ValueCoreT1.setColor(kColorNormal);
 	}
+	ValueCoreT1.setColor(ProductTempColor(3, noData));
 	ValueCoreT1.invalidate();
 }
 
 // 4 - fish right temperature
 void HomeView::Val_T_4UpdateView(int Val)
 {
-	if (IsProductSensorInactiveAlarm(4) || Val == kNoDataMarker)
+	const bool noData = (Val == kNoDataMarker);
+	if (IsProductSensorInactiveAlarm(4) || noData)
 	{
 		Unicode::snprintf(ValueCoreT2Buffer, sizeof(ValueCoreT2Buffer), "--");
-		ValueCoreT2.setColor(kColorAlarm);
 	}
 	else
 	{
 		Unicode::snprintfFloat(ValueCoreT2Buffer, sizeof(ValueCoreT2Buffer), "%.1f", (float)Val/10);
-		ValueCoreT2.setColor(kColorNormal);
 	}
+	ValueCoreT2.setColor(ProductTempColor(4, noData));
 	ValueCoreT2.invalidate();
 }
 
