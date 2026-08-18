@@ -317,6 +317,23 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          return Phase::Finish;
      }
 
+     /** Фаза «только воздух» после выпадения обоих зондов: не с нуля цикла, а от последней фазы по продукту. */
+     static Phase SelectPhaseAirOnlyAfterProduct(uint32_t elapsedSinceSwitch_s, Phase startPhase)
+     {
+         if (startPhase == Phase::Finish)
+             return Phase::Finish;
+         const uint32_t tWarmUp  = (uint32_t)g_defrostParams.airOnlyPhaseWarmUp_s;
+         const uint32_t tPlateau = (uint32_t)g_defrostParams.airOnlyPhasePlateau_s;
+         const uint32_t plateauDur = (tPlateau > tWarmUp) ? (tPlateau - tWarmUp) : 0u;
+         if (startPhase == Phase::Plateau)
+         {
+             if (elapsedSinceSwitch_s < plateauDur)
+                 return Phase::Plateau;
+             return Phase::Finish;
+         }
+         return SelectPhaseByTime(elapsedSinceSwitch_s);
+     }
+
      static void ControlStep1s_AirOnly();
      static void StepExhaustByHumidityError(float wErr);
 
@@ -545,6 +562,11 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          uint8_t productCoolRecover[2] = {0, 0};
          // 0: ещё не сравнили с T воздуха после старта или потери канала.
          uint8_t productClassified[2] = {0, 0};
+         // Переход в «только воздух» после работы по продукту (оба зонда выпали в середине/конце).
+         uint8_t airOnlyFromProduct = 0;
+         uint32_t airOnlySwitchRuntime_s = 0;
+         uint8_t airOnlySwitchPhase = 0;
+         uint32_t airOnlyRemain_s = 0;
      };
  
      static ControllerState g;
@@ -608,7 +630,11 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.productCoolRecover[0] = 0;
        g.productCoolRecover[1] = 0;
        g.productClassified[0] = 0;
-       g.productClassified[1] = 0; 
+       g.productClassified[1] = 0;
+       g.airOnlyFromProduct = 0;
+       g.airOnlySwitchRuntime_s = 0;
+       g.airOnlySwitchPhase = 0;
+       g.airOnlyRemain_s = 0; 
      }
  
     enum class LampModeState : uint8_t
@@ -1112,15 +1138,30 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         else
         {
             g.haveLastFishHot = 0;
+            if ((hadProductSensors != 0u) && (g.airOnlyFromProduct == 0u))
+            {
+                // Оба зонда выпали в середине/конце: воздушный хвост от текущей фазы, остаток = maxRuntime − runtime.
+                g.airOnlyFromProduct = 1u;
+                g.airOnlySwitchRuntime_s = g.runtimeSeconds;
+                g.airOnlySwitchPhase = s_lastPhase;
+            }
             ControlStep1s_AirOnly();
             return;
         }
 
+        g.airOnlyFromProduct = 0u;
+        g.airOnlyRemain_s = 0u;
+
         // Автостоп по целевой T: только переход снизу вверх, и только если уже работали по продукту.
         // После подхвата зонда из воздуха fishCold может сразу быть выше уставки — это не конец цикла.
+        // Не стопать, если сырая уже ушла вверх относительно фильтра (выпадение ещё не защёлкнуто).
+        const uint8_t falloutPending =
+            ((fish1Enabled && (Sensor::IsProductFalloutPending((unsigned char)kSensFish1_T) != 0u)) ||
+             (fish2Enabled && (Sensor::IsProductFalloutPending((unsigned char)kSensFish2_T) != 0u))) ? 1u : 0u;
         if ((g_defrostParams.debugDisableTargetTStop == 0u) &&
             (hadProductSensors != 0u) &&
             (g.haveLastFishHot != 0u) &&
+            (falloutPending == 0u) &&
             (g.lastFishCold_C < g_defrostParams.fishColdTarget_C) &&
             (fishCold_C >= g_defrostParams.fishColdTarget_C))
         {
@@ -1323,7 +1364,21 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          const float T_sup_avg_C = airIn.T_sup_avg_C;
          const float w_sup_avg  = HumidityRatio_kgkg(T_sup_avg_C, airIn.RH_sup_avg);
 
-         const Phase phase = SelectPhaseByTime(g.runtimeSeconds);
+         const uint32_t maxRt = (uint32_t)g_defrostParams.maxRuntime_s;
+         g.airOnlyRemain_s = (g.runtimeSeconds < maxRt) ? (maxRt - g.runtimeSeconds) : 0u;
+
+         Phase phase;
+         if (g.airOnlyFromProduct != 0u)
+         {
+             const uint32_t elapsed =
+                 (g.runtimeSeconds >= g.airOnlySwitchRuntime_s)
+                     ? (g.runtimeSeconds - g.airOnlySwitchRuntime_s) : 0u;
+             phase = SelectPhaseAirOnlyAfterProduct(elapsed, static_cast<Phase>(g.airOnlySwitchPhase));
+         }
+         else
+         {
+             phase = SelectPhaseByTime(g.runtimeSeconds);
+         }
          const Limits lim  = GetLimits(phase);
          const Targets tgt = GetTargets(phase);
          const float w_ret_target = HumidityRatio_kgkg(airIn.T_ret_C, tgt.returnTargetRH_percent);
@@ -1336,10 +1391,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
              heatScale01 = 0.0f;
          if (airIn.okL == 0u && airIn.okR == 0u && airIn.okRet == 0u)
              heatScale01 = 0.0f;
-        if (g.runtimeSeconds >= (uint32_t)g_defrostParams.maxRuntime_s)
+        if (g.airOnlyRemain_s == 0u)
         {
-            // Без рабочих датчиков продукта завершаем алгоритм по общему лимиту времени.
-            // Дальнейшая последовательность остановки выполняется в ShutdownSequence().
+            // Хвост «только воздух» исчерпан (maxRuntime − время работы к моменту выпадения / старта).
             DefrostControl_SetEnabled(0);
             return;
         }
@@ -2187,10 +2241,18 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
         PersistParamsToEepromIfAvailable(); // сохранение параметров в EEPROM, если EEPROM доступна
     }
 
-    uint32_t DefrostControl_GetRuntimeSeconds(void)
-    {
-        return g.runtimeSeconds;
-    }
+uint32_t DefrostControl_GetRuntimeSeconds(void)
+{
+    return g.runtimeSeconds;
+}
+
+/** Остаток секунд режима «только воздух»; 0 если идут датчики продукта или алгоритм выключен. */
+uint32_t DefrostControl_GetAirOnlyRemainSeconds(void)
+{
+    if (g.enabled == 0u)
+        return 0u;
+    return g.airOnlyRemain_s;
+}
 
     uint8_t DefrostControl_IsEnabled(void)
     {

@@ -34,6 +34,8 @@ public:
 	static int8_t GetProductThermalChaseDir(unsigned char SensNum);
 	/** Переход закончился: сырая и фильтрованная сошлись (|ΔT| < 0.8 °C заданное число шагов). */
 	static uint8_t IsProductTransitionRateBelowNoise(unsigned char SensNum);
+	/** Сырая уже выше фильтра на порог входа (выпадение ещё не защёлкнуто 5 с). */
+	static uint8_t IsProductFalloutPending(unsigned char SensNum);
 
 protected:
 	static void SetAverageTemperature(unsigned char SensNum);

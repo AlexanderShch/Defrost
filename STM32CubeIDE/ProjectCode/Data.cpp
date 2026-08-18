@@ -315,6 +315,17 @@ uint8_t Sensor::IsProductTransitionRateBelowNoise(unsigned char SensNum)
 	return (GetProductThermalChaseDir(SensNum) == 0) ? 1u : 0u;
 }
 
+uint8_t Sensor::IsProductFalloutPending(unsigned char SensNum)
+{
+	if (!IsProductTempSensor(SensNum))
+		return 0u;
+	if (Sensor_array[SensNum].Active != 1u)
+		return 0u;
+	const int rawDeci = GetData(TimeFromStart, SensNum, 2);
+	const int filtDeci = GetData(TimeFromStart, SensNum, 4);
+	return ((rawDeci - filtDeci) > kProductChaseEnterDeci) ? 1u : 0u;
+}
+
 /** Воздух: защёлка при sumHits > TQ/2. Продукт: авария только при двустороннем шуме; иначе бит снимается. */
 void Sensor::EvaluateClampAlarmForSensor(unsigned char SensNum)
 {
