@@ -79,7 +79,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      // Device_AlarmFlags: бит 13 — выпадение датчика продукта 3, бит 14 — датчика 4.
      constexpr uint16_t kProductFallenLeftBit  = (uint16_t)(1u << 13);
      constexpr uint16_t kProductFallenRightBit = (uint16_t)(1u << 14);
-     constexpr float kProductReinsertMatch_C = 3.0f;
+     // Если T датчика продукта близка к T воздуха дефростера — считаем, что зонд не в продукте.
+     constexpr float kProductVsAirClose_C = 3.0f;
 
      /** Температура для расчётов автоматики: Param 4 — усреднение по буферу + ограничение скорости (Clatch), см. Data.cpp.
       *  В Model::setCurrentVal_T попадает сырая T с шины (Param 2) — для экрана; для ControlStep1s нужен Param 4, как в логе T_filt_C. */
@@ -617,20 +618,38 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
     static void UpdateProductSensorFallout(void)
     {
         // Выпадение: односторонний рост T зонда (лёд растаял, датчик в воздухе).
-        // Возврат в алгоритм: переходная вниз и T близка ко второму рабочему датчику продукта.
-        const int8_t idx[2] = { kSensFish1_T, kSensFish2_T };
-        const int8_t dir[2] = {
+        // Возврат в алгоритм: только после переходной вниз и стабилизации скорости ниже шумового порога.
+        const int8_t dir[2] = {   // знаки догонки продукта
             Sensor::GetProductThermalChaseDir((unsigned char)kSensFish1_T),
             Sensor::GetProductThermalChaseDir((unsigned char)kSensFish2_T)
         };
-        const float tC[2] = {
-            DeciToC(FilteredSensorT_Deci(kSensFish1_T)),
-            DeciToC(FilteredSensorT_Deci(kSensFish2_T))
-        };
-        const uint8_t usable[2] = {
+        const uint8_t usable[2] = {   // активность датчиков продукта
             (uint8_t)(((Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0)) ? 1u : 0u),
             (uint8_t)(((Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0)) ? 1u : 0u)
         };
+        const uint8_t rateStable[2] = {   // стабильность скорости изменения T продукта
+            Sensor::IsProductTransitionRateBelowNoise((unsigned char)kSensFish1_T),
+            Sensor::IsProductTransitionRateBelowNoise((unsigned char)kSensFish2_T)
+        };
+        float airRefSum_C = 0.0f;
+        uint8_t airRefCnt = 0u;
+        if (DefrostAirThChannelUsable(kSensSupLeft_T_H))
+        {
+            airRefSum_C += DeciToC(FilteredSensorT_Deci(kSensSupLeft_T_H));
+            ++airRefCnt;
+        }
+        if (DefrostAirThChannelUsable(kSensSupRight_T_H))
+        {
+            airRefSum_C += DeciToC(FilteredSensorT_Deci(kSensSupRight_T_H));
+            ++airRefCnt;
+        }
+        if (DefrostAirThChannelUsable(kSensReturn_T_H))
+        {
+            airRefSum_C += DeciToC(FilteredSensorT_Deci(kSensReturn_T_H));
+            ++airRefCnt;
+        }
+        const uint8_t airRefValid = (airRefCnt > 0u) ? 1u : 0u;
+        const float airRef_C = (airRefValid != 0u) ? (airRefSum_C / (float)airRefCnt) : 0.0f;
 
         for (uint8_t i = 0u; i < 2u; ++i)
         {
@@ -646,52 +665,32 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
                 g.productCoolRecover[i] = 0u;
                 continue;
             }
+            if (airRefValid != 0u)
+            {
+                const float fishT_C = DeciToC(FilteredSensorT_Deci((i == 0u) ? kSensFish1_T : kSensFish2_T));
+                float dAir = fishT_C - airRef_C;
+                if (dAir < 0.0f)
+                    dAir = -dAir;
+                if (dAir <= kProductVsAirClose_C)
+                {
+                    g.productFallen[i] = 1u;
+                    g.productCoolRecover[i] = 0u;
+                    continue;
+                }
+            }
             if (g.productFallen[i] == 0u)
                 continue;
             if (dir[i] < 0)
                 g.productCoolRecover[i] = 1u;
-            if ((g.productCoolRecover[i] == 0u) || (dir[i] != 0))
+            if (g.productCoolRecover[i] == 0u)
                 continue;
 
-            const uint8_t j = (uint8_t)(1u - i);
-            const uint8_t otherStable = ((usable[j] != 0u) &&
-                (g.productFallen[j] == 0u) &&
-                (dir[j] == 0) &&
-                (SensorExcludedByClampAlarm(idx[j]) == false)) ? 1u : 0u;
-            if (otherStable != 0u)
+            // Базовый критерий возврата: переходная вниз завершилась, текущая скорость ниже шумового порога.
+            if (rateStable[i] != 0u)
             {
-                float d = tC[i] - tC[j];
-                if (d < 0.0f)
-                    d = -d;
-                if (d <= kProductReinsertMatch_C)
-                {
-                    g.productFallen[i] = 0u;
-                    g.productCoolRecover[i] = 0u;
-                }
-            }
-            else if (usable[j] == 0u)
-            {
-                // Второго датчика продукта нет — после переходной вниз возвращаем канал.
                 g.productFallen[i] = 0u;
                 g.productCoolRecover[i] = 0u;
-            }
-        }
-
-        // Оба выпали и оба снова в продукте: взаимная близость T — достаточный критерий.
-        if ((g.productFallen[0] != 0u) && (g.productFallen[1] != 0u) &&
-            (g.productCoolRecover[0] != 0u) && (g.productCoolRecover[1] != 0u) &&
-            (dir[0] == 0) && (dir[1] == 0) &&
-            (usable[0] != 0u) && (usable[1] != 0u))
-        {
-            float d = tC[0] - tC[1];
-            if (d < 0.0f)
-                d = -d;
-            if (d <= kProductReinsertMatch_C)
-            {
-                g.productFallen[0] = 0u;
-                g.productFallen[1] = 0u;
-                g.productCoolRecover[0] = 0u;
-                g.productCoolRecover[1] = 0u;
+                continue;
             }
         }
 

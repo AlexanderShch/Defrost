@@ -30,6 +30,8 @@ public:
 	static uint8_t IsProductThermalTransient(unsigned char SensNum);
 	/** Знак догонки продукта: +1 рост T (выпадение), −1 падение T (установка в продукт), 0 нет переходной. */
 	static int8_t GetProductThermalChaseDir(unsigned char SensNum);
+	/** Текущий шаг T продукта не обрезается (|dT| <= шумового порога). */
+	static uint8_t IsProductTransitionRateBelowNoise(unsigned char SensNum);
 
 protected:
 	static void SetAverageTemperature(unsigned char SensNum);

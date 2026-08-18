@@ -249,6 +249,14 @@ int8_t Sensor::GetProductThermalChaseDir(unsigned char SensNum)
 	return (nPos > nNeg) ? (int8_t)1 : (int8_t)-1;
 }
 
+uint8_t Sensor::IsProductTransitionRateBelowNoise(unsigned char SensNum)
+{
+	if (!IsProductTempSensor(SensNum))
+		return 0u;
+	const unsigned int slot = TimeFromStart % TQ;
+	return (T_ClampHit[slot][SensNum] == 0) ? 1u : 0u;
+}
+
 /** Воздух: защёлка при sumHits > TQ/2. Продукт: авария только при двустороннем шуме; иначе бит снимается. */
 void Sensor::EvaluateClampAlarmForSensor(unsigned char SensNum)
 {
