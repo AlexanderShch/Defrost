@@ -418,6 +418,17 @@ void tearDown()
     WRITE_REG(DMA2D->IFCR, DMA2D_FLAG_TC | DMA2D_FLAG_CE | DMA2D_FLAG_TE);
 }
 
+/** Сброс строки в кэш данных. На Cortex-M4 (F429) кэша нет — пустая заглушка для TouchGFX 4.26. */
+void flushLine(uint32_t* addr, int sizebytes)
+{
+    (void)addr;
+    (void)sizebytes;
+}
+
+void invalidateTextureCache()
+{
+}
+
 namespace rgb565
 {
 /**

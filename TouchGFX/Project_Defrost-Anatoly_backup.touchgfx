@@ -13,58 +13,6 @@
             "RelativeFilename": "__generated\\alternate_theme_images_backgrounds_240x320_gradient_light.png"
           },
           {
-            "Type": "FlexButton",
-            "Name": "BTNStart",
-            "Y": 158,
-            "Width": 240,
-            "Height": 51,
-            "ButtonTrigger": {
-              "Type": "ToggleButtonTrigger"
-            },
-            "ButtonStyles": [
-              {
-                "Type": "TextButtonStyle",
-                "Y": 12,
-                "TextId": "Start",
-                "TextRotation": "0",
-                "ColorReleased": {
-                  "Red": 52,
-                  "Green": 94,
-                  "Blue": 116
-                },
-                "ColorPressed": {
-                  "Red": 232,
-                  "Green": 246,
-                  "Blue": 251
-                }
-              },
-              {
-                "Type": "BoxWithBorderButtonStyle",
-                "Width": 240,
-                "Height": 51,
-                "LockToFlexButtonSize": true,
-                "BorderSize": 5,
-                "ColorReleased": {
-                  "Red": 182,
-                  "Green": 255,
-                  "Blue": 156
-                },
-                "ColorPressed": {
-                  "Red": 50,
-                  "Green": 130
-                },
-                "ColorBorderReleased": {
-                  "Red": 50,
-                  "Green": 130
-                },
-                "ColorBorderPressed": {
-                  "Red": 50,
-                  "Green": 130
-                }
-              }
-            ]
-          },
-          {
             "Type": "ButtonWithIcon",
             "Name": "BTNGoToSettings1",
             "X": 173,
@@ -80,56 +28,6 @@
             "IconHeight": 50,
             "IconWidth": 50,
             "Preset": "alternate_theme\\presets\\button\\icon\\rounded\\tiny_outline_disabled.json"
-          },
-          {
-            "Type": "FlexButton",
-            "Name": "BTNStop",
-            "Y": 217,
-            "Width": 240,
-            "Height": 50,
-            "ButtonTrigger": {
-              "Type": "ToggleButtonTrigger",
-              "InitalStatePressed": true
-            },
-            "ButtonStyles": [
-              {
-                "Type": "TextButtonStyle",
-                "Y": 12,
-                "TextId": "Stop",
-                "TextRotation": "0",
-                "ColorReleased": {
-                  "Red": 52,
-                  "Green": 94,
-                  "Blue": 116
-                },
-                "ColorPressed": {
-                  "Red": 232,
-                  "Green": 246,
-                  "Blue": 251
-                }
-              },
-              {
-                "Type": "BoxWithBorderButtonStyle",
-                "Width": 240,
-                "Height": 50,
-                "LockToFlexButtonSize": true,
-                "BorderSize": 5,
-                "ColorReleased": {
-                  "Red": 247,
-                  "Green": 139,
-                  "Blue": 139
-                },
-                "ColorPressed": {
-                  "Red": 181
-                },
-                "ColorBorderReleased": {
-                  "Red": 181
-                },
-                "ColorBorderPressed": {
-                  "Red": 181
-                }
-              }
-            ]
           },
           {
             "Type": "BoxWithBorder",
@@ -173,8 +71,8 @@
             "Name": "LabelCoreT",
             "X": 15,
             "Y": 8,
-            "Width": 121,
-            "Height": 25,
+            "Width": 120,
+            "Height": 24,
             "TextId": "LabelCoreT",
             "TextRotation": "0",
             "Color": {
@@ -186,30 +84,11 @@
           },
           {
             "Type": "TextArea",
-            "Name": "ValueCoreT1",
-            "X": 15,
-            "Y": 33,
-            "Width": 45,
-            "Height": 25,
-            "TextId": "ValueCoreT1",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "AutoSize": true,
-            "Wildcard1": {
-              "TextId": "ValueCoreT1_W"
-            }
-          },
-          {
-            "Type": "TextArea",
             "Name": "ValueCoreT2",
-            "X": 91,
+            "X": 85,
             "Y": 33,
-            "Width": 45,
-            "Height": 25,
+            "Width": 60,
+            "Height": 24,
             "TextId": "ValueCoreT2",
             "TextRotation": "0",
             "Color": {
@@ -217,18 +96,39 @@
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true,
             "Wildcard1": {
-              "TextId": "ValueCoreT2_W"
+              "TextId": "ValueCoreT2_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ValueCoreT1",
+            "X": 15,
+            "Y": 33,
+            "Width": 60,
+            "Height": 24,
+            "TextId": "ValueCoreT1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "ValueCoreT1_W",
+              "UseBuffer": true,
+              "BufferSize": 10
             }
           },
           {
             "Type": "TextArea",
             "Name": "LabelPRGTimeLeft",
-            "X": 11,
+            "X": 73,
             "Y": 87,
-            "Width": 219,
-            "Height": 25,
+            "Width": 95,
+            "Height": 24,
             "TextId": "LabelPRGTimeLeft",
             "TextRotation": "0",
             "Color": {
@@ -240,12 +140,12 @@
           },
           {
             "Type": "TextArea",
-            "Name": "ValuePRGTimeLeft",
-            "X": 11,
-            "Y": 112,
-            "Width": 38,
-            "Height": 25,
-            "TextId": "ValuePRGTimeLeft",
+            "Name": "ValuePRGTimeWrk",
+            "X": 101,
+            "Y": 111,
+            "Width": 39,
+            "Height": 24,
+            "TextId": "ValuePRGTimeWrk",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -279,6 +179,62 @@
             },
             "TextRotation": "0",
             "Preset": "alternate_theme\\presets\\button\\regular\\height_36\\small_round_normal.json"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelVersion",
+            "X": 3,
+            "Y": 282,
+            "Width": 90,
+            "Height": 24,
+            "TextId": "LabelVerID",
+            "TextRotation": "0",
+            "Wildcard1": {
+              "TextId": "VersionValue",
+              "UseBuffer": true,
+              "BufferSize": 15
+            }
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTNStart",
+            "X": 35,
+            "Y": 183,
+            "Width": 170,
+            "Height": 60,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_large_rounded_text_on_action.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_large_rounded_text_off_normal.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "textArea1",
+            "X": 85,
+            "Y": 159,
+            "Width": 70,
+            "Height": 24,
+            "TextId": "__SingleUse_O02S",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "textArea_Alarm",
+            "X": 85,
+            "Y": 243,
+            "Width": 75,
+            "Height": 24,
+            "Visible": false,
+            "TextId": "__SingleUse_G6TZ",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 255
+            },
+            "AutoSize": true
           }
         ],
         "Interactions": [
@@ -310,6 +266,7 @@
       },
       {
         "Name": "Visualization",
+        "CanvasBufferSize": 3600,
         "Components": [
           {
             "Type": "Image",
@@ -346,22 +303,6 @@
             "RelativeFilename": "Defroster.png"
           },
           {
-            "Type": "TextArea",
-            "Name": "StateHeat2",
-            "X": 94,
-            "Y": 120,
-            "Width": 7,
-            "Height": 13,
-            "TextId": "StateHeat2",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "AutoSize": true
-          },
-          {
             "Type": "ButtonWithIcon",
             "Name": "BTNGoToHome",
             "X": 5,
@@ -379,101 +320,71 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\tiny_fill_normal.json"
           },
           {
-            "Type": "AnimatedImage",
-            "Name": "AnimFan12",
-            "X": 21,
-            "Y": 133,
-            "Width": 38,
-            "Height": 38,
-            "FileNameFirst": "Fan_01.png",
-            "FileNameLast": "Fan_12.png",
-            "UpdateTicksInterval": 50,
-            "StartOnLoad": true,
-            "LoopEnabled": true
-          },
-          {
-            "Type": "AnimatedImage",
-            "Name": "AnimFan34",
-            "X": 181,
-            "Y": 133,
-            "Width": 38,
-            "Height": 38,
-            "FileNameFirst": "Fan_01.png",
-            "FileNameLast": "Fan_12.png",
-            "UpdateTicksInterval": 50,
-            "StartOnLoad": true,
-            "LoopEnabled": true
-          },
-          {
             "Type": "TextArea",
-            "Name": "StateFan1",
-            "X": 28,
-            "Y": 172,
-            "Width": 7,
-            "Height": 13,
-            "TextId": "StateFan1",
+            "Name": "ValueCoreT2Small",
+            "X": 133,
+            "Y": 226,
+            "Width": 35,
+            "Height": 15,
+            "TextId": "ValueCoreT2Small",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true
+            "Wildcard1": {
+              "TextId": "ValueCoreT2_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
           },
           {
             "Type": "TextArea",
-            "Name": "StateFan3",
-            "X": 188,
-            "Y": 172,
-            "Width": 7,
-            "Height": 13,
-            "TextId": "StateFan3",
+            "Name": "ValueCoreT1Small",
+            "X": 73,
+            "Y": 226,
+            "Width": 35,
+            "Height": 15,
+            "TextId": "ValueCoreT1Small",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true
+            "Wildcard1": {
+              "TextId": "ValueCoreT1_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
           },
           {
             "Type": "TextArea",
-            "Name": "StateFan4",
-            "X": 206,
-            "Y": 172,
-            "Width": 7,
-            "Height": 13,
-            "TextId": "StateFan4",
+            "Name": "ValueDefrosterT2",
+            "X": 178,
+            "Y": 226,
+            "Width": 34,
+            "Height": 15,
+            "TextId": "ValueDefrosterT2",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true
-          },
-          {
-            "Type": "TextArea",
-            "Name": "StateFan2",
-            "X": 46,
-            "Y": 172,
-            "Width": 7,
-            "Height": 13,
-            "TextId": "StateFan2",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "AutoSize": true
+            "Wildcard1": {
+              "TextId": "ValueDefrosterT2_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
           },
           {
             "Type": "TextArea",
             "Name": "ValueDefrosterT1",
             "X": 28,
             "Y": 226,
-            "Width": 31,
+            "Width": 35,
             "Height": 15,
             "TextId": "ValueDefrosterT1",
             "TextRotation": "0",
@@ -490,88 +401,140 @@
           },
           {
             "Type": "TextArea",
-            "Name": "ValueDefrosterT2",
-            "X": 186,
-            "Y": 226,
-            "Width": 18,
-            "Height": 13,
-            "TextId": "ValueDefrosterT2",
+            "Name": "ValueDefrosterT",
+            "X": 103,
+            "Y": 154,
+            "Width": 35,
+            "Height": 12,
+            "TextId": "ValueDefrosterT",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true,
             "Wildcard1": {
-              "TextId": "ValueDefrosterT2_W"
+              "TextId": "ValueDefrosterH_W",
+              "UseBuffer": true,
+              "BufferSize": 10
             }
           },
           {
             "Type": "TextArea",
-            "Name": "ValueCoreT1Small",
-            "X": 78,
-            "Y": 226,
-            "Width": 23,
-            "Height": 13,
-            "TextId": "ValueCoreT1Small",
+            "Name": "ValueDefrosterH2",
+            "X": 178,
+            "Y": 251,
+            "Width": 35,
+            "Height": 12,
+            "TextId": "ValueDefrosterH2",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true,
             "Wildcard1": {
-              "TextId": "ValueCoreT1_W"
+              "TextId": "ValueDefrosterH2_W",
+              "UseBuffer": true,
+              "BufferSize": 10
             }
           },
           {
             "Type": "TextArea",
-            "Name": "ValueCoreT2Small",
-            "X": 140,
-            "Y": 226,
-            "Width": 23,
-            "Height": 13,
-            "TextId": "ValueCoreT2Small",
+            "Name": "ValueDefrosterH1",
+            "X": 31,
+            "Y": 251,
+            "Width": 35,
+            "Height": 12,
+            "TextId": "ValueDefrosterH1",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true,
             "Wildcard1": {
-              "TextId": "ValueCoreT2_W"
+              "TextId": "ValueDefrosterH1_W",
+              "UseBuffer": true,
+              "BufferSize": 10
             }
           },
           {
             "Type": "TextArea",
             "Name": "ValueDefrosterH",
-            "X": 113,
-            "Y": 165,
-            "Width": 23,
-            "Height": 13,
-            "TextId": "ValueDefrosterH",
+            "X": 103,
+            "Y": 171,
+            "Width": 35,
+            "Height": 12,
+            "TextId": "__SingleUse_7H2N",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
               "Green": 246,
               "Blue": 251
             },
-            "AutoSize": true,
             "Wildcard1": {
-              "TextId": "ValueDefrosterH_W"
+              "TextId": "ValueDefrosterH_W",
+              "UseBuffer": true,
+              "BufferSize": 10
             }
           },
           {
             "Type": "TextArea",
-            "Name": "StateHeat1",
-            "X": 84,
-            "Y": 120,
-            "Width": 7,
-            "Height": 13,
-            "TextId": "StateHeat1",
+            "Name": "StateFan4",
+            "X": 206,
+            "Y": 172,
+            "Width": 6,
+            "Height": 12,
+            "TextId": "StateFan4",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "StateFan3",
+            "X": 188,
+            "Y": 172,
+            "Width": 6,
+            "Height": 12,
+            "TextId": "StateFan3",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "StateFan2",
+            "X": 46,
+            "Y": 172,
+            "Width": 6,
+            "Height": 12,
+            "TextId": "StateFan2",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "StateFan1",
+            "X": 28,
+            "Y": 172,
+            "Width": 6,
+            "Height": 12,
+            "TextId": "StateFan1",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -585,8 +548,8 @@
             "Name": "StateHeat4",
             "X": 150,
             "Y": 120,
-            "Width": 7,
-            "Height": 13,
+            "Width": 6,
+            "Height": 12,
             "TextId": "StateHeat4",
             "TextRotation": "0",
             "Color": {
@@ -601,8 +564,8 @@
             "Name": "StateHeat3",
             "X": 140,
             "Y": 120,
-            "Width": 7,
-            "Height": 13,
+            "Width": 6,
+            "Height": 12,
             "TextId": "StateHeat3",
             "TextRotation": "0",
             "Color": {
@@ -611,6 +574,90 @@
               "Blue": 251
             },
             "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "StateHeat2",
+            "X": 94,
+            "Y": 120,
+            "Width": 6,
+            "Height": 12,
+            "TextId": "StateHeat2",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "StateHeat1",
+            "X": 84,
+            "Y": 120,
+            "Width": 6,
+            "Height": 12,
+            "TextId": "StateHeat1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "AnimatedImage",
+            "Name": "AnimFan34",
+            "X": 181,
+            "Y": 133,
+            "Width": 38,
+            "Height": 38,
+            "FileNameFirst": "Fan_01.png",
+            "FileNameLast": "Fan_12.png",
+            "UpdateTicksInterval": 50,
+            "StartOnLoad": true,
+            "LoopEnabled": true
+          },
+          {
+            "Type": "AnimatedImage",
+            "Name": "AnimFan12",
+            "X": 21,
+            "Y": 133,
+            "Width": 38,
+            "Height": 38,
+            "FileNameFirst": "Fan_01.png",
+            "FileNameLast": "Fan_12.png",
+            "UpdateTicksInterval": 50,
+            "StartOnLoad": true,
+            "LoopEnabled": true
+          },
+          {
+            "Type": "AnimatedImage",
+            "Name": "AnimFan_Out",
+            "X": 101,
+            "Y": 29,
+            "Width": 38,
+            "Height": 38,
+            "FileNameFirst": "Fan_01.png",
+            "FileNameLast": "Fan_12.png",
+            "UpdateTicksInterval": 50,
+            "StartOnLoad": true,
+            "LoopEnabled": true
+          },
+          {
+            "Type": "AnimatedImage",
+            "Name": "AnimHeat34",
+            "X": 153,
+            "Y": 86,
+            "Width": 25,
+            "Height": 30,
+            "FileNameFirst": "Heat_01.png",
+            "FileNameLast": "Heat_14.png",
+            "UpdateTicksInterval": 80,
+            "StartOnLoad": true,
+            "LoopEnabled": true
           },
           {
             "Type": "AnimatedImage",
@@ -627,17 +674,62 @@
             "LoopEnabled": true
           },
           {
-            "Type": "AnimatedImage",
-            "Name": "AnimHeat34",
-            "X": 153,
-            "Y": 86,
+            "Type": "Image",
+            "Name": "Flap_Close",
+            "X": 108,
+            "Y": 7,
             "Width": 25,
-            "Height": 30,
-            "FileNameFirst": "Heat_01.png",
-            "FileNameLast": "Heat_14.png",
-            "UpdateTicksInterval": 80,
-            "StartOnLoad": true,
-            "LoopEnabled": true
+            "Height": 22,
+            "Visible": false,
+            "RelativeFilename": "Flap_Close.png"
+          },
+          {
+            "Type": "Image",
+            "Name": "Flap_Open",
+            "X": 108,
+            "Y": 6,
+            "Width": 25,
+            "Height": 22,
+            "Visible": false,
+            "RelativeFilename": "Flap_Open.png"
+          },
+          {
+            "Type": "Image",
+            "Name": "Flap",
+            "X": 108,
+            "Y": 6,
+            "Width": 25,
+            "Height": 22,
+            "RelativeFilename": "Flap.png"
+          },
+          {
+            "Type": "Circle",
+            "Name": "Vent_Out_Alarm",
+            "X": 110,
+            "Y": 38,
+            "Width": 20,
+            "Height": 20,
+            "Visible": false,
+            "Color": {
+              "Red": 255
+            },
+            "CenterX": 10.0,
+            "CenterY": 10.0,
+            "Radius": 10.0,
+            "EndAngle": 360.0,
+            "CapPrecision": "Butt"
+          },
+          {
+            "Type": "Box",
+            "Name": "Flap_Alarm",
+            "X": 108,
+            "Y": 6,
+            "Width": 25,
+            "Height": 23,
+            "Visible": false,
+            "Color": {
+              "Red": 255
+            }
           }
         ],
         "Interactions": [
@@ -714,7 +806,7 @@
           },
           {
             "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings4_1",
+            "Name": "BTNGoToSettings6_1",
             "X": 150,
             "Y": 5,
             "Width": 36,
@@ -821,9 +913,9 @@
             "Type": "TextArea",
             "Name": "LabelSettingsMenu",
             "X": 19,
-            "Y": 47,
+            "Y": 46,
             "Width": 203,
-            "Height": 50,
+            "Height": 48,
             "TextId": "LabelSettingsMenu",
             "TextRotation": "0",
             "Color": {
@@ -906,6 +998,18 @@
               "ScreenTransitionType": "ScreenTransitionNone",
               "ActionComponent": "Settings4"
             }
+          },
+          {
+            "InteractionName": "GoToSettings6_1",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettings6_1"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Settings6"
+            }
           }
         ]
       },
@@ -924,7 +1028,7 @@
             "Type": "BoxWithBorder",
             "Name": "BoxCoreT",
             "X": 34,
-            "Y": 186,
+            "Y": 182,
             "Width": 173,
             "Height": 67,
             "Color": {
@@ -975,6 +1079,55 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
           },
           {
+            "Type": "TextArea",
+            "Name": "LabelCoreTSensors_1",
+            "X": 35,
+            "Y": 148,
+            "Width": 171,
+            "Height": 24,
+            "TextId": "LabelCoreTSet",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelCoreTSensors",
+            "X": 26,
+            "Y": 54,
+            "Width": 189,
+            "Height": 24,
+            "TextId": "LabelCoreTSensors",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings6",
+            "X": 150,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
             "Type": "ButtonWithIcon",
             "Name": "BTNGoToSettings2",
             "X": 195,
@@ -992,72 +1145,12 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
           },
           {
-            "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings4",
-            "X": 150,
-            "Y": 5,
-            "Width": 36,
-            "Height": 36,
-            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
-            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
-            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
-            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
-            "IconX": 4,
-            "IconY": 2,
-            "IconHeight": 30,
-            "IconWidth": 30,
-            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
-          },
-          {
-            "Type": "TextArea",
-            "Name": "LabelCoreTSensors",
-            "X": 26,
-            "Y": 54,
-            "Width": 189,
-            "Height": 25,
-            "TextId": "LabelCoreTSensors",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "AutoSize": true
-          },
-          {
-            "Type": "TextArea",
-            "Name": "LabelCoreTSensors_1",
-            "X": 34,
-            "Y": 148,
-            "Width": 173,
-            "Height": 25,
-            "TextId": "LabelCoreTSet",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
-            "AutoSize": true
-          },
-          {
-            "Type": "ToggleButton",
-            "Name": "BTNCoreTSensorsState",
-            "X": 51,
-            "Y": 84,
-            "Width": 138,
-            "Height": 50,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_dark.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded_text.json"
-          },
-          {
             "Type": "TextArea",
             "Name": "ValueCoreTSet",
-            "X": 97,
+            "X": 77,
             "Y": 195,
-            "Width": 47,
-            "Height": 49,
+            "Width": 87,
+            "Height": 41,
             "TextId": "ValueCoreTSet",
             "TextRotation": "0",
             "Color": {
@@ -1105,6 +1198,58 @@
             "IconHeight": 50,
             "IconWidth": 50,
             "Preset": "alternate_theme\\presets\\button\\regular\\height_36\\tiny_rounded_normal.json"
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTNCoreTSensorRight",
+            "X": 144,
+            "Y": 98,
+            "Width": 62,
+            "Height": 34,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_action.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_dark.png"
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTNCoreTSensorLeft",
+            "X": 34,
+            "Y": 98,
+            "Width": 62,
+            "Height": 34,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_action.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_dark.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "textArea1",
+            "X": 47,
+            "Y": 84,
+            "Width": 37,
+            "Height": 12,
+            "TextId": "__SingleUse_QAV4",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "textArea2",
+            "X": 153,
+            "Y": 84,
+            "Width": 45,
+            "Height": 12,
+            "TextId": "__SingleUse_5U0Z",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
           }
         ],
         "Interactions": [
@@ -1167,15 +1312,15 @@
             }
           },
           {
-            "InteractionName": "GoToSettings4",
+            "InteractionName": "GoToSettings6",
             "Trigger": {
               "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGoToSettings4"
+              "TriggerComponent": "BTNGoToSettings6"
             },
             "Action": {
               "Type": "ActionGotoScreen",
               "ScreenTransitionType": "ScreenTransitionNone",
-              "ActionComponent": "Settings4"
+              "ActionComponent": "Settings6"
             }
           }
         ]
@@ -1186,6 +1331,7 @@
           {
             "Type": "Image",
             "Name": "IMGBackground",
+            "Y": -1,
             "Width": 240,
             "Height": 320,
             "LockPosition": true,
@@ -1260,41 +1406,28 @@
             "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
           },
           {
-            "Type": "ToggleButton",
-            "Name": "BTNGateManual",
-            "X": 99,
-            "Y": 124,
-            "Width": 138,
-            "Height": 50,
-            "InitialStatePressed": true,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_dark.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded_text.json"
-          },
-          {
             "Type": "TextArea",
-            "Name": "LabelGateControlManual",
-            "X": 4,
-            "Y": 143,
-            "Width": 93,
-            "Height": 13,
-            "TextId": "LabelGateControlManual",
+            "Name": "LabelGateAlarm",
+            "X": 38,
+            "Y": 136,
+            "Width": 165,
+            "Height": 24,
+            "Visible": false,
+            "TextId": "LabelGateAlarm",
             "TextRotation": "0",
             "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
+              "Red": 255
             },
             "AutoSize": true
           },
           {
             "Type": "TextArea",
-            "Name": "LabelSprayManual",
-            "X": 4,
-            "Y": 276,
-            "Width": 93,
-            "Height": 13,
-            "TextId": "LabelSprayManual",
+            "Name": "LabelGate",
+            "X": 84,
+            "Y": 136,
+            "Width": 72,
+            "Height": 24,
+            "TextId": "LabelGate",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -1305,39 +1438,43 @@
           },
           {
             "Type": "ToggleButton",
-            "Name": "BTNSprayManual",
-            "X": 99,
-            "Y": 257,
-            "Width": 138,
-            "Height": 50,
-            "InitialStatePressed": true,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_dark.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded_text.json"
+            "Name": "BTN_Spray",
+            "X": 88,
+            "Y": 267,
+            "Width": 62,
+            "Height": 34,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_normal.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_dark.png"
           },
           {
             "Type": "TextArea",
-            "Name": "LabelGateControls",
-            "X": 7,
-            "Y": 47,
-            "Width": 228,
-            "Height": 25,
-            "TextId": "LabelGateControls",
+            "Name": "LabelSprayOn",
+            "X": 161,
+            "Y": 278,
+            "Width": 21,
+            "Height": 12,
+            "TextId": "LabelSprayOn",
             "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
-            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelSprayOff",
+            "X": 48,
+            "Y": 278,
+            "Width": 30,
+            "Height": 12,
+            "TextId": "LabelSprayOff",
+            "TextRotation": "0",
             "AutoSize": true
           },
           {
             "Type": "TextArea",
             "Name": "LabelSpray",
             "X": 70,
-            "Y": 178,
+            "Y": 236,
             "Width": 101,
-            "Height": 25,
+            "Height": 24,
             "TextId": "LabelSpray",
             "TextRotation": "0",
             "Color": {
@@ -1349,25 +1486,22 @@
           },
           {
             "Type": "ToggleButton",
-            "Name": "BTNGateControl",
-            "X": 65,
-            "Y": 72,
-            "Width": 110,
+            "Name": "BTN_Manual",
+            "X": 51,
+            "Y": 83,
+            "Width": 138,
             "Height": 50,
-            "Visible": false,
-            "InitialStatePressed": true,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_off_light.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_on_normal.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded.json"
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_normal.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png"
           },
           {
             "Type": "TextArea",
-            "Name": "LabelCloseGate",
-            "X": 10,
-            "Y": 91,
-            "Width": 43,
-            "Height": 13,
-            "TextId": "LabelCloseGate",
+            "Name": "LabelControls",
+            "X": 19,
+            "Y": 49,
+            "Width": 203,
+            "Height": 24,
+            "TextId": "LabelManualControl",
             "TextRotation": "0",
             "Color": {
               "Red": 232,
@@ -1377,65 +1511,73 @@
             "AutoSize": true
           },
           {
-            "Type": "TextArea",
-            "Name": "LabelOpenGate",
-            "X": 187,
-            "Y": 91,
-            "Width": 44,
-            "Height": 13,
-            "TextId": "LabelOpenGate",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
+            "Type": "ButtonWithLabel",
+            "Name": "BTN_GateUP",
+            "X": 18,
+            "Y": 164,
+            "Width": 60,
+            "Height": 60,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "TextId": "BTN_GateUP",
+            "ReleasedColor": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
             },
-            "AutoSize": true
+            "PressedColor": {
+              "Red": 41,
+              "Green": 227,
+              "Blue": 20
+            },
+            "TextRotation": "0",
+            "Preset": "alternate_theme\\presets\\button\\icon\\rounded\\tiny_fill_disabled.json"
           },
           {
-            "Type": "TextArea",
-            "Name": "LabelSprayOn",
-            "X": 187,
-            "Y": 223,
-            "Width": 44,
-            "Height": 13,
-            "TextId": "LabelSprayOn",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
+            "Type": "ButtonWithLabel",
+            "Name": "BTN_GateSTOP",
+            "X": 90,
+            "Y": 164,
+            "Width": 60,
+            "Height": 60,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "TextId": "BTN_GateSTOP",
+            "ReleasedColor": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
             },
-            "AutoSize": true
+            "PressedColor": {
+              "Red": 227,
+              "Green": 14,
+              "Blue": 14
+            },
+            "TextRotation": "0",
+            "Preset": "alternate_theme\\presets\\button\\icon\\rounded\\tiny_fill_disabled.json"
           },
           {
-            "Type": "TextArea",
-            "Name": "LabelSprayOff",
-            "X": 10,
-            "Y": 223,
-            "Width": 43,
-            "Height": 13,
-            "TextId": "LabelSprayOff",
-            "TextRotation": "0",
-            "Color": {
-              "Red": 232,
-              "Green": 246,
-              "Blue": 251
+            "Type": "ButtonWithLabel",
+            "Name": "BTN_GateDOWN",
+            "X": 162,
+            "Y": 164,
+            "Width": 60,
+            "Height": 60,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_rounded_tiny_fill_disabled.png",
+            "TextId": "BTN_GateDOWN",
+            "ReleasedColor": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
             },
-            "AutoSize": true
-          },
-          {
-            "Type": "ToggleButton",
-            "Name": "BTNSprayControl",
-            "X": 68,
-            "Y": 204,
-            "Width": 110,
-            "Height": 50,
-            "Visible": false,
-            "InitialStatePressed": true,
-            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_off_light.png",
-            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_on_normal.png",
-            "Preset": "alternate_theme\\presets\\togglebutton\\medium\\rounded.json"
+            "PressedColor": {
+              "Red": 41,
+              "Green": 227,
+              "Blue": 20
+            },
+            "TextRotation": "0",
+            "Preset": "alternate_theme\\presets\\button\\icon\\rounded\\tiny_fill_disabled.json"
           }
         ],
         "Interactions": [
@@ -1488,25 +1630,58 @@
             }
           },
           {
-            "InteractionName": "BTNGateManualClicked",
+            "InteractionName": "BTNManualClicked",
             "Trigger": {
               "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGateManual"
+              "TriggerComponent": "BTN_Manual"
             },
             "Action": {
               "Type": "ActionCustom",
-              "FunctionName": "BTNGateManualClicked"
+              "FunctionName": "BTNManualClicked"
             }
           },
           {
-            "InteractionName": "BTNSprayManualClicked",
+            "InteractionName": "BTNSprayClicked",
             "Trigger": {
               "Type": "TriggerClicked",
-              "TriggerComponent": "BTNSprayManual"
+              "TriggerComponent": "BTN_Spray"
             },
             "Action": {
               "Type": "ActionCustom",
-              "FunctionName": "BTNSprayManualClicked"
+              "FunctionName": "BTNSprayClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNGateUPClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_GateUP"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNGateUpClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNGateStopClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_GateSTOP"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNGateStopClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNGateDownClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_GateDOWN"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNGateDownClicked"
             }
           }
         ]
@@ -1727,8 +1902,8 @@
             "Name": "LabelFan12",
             "X": 36,
             "Y": 161,
-            "Width": 177,
-            "Height": 25,
+            "Width": 178,
+            "Height": 24,
             "TextId": "LabelFan12",
             "TextRotation": "0",
             "Color": {
@@ -1843,21 +2018,11 @@
           },
           {
             "Type": "TextArea",
-            "Name": "textArea3",
-            "X": 97,
-            "Y": 116,
-            "Height": 13,
-            "TextId": "__SingleUse_P4SQ",
-            "TextRotation": "0",
-            "AutoSize": true
-          },
-          {
-            "Type": "TextArea",
             "Name": "LabelHeater12",
             "X": 75,
             "Y": 246,
-            "Width": 93,
-            "Height": 25,
+            "Width": 94,
+            "Height": 24,
             "TextId": "LabelHeater12",
             "TextRotation": "0",
             "Color": {
@@ -1960,6 +2125,28 @@
               "Type": "ActionCustom",
               "FunctionName": "BTNFanControl2Clicked"
             }
+          },
+          {
+            "InteractionName": "BTNHeatControl1Clicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNHeatControl1"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNHeatControl1Clicked"
+            }
+          },
+          {
+            "InteractionName": "BTNHeatControl2Clicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNHeatControl2"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNHeatControl2Clicked"
+            }
           }
         ]
       },
@@ -2050,7 +2237,7 @@
           },
           {
             "Type": "ButtonWithIcon",
-            "Name": "BTNGoToSettings1",
+            "Name": "BTNGoToAir_Out",
             "X": 195,
             "Y": 5,
             "Width": 36,
@@ -2179,8 +2366,8 @@
             "Name": "LabelFan34",
             "X": 36,
             "Y": 161,
-            "Width": 177,
-            "Height": 25,
+            "Width": 178,
+            "Height": 24,
             "TextId": "LabelFan34",
             "TextRotation": "0",
             "Color": {
@@ -2295,21 +2482,11 @@
           },
           {
             "Type": "TextArea",
-            "Name": "textArea3",
-            "X": 97,
-            "Y": 116,
-            "Height": 13,
-            "TextId": "__SingleUse_1KOJ",
-            "TextRotation": "0",
-            "AutoSize": true
-          },
-          {
-            "Type": "TextArea",
             "Name": "LabelHeater34",
             "X": 75,
             "Y": 246,
-            "Width": 93,
-            "Height": 25,
+            "Width": 94,
+            "Height": 24,
             "TextId": "LabelHeater34",
             "TextRotation": "0",
             "Color": {
@@ -2358,18 +2535,6 @@
             }
           },
           {
-            "InteractionName": "GoToSettings1",
-            "Trigger": {
-              "Type": "TriggerClicked",
-              "TriggerComponent": "BTNGoToSettings1"
-            },
-            "Action": {
-              "Type": "ActionGotoScreen",
-              "ScreenTransitionType": "ScreenTransitionNone",
-              "ActionComponent": "Settings1"
-            }
-          },
-          {
             "InteractionName": "BTNManual3Clicked",
             "Trigger": {
               "Type": "TriggerClicked",
@@ -2412,11 +2577,2701 @@
               "Type": "ActionCustom",
               "FunctionName": "BTNFanControl4Clicked"
             }
+          },
+          {
+            "InteractionName": "BTNHeatControl3Clicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNHeatControl3"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNHeatControl3Clicked"
+            }
+          },
+          {
+            "InteractionName": "BTNHeatControl4Clicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNHeatControl4"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNHeatControl4Clicked"
+            }
+          },
+          {
+            "InteractionName": "GoToAir_Out",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToAir_Out"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Air_Out"
+            }
+          }
+        ]
+      },
+      {
+        "Name": "Air_Out",
+        "Components": [
+          {
+            "Type": "Image",
+            "Name": "IMGBackground",
+            "Width": 240,
+            "Height": 320,
+            "LockPosition": true,
+            "RelativeFilename": "__generated\\alternate_theme_images_backgrounds_240x320_gradient_light.png"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToHome",
+            "X": 5,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_action_home_filled_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_action_home_filled_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettingsMenu",
+            "X": 102,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_action_settings_applications_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_action_settings_applications_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings4",
+            "X": 150,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings5",
+            "X": 195,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTN_AirFlap",
+            "X": 139,
+            "Y": 187,
+            "Width": 62,
+            "Height": 34,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_normal.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_dark.png"
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTN_AirFan",
+            "X": 139,
+            "Y": 266,
+            "Width": 62,
+            "Height": 34,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_on_normal.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_small_rounded_small_off_dark.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelManualControl",
+            "X": 19,
+            "Y": 61,
+            "Width": 203,
+            "Height": 24,
+            "TextId": "LabelManualControl",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1
+          },
+          {
+            "Type": "ToggleButton",
+            "Name": "BTN_Manual",
+            "X": 51,
+            "Y": 94,
+            "Width": 138,
+            "Height": 50,
+            "Pressed": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_on_normal.png",
+            "Released": "__generated\\alternate_theme_images_widgets_togglebutton_medium_rounded_text_off_normal.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "Label_AirFlap",
+            "X": 74,
+            "Y": 154,
+            "Width": 96,
+            "Height": 24,
+            "TextId": "__SingleUse_1W2N",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelFlapAlarm",
+            "X": 79,
+            "Y": 154,
+            "Width": 83,
+            "Height": 24,
+            "Visible": false,
+            "TextId": "__SingleUse_EBIH",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 255
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "AnimatedImage",
+            "Name": "anim_AirFan",
+            "X": 36,
+            "Y": 264,
+            "Width": 38,
+            "Height": 38,
+            "FileNameFirst": "Fan_01.png",
+            "FileNameLast": "Fan_12.png",
+            "UpdateTicksInterval": 50,
+            "StartOnLoad": true,
+            "LoopEnabled": true
+          },
+          {
+            "Type": "Image",
+            "Name": "Flap",
+            "X": 42,
+            "Y": 193,
+            "Width": 25,
+            "Height": 22,
+            "RelativeFilename": "Flap.png"
+          },
+          {
+            "Type": "Image",
+            "Name": "Flap_On",
+            "X": 42,
+            "Y": 193,
+            "Width": 25,
+            "Height": 22,
+            "Visible": false,
+            "RelativeFilename": "Flap_Open.png"
+          },
+          {
+            "Type": "Image",
+            "Name": "Flap_Off",
+            "X": 42,
+            "Y": 193,
+            "Width": 25,
+            "Height": 22,
+            "Visible": false,
+            "RelativeFilename": "Flap_Close.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "Label_AirFan",
+            "X": 62,
+            "Y": 230,
+            "Width": 120,
+            "Height": 24,
+            "TextId": "__SingleUse_N607",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelAirFanAlarm",
+            "X": 79,
+            "Y": 230,
+            "Width": 83,
+            "Height": 24,
+            "Visible": false,
+            "TextId": "__SingleUse_OURK",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 255
+            },
+            "AutoSize": true
+          }
+        ],
+        "Interactions": [
+          {
+            "InteractionName": "GoToHome",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToHome"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Home"
+            }
+          },
+          {
+            "InteractionName": "GoToSettingsMenu",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettingsMenu"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "SettingsMenu"
+            }
+          },
+          {
+            "InteractionName": "GoToSettings4",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettings4"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Settings4"
+            }
+          },
+          {
+            "InteractionName": "GoToSettings5",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettings5"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Settings5"
+            }
+          },
+          {
+            "InteractionName": "BTNManualClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_Manual"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNManualClicked"
+            }
+          },
+          {
+            "InteractionName": "BTN_AirFlapClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_AirFlap"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTN_AirFlapClicked"
+            }
+          },
+          {
+            "InteractionName": "BTN_AirFanClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_AirFan"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTN_AirFanClicked"
+            }
+          }
+        ]
+      },
+      {
+        "Name": "Settings5",
+        "CanvasBufferSize": 3600,
+        "Components": [
+          {
+            "Type": "Image",
+            "Name": "IMGBackground",
+            "Width": 240,
+            "Height": 320,
+            "LockPosition": true,
+            "RelativeFilename": "__generated\\alternate_theme_images_backgrounds_240x320_gradient_light.png"
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "BoxSensorSelector_2",
+            "Y": 209,
+            "Width": 240,
+            "Height": 68,
+            "LockPosition": true,
+            "Color": {
+              "Red": 78,
+              "Green": 118,
+              "Blue": 147
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 5,
+            "Alpha": 121
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelProgramming",
+            "X": 21,
+            "Y": 41,
+            "Width": 199,
+            "Height": 24,
+            "LockPosition": true,
+            "TextId": "LabelProgramming",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToHome",
+            "X": 5,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_action_home_filled_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_action_home_filled_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings6",
+            "X": 195,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToAir_Out",
+            "X": 150,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettingsMenu",
+            "X": 102,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_action_settings_applications_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_action_settings_applications_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "BoxSensorSelector",
+            "Y": 69,
+            "Width": 240,
+            "Height": 68,
+            "LockPosition": true,
+            "Color": {
+              "Red": 78,
+              "Green": 118,
+              "Blue": 147
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 5,
+            "Alpha": 121
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "BoxSensorSelector_1",
+            "Y": 139,
+            "Width": 240,
+            "Height": 68,
+            "LockPosition": true,
+            "Color": {
+              "Red": 78,
+              "Green": 118,
+              "Blue": 147
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 5,
+            "Alpha": 121
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelSensorTypeSelect",
+            "X": 6,
+            "Y": 89,
+            "Width": 128,
+            "Height": 24,
+            "LockPosition": true,
+            "TextId": "LabelSensorTypeSelect",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelSensorCurrentSpeed",
+            "X": 13,
+            "Y": 147,
+            "Width": 94,
+            "Height": 24,
+            "LockPosition": true,
+            "TextId": "LabelSensorCurrentSpeed",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1
+          },
+          {
+            "Type": "TextArea",
+            "Name": "SensorCurrentSpeed",
+            "X": 21,
+            "Y": 171,
+            "Width": 78,
+            "Height": 24,
+            "LockPosition": true,
+            "TextId": "SensorCurrentSpeed",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1,
+            "Wildcard1": {
+              "TextId": "SensorCurrentSpeed_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "SensorCurrentAddress",
+            "X": 143,
+            "Y": 171,
+            "Width": 78,
+            "Height": 24,
+            "LockPosition": true,
+            "TextId": "SensorCurrentAddress",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1,
+            "Wildcard1": {
+              "TextId": "SensorCurrentAddress_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelSensorCurrentAddress",
+            "X": 152,
+            "Y": 147,
+            "Width": 61,
+            "Height": 24,
+            "LockPosition": true,
+            "TextId": "LabelSensorCurrentAddress",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1
+          },
+          {
+            "Type": "AnimatedImage",
+            "Name": "animatedImage1",
+            "X": 80,
+            "Y": 206,
+            "Width": 80,
+            "Height": 80,
+            "Visible": false,
+            "LockPosition": true,
+            "FileNameFirst": "Refresh_anim_01.png",
+            "FileNameLast": "Refresh_anim_06.png",
+            "UpdateTicksInterval": 80,
+            "StartOnLoad": true,
+            "LoopEnabled": true
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNWrite",
+            "X": 61,
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "Visible": false,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNWrite",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNConfirm",
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "Visible": false,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNConfirm",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNCancel",
+            "X": 122,
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "Visible": false,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNCancel",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSetAddress",
+            "X": 133,
+            "Y": 219,
+            "Width": 93,
+            "Height": 47,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 10,
+                "TextId": "BTNSetAddress",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSetAddress_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 93,
+                "Height": 47,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSensorType",
+            "X": 137,
+            "Y": 79,
+            "Width": 93,
+            "Height": 47,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 10,
+                "TextId": "BTNSensorType",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSensorType_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 93,
+                "Height": 47,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSetSpeed",
+            "X": 13,
+            "Y": 219,
+            "Width": 93,
+            "Height": 47,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 10,
+                "TextId": "BTNSetSpeed",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSetSpeed_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 93,
+                "Height": 47,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollSensorAddressNew",
+            "Y": 71,
+            "Width": 240,
+            "Height": 207,
+            "Visible": false,
+            "LockPosition": true,
+            "SelectedItemOffset": 78,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "TextSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "TextContainer",
+            "NumberofItems": 7,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollSensorSpeedNew",
+            "Y": 71,
+            "Width": 240,
+            "Height": 207,
+            "Visible": false,
+            "LockPosition": true,
+            "SelectedItemOffset": 78,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "ScrollSelectedItemContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "ScrollItemContainer",
+            "NumberofItems": 8,
+            "InitialElement": 1,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollSensorType",
+            "Y": 71,
+            "Width": 240,
+            "Height": 207,
+            "Visible": false,
+            "LockPosition": true,
+            "SelectedItemOffset": 78,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "TextSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "TextContainer",
+            "NumberofItems": 5,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "Image",
+            "Name": "Alert_Background",
+            "X": 12,
+            "Y": 45,
+            "Width": 214,
+            "Height": 150,
+            "Visible": false,
+            "RelativeFilename": "__generated\\alternate_theme_images_containers_small_wide_outlined_light.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "Alert_Message",
+            "X": 20,
+            "Y": 70,
+            "Width": 200,
+            "Height": 100,
+            "Visible": false,
+            "TextId": "Alert_Message",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 252,
+              "Green": 3,
+              "Blue": 3
+            }
+          }
+        ],
+        "Interactions": [
+          {
+            "InteractionName": "GoToHome",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToHome"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Home"
+            }
+          },
+          {
+            "InteractionName": "GoToSettingsMenu",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettingsMenu"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "SettingsMenu"
+            }
+          },
+          {
+            "InteractionName": "GoToSettings6",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettings6"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Settings6"
+            }
+          },
+          {
+            "InteractionName": "BTNSensorTypeClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNSensorType"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSensorTypeClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNSetAddressClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNSetAddress"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSetAddressClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNWriteClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNWrite"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNWriteClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNSetSpeedClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNSetSpeed"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSetSpeedClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNConfirmClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNConfirm"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNConfirmClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNCancelClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNCancel"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNCancelClicked"
+            }
+          },
+          {
+            "InteractionName": "GoToAir_Out",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToAir_Out"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Air_Out"
+            }
+          }
+        ]
+      },
+      {
+        "Name": "Settings6",
+        "CanvasBufferSize": 3600,
+        "Components": [
+          {
+            "Type": "Image",
+            "Name": "IMGBackground",
+            "Width": 240,
+            "Height": 320,
+            "LockPosition": true,
+            "RelativeFilename": "__generated\\alternate_theme_images_backgrounds_240x320_gradient_light.png"
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "boxWithBorder1",
+            "X": 19,
+            "Y": 125,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 2,
+            "Alpha": 94
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "boxWithBorder1_1",
+            "X": 186,
+            "Y": 125,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 2,
+            "Alpha": 94
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "boxWithBorder1_2",
+            "X": 118,
+            "Y": 125,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 2,
+            "Alpha": 94
+          },
+          {
+            "Type": "BoxWithBorder",
+            "Name": "boxWithBorder1_3",
+            "X": 69,
+            "Y": 125,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "Color": {
+              "Red": 255,
+              "Green": 255,
+              "Blue": 255
+            },
+            "BorderColor": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "BorderSize": 2,
+            "Alpha": 94
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTN_R_Correction",
+            "X": 133,
+            "Y": 225,
+            "Width": 94,
+            "Height": 34,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 4,
+                "TextId": "BTN_R_Correction",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTN_R_Correction_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 94,
+                "Height": 34,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTN_H_Correction",
+            "X": 133,
+            "Y": 225,
+            "Width": 94,
+            "Height": 34,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 4,
+                "TextId": "BTN_H_Correction",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTN_H_Correction_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 94,
+                "Height": 34,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTN_T_Correction",
+            "X": 133,
+            "Y": 185,
+            "Width": 94,
+            "Height": 34,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 4,
+                "TextId": "BTN_T_Correction",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTN_T_Correction_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 94,
+                "Height": 34,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSensorType",
+            "X": 146,
+            "Y": 110,
+            "Width": 81,
+            "Height": 33,
+            "ButtonTrigger": {
+              "Type": "RepeatButtonTrigger",
+              "Delay": 200,
+              "Interval": 1000
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 4,
+                "TextId": "BTNSensorType",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSensorType_W",
+                  "UseBuffer": true,
+                  "BufferSize": 10
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 81,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNSetAddress",
+            "X": 146,
+            "Y": 76,
+            "Width": 81,
+            "Height": 32,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 4,
+                "TextId": "BTNSetAddress",
+                "TextRotation": "0",
+                "Wildcard1": {
+                  "TextId": "BTNSetAddress_W",
+                  "UseBuffer": true,
+                  "BufferSize": 4
+                },
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 81,
+                "Height": 32,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings5",
+            "X": 150,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_left_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettings1",
+            "X": 195,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_navigation_arrow_right_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToSettingsMenu",
+            "X": 102,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_action_settings_applications_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_action_settings_applications_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "ButtonWithIcon",
+            "Name": "BTNGoToHome",
+            "X": 5,
+            "Y": 5,
+            "Width": 36,
+            "Height": 36,
+            "LockPosition": true,
+            "Pressed": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_pressed.png",
+            "Released": "__generated\\alternate_theme_images_widgets_button_icon_round_micro_fill_normal.png",
+            "IconPressed": "__generated\\icon_theme_images_action_home_filled_30_30_E8F6FB.svg.png",
+            "IconReleased": "__generated\\icon_theme_images_action_home_filled_30_30_E8F6FB.svg.png",
+            "IconX": 4,
+            "IconY": 2,
+            "IconHeight": 30,
+            "IconWidth": 30,
+            "Preset": "alternate_theme\\presets\\button\\icon\\round\\micro_fill_normal.json"
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNWrite",
+            "X": 61,
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "Visible": false,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNWrite",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNConfirm",
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNConfirm",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNReset",
+            "Y": 153,
+            "Width": 118,
+            "Height": 33,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNReset",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "BTNCancel",
+            "X": 122,
+            "Y": 280,
+            "Width": 118,
+            "Height": 33,
+            "LockPosition": true,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "TextButtonStyle",
+                "Y": 2,
+                "TextId": "BTNCancel",
+                "TextRotation": "0",
+                "ColorReleased": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorPressed": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                }
+              },
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 118,
+                "Height": 33,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                },
+                "ColorBorderReleased": {
+                  "Red": 72,
+                  "Green": 109,
+                  "Blue": 131
+                },
+                "ColorBorderPressed": {
+                  "Red": 232,
+                  "Green": 246,
+                  "Blue": 251
+                }
+              }
+            ]
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelCorrection",
+            "X": 64,
+            "Y": 41,
+            "Width": 112,
+            "Height": 24,
+            "LockPosition": true,
+            "TextId": "LabelChooseCorrection",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "LineSpacing": -1
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ChooseCorrection",
+            "X": 150,
+            "Y": 157,
+            "Width": 73,
+            "Height": 24,
+            "TextId": "ChooseCorrection",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelAddrSelect",
+            "X": 63,
+            "Y": 77,
+            "Width": 70,
+            "Height": 31,
+            "TextId": "LabelAddr",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelSensorTypeSelect",
+            "X": 6,
+            "Y": 114,
+            "Width": 128,
+            "Height": 24,
+            "TextId": "LabelSensorTypeSelect",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "LineSpacing": -1
+          },
+          {
+            "Type": "TextArea",
+            "Name": "CurrentValue_R",
+            "X": 39,
+            "Y": 230,
+            "Width": 70,
+            "Height": 24,
+            "Visible": false,
+            "TextId": "__SingleUse_RBOR",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "CurrentValue_R_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "CurrentValue_H",
+            "X": 39,
+            "Y": 230,
+            "Width": 81,
+            "Height": 24,
+            "TextId": "CurrentValue_H",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "Wildcard1": {
+              "TextId": "CurrentValue_H_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "CurrentValue_T",
+            "X": 39,
+            "Y": 190,
+            "Width": 70,
+            "Height": 24,
+            "TextId": "CurrentValue_T",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "AutoSize": true,
+            "Wildcard1": {
+              "TextId": "CurrentValue_T_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelR",
+            "X": 9,
+            "Y": 230,
+            "Width": 23,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_R",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelR_1",
+            "X": 59,
+            "Y": 76,
+            "Width": 23,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_R",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelR_1_1",
+            "X": 160,
+            "Y": 76,
+            "Width": 32,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_R_1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelH",
+            "X": 9,
+            "Y": 230,
+            "Width": 23,
+            "Height": 23,
+            "TextId": "Label_H",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelH_1",
+            "X": 59,
+            "Y": 76,
+            "Width": 23,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_H",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelH_1_1",
+            "X": 158,
+            "Y": 76,
+            "Width": 23,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_H_1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelT",
+            "X": 9,
+            "Y": 190,
+            "Width": 21,
+            "Height": 23,
+            "TextId": "Label_T",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelT_1",
+            "X": 60,
+            "Y": 76,
+            "Width": 21,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_T",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "LabelT_1_1",
+            "X": 158,
+            "Y": 76,
+            "Width": 21,
+            "Height": 23,
+            "Visible": false,
+            "TextId": "Label_T_1",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            }
+          },
+          {
+            "Type": "TextArea",
+            "Name": "Whole_Digit",
+            "X": 87,
+            "Y": 76,
+            "Width": 70,
+            "Height": 28,
+            "Visible": false,
+            "TextId": "Whole_Digit",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "Whole_Digit_W",
+              "UseBuffer": true,
+              "BufferSize": 8
+            }
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollWheelDigit1",
+            "X": 186,
+            "Y": 125,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "SelectedItemOffset": 55,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "DigitSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "DigitContainer",
+            "NumberofItems": 10,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollWheelDigit2",
+            "X": 118,
+            "Y": 125,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "SelectedItemOffset": 55,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "DigitSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "DigitContainer",
+            "NumberofItems": 10,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollWheelDigit3",
+            "X": 69,
+            "Y": 125,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "SelectedItemOffset": 55,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "DigitSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "DigitContainer",
+            "NumberofItems": 10,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollWheelDigit4",
+            "X": 19,
+            "Y": 125,
+            "Width": 40,
+            "Height": 135,
+            "Visible": false,
+            "SelectedItemOffset": 55,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "DigitSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "DigitContainer",
+            "NumberofItems": 10,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollSensorAddress",
+            "Y": 71,
+            "Width": 240,
+            "Height": 207,
+            "Visible": false,
+            "LockPosition": true,
+            "SelectedItemOffset": 78,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "TextSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "TextContainer",
+            "NumberofItems": 5,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          },
+          {
+            "Type": "ScrollWheel",
+            "Name": "scrollSensorType",
+            "Y": 71,
+            "Width": 240,
+            "Height": 207,
+            "Visible": false,
+            "LockPosition": true,
+            "SelectedItemOffset": 78,
+            "UseSelectedStyle": true,
+            "SelectedItemTemplateName": "TextSelectedContainer",
+            "IsCircular": true,
+            "ItemTemplateName": "TextContainer",
+            "NumberofItems": 3,
+            "Easing": "Back",
+            "EasingOption": "Out",
+            "SwipeAcceleration": 1.0,
+            "DragAcceleration": 1.0
+          }
+        ],
+        "Interactions": [
+          {
+            "InteractionName": "GoToHome",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToHome"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Home"
+            }
+          },
+          {
+            "InteractionName": "GoToSettings5",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettings5"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Settings5"
+            }
+          },
+          {
+            "InteractionName": "GoToSettingsMenu",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettingsMenu"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "SettingsMenu"
+            }
+          },
+          {
+            "InteractionName": "GoToSettings1",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNGoToSettings1"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "Settings1"
+            }
+          },
+          {
+            "InteractionName": "BTNWriteClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNWrite"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNWriteClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNConfirmClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNConfirm"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNConfirmClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNCancelClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNCancel"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNCancelClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNSensorTypeClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNSensorType"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSensorTypeClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNSetAddressClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNSetAddress"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSetAddressClicked"
+            }
+          },
+          {
+            "InteractionName": "BTNSet_CORR_R",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_R_Correction"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSet_CORR_R"
+            }
+          },
+          {
+            "InteractionName": "BTNSet_CORR_H",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_H_Correction"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSet_CORR_H"
+            }
+          },
+          {
+            "InteractionName": "BTNSet_CORR_T",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTN_T_Correction"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNSet_CORR_T"
+            }
+          },
+          {
+            "InteractionName": "BTNResetClicked",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "BTNReset"
+            },
+            "Action": {
+              "Type": "ActionCustom",
+              "FunctionName": "BTNResetClicked"
+            }
           }
         ]
       }
     ],
-    "CustomContainerDefinitions": [],
+    "CustomContainerDefinitions": [
+      {
+        "Name": "ScrollItemContainer",
+        "Width": 240,
+        "Height": 50,
+        "Components": [
+          {
+            "Type": "Image",
+            "Name": "image1",
+            "Width": 240,
+            "Height": 50,
+            "RelativeFilename": "__generated\\alternate_theme_images_bars_240x240_bottom_light.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ScrollItem",
+            "X": 30,
+            "Y": 13,
+            "Width": 171,
+            "Height": 25,
+            "TextId": "ScrollItem",
+            "TextRotation": "0",
+            "Wildcard1": {
+              "TextId": "ScrollItem_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "Line",
+            "Name": "line1",
+            "Width": 240,
+            "Height": 70,
+            "StartX": 10.0,
+            "StartY": 48.0,
+            "EndX": 230.0,
+            "EndY": 48.0,
+            "LineWidth": 1.7,
+            "LineEndingStyle": "Round"
+          }
+        ],
+        "Interactions": []
+      },
+      {
+        "Name": "ScrollSelectedItemContainer",
+        "Width": 240,
+        "Height": 50,
+        "Components": [
+          {
+            "Type": "Image",
+            "Name": "image1",
+            "Width": 240,
+            "Height": 50,
+            "RelativeFilename": "__generated\\alternate_theme_images_bars_240x240_bottom_light.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "ScrollSelectedItem",
+            "X": -1,
+            "Y": 11,
+            "Width": 183,
+            "Height": 28,
+            "TextId": "ScrollSelectedItem",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "ScrollSelectedItem_W",
+              "UseBuffer": true,
+              "BufferSize": 10
+            }
+          },
+          {
+            "Type": "Line",
+            "Name": "line1",
+            "Width": 240,
+            "Height": 50,
+            "StartX": 10.0,
+            "StartY": 48.0,
+            "EndX": 230.0,
+            "EndY": 48.0,
+            "LineWidth": 1.7,
+            "LineEndingStyle": "Round"
+          }
+        ],
+        "Interactions": []
+      },
+      {
+        "Name": "DigitContainer",
+        "Width": 40,
+        "Height": 25,
+        "Components": [
+          {
+            "Type": "TextArea",
+            "Name": "ScrollDigit",
+            "Width": 40,
+            "Height": 25,
+            "TextId": "ScrollDigit",
+            "TextRotation": "0",
+            "Wildcard1": {
+              "TextId": "ScrollDigit_W",
+              "UseBuffer": true,
+              "BufferSize": 2
+            }
+          },
+          {
+            "Type": "Line",
+            "Name": "line1",
+            "Width": 40,
+            "Height": 34,
+            "Color": {
+              "Red": 40,
+              "Green": 71,
+              "Blue": 87
+            },
+            "StartX": 5.0,
+            "StartY": 25.0,
+            "EndX": 35.0,
+            "EndY": 25.0,
+            "LineWidth": 1.0,
+            "LineEndingStyle": "Round"
+          }
+        ],
+        "Interactions": []
+      },
+      {
+        "Name": "DigitSelectedContainer",
+        "Width": 40,
+        "Height": 25,
+        "Components": [
+          {
+            "Type": "TextArea",
+            "Name": "ScrollSelectedDigit",
+            "Width": 40,
+            "Height": 25,
+            "TextId": "ScrollSelectedDigit",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "ScrollSelectedDigit_W",
+              "UseBuffer": true,
+              "BufferSize": 2
+            }
+          }
+        ],
+        "Interactions": []
+      },
+      {
+        "Name": "TextContainer",
+        "Width": 240,
+        "Height": 50,
+        "Components": [
+          {
+            "Type": "Image",
+            "Name": "image1",
+            "Width": 240,
+            "Height": 50,
+            "RelativeFilename": "__generated\\alternate_theme_images_bars_240x240_bottom_light.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "textArea",
+            "Y": 12,
+            "Width": 220,
+            "Height": 25,
+            "TextId": "textArea",
+            "TextRotation": "0",
+            "Wildcard1": {
+              "TextId": "textArea_W",
+              "UseBuffer": true,
+              "BufferSize": 20
+            }
+          },
+          {
+            "Type": "Line",
+            "Name": "line1",
+            "Width": 240,
+            "Height": 70,
+            "StartX": 10.0,
+            "StartY": 48.0,
+            "EndX": 230.0,
+            "EndY": 48.0,
+            "LineWidth": 1.7,
+            "LineEndingStyle": "Round"
+          }
+        ],
+        "Interactions": []
+      },
+      {
+        "Name": "TextSelectedContainer",
+        "Width": 240,
+        "Height": 50,
+        "Components": [
+          {
+            "Type": "Image",
+            "Name": "image1",
+            "Width": 240,
+            "Height": 50,
+            "RelativeFilename": "__generated\\alternate_theme_images_bars_240x240_bottom_light.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "textAreaSelected",
+            "Y": 12,
+            "Width": 220,
+            "Height": 25,
+            "TextId": "textAreaSelected",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 232,
+              "Green": 246,
+              "Blue": 251
+            },
+            "Wildcard1": {
+              "TextId": "textAreaSelected_W",
+              "UseBuffer": true,
+              "BufferSize": 20
+            }
+          },
+          {
+            "Type": "Line",
+            "Name": "line1",
+            "Width": 240,
+            "Height": 70,
+            "StartX": 10.0,
+            "StartY": 48.0,
+            "EndX": 230.0,
+            "EndY": 48.0,
+            "LineWidth": 1.7,
+            "LineEndingStyle": "Round"
+          }
+        ],
+        "Interactions": []
+      }
+    ],
     "Name": "Project_Defrost-Anatoly",
     "Resolution": {
       "Width": 240,
@@ -2473,6 +5328,6 @@
       "Vector"
     ]
   },
-  "Version": "4.21.4",
+  "Version": "4.22.0",
   "CreatedBy": "4.21.4"
 }

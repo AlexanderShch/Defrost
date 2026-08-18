@@ -1,0 +1,32 @@
+# CubeIDE этот файл не перезаписывает.
+# Генератор GNU Tools 14.3 оставляет в makefile только Application/Startup,
+# Application/User (syscalls/sysmem) и ProjectCode — без linked resources.
+# Старые subdir.mk (10.3) и extra_linked_sources.mk возвращают HAL, FreeRTOS, GUI и main.
+
+-include Drivers/CMSIS/subdir.mk
+-include Drivers/STM32F4xx_HAL_Driver/subdir.mk
+-include Drivers/BSP/Components/subdir.mk
+-include Middlewares/FreeRTOS/subdir.mk
+-include Application/User/gui/subdir.mk
+-include Application/User/generated/subdir.mk
+-include Application/User/TouchGFX/App/subdir.mk
+-include Application/User/TouchGFX/target/subdir.mk
+-include Application/User/TouchGFX/target/generated/subdir.mk
+-include ../extra_linked_sources.mk
+
+# Штатный рецепт линкует @"objects.list" $(USER_OBJS). Добавить объекты,
+# которых нет в урезанном objects.list (без переопределения рецепта → без warning).
+OBJECTS_IN_LIST := $(patsubst "%",%,$(file < objects.list))
+USER_OBJS += $(filter-out $(OBJECTS_IN_LIST),$(OBJS))
+
+# GNU ld 14 предупреждает о LOAD-сегменте RWX на типичном STM32-скрипте
+LIBS += -Wl,--no-warn-rwx-segments
+
+# makefile.defs подключается после блока -include $(C_DEPS); подтянуть .d новых объектов
+ifneq ($(MAKECMDGOALS),clean)
+-include $(C_DEPS)
+-include $(CPP_DEPS)
+-include $(CXX_DEPS)
+-include $(C++_DEPS)
+-include $(S_DEPS)
+endif

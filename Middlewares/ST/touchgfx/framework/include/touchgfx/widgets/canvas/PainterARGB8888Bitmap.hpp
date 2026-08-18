@@ -1,8 +1,8 @@
 /******************************************************************************
-* Copyright (c) 2018(-2023) STMicroelectronics.
+* Copyright (c) 2018(-2026) STMicroelectronics.
 * All rights reserved.
 *
-* This file is part of the TouchGFX 4.22.0 distribution.
+* This file is part of the TouchGFX 4.26.1 distribution.
 *
 * This software is licensed under terms that can be found in the LICENSE file in
 * the root directory of this software component.
@@ -41,8 +41,8 @@ public:
      *
      * @param  bmp (Optional) The bitmap to use in the painter.
      */
-    PainterARGB8888Bitmap(const Bitmap& bmp = Bitmap(BITMAP_INVALID))
-        : AbstractPainterARGB8888(), AbstractPainterBitmap(bmp)
+    PainterARGB8888Bitmap()
+        : AbstractPainterARGB8888(), AbstractPainterBitmap()
     {
     }
 
@@ -60,8 +60,7 @@ public:
 
     virtual void paint(uint8_t* destination, int16_t offset, int16_t widgetX, int16_t widgetY, int16_t count, uint8_t alpha) const;
 
-protected:
-    const uint8_t* bitmapExtraData; ///< Pointer to the bitmap extra data
+    virtual void tearDown() const;
 };
 
 } // namespace touchgfx

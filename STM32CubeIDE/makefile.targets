@@ -1,0 +1,3 @@
+# CubeIDE этот файл не перезаписывает.
+# Рецепт линковки не переопределять: иначе make выдаёт
+# «overriding recipe for target STM32F429I-DISCO.elf».

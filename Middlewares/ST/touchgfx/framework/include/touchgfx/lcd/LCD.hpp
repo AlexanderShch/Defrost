@@ -1,8 +1,8 @@
 /******************************************************************************
-* Copyright (c) 2018(-2023) STMicroelectronics.
+* Copyright (c) 2018(-2026) STMicroelectronics.
 * All rights reserved.
 *
-* This file is part of the TouchGFX 4.22.0 distribution.
+* This file is part of the TouchGFX 4.26.1 distribution.
 *
 * This software is licensed under terms that can be found in the LICENSE file in
 * the root directory of this software component.
@@ -35,6 +35,7 @@
 #include <touchgfx/TextureMapTypes.hpp>
 #include <touchgfx/Unicode.hpp>
 #include <touchgfx/hal/Types.hpp>
+#include <touchgfx/hal/VectorFontRenderer.hpp>
 #include <touchgfx/lcd/DebugPrinter.hpp>
 
 namespace touchgfx
@@ -55,7 +56,7 @@ class LCD
 public:
     /** Initializes a new instance of the LCD class. */
     LCD()
-        : textureMapperClass(0)
+        : textureMapperClass(0), vectorFontRenderer(0)
     {
     }
 
@@ -81,6 +82,18 @@ public:
      *                      bitmap with faster fillrects.
      */
     virtual void drawPartialBitmap(const Bitmap& bitmap, int16_t x, int16_t y, const Rect& rect, uint8_t alpha = 255, bool useOptimized = true) = 0;
+
+    /**
+     * Draws all (or a part) of a \a bitmap, scaled to fit desired rect.
+     *
+     * @param  bitmap          The bitmap to draw.
+     * @param  blitRect        The destination area to draw the bitmap in, in absolute coordinates.
+     * @param  invalidatedArea The subarea of the destination area that should be redrawn, in
+     *                         relative coordinates to the destination area.
+     * @param  renderVariant   The rendering variant to use for the scaling operation.
+     * @param  alpha           Optional alpha value ranging from 0=invisible to 255=solid.
+     */
+    virtual void drawScaledBitmap(const Bitmap& bitmap, const Rect& blitRect, const Rect& invalidatedArea, RenderingVariant renderVariant, uint8_t alpha = 255);
 
     /**
      * Blits (directly copies) a block of data to the framebuffer, performing alpha blending
@@ -275,6 +288,16 @@ public:
         {
         }
     };
+
+    /**
+     * Set the vector font renderer
+     *
+     * @param renderer  The renderer to be used by LCD when dealing with vector fonts.
+     */
+    void setVectorFontRenderer(VectorFontRenderer* renderer)
+    {
+        vectorFontRenderer = renderer;
+    }
 
     /**
      * Draws the specified Unicode string. Breaks line on newline.
@@ -829,6 +852,7 @@ protected:
 
 private:
     DrawTextureMapScanLineBase* textureMapperClass; ///< Used during faster TextureMapper rendering
+    VectorFontRenderer* vectorFontRenderer;
 
     /** A draw string internal structure. */
     class DrawStringInternalStruct
