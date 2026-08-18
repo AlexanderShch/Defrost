@@ -125,10 +125,16 @@ void HomeView::updateProgramTimeView(bool airOnly, uint32_t seconds)
 {
     const touchgfx::TypedText title(
         airOnly ? T_LABELPRGTIMELEFT : T_LABELPRGTIMEELAPSED);
+
+    // «Отработано» шире «Осталось»: invalidate() после сжатия покрывает только новый прямоугольник,
+    // хвост старых букв остаётся. Помечаем объединение старого и нового, плюс фон BoxPRGTime.
+    touchgfx::Rect dirtyTitle = LabelPRGTimeLeft.getRect();
     LabelPRGTimeLeft.setTypedText(title);
     LabelPRGTimeLeft.resizeToCurrentText();
     LabelPRGTimeLeft.setX((240 - LabelPRGTimeLeft.getWidth()) / 2);
-    LabelPRGTimeLeft.invalidate();
+    dirtyTitle.expandToFit(LabelPRGTimeLeft.getRect());
+    invalidateRect(dirtyTitle);
+    BoxPRGTime.invalidate();
 
     const uint32_t hours = (seconds / 3600u) % 100u;
     const uint32_t minutes = (seconds / 60u) % 60u;
@@ -139,9 +145,11 @@ void HomeView::updateProgramTimeView(bool airOnly, uint32_t seconds)
                       static_cast<unsigned int>(minutes),
                       static_cast<unsigned int>(secs));
 
+    touchgfx::Rect dirtyTime = ValuePRGTimeWrk.getRect();
     ValuePRGTimeWrk.resizeToCurrentText();
     ValuePRGTimeWrk.setX((240 - ValuePRGTimeWrk.getWidth()) / 2);
-    ValuePRGTimeWrk.invalidate();
+    dirtyTime.expandToFit(ValuePRGTimeWrk.getRect());
+    invalidateRect(dirtyTime);
 }
 
 /*
