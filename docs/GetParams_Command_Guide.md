@@ -91,7 +91,7 @@
 
 - **Группы 1–4** — последовательность записей TLV: каждая запись `[paramId][valueType][valueSize][value…]` (valueType: 1=U8, 2=U16, 3=F32; value — 1/2/4 байта, little-endian). Конец по DataLen.
 - **Группа 5 (LOG_PHASE)** — фиксированная структура `DefrostLogPhasePayload_t` (копирование памяти, без TLV). Размер 72 байта: 6 массивов по 3 float (fishHotMax_C, fishHotRateMax_Cps, fishDeltaMax_C, supplySet_C, supplyMax_C, returnTargetRH_percent).
-- **Группа 6 (LOG_GLOBAL)** — фиксированная структура `DefrostLogGlobalPayload_t` (копирование памяти, без TLV). Размер 50 байт: 6× float, 8× uint16_t, 1× float `fishColdTarget_C` (целевая мин. Т рыбы °C; при достижении алгоритм останавливается), 6× uint8_t sensorUseInDefrost (порядок полей см. в `DefrostControl.h`).
+- **Группа 6 (LOG_GLOBAL)** — фиксированная структура `DefrostLogGlobalPayload_t` (копирование памяти, без TLV). Размер 53 байта: 6× float, 8× uint16_t, 1× float `fishColdTarget_C`, три флага `uint8_t` (`debugDisableTargetTStop`, `debugDisableDeviceSwitchCheck`, `useNewWrkAlrAlgorithm`) и 6× `uint8_t sensorUseInDefrost`. `useNewWrkAlrAlgorithm` располагается рядом с отключением контроля входов/выходов: `1` — текущий алгоритм `_Wrk`/`_Alr`, `0` — старые односекундные импульсы по серверным СТАРТ/СТОП.
 
 Сервер и контроллер используют одинаковые структуры; приём — один `memcpy` payload в структуру.
 
@@ -116,7 +116,7 @@
 | …     | CRC16     | —        | ModBus CRC16 по полям до CRC |
 
 - **Группа 5:** payload = 72 байта (`DefrostLogPhasePayload_t`: 6×3 float — fishHotMax_C, fishHotRateMax_Cps, fishDeltaMax_C, supplySet_C, supplyMax_C, returnTargetRH_percent).
-- **Группа 6:** payload = 50 байт (`DefrostLogGlobalPayload_t`: 6× float, 8× uint16_t, float fishColdTarget_C, 6× uint8_t sensorUseInDefrost; порядок полей в `DefrostControl.h`).
+- **Группа 6:** payload = 53 байта (`DefrostLogGlobalPayload_t`; точный порядок полей приведён в `DefrostControl.h`).
 
 ### 4.2. Ответ контроллера
 
@@ -300,7 +300,7 @@ def calculate_crc16(data):
 
 2. **Формирование payload группы 5:** из таблицы 1 (dataGridView1) по строкам 0…5 в фиксированном порядке (fishHotMax_C, fishHotRateMax_Cps, fishDeltaMax_C, supplySet_C, supplyMax_C, returnTargetRH_percent) считываются значения колонок WarmUP, Plateau, Finish и собирается структура `DefrostLogPhasePayload_t`. Если в таблице есть данные, формируется команда **SET_DEFROST_GROUP** с groupId=5 и payload 72 байта; команда отправляется контроллеру, ожидается ответ со Status=OK.
 
-3. **Формирование payload группы 6:** из таблицы 2 (dataGridView2) по имени параметра (колонка Parameter2) и значению (колонка Value) заполняется структура `DefrostLogGlobalPayload_t`. Если в таблице есть данные, формируется команда **SET_DEFROST_GROUP** с groupId=6 и payload 44 байта; команда отправляется контроллеру, ожидается ответ со Status=OK.
+3. **Формирование payload группы 6:** из таблицы 2 (dataGridView2) по имени параметра (колонка Parameter2) и значению (колонка Value) заполняется структура `DefrostLogGlobalPayload_t`. В таблицу рядом с `debugDisableDeviceSwitchCheck` добавляется `useNewWrkAlrAlgorithm` (`1` — новый режим, `0` — старый). Если в таблице есть данные, формируется команда **SET_DEFROST_GROUP** с groupId=6 и payload 53 байта; команда отправляется контроллеру, ожидается ответ со Status=OK.
 
 4. В статусной строке выводится результат: обе группы записаны, только одна, или ошибка.
 

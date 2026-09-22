@@ -58,6 +58,7 @@ typedef struct {
     float fishColdTarget_C;          /* целевая мин. температура рыбы, °C; при достижении алгоритм останавливается */
     uint8_t debugDisableTargetTStop; /* 1 = не останавливать алгоритм по fishColdTarget_C (отладка), 0 = обычный автостоп */
     uint8_t debugDisableDeviceSwitchCheck; /* 1 = отключить проверку соответствия входов/выходов (отладка), 0 = проверка включена */
+    uint8_t useNewWrkAlrAlgorithm; /* 1 = текущая индикация РАБОТА/АВАРИЯ, 0 = старые импульсы по серверным СТАРТ/СТОП */
     uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT]; /* 1=использовать датчик в дефросте, 0=игнорировать */
 } DefrostParams_t;
 
@@ -76,6 +77,10 @@ extern "C" {
 
 void DefrostControl_Init(void);
 void DefrostControl_SetEnabled(uint8_t enabled);
+/** Сформировать старый односекундный импульс _Wrk/_Alr для команды, принятой именно от сервера. */
+void DefrostControl_NotifyServerStartStop(uint8_t startCommand);
+/** Подготовить старые импульсы непосредственно перед секундным снимком выходного регистра. */
+void DefrostControl_PrepareWrkAlrOutputs1s(void);
 void DefrostControl_Update1s(void);
 uint32_t DefrostControl_GetRuntimeSeconds(void);
 /** Остаток времени «только воздух» (с) после выпадения обоих зондов или старта без продукта; 0 если работают датчики продукта. */
@@ -133,8 +138,13 @@ typedef struct __attribute__((packed)) {
     float fishColdTarget_C;          /* целевая мин. Т рыбы, °C; при fishCold_C >= fishColdTarget_C алгоритм останавливается */
     uint8_t debugDisableTargetTStop; /* 1 = не останавливать по fishColdTarget_C (отладка), 0 = автостоп включен */
     uint8_t debugDisableDeviceSwitchCheck; /* 1 = отключить проверку входов/выходов (отладка), 0 = проверка включена */
+    uint8_t useNewWrkAlrAlgorithm; /* 1 = текущий алгоритм, 0 = старые импульсы по серверным СТАРТ/СТОП */
     uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT];
 } DefrostLogGlobalPayload_t;
+
+#ifdef __cplusplus
+static_assert(sizeof(DefrostLogGlobalPayload_t) == 53u, "Unexpected group 6 payload layout");
+#endif
 
 /* Регулярный лог (Type 0x01): сначала отфильтрованные температуры всех датчиков (°C),
  * затем текущая фаза + группа 3 — переменные алгоритма.

@@ -26,6 +26,8 @@
 #include "EEPROM.hpp"
  #include "GateControl.hpp"
 #include "main.h"
+#include "FreeRTOS.h"
+#include "task.h"
  #include <gui/model/Model.hpp>      // Model::getCurrentVal_H, Model::DFR (T для алгоритма — Sensor Param 4)
  #include "ModBus.hpp"
 
@@ -53,7 +55,7 @@ typedef struct
 
 static DefrostParams_t g_defrostParams; // рабочие параметры дефростера
 static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ : DEFROST_MAX_SENSOR_COUNT;
-static const uint16_t kDefrostEepromVersion = 1u; // версия структуры в EEPROM
+static const uint16_t kDefrostEepromVersion = 2u; // версия структуры в EEPROM
 static const uint16_t kDefrostEepromBaseAddress = 0u; // адрес начала записи в EEPROM
 static bool g_defrostEepromAvailable = false; // флаг, определяющий, доступна ли EEPROM
 static uint8_t g_defrostPersistedAutoMode = 0u; // бит, определяющий, включен ли режим авто-дефроста
@@ -280,6 +282,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         p->fishColdTarget_C = 6.0f;        /* целевая мин. Т рыбы °C; при достижении — автоостанов алгоритма */
         p->debugDisableTargetTStop = (uint8_t)DEFAULT_DEBUG_DISABLE_TARGET_T_STOP;
         p->debugDisableDeviceSwitchCheck = 0u; /* по умолчанию проверка DO->DI включена */
+        p->useNewWrkAlrAlgorithm = 1u; /* по умолчанию сохраняем текущий алгоритм ламп */
 
         for (uint8_t i = 0; i < kDefrostSensorCount; i++)
         {
@@ -532,6 +535,10 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         uint16_t shutdownFlapOpenWait_s = 0; // без DeviceSwitchCheck: ожидание Air_Open в Ventilation; на FullGateOpen — ожидание закрытия по времени
         uint8_t startPendingAfterShutdown = 0; // START получен во время post-shutdown; запуск отложен до полного завершения останова
         uint8_t alarmBlinkPhase = 0;    // фаза мигания аварийной лампы: 0/1 (1 Гц)
+        uint8_t legacyWrkPulsePending = 0; // серверный СТАРТ ожидает следующего снимка выходного регистра
+        uint8_t legacyAlrPulsePending = 0; // серверный СТОП ожидает следующего снимка выходного регистра
+        uint8_t legacyWrkPulseActive = 0;  // _Wrk=1 ровно в текущем снимке регистра
+        uint8_t legacyAlrPulseActive = 0;  // _Alr=0 ровно в текущем снимке регистра
         uint8_t startupActuatorDelay_s = 0; // пауза между последовательными включениями вентиляторов и ТЭНов
         uint8_t shutdownActuatorDelay_s = 0; // пауза между последовательными выключениями вентиляторов и ТЭНов
         uint16_t flapTransitionElapsed_s = 0; // длительность текущего перехода заслонки по концевикам
@@ -862,6 +869,18 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
     // красная _Alr - только авария устройства, мигание 1/1 сек.
     static void ApplyModeLamps(LampModeState modeState)
     {
+        if (g_defrostParams.useNewWrkAlrAlgorithm == 0u)
+        {
+            // Старый интерфейс: покой _Wrk=0, _Alr=1; импульсы создают только серверные СТАРТ/СТОП.
+            const unsigned wrk = (g.legacyWrkPulseActive != 0u) ? 1u : 0u;
+            const unsigned alr = (g.legacyAlrPulseActive != 0u) ? 0u : 1u;
+            Model::DFR._Wrk = wrk;
+            Model::DFR._Alr = alr;
+            Model::DFR_manual._Wrk = wrk;
+            Model::DFR_manual._Alr = alr;
+            return;
+        }
+
         // В ручном режиме никакие лампы не горят.
         if (Model::Flag_DFR_manual != 0)
         {
@@ -1999,9 +2018,10 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
             if (paramId == 14) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.fishColdTarget_C; return 1; }
             if (paramId == 15) { outValue->valueType = DEFROST_PARAM_TYPE_U8; outValue->value.u8 = g_defrostParams.debugDisableTargetTStop; return 1; }
             if (paramId == 16) { outValue->valueType = DEFROST_PARAM_TYPE_U8; outValue->value.u8 = g_defrostParams.debugDisableDeviceSwitchCheck; return 1; }
-            if (paramId < 17u + DEFROST_MAX_SENSOR_COUNT)
+            if (paramId == 17) { outValue->valueType = DEFROST_PARAM_TYPE_U8; outValue->value.u8 = g_defrostParams.useNewWrkAlrAlgorithm; return 1; }
+            if (paramId < 18u + DEFROST_MAX_SENSOR_COUNT)
             {
-                const uint8_t idx = (uint8_t)(paramId - 17u);
+                const uint8_t idx = (uint8_t)(paramId - 18u);
                 outValue->valueType = DEFROST_PARAM_TYPE_U8;
                 outValue->value.u8 = g_defrostParams.sensorUseInDefrost[idx];
                 return 1;
@@ -2248,6 +2268,44 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
         PersistParamsToEepromIfAvailable(); // сохранение параметров в EEPROM, если EEPROM доступна
     }
 
+    void DefrostControl_NotifyServerStartStop(uint8_t startCommand)
+    {
+        if (g_defrostParams.useNewWrkAlrAlgorithm != 0u)
+        {
+            return;
+        }
+
+        taskENTER_CRITICAL();
+        if (startCommand != 0u)
+        {
+            g.legacyWrkPulsePending = 1u;
+        }
+        else
+        {
+            g.legacyAlrPulsePending = 1u;
+        }
+        taskEXIT_CRITICAL();
+    }
+
+    void DefrostControl_PrepareWrkAlrOutputs1s(void)
+    {
+        if (g_defrostParams.useNewWrkAlrAlgorithm == 0u)
+        {
+            taskENTER_CRITICAL();
+            g.legacyWrkPulseActive = g.legacyWrkPulsePending;
+            g.legacyAlrPulseActive = g.legacyAlrPulsePending;
+            g.legacyWrkPulsePending = 0u;
+            g.legacyAlrPulsePending = 0u;
+            taskEXIT_CRITICAL();
+        }
+        else
+        {
+            g.legacyWrkPulseActive = 0u;
+            g.legacyAlrPulseActive = 0u;
+        }
+        ApplyModeLamps((g.enabled != 0u) ? LampModeState::AutoActive : LampModeState::StoppedOrManual);
+    }
+
 uint32_t DefrostControl_GetRuntimeSeconds(void)
 {
     return g.runtimeSeconds;
@@ -2333,6 +2391,7 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             p.fishColdTarget_C    = g_defrostParams.fishColdTarget_C;
             p.debugDisableTargetTStop = g_defrostParams.debugDisableTargetTStop;
             p.debugDisableDeviceSwitchCheck = g_defrostParams.debugDisableDeviceSwitchCheck;
+            p.useNewWrkAlrAlgorithm = g_defrostParams.useNewWrkAlrAlgorithm;
             memcpy(p.sensorUseInDefrost, g_defrostParams.sensorUseInDefrost, sizeof(p.sensorUseInDefrost));
             const uint32_t sz = (uint32_t)sizeof(DefrostLogGlobalPayload_t);
             if (outCapacity < sz)
@@ -2428,6 +2487,11 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             g_defrostParams.fishColdTarget_C   = p.fishColdTarget_C;
             g_defrostParams.debugDisableTargetTStop = (p.debugDisableTargetTStop != 0u) ? 1u : 0u;
             g_defrostParams.debugDisableDeviceSwitchCheck = (p.debugDisableDeviceSwitchCheck != 0u) ? 1u : 0u;
+            g_defrostParams.useNewWrkAlrAlgorithm = (p.useNewWrkAlrAlgorithm != 0u) ? 1u : 0u;
+            g.legacyWrkPulsePending = 0u;
+            g.legacyAlrPulsePending = 0u;
+            g.legacyWrkPulseActive = 0u;
+            g.legacyAlrPulseActive = 0u;
             memcpy(g_defrostParams.sensorUseInDefrost, p.sensorUseInDefrost, sizeof(p.sensorUseInDefrost));
             for (uint8_t i = 0; i < kDefrostSensorCount; ++i)
             {
@@ -2436,6 +2500,7 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
             g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
             g.outFanDelay_s = g_defrostParams.outFanDelay_s;
+            ApplyModeLamps((g.enabled != 0u) ? LampModeState::AutoActive : LampModeState::StoppedOrManual);
             DefrostControl_SaveParams();
             return 1;
         }
@@ -2459,6 +2524,11 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
         }
 
         memcpy(&g_defrostParams, inParams, sizeof(DefrostParams_t));
+        g_defrostParams.useNewWrkAlrAlgorithm = (g_defrostParams.useNewWrkAlrAlgorithm != 0u) ? 1u : 0u;
+        g.legacyWrkPulsePending = 0u;
+        g.legacyAlrPulsePending = 0u;
+        g.legacyWrkPulseActive = 0u;
+        g.legacyAlrPulseActive = 0u;
         for (uint8_t i = 0; i < kDefrostSensorCount; ++i)
         {
             Sensor_array[i].UseInDefrost = (g_defrostParams.sensorUseInDefrost[i] != 0u) ? 1u : 0u;
@@ -2466,6 +2536,7 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
         g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
         g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
         g.outFanDelay_s = g_defrostParams.outFanDelay_s;
+        ApplyModeLamps((g.enabled != 0u) ? LampModeState::AutoActive : LampModeState::StoppedOrManual);
         DefrostControl_SaveParams();
         return 1;
     }

@@ -298,6 +298,7 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             CommandReceiver_SendResponse(&ack);
             s_progControlAckSentInHandler = 1;
             DefrostControl_SetEnabled(1);
+            DefrostControl_NotifyServerStartStop(1u);
             break;
         }
         case PROG_CTRL_CMD_STOP: {
@@ -310,6 +311,7 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             CommandReceiver_SendResponse(&ack);
             s_progControlAckSentInHandler = 1;
             DefrostControl_SetEnabled(0);
+            DefrostControl_NotifyServerStartStop(0u);
             break;
         }
             
