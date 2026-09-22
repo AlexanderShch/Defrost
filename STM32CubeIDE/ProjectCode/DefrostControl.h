@@ -104,6 +104,8 @@ void DefrostControl_RestoreDefaultParams(void);
 float DefrostControl_GetFishColdTarget_C(void);
 void DefrostControl_SetFishColdTarget_C(float val_C);
 uint8_t DefrostControl_IsDeviceSwitchCheckEnabled(void);
+/** 1 = текущая индикация _Wrk/_Alr; 0 = старые импульсы по серверным СТАРТ/СТОП. */
+uint8_t DefrostControl_UsesNewWrkAlrAlgorithm(void);
 /** Рассогласование Water_Flap и концевиков (ModBus, каждый опрос): защёлкнуть g.flapAlarm и бит 11 в Device_AlarmFlags. */
 void DefrostControl_NotifyFlapWaterDiMismatchFromIo(void);
 /** Секунды с момента смены Water_Flap при включённой проверке (0, если проверка выключена). Для грации в ModBus. */

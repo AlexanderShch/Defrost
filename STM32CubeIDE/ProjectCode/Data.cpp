@@ -450,8 +450,10 @@ void ReadDataFunc() {
 		// Выбираем активный регистр управления в зависимости от режима.
 		// Старый режим _Wrk/_Alr выдаёт ожидающий серверный импульс ровно в этот секундный снимок регистра.
 		DefrostControl_PrepareWrkAlrOutputs1s();
-		// Общий флаг аварии: авария ворот ИЛИ любые аварийные биты устройств.
-		Model::Device_Alarm = ((Model::Gate_Alarm != 0) || (Model::Device_AlarmFlags != 0) || (Model::Sensor_AlarmFlags != 0)) ? 1 : 0;
+		// Общий флаг аварии: авария ворот (только новый _Wrk/_Alr) ИЛИ любые аварийные биты устройств/датчиков.
+		const uint8_t gateAlarmForDevice =
+			(DefrostControl_UsesNewWrkAlrAlgorithm() != 0u && Model::Gate_Alarm != 0) ? 1u : 0u;
+		Model::Device_Alarm = ((gateAlarmForDevice != 0u) || (Model::Device_AlarmFlags != 0) || (Model::Sensor_AlarmFlags != 0)) ? 1 : 0;
 		const uint16_t commandRegisterRaw = (Model::Flag_DFR_manual == 0) ? *pDFR : *pDFR_manual;
 		uint16_t activeRegister = commandRegisterRaw;
 		// В автоматическом режиме блокируем включение аварийных устройств:

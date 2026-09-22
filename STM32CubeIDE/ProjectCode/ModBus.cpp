@@ -494,7 +494,8 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 				// - программная авария (таймаут) выставляется в GateControl.
 				Model::Gate_Alarm_Hardware = (Model::DI_DFR.Bits.Gate_Alarm != 0) ? 1u : 0u;
 				Model::Gate_Alarm = ((Model::Gate_Alarm_Program != 0u) || (Model::Gate_Alarm_Hardware != 0u)) ? 1u : 0u;
-				if (Model::Gate_Alarm_Hardware != 0u)
+				// Старый _Wrk/_Alr: аппаратную аварию ворот не учитываем (без автоостанова).
+				if (Model::Gate_Alarm_Hardware != 0u && DefrostControl_UsesNewWrkAlrAlgorithm() != 0u)
 				{
 					// Аппаратная авария ворот должна немедленно остановить дефростер.
 					DefrostControl_SetEnabled(0);

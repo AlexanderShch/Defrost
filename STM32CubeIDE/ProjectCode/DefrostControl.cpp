@@ -837,21 +837,24 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         }
 
         Model::Device_AlarmFlags = (uint16_t)(Model::Device_AlarmFlags & (uint16_t)~(kGateProgramAlarmBit | kGateHardwareAlarmBit | kFlapAlarmBit));
-        if (deviceSwitchCheckEnabled && Model::Gate_Alarm_Program != 0u)
+        // Старый _Wrk/_Alr: аварии ворот и заслонки не поднимаем в Device_AlarmFlags / Device_Alarm.
+        const bool reportGateFlapAlarms = (g_defrostParams.useNewWrkAlrAlgorithm != 0u);
+        if (reportGateFlapAlarms && deviceSwitchCheckEnabled && Model::Gate_Alarm_Program != 0u)
         {
             Model::Device_AlarmFlags |= kGateProgramAlarmBit;
         }
-        if (Model::Gate_Alarm_Hardware != 0u)
+        if (reportGateFlapAlarms && Model::Gate_Alarm_Hardware != 0u)
         {
             Model::Device_AlarmFlags |= kGateHardwareAlarmBit;
         }
-        if (deviceSwitchCheckEnabled && g.flapAlarm != 0u)
+        if (reportGateFlapAlarms && deviceSwitchCheckEnabled && g.flapAlarm != 0u)
         {
             Model::Device_AlarmFlags |= kFlapAlarmBit;
         }
 
-        // Общий флаг аварии устройства: авария ворот ИЛИ аварии из регистра Device_AlarmFlags.
-        Model::Device_Alarm = ((GateControl_IsAlarm() != 0) || (Model::Device_AlarmFlags != 0) || (Model::Sensor_AlarmFlags != 0)) ? 1 : 0;
+        // Общий флаг аварии устройства: авария ворот (только новый _Wrk/_Alr) ИЛИ биты Device/Sensor_AlarmFlags.
+        const uint8_t gateAlarmForDevice = (reportGateFlapAlarms && GateControl_IsAlarm() != 0) ? 1u : 0u;
+        Model::Device_Alarm = ((gateAlarmForDevice != 0u) || (Model::Device_AlarmFlags != 0) || (Model::Sensor_AlarmFlags != 0)) ? 1 : 0;
 
         if (Model::Device_Alarm != 0)
         {
@@ -1642,9 +1645,12 @@ static void ProcessShutdownStage1s()
         // если авария заслонки (при включенной проверке устройств) ИЛИ заслонка не открылась (при таймауте при выключенной проверке устройств), 
         // то переходим к шагу полного открытия ворот без продувки
         {
-            // Фиксируем аварийный бит заслонки в регистре аварий.
+            // Фиксируем аварийный бит заслонки в регистре аварий (только новый _Wrk/_Alr).
             g.flapAlarm = 1u;   // это важно при выключенной проверке устройств
-            Model::Device_AlarmFlags |= (uint16_t)(1u << 11);   // устанавливаем бит аварии заслонки в регистре аварий
+            if (g_defrostParams.useNewWrkAlrAlgorithm != 0u)
+            {
+                Model::Device_AlarmFlags |= (uint16_t)(1u << 11);   // устанавливаем бит аварии заслонки в регистре аварий
+            }
             ShutdownGoToFullGateOpen_VentCleanup();   // переходим к шагу полного открытия ворот без продувки
         }
         // заслонка открывается, ждем подтверждения открытия заслонки
@@ -2624,10 +2630,19 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
         return (g_defrostParams.debugDisableDeviceSwitchCheck == 0u) ? 1u : 0u;
     }
 
+    uint8_t DefrostControl_UsesNewWrkAlrAlgorithm(void)
+    {
+        return (g_defrostParams.useNewWrkAlrAlgorithm != 0u) ? 1u : 0u;
+    }
+
     void DefrostControl_NotifyFlapWaterDiMismatchFromIo(void)
     {
         g.flapAlarm = 1u;
-        Model::Device_AlarmFlags |= (uint16_t)(1u << 11);
+        // Старый _Wrk/_Alr: внутренний flapAlarm нужен для последовательности останова, бит 11 в регистр не ставим.
+        if (g_defrostParams.useNewWrkAlrAlgorithm != 0u)
+        {
+            Model::Device_AlarmFlags |= (uint16_t)(1u << 11);
+        }
     }
 
     uint16_t DefrostControl_GetFlapTransitionElapsedSForSwitchCheck(void)
