@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
 	<name>Project_Defrost-Anatoly</name>
-	<comment></comment>
+	<comment>Контейнер исходников (UnderRoot=false). Сборка: проект STM32F429I-DISCO в папке STM32CubeIDE, конфигурация Debug.</comment>
 	<projects>
 	</projects>
 	<buildSpec>
 	</buildSpec>
 	<natures>
+		<nature>com.st.stm32cube.ide.mcu.MCUProjectNature</nature>
+		<nature>com.st.stm32cube.ide.mcu.MCUCubeProjectNature</nature>
+		<nature>com.st.stm32cube.ide.mcu.MCURootProjectNature</nature>
 	</natures>
 </projectDescription>

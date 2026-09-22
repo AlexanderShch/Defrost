@@ -122,10 +122,7 @@
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.516295508" name="MCU GCC Linker" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker">
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.script.242337396" name="Linker Script (-T)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.script" value="${workspace_loc:/${ProjName}/STM32F429ZITX_FLASH.ld}" valueType="string"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.directories.1784764501" name="Library search path (-L)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.directories" valueType="libPaths">
-									<listOptionValue builtIn="false" value="C:/git/STM32F429-dk/untouched/rev_D/stm32f429i_disco_rev_d01/STM32F429I_DISCO_REV_D01/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
-									<listOptionValue builtIn="false" value="D:/OneDrive/Coding/Project_Defrost-Anatoly/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
-									<listOptionValue builtIn="false" value="../Project_Defrost-Anatoly/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
-									<listOptionValue builtIn="false" value="D:/ST/Project_Defrost-Anatoly/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
+									<listOptionValue builtIn="false" value="../../Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.libraries.705587914" name="Libraries (-l)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.libraries" valueType="libs">
 									<listOptionValue builtIn="false" value=":libtouchgfx-float-abi-hard.a"/>
@@ -317,9 +314,7 @@
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.1076120216" name="MCU GCC Linker" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker">
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.script.1548503958" name="Linker Script (-T)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.script" value="${workspace_loc:/${ProjName}/STM32F429ZITX_FLASH.ld}" valueType="string"/>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.directories.819080667" name="Library search path (-L)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.directories" valueType="libPaths">
-									<listOptionValue builtIn="false" value="C:/git/STM32F429-dk/untouched/rev_D/stm32f429i_disco_rev_d01/STM32F429I_DISCO_REV_D01/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
-									<listOptionValue builtIn="false" value="D:/OneDrive/Coding/Project_Defrost-Anatoly/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
-									<listOptionValue builtIn="false" value="D:/ST/Project_Defrost-Anatoly/Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
+									<listOptionValue builtIn="false" value="../../Middlewares/ST/touchgfx/lib/core/cortex_m4f/gcc"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.libraries.177706314" name="Libraries (-l)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.libraries" valueType="libs">
 									<listOptionValue builtIn="false" value=":libtouchgfx-float-abi-hard.a"/>
