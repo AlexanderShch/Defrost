@@ -448,6 +448,8 @@ void ReadDataFunc() {
 		 * в цикле опроса датчиков
 		 ************************************************************/
 		// Выбираем активный регистр управления в зависимости от режима.
+		// Старый режим _Wrk/_Alr выдаёт ожидающий серверный импульс ровно в этот секундный снимок регистра.
+		DefrostControl_PrepareWrkAlrOutputs1s();
 		// Общий флаг аварии: авария ворот ИЛИ любые аварийные биты устройств.
 		Model::Device_Alarm = ((Model::Gate_Alarm != 0) || (Model::Device_AlarmFlags != 0) || (Model::Sensor_AlarmFlags != 0)) ? 1 : 0;
 		const uint16_t commandRegisterRaw = (Model::Flag_DFR_manual == 0) ? *pDFR : *pDFR_manual;
