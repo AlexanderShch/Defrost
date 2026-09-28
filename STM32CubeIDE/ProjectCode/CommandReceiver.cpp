@@ -297,8 +297,14 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             ack.dataLength = 0;
             CommandReceiver_SendResponse(&ack);
             s_progControlAckSentInHandler = 1;
-            DefrostControl_SetEnabled(1);
-            DefrostControl_NotifyServerStartStop(1u);
+            if (DefrostControl_UsesNewWrkAlrAlgorithm() != 0u)
+            {
+                DefrostControl_SetEnabled(1);
+            }
+            else
+            {
+                DefrostControl_NotifyServerStartStop(1u);
+            }
             break;
         }
         case PROG_CTRL_CMD_STOP: {
@@ -310,8 +316,14 @@ CommandStatus_t CommandReceiver_HandleProgControl(Command_t *cmd)
             ack.dataLength = 0;
             CommandReceiver_SendResponse(&ack);
             s_progControlAckSentInHandler = 1;
-            DefrostControl_SetEnabled(0);
-            DefrostControl_NotifyServerStartStop(0u);
+            if (DefrostControl_UsesNewWrkAlrAlgorithm() != 0u)
+            {
+                DefrostControl_SetEnabled(0);
+            }
+            else
+            {
+                DefrostControl_NotifyServerStartStop(0u);
+            }
             break;
         }
             

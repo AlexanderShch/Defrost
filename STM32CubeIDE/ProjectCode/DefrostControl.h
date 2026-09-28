@@ -58,7 +58,7 @@ typedef struct {
     float fishColdTarget_C;          /* целевая мин. температура рыбы, °C; при достижении алгоритм останавливается */
     uint8_t debugDisableTargetTStop; /* 1 = не останавливать алгоритм по fishColdTarget_C (отладка), 0 = обычный автостоп */
     uint8_t debugDisableDeviceSwitchCheck; /* 1 = отключить проверку соответствия входов/выходов (отладка), 0 = проверка включена */
-    uint8_t useNewWrkAlrAlgorithm; /* 1 = текущая индикация РАБОТА/АВАРИЯ, 0 = старые импульсы по серверным СТАРТ/СТОП */
+    uint8_t useNewWrkAlrAlgorithm; /* 1 = автоуправление и текущая индикация, 0 = только старые импульсы по серверным СТАРТ/СТОП */
     uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT]; /* 1=использовать датчик в дефросте, 0=игнорировать */
 } DefrostParams_t;
 
@@ -140,7 +140,7 @@ typedef struct __attribute__((packed)) {
     float fishColdTarget_C;          /* целевая мин. Т рыбы, °C; при fishCold_C >= fishColdTarget_C алгоритм останавливается */
     uint8_t debugDisableTargetTStop; /* 1 = не останавливать по fishColdTarget_C (отладка), 0 = автостоп включен */
     uint8_t debugDisableDeviceSwitchCheck; /* 1 = отключить проверку входов/выходов (отладка), 0 = проверка включена */
-    uint8_t useNewWrkAlrAlgorithm; /* 1 = текущий алгоритм, 0 = старые импульсы по серверным СТАРТ/СТОП */
+    uint8_t useNewWrkAlrAlgorithm; /* 1 = автоуправление, 0 = старые импульсы без запуска автоуправления */
     uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT];
 } DefrostLogGlobalPayload_t;
 

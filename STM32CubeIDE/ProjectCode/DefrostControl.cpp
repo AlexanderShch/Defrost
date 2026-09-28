@@ -282,7 +282,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         p->fishColdTarget_C = 6.0f;        /* целевая мин. Т рыбы °C; при достижении — автоостанов алгоритма */
         p->debugDisableTargetTStop = (uint8_t)DEFAULT_DEBUG_DISABLE_TARGET_T_STOP;
         p->debugDisableDeviceSwitchCheck = 0u; /* по умолчанию проверка DO->DI включена */
-        p->useNewWrkAlrAlgorithm = 1u; /* по умолчанию сохраняем текущий алгоритм ламп */
+        p->useNewWrkAlrAlgorithm = 1u; /* по умолчанию работает автоматическое управление */
 
         for (uint8_t i = 0; i < kDefrostSensorCount; i++)
         {
@@ -660,7 +660,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        FullGateOpen = 2               // полное открытие ворот
    };
 
-    static void UpdateProductSensorFallout(void)
+    static void DetectSensorAlarms1s(void)
     {
         // Выпадение: сырая T устойчиво выше фильтрованной, либо T близка к воздуху (в т.ч. старт контроллера).
         // Возврат в алгоритм только по критерию после переходной вниз.
@@ -779,21 +779,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         }
     }
 
-    static void UpdateDeviceAlarmState()
+    static void DetectFlapAlarm1s()
     {
-        // Биты Device_AlarmFlags для аварий ворот:
-        // bit9  - программная авария ворот (таймаут движения, нет фронта концевика за 10 с)
-        // bit10 - аппаратная авария ворот (вход Gate_Alarm модуля IO)
-        // bit11 - авария заслонки вытяжки (нет нужного сигнала Air_Open/Air_Close за DEFROST_FLAP_POSITION_TIMEOUT_S с)
-        // bit12 - агрегированная потеря связи с датчиком (выставляется в Data.cpp)
-        // bit13 - T-переход вверх / выпадение датчика продукта 3 (зонд в воздухе)
-        // bit14 - T-переход вверх / выпадение датчика продукта 4
-        // Биты 0..8 - аварии рассогласования выход/вход (в т.ч. _Out) из проверки DeviceSwitchCheck.
-        const uint16_t kGateProgramAlarmBit = (uint16_t)(1u << 9);
-        const uint16_t kGateHardwareAlarmBit = (uint16_t)(1u << 10);
         const uint16_t kFlapAlarmBit = (uint16_t)(1u << 11);
-        const uint16_t kDeviceSwitchCheckMask = (uint16_t)((1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) |
-                                                            (1u << 4) | (1u << 5) | (1u << 6) | (1u << 7) | (1u << 8));
         const bool deviceSwitchCheckEnabled = (g_defrostParams.debugDisableDeviceSwitchCheck == 0u);
 
         if (deviceSwitchCheckEnabled)
@@ -833,28 +821,36 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
             g.flapTransitionElapsed_s = 0u;
             g.flapDesiredOpenPrevValid = 0u;
             g.flapAlarm = 0u;
-            Model::Device_AlarmFlags = (uint16_t)(Model::Device_AlarmFlags & (uint16_t)~kDeviceSwitchCheckMask);
         }
 
-        Model::Device_AlarmFlags = (uint16_t)(Model::Device_AlarmFlags & (uint16_t)~(kGateProgramAlarmBit | kGateHardwareAlarmBit | kFlapAlarmBit));
-        // Старый _Wrk/_Alr: аварии ворот и заслонки не поднимаем в Device_AlarmFlags / Device_Alarm.
-        const bool reportGateFlapAlarms = (g_defrostParams.useNewWrkAlrAlgorithm != 0u);
-        if (reportGateFlapAlarms && deviceSwitchCheckEnabled && Model::Gate_Alarm_Program != 0u)
-        {
-            Model::Device_AlarmFlags |= kGateProgramAlarmBit;
-        }
-        if (reportGateFlapAlarms && Model::Gate_Alarm_Hardware != 0u)
-        {
-            Model::Device_AlarmFlags |= kGateHardwareAlarmBit;
-        }
-        if (reportGateFlapAlarms && deviceSwitchCheckEnabled && g.flapAlarm != 0u)
+        Model::Device_AlarmFlags = (uint16_t)(Model::Device_AlarmFlags & (uint16_t)~kFlapAlarmBit);
+        if (deviceSwitchCheckEnabled && g.flapAlarm != 0u)
         {
             Model::Device_AlarmFlags |= kFlapAlarmBit;
         }
+    }
 
-        // Общий флаг аварии устройства: авария ворот (только новый _Wrk/_Alr) ИЛИ биты Device/Sensor_AlarmFlags.
-        const uint8_t gateAlarmForDevice = (reportGateFlapAlarms && GateControl_IsAlarm() != 0) ? 1u : 0u;
-        Model::Device_Alarm = ((gateAlarmForDevice != 0u) || (Model::Device_AlarmFlags != 0) || (Model::Sensor_AlarmFlags != 0)) ? 1 : 0;
+    static void DetectGateAlarms1s()
+    {
+        const uint16_t gateBits = (uint16_t)((1u << 9) | (1u << 10));
+        Model::Device_AlarmFlags = (uint16_t)(Model::Device_AlarmFlags & (uint16_t)~gateBits);
+        if (g_defrostParams.debugDisableDeviceSwitchCheck == 0u && Model::Gate_Alarm_Program != 0u)
+            Model::Device_AlarmFlags |= (uint16_t)(1u << 9);
+        if (Model::Gate_Alarm_Hardware != 0u)
+            Model::Device_AlarmFlags |= (uint16_t)(1u << 10);
+    }
+
+    static void DetectDeviceAlarms1s()
+    {
+        // Биты 0..8 защёлкиваются после успешного опроса IO; здесь только сброс при отключении контроля.
+        if (g_defrostParams.debugDisableDeviceSwitchCheck != 0u)
+            Model::Device_AlarmFlags = (uint16_t)(Model::Device_AlarmFlags & (uint16_t)~0x01FFu);
+    }
+
+    static void RefreshAlarmSummary1s()
+    {
+        // Общий флаг аварии устройства: авария ворот ИЛИ биты Device/Sensor_AlarmFlags.
+        Model::Device_Alarm = ((GateControl_IsAlarm() != 0) || (Model::Device_AlarmFlags != 0) || (Model::Sensor_AlarmFlags != 0)) ? 1 : 0;
 
         if (Model::Device_Alarm != 0)
         {
@@ -865,6 +861,53 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         {
             g.alarmBlinkPhase = 0;
         }
+    }
+
+    static void ClearNonSensorAlarmsForLegacyMode()
+    {
+        // Биты 0..11 принадлежат исполнительным устройствам, воротам и заслонке.
+        Model::Device_AlarmFlags &= (uint16_t)~0x0FFFu;
+        Model::Gate_Alarm_Program = 0u;
+        Model::Gate_Alarm_Hardware = 0u;
+        Model::Gate_Alarm = 0u;
+        g.flapAlarm = 0u;
+        g.flapTransitionElapsed_s = 0u;
+        g.flapDesiredOpenPrevValid = 0u;
+        const uint16_t sensorDeviceBits = (uint16_t)(kProductFallenLeftBit | kProductFallenRightBit | (uint16_t)(1u << 12));
+        Model::Device_Alarm = (Model::Sensor_AlarmFlags != 0u ||
+            (Model::Device_AlarmFlags & sensorDeviceBits) != 0u) ? 1u : 0u;
+    }
+
+    static void HandleGateAlarms1s()
+    {
+        // Аппаратная авария останавливается сразу после опроса IO; сюда попадает и тайм-аут хода.
+        if (DefrostControl_IsEnabled() != 0u &&
+            (Model::Device_AlarmFlags & (uint16_t)((1u << 9) | (1u << 10))) != 0u)
+            DefrostControl_SetEnabled(0u);
+    }
+
+    static void HandleFlapAlarms1s()
+    {
+        if (DefrostControl_IsEnabled() != 0u &&
+            (Model::Device_AlarmFlags & (uint16_t)(1u << 11)) != 0u)
+            DefrostControl_SetEnabled(0u);
+    }
+
+    static uint8_t HandleSensorAlarmsForControl()
+    {
+        // Использование датчиков в контуре — реакция автоматики, без изменения аварийных битов.
+        if (DefrostControl_IsEnabled() == 0u)
+            return 0u;
+        uint8_t usableMask = 0u;
+        if (Sensor_array[kSensFish1_T].Active == 1 && Sensor_array[kSensFish1_T].UseInDefrost != 0 &&
+            !SensorExcludedByClampAlarm(kSensFish1_T) && g.productFallen[0] == 0u &&
+            Sensor::IsProductThermalTransient((unsigned char)kSensFish1_T) == 0u)
+            usableMask |= 1u;
+        if (Sensor_array[kSensFish2_T].Active == 1 && Sensor_array[kSensFish2_T].UseInDefrost != 0 &&
+            !SensorExcludedByClampAlarm(kSensFish2_T) && g.productFallen[1] == 0u &&
+            Sensor::IsProductThermalTransient((unsigned char)kSensFish2_T) == 0u)
+            usableMask |= 2u;
+        return usableMask;
     }
 
     // Управление лампами индикации:
@@ -1116,16 +1159,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
 
          // Датчик продукта в расчёте: на шине, в алгоритме, не выпал, нет T-перехода.
          // Если оба вне продукта (старт на воздухе) — ниже уйдём в ControlStep1s_AirOnly.
-         const bool fish1Enabled = (Sensor_array[kSensFish1_T].Active == 1) && (Sensor_array[kSensFish1_T].UseInDefrost != 0)
-             && !SensorExcludedByClampAlarm(kSensFish1_T)
-             && (g.productFallen[0] == 0u)
-             && (Sensor::IsProductThermalTransient((unsigned char)kSensFish1_T) == 0u);
-         const bool fish2Enabled = (Sensor_array[kSensFish2_T].Active == 1) && (Sensor_array[kSensFish2_T].UseInDefrost != 0)
-             && !SensorExcludedByClampAlarm(kSensFish2_T)
-             && (g.productFallen[1] == 0u)
-             && (Sensor::IsProductThermalTransient((unsigned char)kSensFish2_T) == 0u);
-
-         const uint8_t fishEnableMask = (uint8_t)((fish1Enabled ? 1u : 0u) | (fish2Enabled ? 2u : 0u));
+         const uint8_t fishEnableMask = HandleSensorAlarmsForControl();
+         const bool fish1Enabled = (fishEnableMask & 1u) != 0u;
+         const bool fish2Enabled = (fishEnableMask & 2u) != 0u;
          const uint8_t hadProductSensors = (g.prevFishEnableMask != 0u) ? 1u : 0u;
          if (fishEnableMask != g.prevFishEnableMask)
          {
@@ -1541,6 +1577,18 @@ static void ShutdownGoToFullGateOpen_VentCleanup()
     Model::DFR.Water_Flap = 0u;
     ShutdownEnterFullGateOpenArm();
 }
+
+static void DetectFlapAlarmDuringShutdown()
+{
+    g.flapAlarm = 1u;
+    Model::Device_AlarmFlags |= (uint16_t)(1u << 11);
+}
+
+static void HandleFlapAlarmDuringShutdown()
+{
+    if (g_defrostParams.useNewWrkAlrAlgorithm != 0u && g.shutdownActive != 0u)
+        ShutdownGoToFullGateOpen_VentCleanup();
+}
  
  static void ShutdownSequence()
 {
@@ -1627,7 +1675,7 @@ static void ProcessShutdownStage1s()
     }
     else if (shutdownStage == ShutdownStage::Ventilation)
     {
-        // Шаг 2: концевики заслонки по DI; таймаут — g.flapAlarm в UpdateDeviceAlarmState() или счётчик при отладке без DeviceSwitchCheck.
+        // Шаг 2: концевики заслонки по DI; таймаут — g.flapAlarm или счётчик при отладке без DeviceSwitchCheck.
         // Таймаут без Air_Open: вытяжку не включаем — сразу FullGateOpen (см. ShutdownGoToFullGateOpen_VentCleanup).
         // После открытия заслонки: продувка по таймеру 300 с и/или по влажности возврата (RH < 50%).
         // При включённой проверке устройств: при _Out=1 учитываем бит Vent_Out — при аварии без продувки в FullGateOpen.
@@ -1645,13 +1693,8 @@ static void ProcessShutdownStage1s()
         // если авария заслонки (при включенной проверке устройств) ИЛИ заслонка не открылась (при таймауте при выключенной проверке устройств), 
         // то переходим к шагу полного открытия ворот без продувки
         {
-            // Фиксируем аварийный бит заслонки в регистре аварий (только новый _Wrk/_Alr).
-            g.flapAlarm = 1u;   // это важно при выключенной проверке устройств
-            if (g_defrostParams.useNewWrkAlrAlgorithm != 0u)
-            {
-                Model::Device_AlarmFlags |= (uint16_t)(1u << 11);   // устанавливаем бит аварии заслонки в регистре аварий
-            }
-            ShutdownGoToFullGateOpen_VentCleanup();   // переходим к шагу полного открытия ворот без продувки
+            DetectFlapAlarmDuringShutdown();
+            HandleFlapAlarmDuringShutdown();
         }
         // заслонка открывается, ждем подтверждения открытия заслонки
         else if (flapOpened == 0u) {    // если заслонка ещё не открылась, но в процессе открытия
@@ -1659,7 +1702,7 @@ static void ProcessShutdownStage1s()
             g.outFanOn = 0u;
             g.shutdownOutFanRemain_s = 0u;
             Model::DFR._Out = 0u;
-            // ничего не делаем, ждём, т.к. при включенной проверке проверяется таймаут в UpdateDeviceAlarmState() — флаг g.flapAlarm
+            // ничего не делаем, ждём: при включенной проверке таймаут фиксирует DetectFlapAlarm1s.
             // НО:
             if (switchCheckOn == 0u) {   // если проверка устройств выключена, то проверяем таймаут по времени
                 if (g.shutdownFlapOpenWait_s < DEFROST_FLAP_POSITION_TIMEOUT_S)    // если время ожидания открытия заслонки ещё меньше таймаута
@@ -2234,8 +2277,16 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
  
      void DefrostControl_SetEnabled(uint8_t enabled)
      {
+        // Старый протокол не управляет автоматикой. Все источники запуска проходят через этот API.
+        if (g_defrostParams.useNewWrkAlrAlgorithm == 0u)
+        {
+            return;
+        }
          // Почему: отдельный флаг enabled позволяет безопасно вводить алгоритм, не ломая существующую логику авто/ручного режима.
-       UpdateDeviceAlarmState();
+       DetectDeviceAlarms1s();
+       DetectGateAlarms1s();
+       DetectFlapAlarm1s();
+       RefreshAlarmSummary1s();
         const uint8_t newEnabled = enabled ? 1 : 0;
         const uint8_t wasEnabled = g.enabled;
 
@@ -2334,7 +2385,7 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
     {
         // Почему: в HOME нужен признак именно активного автоматического режима,
         // а не просто факт, что алгоритм ранее был запущен.
-        return (g.enabled != 0 && GateControl_GetManualMode() == 0) ? 1 : 0;
+        return (g_defrostParams.useNewWrkAlrAlgorithm != 0u && g.enabled != 0 && GateControl_GetManualMode() == 0) ? 1 : 0;
     }
 
     uint8_t DefrostControl_IsShutdownActive(void)
@@ -2476,6 +2527,12 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             }
             DefrostLogGlobalPayload_t p;
             memcpy(&p, payload, sz);
+            // Сначала штатно завершить работающий цикл; смену режима разрешаем после останова.
+            if (p.useNewWrkAlrAlgorithm == 0u &&
+                (g.enabled != 0u || g.shutdownActive != 0u || g.startPendingAfterShutdown != 0u))
+            {
+                return 0;
+            }
             g_defrostParams.leftRightTrimGain   = p.leftRightTrimGain;
             g_defrostParams.leftRightTrimMaxEq  = p.leftRightTrimMaxEq;
             g_defrostParams.piKp                = p.piKp;
@@ -2494,6 +2551,12 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             g_defrostParams.debugDisableTargetTStop = (p.debugDisableTargetTStop != 0u) ? 1u : 0u;
             g_defrostParams.debugDisableDeviceSwitchCheck = (p.debugDisableDeviceSwitchCheck != 0u) ? 1u : 0u;
             g_defrostParams.useNewWrkAlrAlgorithm = (p.useNewWrkAlrAlgorithm != 0u) ? 1u : 0u;
+            if (g_defrostParams.useNewWrkAlrAlgorithm == 0u)
+            {
+                g_defrostPersistedAutoMode = 0u;
+                g_defrostAutoRestorePending = 0u;
+                ClearNonSensorAlarmsForLegacyMode();
+            }
             g.legacyWrkPulsePending = 0u;
             g.legacyAlrPulsePending = 0u;
             g.legacyWrkPulseActive = 0u;
@@ -2529,8 +2592,20 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             return 0;
         }
 
+        if (inParams->useNewWrkAlrAlgorithm == 0u &&
+            (g.enabled != 0u || g.shutdownActive != 0u || g.startPendingAfterShutdown != 0u))
+        {
+            return 0;
+        }
+
         memcpy(&g_defrostParams, inParams, sizeof(DefrostParams_t));
         g_defrostParams.useNewWrkAlrAlgorithm = (g_defrostParams.useNewWrkAlrAlgorithm != 0u) ? 1u : 0u;
+        if (g_defrostParams.useNewWrkAlrAlgorithm == 0u)
+        {
+            g_defrostPersistedAutoMode = 0u;
+            g_defrostAutoRestorePending = 0u;
+            ClearNonSensorAlarmsForLegacyMode();
+        }
         g.legacyWrkPulsePending = 0u;
         g.legacyAlrPulsePending = 0u;
         g.legacyWrkPulseActive = 0u;
@@ -2592,6 +2667,14 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
                 g_defrostPersistedAutoMode = (rec.autoModeEnabled != 0u) ? 1u : 0u;
                 // Сам автозапуск — после старта RTOS (Update1s), не в Init до osKernelStart.
                 g_defrostAutoRestorePending = g_defrostPersistedAutoMode;
+                if (g_defrostParams.useNewWrkAlrAlgorithm == 0u)
+                {
+                    // Запись старого режима не может восстановить автоматический запуск.
+                    g_defrostPersistedAutoMode = 0u;
+                    g_defrostAutoRestorePending = 0u;
+                    if (rec.autoModeEnabled != 0u) g_defrostEepromPersistPending = true;
+                    ClearNonSensorAlarmsForLegacyMode();
+                }
             }
             else  // если данные не валидны
             {
@@ -2637,17 +2720,15 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
 
     void DefrostControl_NotifyFlapWaterDiMismatchFromIo(void)
     {
+        if (g_defrostParams.useNewWrkAlrAlgorithm == 0u) return;
         g.flapAlarm = 1u;
-        // Старый _Wrk/_Alr: внутренний flapAlarm нужен для последовательности останова, бит 11 в регистр не ставим.
-        if (g_defrostParams.useNewWrkAlrAlgorithm != 0u)
-        {
-            Model::Device_AlarmFlags |= (uint16_t)(1u << 11);
-        }
+        Model::Device_AlarmFlags |= (uint16_t)(1u << 11);
     }
 
     uint16_t DefrostControl_GetFlapTransitionElapsedSForSwitchCheck(void)
     {
-        if (g_defrostParams.debugDisableDeviceSwitchCheck != 0u)
+        if (g_defrostParams.useNewWrkAlrAlgorithm == 0u ||
+            g_defrostParams.debugDisableDeviceSwitchCheck != 0u)
         {
             return 0u;
         }
@@ -2657,7 +2738,13 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
      void DefrostControl_Update1s(void)
      {
         FlushPendingEepromPersistIfNeeded();
-        UpdateProductSensorFallout();
+        DetectSensorAlarms1s(); // телеметрия датчиков доступна в обоих режимах
+        if (g_defrostParams.useNewWrkAlrAlgorithm == 0u)
+        {
+            ClearNonSensorAlarmsForLegacyMode();
+            ApplyModeLamps(LampModeState::StoppedOrManual);
+            return;
+        }
         // Восстановление авторежима после сброса питания (autoModeEnabled из EEPROM).
         // Делаем здесь, а не в Init: нужны RTOS и уже считанные концевики ворот.
         if (g_defrostAutoRestorePending != 0u)
@@ -2668,13 +2755,18 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             {
                 StartAutomaticSequence();
                 // После ResetState заново классифицируем зонды (воздух / продукт), затем ControlStep1s.
-                UpdateProductSensorFallout();
+                DetectSensorAlarms1s();
             }
         }
-        UpdateDeviceAlarmState();
+        DetectDeviceAlarms1s();
+        DetectGateAlarms1s();
+        DetectFlapAlarm1s();
+        RefreshAlarmSummary1s();
+        HandleGateAlarms1s();
+        HandleFlapAlarms1s();
          // Уважаем ручной режим и внешний флаг enabled.
          // Почему: ручной режим должен быть главным; алгоритм не должен "бороться" с оператором.
-         if (g.enabled == 0)    // если алгоритм выключен
+         if (g.enabled == 0 || GateControl_GetManualMode() != 0u)    // алгоритм выключен или выбран ручной режим
          {
             // Алгоритм выключен, работает ручной режим или процесс завершения работы
             // В режиме останова зелёная лампа выключена; красная только по аварии.

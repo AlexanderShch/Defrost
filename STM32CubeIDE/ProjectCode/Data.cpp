@@ -76,6 +76,41 @@ static uint8_t s_rxErrorStreak[SQ] = {0};           // подряд идущие
 static uint16_t s_sensorCommLostMask = 0u;          // датчики, отключённые из-за 3 подряд ошибок приёма
 static const uint16_t kDeviceAlarmSensorCommBit = (uint16_t)(1u << 12); // агрегированный флаг "есть потерянный датчик"
 
+static void DetectSensorCommunicationAlarmsAfterPoll(void)
+{
+	// Индекс 6 — модуль IO, не датчик: в старом режиме его аварию не регистрируем.
+	if (DefrostControl_UsesNewWrkAlrAlgorithm() == 0u && SQ > 6)
+	{
+		s_sensorCommLostMask &= (uint16_t)~(1u << 6);
+		Model::Sensor_AlarmFlags &= (uint16_t)~(1u << 6);
+		s_rxErrorStreak[6] = 0u;
+	}
+	// После повторного опроса ранее потерянный датчик может снова стать активным.
+	for (int sensorIndex = 0; sensorIndex < SQ; ++sensorIndex)
+	{
+		if (sensorIndex >= 16) continue;
+		const uint16_t sensorBit = (uint16_t)(1u << sensorIndex);
+		if ((s_sensorCommLostMask & sensorBit) != 0u && Sensor_array[sensorIndex].Active == 1u)
+		{
+			s_sensorCommLostMask &= (uint16_t)~sensorBit;
+			Model::Sensor_AlarmFlags &= (uint16_t)~sensorBit;
+			s_rxErrorStreak[sensorIndex] = 0u;
+		}
+	}
+	if (s_sensorCommLostMask != 0u)
+		Model::Device_AlarmFlags |= kDeviceAlarmSensorCommBit;
+	else
+		Model::Device_AlarmFlags &= (uint16_t)~kDeviceAlarmSensorCommBit;
+}
+
+static uint16_t HandleDeviceAlarmsForOutput(uint16_t commandRegister)
+{
+	// Только новый режим: отказавшие исполнительные устройства не включаем.
+	if (DefrostControl_UsesNewWrkAlrAlgorithm() == 0u || Model::Flag_DFR_manual != 0u)
+		return commandRegister;
+	return (uint16_t)(commandRegister & (uint16_t)~(Model::Device_AlarmFlags & 0x01FFu));
+}
+
 // Определение статических переменных.
 // Текущее количество измерений (секунд от старта).
 unsigned int TimeFromStart = 0;
@@ -450,23 +485,15 @@ void ReadDataFunc() {
 		// Выбираем активный регистр управления в зависимости от режима.
 		// Старый режим _Wrk/_Alr выдаёт ожидающий серверный импульс ровно в этот секундный снимок регистра.
 		DefrostControl_PrepareWrkAlrOutputs1s();
-		// Общий флаг аварии: авария ворот (только новый _Wrk/_Alr) ИЛИ любые аварийные биты устройств/датчиков.
-		const uint8_t gateAlarmForDevice =
-			(DefrostControl_UsesNewWrkAlrAlgorithm() != 0u && Model::Gate_Alarm != 0) ? 1u : 0u;
-		Model::Device_Alarm = ((gateAlarmForDevice != 0u) || (Model::Device_AlarmFlags != 0) || (Model::Sensor_AlarmFlags != 0)) ? 1 : 0;
+		// Общий флаг аварии: авария ворот ИЛИ любые аварийные биты устройств/датчиков.
+		const uint16_t sensorAlarmBits = (uint16_t)(kDeviceAlarmSensorCommBit |
+			Model::kDeviceAlarmProductTUpLeft | Model::kDeviceAlarmProductTUpRight);
+		Model::Device_Alarm = ((Model::Sensor_AlarmFlags != 0u) ||
+			((Model::Device_AlarmFlags & sensorAlarmBits) != 0u) ||
+			(DefrostControl_UsesNewWrkAlrAlgorithm() != 0u &&
+				(Model::Gate_Alarm != 0u || (Model::Device_AlarmFlags & (uint16_t)~sensorAlarmBits) != 0u))) ? 1u : 0u;
 		const uint16_t commandRegisterRaw = (Model::Flag_DFR_manual == 0) ? *pDFR : *pDFR_manual;
-		uint16_t activeRegister = commandRegisterRaw;
-		// В автоматическом режиме блокируем включение аварийных устройств:
-		// если по каналу зафиксирована авария подтверждения (Device_AlarmFlags), бит команды принудительно сбрасывается.
-		if (Model::Flag_DFR_manual == 0)
-		{
-			const uint16_t deviceCheckMask = (uint16_t)((1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) |
-														(1u << 4) | (1u << 5) | (1u << 6) | (1u << 7) |
-														(1u << 8));
-			const uint16_t blockedMask = (uint16_t)(Model::Device_AlarmFlags & deviceCheckMask);
-			// аварийные устройства блокируются
-			activeRegister &= (uint16_t)(~blockedMask);
-		}
+		uint16_t activeRegister = HandleDeviceAlarmsForOutput(commandRegisterRaw);
 
 		// В модуль ввода-вывода всегда отправляем активный регистр.
 		RelayRegister = activeRegister;	// эта переменная запишется в модуль ввода-вывода
@@ -496,7 +523,8 @@ void ReadDataFunc() {
 					if (s_rxErrorStreak[SensorIndex] >= 3u)
 					{
 						Sensor_array[SensorIndex].Active = 0u;
-						if (SensorIndex < 16)
+						if (SensorIndex < 16 &&
+							(SensorIndex != 6 || DefrostControl_UsesNewWrkAlrAlgorithm() != 0u))
 						{
 							const uint16_t sensorBit = (uint16_t)(1u << SensorIndex);
 							s_sensorCommLostMask |= sensorBit;
@@ -546,28 +574,7 @@ void ReadDataFunc() {
 
 		// проверим не активные датчики на активность
 		MB_Master_Init();
-		// Если ранее отключённый по связи датчик снова ответил и стал Active=1 — снимаем его аварийный признак.
-		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
-		{
-			if (SensorIndex < 16)
-			{
-				const uint16_t sensorBit = (uint16_t)(1u << SensorIndex);
-				if (((s_sensorCommLostMask & sensorBit) != 0u) && (Sensor_array[SensorIndex].Active == 1u))	// если датчик снова активен, то сбрасываем аварийный бит в регистре Sensor_AlarmFlags
-				{
-					s_sensorCommLostMask &= (uint16_t)~sensorBit;		// сбрасываем аварийный бит в регистре Sensor_AlarmFlags
-					Model::Sensor_AlarmFlags &= (uint16_t)~sensorBit;	// сбрасываем аварийный бит в регистре Sensor_AlarmFlags
-					s_rxErrorStreak[SensorIndex] = 0u;				// сбрасываем счётчик ошибок приёма
-				}
-			}
-		}
-		if (s_sensorCommLostMask != 0u)		// если ещё остались отключённые датчики, то фиксируем аварийный бит в регистре Device_AlarmFlags
-		{
-			Model::Device_AlarmFlags |= kDeviceAlarmSensorCommBit;
-		}
-		else // если все датчики снова активны, то сбрасываем аварийный бит в регистре Device_AlarmFlags
-		{
-			Model::Device_AlarmFlags &= (uint16_t)~kDeviceAlarmSensorCommBit;
-		}
+		DetectSensorCommunicationAlarmsAfterPoll();
 
 		// работа с корректировкой датчика
 			if (Model::Flag_CORR_ready == 1) {

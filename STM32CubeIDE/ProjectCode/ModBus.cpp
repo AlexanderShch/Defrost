@@ -240,29 +240,30 @@ static const uint16_t kDeviceCheckMask = (1u << 0) | (1u << 1) | (1u << 2) | (1u
 // Защита от многократного автозапуска при удержании кнопки ПУСК.
 static uint8_t g_prevButStart = 0u;
 
-// Обработка случая, когда вход не переключился вслед за выходом на следующем опросе.
-// TODO: добавить нужную бизнес-логику (авария/лог/уведомление/останов и т.д.).
-static void HandleDeviceSwitchCheckMismatch(uint16_t mismatchMask, uint16_t expectedBits, uint16_t actualBits)
+// Регистрация аварии при рассогласовании входа и выхода.
+static void RecordDeviceAlarmBits(uint16_t mismatchMask)
 {
 	// Накопительно фиксируем аварийные биты рассогласования "выход->вход".
 	Model::Device_AlarmFlags |= (uint16_t)(mismatchMask & kDeviceCheckMask);	// mismatchMask - маска рассогласования, kDeviceCheckMask - маска устройств для проверки
-	(void)expectedBits;
-	(void)actualBits;
 }
 
-// При включённой проверке устройств: каждый успешный опрос IO — DO/DI по маске + соответствие Water_Flap концевикам.
+// При включённой проверке устройств: после успешного опроса IO сравниваем DO/DI по маске.
 // Исключение «закрытие/открытие по таймауту» при debugDisableDeviceSwitchCheck: этот блок не вызывается.
 // Промежуток Air_Open=0, Air_Close=0 — ход заслонки, не считаем ошибкой соответствия Water_Flap.
-static void RunContinuousDeviceSwitchCheckAfterIoRead(void)
+static void DetectDeviceAlarmsAfterIoRead(void)
 {
 	const uint16_t doNow = (uint16_t)(Model::DO_DFR.Raw & kDeviceCheckMask);
 	const uint16_t diNow = (uint16_t)(Model::DI_DFR.Raw & kDeviceCheckMask);
 	const uint16_t mismatchDevices = (uint16_t)(doNow ^ diNow);
 	if (mismatchDevices != 0u)		// если есть рассогласование, то фиксируем аварийный бит
 	{
-		HandleDeviceSwitchCheckMismatch(mismatchDevices, 0u, 0u);
+		RecordDeviceAlarmBits(mismatchDevices);
 	}
 
+}
+
+static void DetectFlapAlarmAfterIoRead(void)
+{
 	const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
 	const uint8_t airClose = (Model::DI_DFR.Bits.Air_Close != 0u) ? 1u : 0u;
 	const uint8_t flapOpened = (airOpen != 0u && airClose == 0u) ? 1u : 0u;
@@ -285,7 +286,7 @@ static void RunContinuousDeviceSwitchCheckAfterIoRead(void)
 	}
 	else
 	{
-		// Та же грация по времени, что в UpdateDeviceAlarmState (секунды после смены Water_Flap).
+		// Та же грация по времени, что в DetectFlapAlarm1s (секунды после смены Water_Flap).
 		const uint16_t flapElapsed = DefrostControl_GetFlapTransitionElapsedSForSwitchCheck();
 		const uint8_t flapGrace = (flapElapsed < (uint16_t)DEFROST_FLAP_POSITION_TIMEOUT_S) ? 1u : 0u;
 		if (flapGrace == 0u)
@@ -311,8 +312,20 @@ static void RunContinuousDeviceSwitchCheckAfterIoRead(void)
 	{
 		DefrostControl_NotifyFlapWaterDiMismatchFromIo();
 	}
+}
 
-	EnforceHeaterInterlockByFans();
+static void DetectGateAlarmAfterIoRead(void)
+{
+	Model::Gate_Alarm_Hardware = (Model::DI_DFR.Bits.Gate_Alarm != 0u) ? 1u : 0u;
+	Model::Gate_Alarm = ((Model::Gate_Alarm_Program != 0u) || (Model::Gate_Alarm_Hardware != 0u)) ? 1u : 0u;
+}
+
+static void HandleGateAlarmAfterIoRead(void)
+{
+	if (DefrostControl_IsEnabled() != 0u && Model::Gate_Alarm_Hardware != 0u)
+	{
+		DefrostControl_SetEnabled(0);
+	}
 }
 
 // Принудительное отключение ТЭНов, если не подтверждена работа вентиляторов в группе.
@@ -489,18 +502,15 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 				const uint8_t butStartNow = (Model::DI_DFR.Bits.But_Start != 0u) ? 1u : 0u;
 				const uint8_t butStopNow = (Model::DI_DFR.Bits.But_Stop != 0u) ? 1u : 0u;
 				/*********************************************************************************************/
-				// Разделяем аварии ворот:
-				// - аппаратная авария с входа Gate_Alarm (DI bit 11),
-				// - программная авария (таймаут) выставляется в GateControl.
-				Model::Gate_Alarm_Hardware = (Model::DI_DFR.Bits.Gate_Alarm != 0) ? 1u : 0u;
-				Model::Gate_Alarm = ((Model::Gate_Alarm_Program != 0u) || (Model::Gate_Alarm_Hardware != 0u)) ? 1u : 0u;
-				// Старый _Wrk/_Alr: аппаратную аварию ворот не учитываем (без автоостанова).
-				if (Model::Gate_Alarm_Hardware != 0u && DefrostControl_UsesNewWrkAlrAlgorithm() != 0u)
+				if (DefrostControl_UsesNewWrkAlrAlgorithm() != 0u)
 				{
-					// Аппаратная авария ворот должна немедленно остановить дефростер.
-					DefrostControl_SetEnabled(0);
+					DetectGateAlarmAfterIoRead();
 				}
-
+				if (DefrostControl_UsesNewWrkAlrAlgorithm() != 0u && Model::Gate_Alarm_Hardware != 0u)
+				{
+					// Авария имеет приоритет над кнопками в этом же опросе.
+					HandleGateAlarmAfterIoRead();
+				}
 				else if (butStopNow == 0u && DefrostControl_IsEnabled() != 0u)
 				{
 					// В норме But_Stop=1. Уровень 0 при активном автоалгоритме трактуем как команду STOP (как от сервера).
@@ -519,10 +529,13 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			/*****************************************************************************
 			 * КОНТРОЛЬ РАбОТОСПОСОбНОСТИ УСТРОЙСТВ (каждый успешный опрос IO при включённой проверке)
 			 *****************************************************************************/
-			if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
+			if (DefrostControl_UsesNewWrkAlrAlgorithm() != 0u &&
+				DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
 			{
-				RunContinuousDeviceSwitchCheckAfterIoRead();
+				DetectDeviceAlarmsAfterIoRead();
+				DetectFlapAlarmAfterIoRead();
 			}
+			EnforceHeaterInterlockByFans(); // отдельная защита ТЭНов, не аварийный обработчик
 			break;
 		}
 		case MB_ERROR_DMA_SEND:

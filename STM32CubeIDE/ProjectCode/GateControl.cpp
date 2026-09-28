@@ -29,6 +29,17 @@ void GateControl_ReleaseDblIfIdle(DFR_REGISTERS_t& gateRegister)
 		gateRegister.Gate_Dbl = 0;
 	}
 }
+
+void DetectGateAlarmFromMotionTimeout()
+{
+	// Тайм-аут движения контролируется и в ручном режиме, но только при новом алгоритме.
+	if (DefrostControl_UsesNewWrkAlrAlgorithm() != 0u &&
+		DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
+	{
+		Model::Gate_Alarm_Program = 1;
+		Model::Gate_Alarm = 1;
+	}
+}
 }
 
 void GateControl_SetManualMode(uint8_t enabled)
@@ -186,11 +197,7 @@ void GateControl_Update1s(void)
 				GateControl_ReleaseDblIfIdle(gateRegister);
 				gateUpElapsedSec = 0;
 				// При debugDisableDeviceSwitchCheck=1 не формируем программную аварию ворот.
-				if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
-				{
-					Model::Gate_Alarm_Program = 1;
-					Model::Gate_Alarm = 1;
-				}
+				DetectGateAlarmFromMotionTimeout();
 				Model::Gate_PosTop = 1;
 				Model::Gate_PosBottom = 0;
 			}
@@ -226,11 +233,7 @@ void GateControl_Update1s(void)
 				GateControl_ReleaseDblIfIdle(gateRegister);
 				gateDownElapsedSec = 0;
 				// При debugDisableDeviceSwitchCheck=1 не формируем программную аварию ворот.
-				if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
-				{
-					Model::Gate_Alarm_Program = 1;
-					Model::Gate_Alarm = 1;
-				}
+				DetectGateAlarmFromMotionTimeout();
 				Model::Gate_PosBottom = 1;
 				Model::Gate_PosTop = 0;
 			}
