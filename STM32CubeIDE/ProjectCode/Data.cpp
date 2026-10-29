@@ -106,7 +106,7 @@ static void DetectSensorCommunicationAlarmsAfterPoll(void)
 static uint16_t HandleDeviceAlarmsForOutput(uint16_t commandRegister)
 {
 	// Только новый режим: отказавшие исполнительные устройства не включаем.
-	// Алгоритм при этом не останавливается (стоп — только ворота/заслонка).
+	// Алгоритм при этом не останавливается (аварийный стоп авто — только ворота).
 	if (DefrostControl_UsesNewWrkAlrAlgorithm() == 0u || Model::Flag_DFR_manual != 0u)
 		return commandRegister;
 
