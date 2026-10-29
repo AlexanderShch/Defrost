@@ -1264,11 +1264,19 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          }
  
          // Ограничение по скорости прогрева "горячей" точки (только при наличии предыдущей температуры продукта).
+         // Пока fishHot далеко от fishHotMax И подача далеко от supplySet — rate не режем:
+         // на холодном старте LSB-шум ±0.1 °C/с ложно срабатывает на лимите 0.02 °C/с и через
+         // tenMinHold гасит ТЭНы на 10 с при полном запросе мощности.
          float rate_Cps = 0.0f;   // для лога; при отсутствии предыдущего замера — 0
          if (g.haveLastFishHot != 0)
          {
              rate_Cps = (fishHot_C - g.lastFishHot_C) / kDt_s; // скорость прогрева "горячей" точки, град/сек
-             if (rate_Cps > lim.fishHotRateMax_Cps) // если скорость прогрева превышает максимально допустимую
+             const float kFishHotRateArm_C = 3.0f;   // включать rate-лимит ближе чем на 3 °C к fishHotMax
+             const float kSupplySetRateArm_C = 5.0f; // или ближе чем на 5 °C к уставке подачи
+             const uint8_t rateLimitArmed =
+                 ((fishHot_C >= (lim.fishHotMax_C - kFishHotRateArm_C)) ||
+                  (T_sup_avg_C >= (tgt.supplySet_C - kSupplySetRateArm_C))) ? 1u : 0u;
+             if ((rateLimitArmed != 0u) && (rate_Cps > lim.fishHotRateMax_Cps))
              {
                  // Пропорционально снижаем; защищаемся от полного "затыка" из-за шума.
                 const float s = lim.fishHotRateMax_Cps / Clamp(rate_Cps, 0.01f, rate_Cps); // коэффициент снижения мощности нагрева

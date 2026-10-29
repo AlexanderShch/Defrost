@@ -1,8 +1,26 @@
 # CubeIDE этот файл не перезаписывает.
-# GNU Tools 14.3 уже включает linked resources в Debug/makefile
-# (Drivers/*, Middlewares/*, Application/User/gui|generated|TouchGFX, Core/Src).
-# Не подключать subdir.mk / extra_linked_sources.mk повторно —
-# иначе make: «overriding recipe for target …».
+#
+# Проблема: после Clean/Rebuild Debug/makefile иногда регенерируется неполно
+# (только ProjectCode + Startup + syscalls/sysmem). Тогда:
+#   undefined reference to `SystemInit' / `main'
+# Корневая причина линковки — урезанный Debug/objects.list (@objects.list).
+#
+# Важно: CubeIDE может перезаписать короткий objects.list с НОВЫМ mtime
+# поверх старых .o — тогда objects.list: $(OBJS) не срабатывает.
+# Поэтому всегда принудительно пересобираем objects.list перед линковкой.
 
-# GNU ld 14 предупреждает о LOAD-сегменте RWX на типичном STM32-скрипте
 LIBS += -Wl,--no-warn-rwx-segments
+
+# Если main.o ещё не в OBJS — подтянуть nested subdir.mk и linked Core/Src.
+ifeq ($(filter ./Application/User/main.o,$(OBJS)),)
+$(info [Defrost] Incomplete Debug/makefile detected — including extra_linked_sources.mk)
+include ../extra_linked_sources.mk
+endif
+
+# FORCE: CubeIDE часто кладёт урезанный objects.list новее, чем .o-файлы.
+.PHONY: FORCE
+FORCE:
+
+objects.list: $(OBJS) FORCE
+	@rm -f objects.list
+	@for o in $(OBJS); do echo "\"$$o\"" >> objects.list; done
