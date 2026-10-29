@@ -442,6 +442,8 @@ void DataTimerFunc()
  * 	5 - defroster operating T
  * 	6 - product final T
 */
+// Выполняет цикл шины: запись DO -> датчики Т/Н -> чтение DO -> пауза 5 мс -> чтение DI.
+// Публикует завершённый такт для телеметрии и разрешает обработку данных алгоритмом.
 void ReadDataFunc() {
 	int TempOld, HumOld = 0;
 	int TempNew, HumNew = 0;
@@ -457,8 +459,7 @@ void ReadDataFunc() {
 	// Канал опроса датчиков (UART5) — abort/flush/семафоры до первого Sensor_Read в Init.
 	MB_Master_RxChannelPrepare();
 
-	// Инициализация датчиков при запуске задачи
-	MB_Master_Init();
+	// Первый и последующие опросы выполняются в общем цикле: DO -> Т/Н -> DO/DI.
 	uint16_t *pDFR = (uint16_t*) &Model::DFR;	// указатель на регистр состояния устройств при авт.управлении DFR
 	uint16_t *pDFR_manual = (uint16_t*) &Model::DFR_manual;	// указатель на регистр ручного управления устройствами DFR_manual
 	uint16_t *pDFR_current = (uint16_t*) &Model::DFR_current;	// указатель на регистр текущего отображения устройств DFR_current
@@ -500,6 +501,9 @@ void ReadDataFunc() {
 		const uint16_t prevDisplayedRegister = *pDFR_current;	// получаем предыдущее значение регистра управления
 		*pDFR_chng_flag = activeRegister ^ prevDisplayedRegister;	// вычисляем флаг изменений
 		*pDFR_current = activeRegister;	// записываем активный регистр в регистр управления
+		// Записываем выходы один раз до всех запросов Т/Н, даже если IO был неактивен.
+		// При ошибке записи всё равно читаем фактические DO/DI в конце цикла.
+		MB_IO_WriteOutputs(SQ - 1u, RelayRegister);
 
 		/**************************************************************
 		 * Цикл опроса датчиков
@@ -507,13 +511,16 @@ void ReadDataFunc() {
 		for (int SensorIndex = 0; SensorIndex < SQ; SensorIndex++)
 		{
 			result = MB_ERROR_NO;
-			// Считывание с последовательной шины:
-			// посылаем запрос только если датчик числится активным!
-			if (Sensor_array[SensorIndex].Active == 1)
+			// Все устройства, включая неактивные, опрашиваем один раз в этом же порядке.
+			// Индексы 0..5 — Т/Н; последний индекс — чтение DO, пауза 5 мс, чтение DI.
 			{
-				// Продолжаем для активного датчика
 				result = Sensor_Read(SensorIndex);
-				if (result == MB_ERROR_UART_RECIEVE || result == MB_ERROR_DMA_RECIEVE)
+				// Успешный ответ возвращает ранее отключённое устройство в активный опрос.
+				if (result == MB_ERROR_NO)
+					Sensor_array[SensorIndex].Active = 1u;
+				// Для активных устройств накапливаем последовательные ошибки приёма.
+				if (Sensor_array[SensorIndex].Active != 0u &&
+					(result == MB_ERROR_UART_RECIEVE || result == MB_ERROR_DMA_RECIEVE))
 				{
 					if (s_rxErrorStreak[SensorIndex] < 255u)
 					{
@@ -537,6 +544,8 @@ void ReadDataFunc() {
 				{
 					s_rxErrorStreak[SensorIndex] = 0u;
 				}
+				// Не обновляем обработанные значения и экран данными недоступного устройства.
+				if (Sensor_array[SensorIndex].Active == 0u) continue;
 
 				// Температура: сырая T (Param 2) → антиспайк → буфер T_Clamped → среднее в Param 4 (алгоритм, лог).
 				Sensor::ApplyTemperatureClampedBufferAndAverage((unsigned char)SensorIndex, TimeFromStart);
@@ -559,7 +568,9 @@ void ReadDataFunc() {
 			}
 		}	// конец цикла опроса датчиков
 
-		// Фиксируем такт только после всех PutData активных датчиков/ВВ — барьер для SEND_STATE.
+		// Сводим потери и восстановления связи до публикации результатов цикла.
+		DetectSensorCommunicationAlarmsAfterPoll();
+		// Фиксируем такт только после всех PutData датчиков/ВВ и обновления доступности.
 		g_CommittedTick = TimeFromStart;
 
 		// Телеметрия и лог отправляются только по команде SEND_STATE от сервера (см. CommandReceiver REQ_CMD_SEND_STATE).
@@ -571,10 +582,6 @@ void ReadDataFunc() {
 		if (SensorsReadDone_SemHandle != NULL) {
 		    osSemaphoreRelease(SensorsReadDone_SemHandle);
 		}
-
-		// проверим не активные датчики на активность
-		MB_Master_Init();
-		DetectSensorCommunicationAlarmsAfterPoll();
 
 		// работа с корректировкой датчика
 			if (Model::Flag_CORR_ready == 1) {

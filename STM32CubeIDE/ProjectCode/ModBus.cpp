@@ -356,27 +356,39 @@ static void EnforceHeaterInterlockByFans(void)
 
 /************** ДАТЧИКИ ****************************/
 /***************************************************/
-// проверим все сенсоры на активность, в т.ч. при запуске
-void MB_Master_Init(void)
+// Записывает 16 выходов модуля IO в начале цикла и возвращает статус обмена.
+// Учитывает ошибки записи и выдерживает паузу перед опросом датчиков Т/Н.
+MB_Error_t MB_IO_WriteOutputs(uint8_t SensIndex, uint16_t outputs)
 {
-	MB_Error_t result = MB_ERROR_NO;
-	// Канал UART5 должен быть готов к приёму до первого Sensor_Read (буферы/флаги/DE/семафоры).
-	MB_Master_RxChannelPrepare();
-	// Запросим каждый не активный датчик, если ответит - пометим как активный
-//	while (1)	{ // тестовый цикл
-	for (int i=0; i<SQ; i++)
-	{
-		if (Sensor_array[i].Active == 0) {
-			result = Sensor_Read(i);
-			if (result == MB_ERROR_NO) {
-				Sensor_array[i].Active = 1; }
-			else {
-				Sensor_array[i].Active = 0;	}
-		}
-	}
-//	} // тестовый цикл
+	// Проверяем индекс и тип устройства перед обращением к его адресу.
+	if (SensIndex >= SQ || Sensor_array[SensIndex].TypeOfSensor != 4u)
+		return MB_ERROR_WRONG_ADDRESS;
+	// Настраиваем UART5, направление RS-485 и семафоры завершения обмена.
+	MB_Active_t sw = {};
+	sw.UART = &huart5;
+	sw.PORT = MB_MASTER_DE_GPIO_Port;
+	sw.PORT_PIN = MB_MASTER_DE_Pin;
+	sw.Sem_Rx = &RX_Compl_SemHandle;
+	sw.Sem_Tx = &TX_Compl_SemHandle;
+	// Формируем два байта DO: сначала биты 0..7, затем биты 8..15.
+	MultWR_t writeBuffer = {};
+	writeBuffer[0] = 2;
+	writeBuffer[1] = (int8_t)(outputs & 0xFFu);
+	writeBuffer[2] = (int8_t)((outputs >> 8) & 0xFFu);
+	// Передаём команду записи 16 выходов и ожидаем ответ модуля.
+	const MB_Error_t result = Master_RW(&sw, Sensor_array[SensIndex].Address,
+		MB_CMD_WRITE_COILS, Type4_DO, 16u, writeBuffer);
+	// Раздельно учитываем ошибки передачи и ошибки получения подтверждения.
+	if (result == MB_ERROR_DMA_SEND || result == MB_ERROR_UART_SEND)
+		Sensor_array[SensIndex].TxErrorCnt++;
+	else if (result != MB_ERROR_NO)
+		Sensor_array[SensIndex].RxErrorCnt++;
+	// Межкадровая пауза перед первым датчиком, в том числе после ошибки записи.
+	osDelay(5);
+	return result;
 }
-// Функция запускает считывание с датчика в рабочем режиме
+// Читает Т/Н датчика либо пару DO/DI модуля IO без повторной записи выходов.
+// Сохраняет результат для телеметрии и алгоритма; при ошибке удерживает прошлые данные.
 MB_Error_t Sensor_Read(uint8_t SensIndex)
 {
 	MB_Error_t result = MB_ERROR_NO;
@@ -413,18 +425,8 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			break;	}
 	// тип датчика: 4 - модуль ввода-вывода с RS485
 		case 4:		{
-			/* Запишем состояние регистра аппаратного управления устройствами
-			 * в выходной регистр модуля ввода-вывода */
-			uint8_t REG_COUNT = 16;		// делаем запись/чтение в/из 16 портов
-			WR_Buffer[0] = 2;								// кол-во байт для записи
-			WR_Buffer[1] = RelayRegister & 0xFF;			// младший байт
-			WR_Buffer[2] = (RelayRegister>>8) & 0xFF;		// старший байт
-			result = Master_RW(&SW, SensAddress, MB_CMD_WRITE_COILS, Type4_DO, REG_COUNT, WR_Buffer);
-			if (result != MB_ERROR_NO)
-				break;	// если ошибка, то выходим из функции case 4
-
-			// Пауза между запросами к модулю ВВ (запас над t3.5 при 19200).
-			osDelay(5);
+			// DO уже записан в начале цикла, до опроса датчиков Т/Н.
+			uint8_t REG_COUNT = 16;
 
 			// Попробуем прочитать данные с выходного регистра модуля ввода-вывода, запишем в H (Read_Data_1)
 			for (uint8_t attempt = 0; attempt < 3; ++attempt)
@@ -524,18 +526,15 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 				}
 				g_prevButStart = butStartNow;
 				/*********************************************************************************************/
-			}
-
-			/*****************************************************************************
-			 * КОНТРОЛЬ РАбОТОСПОСОбНОСТИ УСТРОЙСТВ (каждый успешный опрос IO при включённой проверке)
-			 *****************************************************************************/
-			if (DefrostControl_UsesNewWrkAlrAlgorithm() != 0u &&
-				DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
-			{
-				DetectDeviceAlarmsAfterIoRead();
-				DetectFlapAlarmAfterIoRead();
-			}
-			EnforceHeaterInterlockByFans(); // отдельная защита ТЭНов, не аварийный обработчик
+				// Контроль подтверждений — только после чтения актуальной пары DO/DI.
+				if (DefrostControl_UsesNewWrkAlrAlgorithm() != 0u &&
+					DefrostControl_IsDeviceSwitchCheckEnabled() != 0u)
+				{
+					DetectDeviceAlarmsAfterIoRead();
+					DetectFlapAlarmAfterIoRead();
+				}
+				EnforceHeaterInterlockByFans(); // отдельная защита ТЭНов, не аварийный обработчик
+			} // только после успешного чтения пары DO/DI модуля IO
 			break;
 		}
 		case MB_ERROR_DMA_SEND:

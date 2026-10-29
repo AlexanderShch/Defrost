@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+// Параметры управления воротами.
+// Максимальное время подъёма или опускания до срабатывания концевика, секунды.
+constexpr uint8_t kGateMotionTimeoutSec = 15u;
+static_assert(kGateMotionTimeoutSec > 0u, "Gate motion timeout must be positive");
+
 // Команда управления воротами через единый API.
 enum class GateControlCommand : uint8_t
 {

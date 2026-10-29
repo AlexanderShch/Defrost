@@ -187,11 +187,11 @@ void GateControl_Update1s(void)
 		}
 		else
 		{
-			if (gateUpElapsedSec < 10)
+			if (gateUpElapsedSec < kGateMotionTimeoutSec)
 			{
 				++gateUpElapsedSec;
 			}
-			if (gateUpElapsedSec >= 10)
+			if (gateUpElapsedSec >= kGateMotionTimeoutSec)
 			{
 				gateRegister.Gate_Up = 0;
 				GateControl_ReleaseDblIfIdle(gateRegister);
@@ -223,11 +223,11 @@ void GateControl_Update1s(void)
 		}
 		else
 		{
-			if (gateDownElapsedSec < 10)
+			if (gateDownElapsedSec < kGateMotionTimeoutSec)
 			{
 				++gateDownElapsedSec;
 			}
-			if (gateDownElapsedSec >= 10)
+			if (gateDownElapsedSec >= kGateMotionTimeoutSec)
 			{
 				gateRegister.Gate_Down = 0;
 				GateControl_ReleaseDblIfIdle(gateRegister);

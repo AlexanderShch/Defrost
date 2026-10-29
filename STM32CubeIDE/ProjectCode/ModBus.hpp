@@ -131,9 +131,10 @@ typedef enum
 //osThreadId MB_Slave_TaskHandle;
 extern osThreadId MB_Master_TaskHandle;
 extern osMessageQId MB_MasterQHandle;
+// Чтение датчика Т/Н или регистров DO/DI модуля IO с сохранением результата.
 MB_Error_t Sensor_Read(uint8_t SensIndex);
-
-void MB_Master_Init(void);
+// Запись 16 выходов IO перед опросом Т/Н; возвращает статус записи.
+MB_Error_t MB_IO_WriteOutputs(uint8_t SensIndex, uint16_t outputs);
 /* Подготовка UART5 (датчики): abort/flush RX, DE=приём, сброс семафоров TX/RX. */
 void MB_Master_RxChannelPrepare(void);
 void ProgrammingSensor(void);
