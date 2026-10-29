@@ -106,9 +106,25 @@ static void DetectSensorCommunicationAlarmsAfterPoll(void)
 static uint16_t HandleDeviceAlarmsForOutput(uint16_t commandRegister)
 {
 	// Только новый режим: отказавшие исполнительные устройства не включаем.
+	// Алгоритм при этом не останавливается (стоп — только ворота/заслонка).
 	if (DefrostControl_UsesNewWrkAlrAlgorithm() == 0u || Model::Flag_DFR_manual != 0u)
 		return commandRegister;
-	return (uint16_t)(commandRegister & (uint16_t)~(Model::Device_AlarmFlags & 0x01FFu));
+
+	const uint16_t alarmBits = (uint16_t)(Model::Device_AlarmFlags & 0x01FFu);
+	uint16_t forceOffMask = alarmBits; // аварийный вентилятор/ТЭН/вытяжка — бит в DO гасим
+
+	// Авария вентилятора стороны: гасим оба ТЭНа этой стороны сразу в команде DO
+	// (иначе до EnforceHeaterInterlockByFans после чтения DI ТЭНы ещё ~1 с остаются включёнными).
+	const uint16_t kLeftFans  = (uint16_t)((1u << 0) | (1u << 1));
+	const uint16_t kRightFans = (uint16_t)((1u << 2) | (1u << 3));
+	const uint16_t kLeftTens  = (uint16_t)((1u << 4) | (1u << 5));
+	const uint16_t kRightTens = (uint16_t)((1u << 6) | (1u << 7));
+	if ((alarmBits & kLeftFans) != 0u)
+		forceOffMask |= kLeftTens;
+	if ((alarmBits & kRightFans) != 0u)
+		forceOffMask |= kRightTens;
+
+	return (uint16_t)(commandRegister & (uint16_t)~forceOffMask);
 }
 
 // Определение статических переменных.
