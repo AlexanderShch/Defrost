@@ -3,6 +3,8 @@
 
 #include <gui_generated/visualization_screen/VisualizationViewBase.hpp>
 #include <gui/visualization_screen/VisualizationPresenter.hpp>
+#include <touchgfx/widgets/canvas/Circle.hpp>
+#include <touchgfx/widgets/canvas/PainterRGB565.hpp>
 
 class VisualizationView : public VisualizationViewBase
 {
@@ -48,7 +50,14 @@ public:
     /** Анимации по Model::DFR_current (работает/выключено); каждый тик, не зависит от DEVICE_SWITCH_CHECK_ENABLED. */
     void syncEquipmentAnimationsFromDisplayedState(void);
 
+    /** Две капли над рыбками: видны только при включённой форсунке (_Inj). */
+    void syncInjectorDropIndicator(void);
+
 protected:
+    touchgfx::Circle injDropLeft;
+    touchgfx::PainterRGB565 injDropLeftPainter;
+    touchgfx::Circle injDropRight;
+    touchgfx::PainterRGB565 injDropRightPainter;
 
 };
 

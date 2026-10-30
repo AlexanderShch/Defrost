@@ -151,14 +151,17 @@ void VisualizationPresenter::ValUpdatePresenter()
     	view.Val_Water_Flap_UpdateView(Model::DFR_current.Water_Flap);
  	};
 
-	// Авария по рассогласованию выход/вход: красный текст и принудительная видимость метки
-	view.syncDeviceAlarmIndicators();
-
 	// Вытяжка и положение заслонки по дискретным входам
 	view.syncExhaustFanAndFlapFromInputs();
 
+	// Аварии поверх положения: Flap_Alarm перекрывает иконку заслонки
+	view.syncDeviceAlarmIndicators();
+
 	// Анимации по DFR_current: при активном IO — факт с DI; иначе активный регистр команд (см. Data.cpp).
 	view.syncEquipmentAnimationsFromDisplayedState();
+
+	// Капелька у центральных T/H — только при _Inj=1
+	view.syncInjectorDropIndicator();
 
 //	DFR_chng_flag.Vent1_Left = 1;
 //	DFR_current.Vent2_Left = 1;

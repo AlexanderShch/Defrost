@@ -67,10 +67,34 @@ VisualizationView::VisualizationView()
 void VisualizationView::setupScreen()
 {
     VisualizationViewBase::setupScreen();
+
+	// Две капли над T рыбы (ValueCoreT1Small 73,226 / ValueCoreT2Small 133,226).
+	const touchgfx::colortype dropColor = touchgfx::Color::getColorFromRGB(52, 94, 116);
+	injDropLeft.setPosition(84, 208, 12, 12);
+	injDropLeft.setCenter(6, 6);
+	injDropLeft.setRadius(6);
+	injDropLeft.setLineWidth(0);
+	injDropLeft.setArc(0, 360);
+	injDropLeftPainter.setColor(dropColor);
+	injDropLeft.setPainter(injDropLeftPainter);
+	injDropLeft.setVisible(false);
+	add(injDropLeft);
+
+	injDropRight.setPosition(144, 208, 12, 12);
+	injDropRight.setCenter(6, 6);
+	injDropRight.setRadius(6);
+	injDropRight.setLineWidth(0);
+	injDropRight.setArc(0, 360);
+	injDropRightPainter.setColor(dropColor);
+	injDropRight.setPainter(injDropRightPainter);
+	injDropRight.setVisible(false);
+	add(injDropRight);
+
 	// Анимация вытяжки должна работать непрерывно (не останавливаем в setup).
 	syncExhaustFanAndFlapFromInputs();
 	// Подтянуть анимации к текущему DFR_current (в т.ч. если флаги смены не сработали).
 	syncEquipmentAnimationsFromDisplayedState();
+	syncInjectorDropIndicator();
 }
 
 void VisualizationView::tearDownScreen()
@@ -436,9 +460,19 @@ void VisualizationView::syncDeviceAlarmIndicators()
 	Vent_Out_Alarm.setVisible(ventOutAlarm && alarmBlinkOn);
 	Vent_Out_Alarm.invalidate();
 
-	// Авария заслонки (бит 11)
+	// Авария заслонки (бит 11): только красный квадрат, без иконки Open/Close/Moving под ним.
 	const bool flapAlarm = (af & (1u << 11)) != 0;
+	Flap_Alarm.setColor(colorAlarm);
 	Flap_Alarm.setVisible(flapAlarm && alarmBlinkOn);
+	if (flapAlarm)
+	{
+		Flap.setVisible(false);
+		Flap_Open.setVisible(false);
+		Flap_Close.setVisible(false);
+		Flap.invalidate();
+		Flap_Open.invalidate();
+		Flap_Close.invalidate();
+	}
 	Flap_Alarm.invalidate();
 }
 
@@ -466,6 +500,18 @@ void VisualizationView::syncExhaustFanAndFlapFromInputs()
 	}
 	AnimFan_Out.invalidate();
 
+	// При аварии заслонки положение не рисуем — мигает только красный Flap_Alarm.
+	if ((Model::Device_AlarmFlags & (uint16_t)(1u << 11)) != 0u)
+	{
+		Flap.setVisible(false);
+		Flap_Open.setVisible(false);
+		Flap_Close.setVisible(false);
+		Flap.invalidate();
+		Flap_Open.invalidate();
+		Flap_Close.invalidate();
+		return;
+	}
+
 	const uint8_t waterFlapCmd = (Model::Flag_DFR_manual != 0)
 		? (uint8_t)Model::DFR_manual.Water_Flap
 		: (uint8_t)Model::DFR_current.Water_Flap;
@@ -476,7 +522,6 @@ void VisualizationView::syncExhaustFanAndFlapFromInputs()
 	const bool showFlap = (flapState == AirFlapState::Moving);
 	const bool showOpen = (flapState == AirFlapState::Open);
 	const bool showClose = (flapState == AirFlapState::Closed);
-	// Состояние Invalid (оба входа = 1): ни один виджет не показываем.
 
 	Flap.setVisible(showFlap);
 	Flap_Open.setVisible(showOpen);
@@ -491,5 +536,17 @@ void VisualizationView::syncEquipmentAnimationsFromDisplayedState()
 	AnimFan34_Switch();
 	AnimHeat12_Switch();
 	AnimHeat34_Switch();
+}
+
+void VisualizationView::syncInjectorDropIndicator()
+{
+	const uint8_t injOn = (Model::Flag_DFR_manual != 0)
+		? (uint8_t)Model::DFR_manual._Inj
+		: (uint8_t)Model::DFR_current._Inj;
+	const bool show = (injOn != 0u);
+	injDropLeft.setVisible(show);
+	injDropRight.setVisible(show);
+	injDropLeft.invalidate();
+	injDropRight.invalidate();
 }
 

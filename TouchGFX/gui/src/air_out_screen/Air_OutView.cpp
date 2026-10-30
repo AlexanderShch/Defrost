@@ -2,6 +2,7 @@
 #include <gui/common/AirFlapState.hpp>
 #include <gui/common/ExhaustOutputState.hpp>
 #include <gui/model/Model.hpp>
+#include <touchgfx/Color.hpp>
 
 #include <stdint.h>
 
@@ -87,9 +88,15 @@ void Air_OutView::syncExhaustFanAndFlapFromInputs()
 		waterFlapCmd,
 		(unsigned char)Model::DI_DFR.Bits.Air_Open);
 
-	const bool showFlapOn = (flapState == AirFlapState::Open);
-	const bool showFlapOff = (flapState == AirFlapState::Closed);
-	const bool showFlapMoving = (flapState == AirFlapState::Moving);
+	// Мигать аварийными надписями синхронно с красной лампой _Alr.
+	const bool alarmBlinkOnPhase = (Model::DFR_current._Alr != 0u);
+	const uint16_t deviceAlarmFlags = Model::Device_AlarmFlags;
+	const bool flapAlarmActive = (deviceAlarmFlags & kFlapAlarmBit) != 0u;
+	const bool outFanAlarmActive = (deviceAlarmFlags & kOutFanAlarmBit) != 0u;
+
+	const bool showFlapOn = (!flapAlarmActive) && (flapState == AirFlapState::Open);
+	const bool showFlapOff = (!flapAlarmActive) && (flapState == AirFlapState::Closed);
+	const bool showFlapMoving = (!flapAlarmActive) && (flapState == AirFlapState::Moving);
 
 	Flap_On.setVisible(showFlapOn);
 	Flap_Off.setVisible(showFlapOff);
@@ -98,15 +105,10 @@ void Air_OutView::syncExhaustFanAndFlapFromInputs()
 	Flap_Off.invalidate();
 	Flap.invalidate();
 
-	// Мигать аварийными надписями синхронно с красной лампой _Alr.
-	const bool alarmBlinkOnPhase = (Model::DFR_current._Alr != 0u);
-	const uint16_t deviceAlarmFlags = Model::Device_AlarmFlags;
-	const bool flapAlarmActive = (deviceAlarmFlags & kFlapAlarmBit) != 0u;
-	const bool outFanAlarmActive = (deviceAlarmFlags & kOutFanAlarmBit) != 0u;
-
 	const bool showFlapAlarmLabel = flapAlarmActive && alarmBlinkOnPhase;
 	const bool showFanAlarmLabel = outFanAlarmActive && alarmBlinkOnPhase;
 
+	LabelFlapAlarm.setColor(touchgfx::Color::getColorFromRGB(255, 0, 0));
 	LabelFlapAlarm.setVisible(showFlapAlarmLabel);
 	Label_AirFlap.setVisible(!showFlapAlarmLabel);
 	LabelAirFanAlarm.setVisible(showFanAlarmLabel);
