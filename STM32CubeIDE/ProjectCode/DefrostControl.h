@@ -10,7 +10,7 @@
 
 #define DEFROST_PHASE_COUNT 3
 #define DEFROST_MAX_SENSOR_COUNT 6   /* в алгоритме участвуют только датчики 0..5 */
-/** Таймаут достижения положения заслонки по Air_Open/Air_Close, с (UpdateDeviceAlarmState + ModBus). */
+/** Таймаут достижения конечного положения заслонки по Air_Open_Close, с (UpdateDeviceAlarmState + ModBus). */
 #define DEFROST_FLAP_POSITION_TIMEOUT_S  18u
 
 typedef enum {

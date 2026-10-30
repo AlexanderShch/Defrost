@@ -80,9 +80,12 @@ void Air_OutView::syncExhaustFanAndFlapFromInputs()
 	anim_AirFan.invalidate();
 
 	// Отображение положения заслонки по входным сигналам DI.
+	const unsigned char waterFlapCmd = (Model::Flag_DFR_manual != 0)
+		? (unsigned char)Model::DFR_manual.Water_Flap
+		: (unsigned char)Model::DFR_current.Water_Flap;
 	const AirFlapState flapState = ResolveAirFlapState(
-		(unsigned char)Model::DI_DFR.Bits.Air_Open,
-		(unsigned char)Model::DI_DFR.Bits.Air_Close);
+		waterFlapCmd,
+		(unsigned char)Model::DI_DFR.Bits.Air_Open_Close);
 
 	const bool showFlapOn = (flapState == AirFlapState::Open);
 	const bool showFlapOff = (flapState == AirFlapState::Closed);

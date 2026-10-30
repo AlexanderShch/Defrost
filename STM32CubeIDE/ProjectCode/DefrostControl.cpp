@@ -532,7 +532,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        uint8_t shutdownGateOpenSawActive = 0; // 1 — в этом шаге уже была активна команда Open (защита от гонки с Arm)
        uint8_t shutdownGateOpenPhase_s = 0;   // секунды в шаге FullGateOpen (таймаут, если Open так и не стала активной)
        uint8_t shutdownStage = 0; // текущее состояние post-shutdown (см. ShutdownStage)
-        uint16_t shutdownFlapOpenWait_s = 0; // без DeviceSwitchCheck: ожидание Air_Open в Ventilation; на FullGateOpen — ожидание закрытия по времени
+        uint16_t shutdownFlapOpenWait_s = 0; // без DeviceSwitchCheck: ожидание Air_Open_Close в Ventilation; на FullGateOpen — ожидание закрытия по времени
         uint8_t startPendingAfterShutdown = 0; // START получен во время post-shutdown; запуск отложен до полного завершения останова
         uint8_t alarmBlinkPhase = 0;    // фаза мигания аварийной лампы: 0/1 (1 Гц)
         uint8_t legacyWrkPulsePending = 0; // серверный СТАРТ ожидает следующего снимка выходного регистра
@@ -544,6 +544,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         uint16_t flapTransitionElapsed_s = 0; // длительность текущего перехода заслонки по концевикам
         uint8_t flapDesiredOpenPrev = 0;      // предыдущее заданное состояние заслонки (0/1)
         uint8_t flapDesiredOpenPrevValid = 0; // признак инициализации flapDesiredOpenPrev
+        uint8_t flapSawLeaveEnd = 0;          // после смены Water_Flap видели Air_Open_Close=0 (уход с конца)
         uint8_t flapAlarm = 0;                // авария заслонки: переход не завершился за таймаут
         uint8_t stagedVent1LeftOn = 0;
         uint8_t stagedVent2LeftOn = 0;
@@ -613,6 +614,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.flapTransitionElapsed_s = 0;
        g.flapDesiredOpenPrev = 0;
        g.flapDesiredOpenPrevValid = 0;
+       g.flapSawLeaveEnd = 0;
        g.flapAlarm = 0;
        g.stagedVent1LeftOn = 0;
        g.stagedVent2LeftOn = 0;
@@ -787,17 +789,30 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         if (deviceSwitchCheckEnabled)
         {
             const uint8_t desiredOpen = ((Model::Flag_DFR_manual != 0u) ? Model::DFR_manual.Water_Flap : Model::DFR.Water_Flap) ? 1u : 0u;
-            const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
-            const uint8_t airClose = (Model::DI_DFR.Bits.Air_Close != 0u) ? 1u : 0u;
-            const uint8_t flapReached = desiredOpen ? ((airOpen != 0u && airClose == 0u) ? 1u : 0u)
-                                                    : ((airClose != 0u && airOpen == 0u) ? 1u : 0u);
-            if (g.flapDesiredOpenPrevValid == 0u || g.flapDesiredOpenPrev != desiredOpen)
+            // Один концевик Air_Open_Close: 0=ход, 1=любой конец; открыто/закрыто — по Water_Flap.
+            // После смены команды ждём уход с конца (0), затем приход на новый конец (1),
+            // иначе старый Air_Open_Close=1 ложно считается «уже на месте».
+            const uint8_t atEnd = (Model::DI_DFR.Bits.Air_Open_Close != 0u) ? 1u : 0u;
+            if (g.flapDesiredOpenPrevValid == 0u)
             {
                 g.flapDesiredOpenPrev = desiredOpen;
                 g.flapDesiredOpenPrevValid = 1u;
                 g.flapTransitionElapsed_s = 0u;
                 g.flapAlarm = 0u;
+                g.flapSawLeaveEnd = 1u; // старт: синхронизируемся с текущим концом
             }
+            else if (g.flapDesiredOpenPrev != desiredOpen)
+            {
+                g.flapDesiredOpenPrev = desiredOpen;
+                g.flapTransitionElapsed_s = 0u;
+                g.flapAlarm = 0u;
+                g.flapSawLeaveEnd = (atEnd == 0u) ? 1u : 0u;
+            }
+            if (atEnd == 0u)
+            {
+                g.flapSawLeaveEnd = 1u;
+            }
+            const uint8_t flapReached = ((g.flapSawLeaveEnd != 0u) && (atEnd != 0u)) ? 1u : 0u;
             if (flapReached != 0u)
             {
                 g.flapTransitionElapsed_s = 0u;
@@ -820,6 +835,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
             // При отключённой проверке не формируем аварии _Out/заслонки и очищаем их.
             g.flapTransitionElapsed_s = 0u;
             g.flapDesiredOpenPrevValid = 0u;
+            g.flapSawLeaveEnd = 0u;
             g.flapAlarm = 0u;
         }
 
@@ -873,6 +889,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         g.flapAlarm = 0u;
         g.flapTransitionElapsed_s = 0u;
         g.flapDesiredOpenPrevValid = 0u;
+        g.flapSawLeaveEnd = 0u;
         const uint16_t sensorDeviceBits = (uint16_t)(kProductFallenLeftBit | kProductFallenRightBit | (uint16_t)(1u << 12));
         Model::Device_Alarm = (Model::Sensor_AlarmFlags != 0u ||
             (Model::Device_AlarmFlags & sensorDeviceBits) != 0u) ? 1u : 0u;
@@ -1082,8 +1099,10 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          else
              Model::DFR.Water_Flap = 0u;
 
+         // Water_Flap=1: открытие подтверждено после ухода с конца и Air_Open_Close=1.
          const uint8_t flapOpened =
-             ((Model::DI_DFR.Bits.Air_Open != 0u) && (Model::DI_DFR.Bits.Air_Close == 0u)) ? 1u : 0u;
+             ((Model::DFR.Water_Flap != 0u) && (g.flapSawLeaveEnd != 0u) &&
+              (Model::DI_DFR.Bits.Air_Open_Close != 0u)) ? 1u : 0u;
 
          if (g.outDamperState == 1u)
          {
@@ -1709,7 +1728,7 @@ static void ProcessShutdownStage1s()
     {
         // Шаг 2: продувка перед полным открытием ворот.
         // Авария заслонки или Vent_Out → шаг пропускаем (сразу FullGateOpen), алгоритм уже остановлен штатно.
-        // Без DeviceSwitchCheck: таймаут ожидания Air_Open; Vent_Out не учитываем.
+        // Без DeviceSwitchCheck: таймаут ожидания Air_Open_Close; Vent_Out не учитываем.
         if (ShouldSkipShutdownVentilation() != 0u)
         {
             if ((Model::Device_AlarmFlags & (uint16_t)(1u << 11)) != 0u || g.flapAlarm != 0u)
@@ -1719,9 +1738,9 @@ static void ProcessShutdownStage1s()
         else
         {
         Model::DFR.Water_Flap = 1u;
-        const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
-        const uint8_t airClose = (Model::DI_DFR.Bits.Air_Close != 0u) ? 1u : 0u;
-        const uint8_t flapOpened = (airOpen != 0u && airClose == 0u) ? 1u : 0u;
+        // Water_Flap=1: открытие = уход с конца + снова Air_Open_Close=1 (см. DetectFlapAlarm1s).
+        const uint8_t flapOpened =
+            ((g.flapSawLeaveEnd != 0u) && (Model::DI_DFR.Bits.Air_Open_Close != 0u)) ? 1u : 0u;
         const uint8_t switchCheckOn = (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u) ? 1u : 0u;
         const uint8_t flapTimedOut = (switchCheckOn != 0u)
             ? ((g.flapAlarm != 0u) ? 1u : 0u)
@@ -1794,10 +1813,10 @@ static void ProcessShutdownStage1s()
             ShutdownEnterFullGateOpenArm();   // переходим к шагу полного открытия ворот
         }
 
-        const uint8_t switchCheckOn = (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u) ? 1u : 0u;   // включена ли проверка устройств
-        const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;   // сигнал от концевика Air_Open
-        const uint8_t airClose = (Model::DI_DFR.Bits.Air_Close != 0u) ? 1u : 0u;   // сигнал от концевика Air_Close 
-        const uint8_t flapClosedOk = (airClose != 0u && airOpen == 0u) ? 1u : 0u;   // заслонка закрыта
+        const uint8_t switchCheckOn = (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u) ? 1u : 0u;
+        // Water_Flap=0: закрытие = уход с конца + снова Air_Open_Close=1.
+        const uint8_t flapClosedOk =
+            ((g.flapSawLeaveEnd != 0u) && (Model::DI_DFR.Bits.Air_Open_Close != 0u)) ? 1u : 0u;
 
         uint8_t flapCloseWaitDone = 0u;
         if (switchCheckOn != 0u)   // если проверка устройств включена

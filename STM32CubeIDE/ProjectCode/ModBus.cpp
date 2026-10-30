@@ -249,7 +249,7 @@ static void RecordDeviceAlarmBits(uint16_t mismatchMask)
 
 // При включённой проверке устройств: после успешного опроса IO сравниваем DO/DI по маске.
 // Исключение «закрытие/открытие по таймауту» при debugDisableDeviceSwitchCheck: этот блок не вызывается.
-// Промежуток Air_Open=0, Air_Close=0 — ход заслонки, не считаем ошибкой соответствия Water_Flap.
+// Air_Open_Close=0 — ход заслонки; 1 — любое конечное положение (открыто/закрыто по Water_Flap).
 static void DetectDeviceAlarmsAfterIoRead(void)
 {
 	const uint16_t doNow = (uint16_t)(Model::DO_DFR.Raw & kDeviceCheckMask);
@@ -264,49 +264,21 @@ static void DetectDeviceAlarmsAfterIoRead(void)
 
 static void DetectFlapAlarmAfterIoRead(void)
 {
-	const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
-	const uint8_t airClose = (Model::DI_DFR.Bits.Air_Close != 0u) ? 1u : 0u;
-	const uint8_t flapOpened = (airOpen != 0u && airClose == 0u) ? 1u : 0u;
-	const uint8_t flapClosedOk = (airClose != 0u && airOpen == 0u) ? 1u : 0u;
-	const uint8_t diMoving = (airOpen == 0u && airClose == 0u) ? 1u : 0u;
-	const uint8_t diInvalid = (airOpen != 0u && airClose != 0u) ? 1u : 0u;
-
-	const uint8_t desiredOpen =
-		((Model::Flag_DFR_manual != 0u) ? Model::DFR_manual.Water_Flap : Model::DFR.Water_Flap) ? 1u : 0u;
+	// Один концевик: 0 = движение, 1 = конечное положение (какое — по команде Water_Flap).
+	const uint8_t atEnd = (Model::DI_DFR.Bits.Air_Open_Close != 0u) ? 1u : 0u;
+	const uint8_t diMoving = (atEnd == 0u) ? 1u : 0u;
 
 	uint8_t flapMismatch = 0u;
-	if (diInvalid != 0u)
+	if (diMoving != 0u)
 	{
-		flapMismatch = 1u;
-	}
-	else if (diMoving != 0u)
-	{
-		// Оба концевика 0 — ход заслонки; не сравниваем с Water_Flap.
-		flapMismatch = 0u;
-	}
-	else
-	{
-		// Та же грация по времени, что в DetectFlapAlarm1s (секунды после смены Water_Flap).
+		// Ход заслонки — не ошибка, пока не истёк таймаут (как в DetectFlapAlarm1s).
 		const uint16_t flapElapsed = DefrostControl_GetFlapTransitionElapsedSForSwitchCheck();
-		const uint8_t flapGrace = (flapElapsed < (uint16_t)DEFROST_FLAP_POSITION_TIMEOUT_S) ? 1u : 0u;
-		if (flapGrace == 0u)
+		if (flapElapsed >= (uint16_t)DEFROST_FLAP_POSITION_TIMEOUT_S)
 		{
-			if (desiredOpen != 0u)
-			{
-				if (flapOpened == 0u)
-				{
-					flapMismatch = 1u;
-				}
-			}
-			else
-			{
-				if (flapClosedOk == 0u)
-				{
-					flapMismatch = 1u;
-				}
-			}
+			flapMismatch = 1u;
 		}
 	}
+	// atEnd=1: положение достигнуто (открыто при Water_Flap=1, закрыто при Water_Flap=0).
 
 	if (flapMismatch != 0u)
 	{

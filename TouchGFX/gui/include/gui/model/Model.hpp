@@ -82,8 +82,8 @@ typedef union
 		unsigned Ten1_Right:1;   // IN6 / I6  - Правый ТЭН №1
 		unsigned Ten2_Right:1;   // IN7 / I7  - Правый ТЭН №2
 		unsigned Vent_Out:1;     // IN8 / I10 - Вытяжной вентилятор
-		unsigned Air_Open:1;     // IN9 / I11 - Заслонка открыта
-		unsigned Air_Close:1;    // IN10 / I12 - Заслонка закрыта
+		unsigned Air_Open_unused:1; // IN9 / I11 - не используется (один концевик на IN10)
+		unsigned Air_Open_Close:1;  // IN10 / I12 - концевик конечного положения заслонки (1=открыта или закрыта)
 		unsigned Gate_Alarm:1;   // IN11 / I13 - Аварийное открытие ворот
 		unsigned Gate_Close:1;   // IN12 / I14 - Ворота закрыты (концевик)
 		unsigned Gate_Open:1;    // IN13 / I15 - Ворота открыты (концевик)

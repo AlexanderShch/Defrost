@@ -42,7 +42,7 @@ public:
     /** Аварийная подсветка StateHeat/StateFan по Model::Device_AlarmFlags; без аварии — как по DFR_current. */
     void syncDeviceAlarmIndicators(void);
 
-    /** Вытяжка AnimFan_Out по входу Vent_Out; заслонки Flap / Flap_Open / Flap_Close по Air_Open, Air_Close (Model::DI_DFR). */
+    /** Вытяжка AnimFan_Out по Vent_Out; заслонки — по Water_Flap + Air_Open_Close (Model::DI_DFR). */
     void syncExhaustFanAndFlapFromInputs(void);
 
     /** Анимации по Model::DFR_current (работает/выключено); каждый тик, не зависит от DEVICE_SWITCH_CHECK_ENABLED. */

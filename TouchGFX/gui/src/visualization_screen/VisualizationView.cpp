@@ -466,9 +466,12 @@ void VisualizationView::syncExhaustFanAndFlapFromInputs()
 	}
 	AnimFan_Out.invalidate();
 
+	const uint8_t waterFlapCmd = (Model::Flag_DFR_manual != 0)
+		? (uint8_t)Model::DFR_manual.Water_Flap
+		: (uint8_t)Model::DFR_current.Water_Flap;
 	const AirFlapState flapState = ResolveAirFlapState(
-		(uint8_t)Model::DI_DFR.Bits.Air_Open,
-		(uint8_t)Model::DI_DFR.Bits.Air_Close);
+		waterFlapCmd,
+		(uint8_t)Model::DI_DFR.Bits.Air_Open_Close);
 
 	const bool showFlap = (flapState == AirFlapState::Moving);
 	const bool showOpen = (flapState == AirFlapState::Open);

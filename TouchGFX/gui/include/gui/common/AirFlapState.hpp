@@ -3,27 +3,24 @@
 
 enum class AirFlapState : unsigned char
 {
-    Moving = 0, // Air_Open=0, Air_Close=0
-    Open,       // Air_Open=1, Air_Close=0
-    Closed,     // Air_Open=0, Air_Close=1
-    Invalid     // Air_Open=1, Air_Close=1
+    Moving = 0, // Air_Open_Close=0 — ход заслонки
+    Open,       // Water_Flap=1 и Air_Open_Close=1
+    Closed,     // Water_Flap=0 и Air_Open_Close=1
+    Invalid     // зарезервировано (один концевик не даёт противоречия Open+Close)
 };
 
-inline AirFlapState ResolveAirFlapState(unsigned char airOpen, unsigned char airClose)
+/** Положение заслонки: конец хода по Air_Open_Close, открыто/закрыто — по команде Water_Flap. */
+inline AirFlapState ResolveAirFlapState(unsigned char waterFlapOpen, unsigned char airOpenClose)
 {
-    if (airOpen != 0u && airClose == 0u)
-    {
-        return AirFlapState::Open;
-    }
-    if (airOpen == 0u && airClose != 0u)
-    {
-        return AirFlapState::Closed;
-    }
-    if (airOpen == 0u && airClose == 0u)
+    if (airOpenClose == 0u)
     {
         return AirFlapState::Moving;
     }
-    return AirFlapState::Invalid;
+    if (waterFlapOpen != 0u)
+    {
+        return AirFlapState::Open;
+    }
+    return AirFlapState::Closed;
 }
 
 #endif // AIRFLAPSTATE_HPP
