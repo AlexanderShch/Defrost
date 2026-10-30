@@ -82,9 +82,9 @@ typedef union
 		unsigned Ten1_Right:1;   // IN6 / I6  - Правый ТЭН №1
 		unsigned Ten2_Right:1;   // IN7 / I7  - Правый ТЭН №2
 		unsigned Vent_Out:1;     // IN8 / I10 - Вытяжной вентилятор
-		unsigned Air_Open_unused:1; // IN9 / I11 - не используется (один концевик на IN10)
-		unsigned Air_Open_Close:1;  // IN10 / I12 - концевик конечного положения заслонки (1=открыта или закрыта)
-		unsigned Gate_Alarm:1;   // IN11 / I13 - Аварийное открытие ворот
+		unsigned Air_Open_unused:1; // IN9 / I11 - не используется
+		unsigned Air_Open:1;     // IN10 / I12 - заслонка: 1=открыта, 0=закрыта
+		unsigned Gate_Alarm:1;   // IN11 / I13 - ворота: 1=норма, 0=авария
 		unsigned Gate_Close:1;   // IN12 / I14 - Ворота закрыты (концевик)
 		unsigned Gate_Open:1;    // IN13 / I15 - Ворота открыты (концевик)
 		unsigned But_Start:1;    // IN14 / I16 - Кнопка ПУСК
@@ -131,7 +131,7 @@ public:
     // Состояние ворот от модуля ввода-вывода (входные сигналы)
     static uint8_t Gate_Alarm;  // программный флаг аварийного режима ворот, устанавливается алгоритмом, если за 10 секунд не поступит аппаратный сигнал откр/закр
     static uint8_t Gate_Alarm_Program; // программная авария ворот (таймаут движения по концевикам)
-    static uint8_t Gate_Alarm_Hardware; // аппаратная авария ворот (вход Gate_Alarm с модуля IO)
+    static uint8_t Gate_Alarm_Hardware; // аппаратная авария ворот (DI Gate_Alarm=0; 1=норма)
     static uint8_t Device_Alarm; // общий флаг аварии устройства (для красной лампы)
     static uint8_t Gate_PosTop;    // флаг конечного положения "ворота вверху" (для аварийного режима) программный
     static uint8_t Gate_PosBottom; // флаг конечного положения "ворота внизу" (для аварийного режима) программный

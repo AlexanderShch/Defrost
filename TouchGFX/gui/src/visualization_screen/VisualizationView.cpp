@@ -471,7 +471,7 @@ void VisualizationView::syncExhaustFanAndFlapFromInputs()
 		: (uint8_t)Model::DFR_current.Water_Flap;
 	const AirFlapState flapState = ResolveAirFlapState(
 		waterFlapCmd,
-		(uint8_t)Model::DI_DFR.Bits.Air_Open_Close);
+		(uint8_t)Model::DI_DFR.Bits.Air_Open);
 
 	const bool showFlap = (flapState == AirFlapState::Moving);
 	const bool showOpen = (flapState == AirFlapState::Open);

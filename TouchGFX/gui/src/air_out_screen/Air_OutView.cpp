@@ -85,7 +85,7 @@ void Air_OutView::syncExhaustFanAndFlapFromInputs()
 		: (unsigned char)Model::DFR_current.Water_Flap;
 	const AirFlapState flapState = ResolveAirFlapState(
 		waterFlapCmd,
-		(unsigned char)Model::DI_DFR.Bits.Air_Open_Close);
+		(unsigned char)Model::DI_DFR.Bits.Air_Open);
 
 	const bool showFlapOn = (flapState == AirFlapState::Open);
 	const bool showFlapOff = (flapState == AirFlapState::Closed);

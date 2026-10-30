@@ -249,7 +249,6 @@ static void RecordDeviceAlarmBits(uint16_t mismatchMask)
 
 // При включённой проверке устройств: после успешного опроса IO сравниваем DO/DI по маске.
 // Исключение «закрытие/открытие по таймауту» при debugDisableDeviceSwitchCheck: этот блок не вызывается.
-// Air_Open_Close=0 — ход заслонки; 1 — любое конечное положение (открыто/закрыто по Water_Flap).
 static void DetectDeviceAlarmsAfterIoRead(void)
 {
 	const uint16_t doNow = (uint16_t)(Model::DO_DFR.Raw & kDeviceCheckMask);
@@ -264,31 +263,22 @@ static void DetectDeviceAlarmsAfterIoRead(void)
 
 static void DetectFlapAlarmAfterIoRead(void)
 {
-	// Один концевик: 0 = движение, 1 = конечное положение (какое — по команде Water_Flap).
-	const uint8_t atEnd = (Model::DI_DFR.Bits.Air_Open_Close != 0u) ? 1u : 0u;
-	const uint8_t diMoving = (atEnd == 0u) ? 1u : 0u;
+	// Air_Open: 1=открыта, 0=закрыта. Рассогласование с Water_Flap после таймаута хода.
+	const uint8_t desiredOpen = ((Model::Flag_DFR_manual != 0u) ? Model::DFR_manual.Water_Flap : Model::DFR.Water_Flap) ? 1u : 0u;
+	const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
+	const uint8_t flapReached = desiredOpen ? airOpen : ((airOpen == 0u) ? 1u : 0u);
+	if (flapReached != 0u)
+		return;
 
-	uint8_t flapMismatch = 0u;
-	if (diMoving != 0u)
-	{
-		// Ход заслонки — не ошибка, пока не истёк таймаут (как в DetectFlapAlarm1s).
-		const uint16_t flapElapsed = DefrostControl_GetFlapTransitionElapsedSForSwitchCheck();
-		if (flapElapsed >= (uint16_t)DEFROST_FLAP_POSITION_TIMEOUT_S)
-		{
-			flapMismatch = 1u;
-		}
-	}
-	// atEnd=1: положение достигнуто (открыто при Water_Flap=1, закрыто при Water_Flap=0).
-
-	if (flapMismatch != 0u)
-	{
+	const uint16_t flapElapsed = DefrostControl_GetFlapTransitionElapsedSForSwitchCheck();
+	if (flapElapsed >= (uint16_t)DEFROST_FLAP_POSITION_TIMEOUT_S)
 		DefrostControl_NotifyFlapWaterDiMismatchFromIo();
-	}
 }
 
 static void DetectGateAlarmAfterIoRead(void)
 {
-	Model::Gate_Alarm_Hardware = (Model::DI_DFR.Bits.Gate_Alarm != 0u) ? 1u : 0u;
+	// DI Gate_Alarm: 1 = норма, 0 = аппаратная авария ворот.
+	Model::Gate_Alarm_Hardware = (Model::DI_DFR.Bits.Gate_Alarm == 0u) ? 1u : 0u;
 	Model::Gate_Alarm = ((Model::Gate_Alarm_Program != 0u) || (Model::Gate_Alarm_Hardware != 0u)) ? 1u : 0u;
 }
 
