@@ -2,3 +2,5 @@
 /TouchGFX/build/*
 /STM32CubeIDE/Debug/*
 /Middlewares/*
+# Локальные пути компилятора CubeIDE — не коммитить
+STM32CubeIDE/.settings/language.settings.xml
