@@ -51,10 +51,10 @@ typedef struct {
     uint16_t outHold_s;         /* минимальное время удержания состояния вытяжки (вкл/выкл) */
     uint16_t tenMinHold_s;      /* минимальное время удержания состояния ТЭНов (вкл/выкл) */
     uint16_t injMinHold_s;      /* минимальное время удержания состояния форсунки (вкл/выкл) */
-    /* Режим «только по воздуху» (без датчиков продукта): фаза по времени, макс. длительность, с */
-    uint16_t airOnlyPhaseWarmUp_s;   /* длительность фазы WarmUp, с (например 600 = 10 мин) */
-    uint16_t airOnlyPhasePlateau_s; /* конец фазы Plateau от старта, с (например 1800 = 30 мин) */
-    uint16_t maxRuntime_s;           /* макс. длительность процесса, с (например 7200 = 2 ч); после — нагрев отключается */
+    /* Режим «только по воздуху» (без датчиков продукта): фазы и лимит в минутах (до ≥24 ч) */
+    uint16_t airOnlyPhaseWarmUp_min;   /* длительность фазы WarmUp, мин (напр. 10) */
+    uint16_t airOnlyPhasePlateau_min; /* конец фазы Plateau от старта, мин (напр. 30) */
+    uint16_t maxRuntime_min;           /* макс. длительность процесса, мин (напр. 120); после — нагрев отключается */
     float fishColdTarget_C;          /* целевая мин. температура рыбы, °C; при достижении алгоритм останавливается */
     uint8_t debugDisableTargetTStop; /* 1 = не останавливать алгоритм по fishColdTarget_C (отладка), 0 = обычный автостоп */
     uint8_t debugDisableDeviceSwitchCheck; /* 1 = отключить проверку соответствия входов/выходов (отладка), 0 = проверка включена */
@@ -62,6 +62,7 @@ typedef struct {
     uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT]; /* 1=использовать датчик в дефросте, 0=игнорировать */
     uint8_t forbidHumidityReduceWhileRunning; /* 1 = не снижать влажность вытяжкой во время работы */
     float humidityThresholdRH_percent; /* пороговая RH %: снижение влажности в работе и конец продувки */
+    uint16_t purgeTimeout_s; /* таймаут продувки при останове, с (если RH недоступна или не достигнута) */
 } DefrostParams_t;
 
 typedef struct {
@@ -136,9 +137,9 @@ typedef struct __attribute__((packed)) {
     uint16_t outHold_s;
     uint16_t tenMinHold_s;
     uint16_t injMinHold_s;
-    uint16_t airOnlyPhaseWarmUp_s;
-    uint16_t airOnlyPhasePlateau_s;
-    uint16_t maxRuntime_s;
+    uint16_t airOnlyPhaseWarmUp_min;
+    uint16_t airOnlyPhasePlateau_min;
+    uint16_t maxRuntime_min;
     float fishColdTarget_C;          /* целевая мин. Т рыбы, °C; при fishCold_C >= fishColdTarget_C алгоритм останавливается */
     uint8_t debugDisableTargetTStop; /* 1 = не останавливать по fishColdTarget_C (отладка), 0 = автостоп включен */
     uint8_t debugDisableDeviceSwitchCheck; /* 1 = отключить проверку входов/выходов (отладка), 0 = проверка включена */
@@ -146,10 +147,11 @@ typedef struct __attribute__((packed)) {
     uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT];
     uint8_t forbidHumidityReduceWhileRunning; /* 1 = не снижать влажность вытяжкой во время работы */
     float humidityThresholdRH_percent; /* пороговая RH %: снижение в работе и конец продувки */
+    uint16_t purgeTimeout_s; /* таймаут продувки, с */
 } DefrostLogGlobalPayload_t;
 
 #ifdef __cplusplus
-static_assert(sizeof(DefrostLogGlobalPayload_t) == 58u, "Unexpected group 6 payload layout");
+static_assert(sizeof(DefrostLogGlobalPayload_t) == 60u, "Unexpected group 6 payload layout");
 #endif
 
 /* Регулярный лог (Type 0x01): сначала отфильтрованные температуры всех датчиков (°C),

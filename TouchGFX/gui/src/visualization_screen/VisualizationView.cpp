@@ -68,8 +68,8 @@ void VisualizationView::setupScreen()
 {
     VisualizationViewBase::setupScreen();
 
-	// Две капли над T рыбы (ValueCoreT1Small 73,226 / ValueCoreT2Small 133,226).
-	const touchgfx::colortype dropColor = touchgfx::Color::getColorFromRGB(52, 94, 116);
+	// Две капли над T рыбы — геометрические Circle (не PNG), ярко-голубые.
+	const touchgfx::colortype dropColor = touchgfx::Color::getColorFromRGB(0, 191, 255);
 	injDropLeft.setPosition(84, 208, 12, 12);
 	injDropLeft.setCenter(6, 6);
 	injDropLeft.setRadius(6);

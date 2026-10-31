@@ -55,7 +55,7 @@ typedef struct
 
 static DefrostParams_t g_defrostParams; // рабочие параметры дефростера
 static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ : DEFROST_MAX_SENSOR_COUNT;
-static const uint16_t kDefrostEepromVersion = 3u; // версия структуры в EEPROM (группа 6: +forbidHumidity/+thresholdRH)
+static const uint16_t kDefrostEepromVersion = 4u; // группа 6: минуты airOnly, +purgeTimeout_s
 static const uint16_t kDefrostEepromBaseAddress = 0u; // адрес начала записи в EEPROM
 static bool g_defrostEepromAvailable = false; // флаг, определяющий, доступна ли EEPROM
 static uint8_t g_defrostPersistedAutoMode = 0u; // бит, определяющий, включен ли режим авто-дефроста
@@ -276,9 +276,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         p->outHold_s = 15u;
         p->tenMinHold_s = 10u;
         p->injMinHold_s = 5u;
-        p->airOnlyPhaseWarmUp_s = 600u;   /* 10 мин */
-        p->airOnlyPhasePlateau_s = 1800u; /* 30 мин от старта */
-        p->maxRuntime_s = 7200u;           /* 2 ч */
+        p->airOnlyPhaseWarmUp_min = 10u;   /* 10 мин */
+        p->airOnlyPhasePlateau_min = 30u;  /* 30 мин от старта */
+        p->maxRuntime_min = 120u;          /* 2 ч */
         p->fishColdTarget_C = 6.0f;        /* целевая мин. Т рыбы °C; при достижении — автоостанов алгоритма */
         p->debugDisableTargetTStop = (uint8_t)DEFAULT_DEBUG_DISABLE_TARGET_T_STOP;
         p->debugDisableDeviceSwitchCheck = 0u; /* по умолчанию проверка DO->DI включена */
@@ -291,6 +291,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         /* По умолчанию вытяжку для снижения влажности во время работы не используем. */
         p->forbidHumidityReduceWhileRunning = 1u;
         p->humidityThresholdRH_percent = 50.0f; /* как прежний хардкод конца продувки */
+        p->purgeTimeout_s = 300u; /* 5 мин продувки по умолчанию */
     }
 
     static uint8_t IsPhaseIndexValid(uint8_t phaseIndex)
@@ -313,11 +314,17 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          return Phase::Finish;
      }
 
+     /** Параметры «только воздух» заданы в минутах; таймеры алгоритма — в секундах. */
+     static uint32_t AirOnlyMinToSec(uint16_t minutes)
+     {
+         return (uint32_t)minutes * 60u;
+     }
+
      // Режим «только по воздуху»: фаза по времени из параметров.
      static Phase SelectPhaseByTime(uint32_t runtime_s)
      {
-         const uint32_t tWarmUp  = (uint32_t)g_defrostParams.airOnlyPhaseWarmUp_s;
-         const uint32_t tPlateau = (uint32_t)g_defrostParams.airOnlyPhasePlateau_s;
+         const uint32_t tWarmUp  = AirOnlyMinToSec(g_defrostParams.airOnlyPhaseWarmUp_min);
+         const uint32_t tPlateau = AirOnlyMinToSec(g_defrostParams.airOnlyPhasePlateau_min);
          if (runtime_s < tWarmUp)  return Phase::WarmUp;
          if (runtime_s < tPlateau) return Phase::Plateau;
          return Phase::Finish;
@@ -328,8 +335,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      {
          if (startPhase == Phase::Finish)
              return Phase::Finish;
-         const uint32_t tWarmUp  = (uint32_t)g_defrostParams.airOnlyPhaseWarmUp_s;
-         const uint32_t tPlateau = (uint32_t)g_defrostParams.airOnlyPhasePlateau_s;
+         const uint32_t tWarmUp  = AirOnlyMinToSec(g_defrostParams.airOnlyPhaseWarmUp_min);
+         const uint32_t tPlateau = AirOnlyMinToSec(g_defrostParams.airOnlyPhasePlateau_min);
          const uint32_t plateauDur = (tPlateau > tWarmUp) ? (tPlateau - tWarmUp) : 0u;
          if (startPhase == Phase::Plateau)
          {
@@ -1462,7 +1469,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          const float T_sup_avg_C = airIn.T_sup_avg_C;
          const float w_sup_avg  = HumidityRatio_kgkg(T_sup_avg_C, airIn.RH_sup_avg);
 
-         const uint32_t maxRt = (uint32_t)g_defrostParams.maxRuntime_s;
+         const uint32_t maxRt = AirOnlyMinToSec(g_defrostParams.maxRuntime_min);
          g.airOnlyRemain_s = (g.runtimeSeconds < maxRt) ? (maxRt - g.runtimeSeconds) : 0u;
 
          Phase phase;
@@ -1782,15 +1789,21 @@ static void ProcessShutdownStage1s()
                 if (g.shutdownOutFanRemain_s == 0u && g.outFanOn == 0u)
                 {
                     g.outFanOn = 1u;
-                    g.shutdownOutFanRemain_s = 300u;
+                    const uint16_t purgeTo = (g_defrostParams.purgeTimeout_s > 0u)
+                        ? g_defrostParams.purgeTimeout_s : 300u;
+                    g.shutdownOutFanRemain_s = purgeTo;
                 }
 
+                /* Конец продувки: по порогу RH (если измерение доступно) или по таймауту. */
+                const uint8_t rhOk = DefrostAirThChannelUsable(kSensReturn_T_H) ? 1u : 0u;
                 const float RH_ret = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
                 const float thrRH = Clamp(g_defrostParams.humidityThresholdRH_percent, 10.0f, 100.0f);
                 if (g.shutdownOutFanRemain_s > 0u)
                     g.shutdownOutFanRemain_s--;
 
-                if (g.shutdownOutFanRemain_s == 0u || RH_ret < thrRH)
+                const uint8_t humidityReached =
+                    ((rhOk != 0u) && (RH_ret < thrRH)) ? 1u : 0u;
+                if (g.shutdownOutFanRemain_s == 0u || humidityReached != 0u)
                 {
                     g.outFanOn = 0u;
                     g.shutdownOutFanRemain_s = 0u;
@@ -2055,19 +2068,19 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
             if (paramId == 3)
             {
                 outValue->valueType = DEFROST_PARAM_TYPE_U16;
-                outValue->value.u16 = g_defrostParams.airOnlyPhaseWarmUp_s;
+                outValue->value.u16 = g_defrostParams.airOnlyPhaseWarmUp_min;
                 return 1;
             }
             if (paramId == 4)
             {
                 outValue->valueType = DEFROST_PARAM_TYPE_U16;
-                outValue->value.u16 = g_defrostParams.airOnlyPhasePlateau_s;
+                outValue->value.u16 = g_defrostParams.airOnlyPhasePlateau_min;
                 return 1;
             }
             if (paramId == 5)
             {
                 outValue->valueType = DEFROST_PARAM_TYPE_U16;
-                outValue->value.u16 = g_defrostParams.maxRuntime_s;
+                outValue->value.u16 = g_defrostParams.maxRuntime_min;
                 return 1;
             }
             return 0;
@@ -2106,9 +2119,9 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
             if (paramId == 8) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.outHold_s; return 1; }
             if (paramId == 9) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.tenMinHold_s; return 1; }
             if (paramId == 10) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.injMinHold_s; return 1; }
-            if (paramId == 11) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.airOnlyPhaseWarmUp_s; return 1; }
-            if (paramId == 12) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.airOnlyPhasePlateau_s; return 1; }
-            if (paramId == 13) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.maxRuntime_s; return 1; }
+            if (paramId == 11) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.airOnlyPhaseWarmUp_min; return 1; }
+            if (paramId == 12) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.airOnlyPhasePlateau_min; return 1; }
+            if (paramId == 13) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.maxRuntime_min; return 1; }
             if (paramId == 14) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.fishColdTarget_C; return 1; }
             if (paramId == 15) { outValue->valueType = DEFROST_PARAM_TYPE_U8; outValue->value.u8 = g_defrostParams.debugDisableTargetTStop; return 1; }
             if (paramId == 16) { outValue->valueType = DEFROST_PARAM_TYPE_U8; outValue->value.u8 = g_defrostParams.debugDisableDeviceSwitchCheck; return 1; }
@@ -2130,6 +2143,12 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
             {
                 outValue->valueType = DEFROST_PARAM_TYPE_F32;
                 outValue->value.f32 = g_defrostParams.humidityThresholdRH_percent;
+                return 1;
+            }
+            if (paramId == 20u + DEFROST_MAX_SENSOR_COUNT)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_U16;
+                outValue->value.u16 = g_defrostParams.purgeTimeout_s;
                 return 1;
             }
             return 0;
@@ -2265,17 +2284,18 @@ static uint8_t DefrostControl_SetParamInternal(uint8_t groupId, uint8_t paramId,
             }
             if (paramId == 3)
             {
-                g_defrostParams.airOnlyPhaseWarmUp_s = (uint16_t)Clamp((float)inValue->value.u16, 60.0f, 7200.0f);
+                /* минуты; верх ≥ 1440 (24 ч) */
+                g_defrostParams.airOnlyPhaseWarmUp_min = (uint16_t)Clamp((float)inValue->value.u16, 1.0f, 10080.0f);
                 return 1;
             }
             if (paramId == 4)
             {
-                g_defrostParams.airOnlyPhasePlateau_s = (uint16_t)Clamp((float)inValue->value.u16, 60.0f, 14400.0f);
+                g_defrostParams.airOnlyPhasePlateau_min = (uint16_t)Clamp((float)inValue->value.u16, 1.0f, 10080.0f);
                 return 1;
             }
             if (paramId == 5)
             {
-                g_defrostParams.maxRuntime_s = (uint16_t)Clamp((float)inValue->value.u16, 300.0f, 65535.0f);
+                g_defrostParams.maxRuntime_min = (uint16_t)Clamp((float)inValue->value.u16, 1.0f, 10080.0f);
                 return 1;
             }
             return 0;
@@ -2499,9 +2519,9 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             p.outHold_s           = g_defrostParams.outHold_s;
             p.tenMinHold_s        = g_defrostParams.tenMinHold_s;
             p.injMinHold_s        = g_defrostParams.injMinHold_s;
-            p.airOnlyPhaseWarmUp_s  = g_defrostParams.airOnlyPhaseWarmUp_s;
-            p.airOnlyPhasePlateau_s = g_defrostParams.airOnlyPhasePlateau_s;
-            p.maxRuntime_s        = g_defrostParams.maxRuntime_s;
+            p.airOnlyPhaseWarmUp_min  = g_defrostParams.airOnlyPhaseWarmUp_min;
+            p.airOnlyPhasePlateau_min = g_defrostParams.airOnlyPhasePlateau_min;
+            p.maxRuntime_min        = g_defrostParams.maxRuntime_min;
             p.fishColdTarget_C    = g_defrostParams.fishColdTarget_C;
             p.debugDisableTargetTStop = g_defrostParams.debugDisableTargetTStop;
             p.debugDisableDeviceSwitchCheck = g_defrostParams.debugDisableDeviceSwitchCheck;
@@ -2509,6 +2529,7 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             memcpy(p.sensorUseInDefrost, g_defrostParams.sensorUseInDefrost, sizeof(p.sensorUseInDefrost));
             p.forbidHumidityReduceWhileRunning = g_defrostParams.forbidHumidityReduceWhileRunning;
             p.humidityThresholdRH_percent = g_defrostParams.humidityThresholdRH_percent;
+            p.purgeTimeout_s = g_defrostParams.purgeTimeout_s;
             const uint32_t sz = (uint32_t)sizeof(DefrostLogGlobalPayload_t);
             if (outCapacity < sz)
             {
@@ -2603,9 +2624,12 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             g_defrostParams.outHold_s           = p.outHold_s;
             g_defrostParams.tenMinHold_s        = p.tenMinHold_s;
             g_defrostParams.injMinHold_s        = p.injMinHold_s;
-            g_defrostParams.airOnlyPhaseWarmUp_s  = p.airOnlyPhaseWarmUp_s;
-            g_defrostParams.airOnlyPhasePlateau_s = p.airOnlyPhasePlateau_s;
-            g_defrostParams.maxRuntime_s        = p.maxRuntime_s;
+            g_defrostParams.airOnlyPhaseWarmUp_min =
+                (uint16_t)Clamp((float)p.airOnlyPhaseWarmUp_min, 1.0f, 10080.0f);
+            g_defrostParams.airOnlyPhasePlateau_min =
+                (uint16_t)Clamp((float)p.airOnlyPhasePlateau_min, 1.0f, 10080.0f);
+            g_defrostParams.maxRuntime_min =
+                (uint16_t)Clamp((float)p.maxRuntime_min, 1.0f, 10080.0f);
             g_defrostParams.fishColdTarget_C   = p.fishColdTarget_C;
             g_defrostParams.debugDisableTargetTStop = (p.debugDisableTargetTStop != 0u) ? 1u : 0u;
             g_defrostParams.debugDisableDeviceSwitchCheck = (p.debugDisableDeviceSwitchCheck != 0u) ? 1u : 0u;
@@ -2629,6 +2653,8 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
                 (p.forbidHumidityReduceWhileRunning != 0u) ? 1u : 0u;
             g_defrostParams.humidityThresholdRH_percent =
                 Clamp(p.humidityThresholdRH_percent, 10.0f, 100.0f);
+            g_defrostParams.purgeTimeout_s =
+                (p.purgeTimeout_s > 0u) ? p.purgeTimeout_s : 300u;
             g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
             g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
             g.outFanDelay_s = g_defrostParams.outFanDelay_s;
