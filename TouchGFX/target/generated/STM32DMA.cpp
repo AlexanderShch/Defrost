@@ -326,6 +326,35 @@ void STM32DMA::setupDataCopy(const BlitOp& blitOp)
 }
 
 /*
+ * LCD16bpp::fillRect / drawGlyph могут отдать в BlitOp либо ARGB8888 (новые версии),
+ * либо уже RGB565 (если цвет заранее прогнали через getNativeColor).
+ * Повторная «конвертация» 0xF800 (красный RGB565) даёт ~0x07C0 — зелёный на экране.
+ * У Canvas/Painter путь lineFromColor(..., color565) корректен; ломается именно Box FILL.
+ */
+static uint32_t blitColorToRgb888(uint32_t color)
+{
+    /* >16 бит: ARGB8888 / 0x00RRGGBB; иначе уже native RGB565 */
+    if (color > 0xFFFFu)
+    {
+        return color & 0x00FFFFFFu;
+    }
+    const uint16_t c = static_cast<uint16_t>(color);
+    const uint32_t r = (c & 0xF800u) >> 8;
+    const uint32_t g = (c & 0x07E0u) >> 3;
+    const uint32_t b = (c & 0x001Fu) << 3;
+    return (r << 16) | (g << 8) | b;
+}
+
+static uint16_t blitColorToRgb565(uint32_t color)
+{
+    if (color > 0xFFFFu)
+    {
+        return static_cast<uint16_t>(((color >> 8) & 0xF800u) | ((color >> 5) & 0x07E0u) | ((color >> 3) & 0x001Fu));
+    }
+    return static_cast<uint16_t>(color);
+}
+
+/*
  * void STM32DMA::setupDataFill(const BlitOp& blitOp) handles blit operation of
  * BLIT_OP_FILL
  * BLIT_OP_FILL_WITH_ALPHA
@@ -360,8 +389,8 @@ void STM32DMA::setupDataFill(const BlitOp& blitOp)
         /* Write DMA2D FGPFCCR register */
         WRITE_REG(DMA2D->FGPFCCR, DMA2D_INPUT_A8 | (DMA2D_REPLACE_ALPHA << DMA2D_FGPFCCR_AM_Pos) | ((blitOp.alpha << 24) & DMA2D_FGPFCCR_ALPHA));
 
-        /* DMA2D FGCOLR register configuration */
-        WRITE_REG(DMA2D->FGCOLR, blitOp.color);
+        /* DMA2D FGCOLR: всегда 0x00RRGGBB */
+        WRITE_REG(DMA2D->FGCOLR, blitColorToRgb888(blitOp.color));
 
         /* Configure DMA2D Stream source2 address */
         WRITE_REG(DMA2D->BGMAR, reinterpret_cast<uint32_t>(blitOp.pDst));
@@ -380,8 +409,8 @@ void STM32DMA::setupDataFill(const BlitOp& blitOp)
         /* DMA2D FGOR register configuration */
         WRITE_REG(DMA2D->FGOR, 0);
 
-        /* Set color */
-        WRITE_REG(DMA2D->OCOLR, ((blitOp.color >> 8) & 0xF800) | ((blitOp.color >> 5) & 0x07E0) | ((blitOp.color >> 3) & 0x001F));
+        /* OCOLR для RGB565-фреймбуфера: без повторной конвертации, если цвет уже native */
+        WRITE_REG(DMA2D->OCOLR, blitColorToRgb565(blitOp.color));
 
         /* Enable the Peripheral and Enable the transfer complete interrupt */
         WRITE_REG(DMA2D->CR, (DMA2D_IT_TC | DMA2D_CR_START | DMA2D_R2M));
