@@ -43,8 +43,8 @@ typedef struct {
     float piKp;                /* пропорциональный коэффициент */
     float piKi;                /* интегральный коэффициент */
     /* Влажность: форсунка и мёртвая зона */
-    float wDeadband_kgkg;       /* мёртвая зона по абсолютной влажности, кг/кг (чтобы не дёргать форсунку и вытяжку) */
-    float injGain;              /* коэффициент форсунки: скважность на (кг/кг) по ошибке влажности */
+    float wDeadband_kgkg;       /* мёртвая зона по абсолютной влажности, кг/кг (вытяжка) */
+    float injHysteresisRH_percent; /* гистерезис вкл/выкл форсунки, ±% RH от returnTargetRH */
     /* Тайминги вытяжки и актуаторов, с */
     uint16_t outDamperTimer_s;  /* время полного открытия заслонки вытяжки */
     uint16_t outFanDelay_s;     /* задержка включения вентилятора вытяжки после сигнала открытия заслонки (Air_Open=1) */
@@ -131,7 +131,7 @@ typedef struct __attribute__((packed)) {
     float piKp;
     float piKi;
     float wDeadband_kgkg;
-    float injGain;
+    float injHysteresisRH_percent; /* гистерезис форсунки ±% RH (слот бывш. injGain) */
     uint16_t outDamperTimer_s;
     uint16_t outFanDelay_s;
     uint16_t outHold_s;

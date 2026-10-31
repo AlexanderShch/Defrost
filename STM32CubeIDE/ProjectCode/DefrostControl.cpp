@@ -55,7 +55,7 @@ typedef struct
 
 static DefrostParams_t g_defrostParams; // рабочие параметры дефростера
 static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ : DEFROST_MAX_SENSOR_COUNT;
-static const uint16_t kDefrostEepromVersion = 4u; // группа 6: минуты airOnly, +purgeTimeout_s
+static const uint16_t kDefrostEepromVersion = 5u; // injGain → injHysteresisRH_percent (bang-bang)
 static const uint16_t kDefrostEepromBaseAddress = 0u; // адрес начала записи в EEPROM
 static bool g_defrostEepromAvailable = false; // флаг, определяющий, доступна ли EEPROM
 static uint8_t g_defrostPersistedAutoMode = 0u; // бит, определяющий, включен ли режим авто-дефроста
@@ -270,7 +270,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         p->piKp = 0.18f;
         p->piKi = 0.02f;
         p->wDeadband_kgkg = 0.0008f;
-        p->injGain = 900.0f;
+        p->injHysteresisRH_percent = 3.0f; /* ±% RH вокруг уставки фазы */
         p->outDamperTimer_s = 10u;
         p->outFanDelay_s = 5u;
         p->outHold_s = 15u;
@@ -563,11 +563,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          // (эквивалент ТЭНа) на °C дисбаланса Т входящего потока воздуха
          float leftRightTrimGain = 0.08f;
  
-         // Влажность: мёртвая зона нужна, чтобы не "драться" форсунке и вытяжке.
+         // Влажность: мёртвая зона для вытяжки (форсунка — bang-bang с гистерезисом RH).
          float wDeadband_kgkg = 0.0008f;   // ~0.8 г/кг сухого воздуха
-         // Структура с параметрами ШИМ-модулятора форсунки
-         SigmaDeltaPWM injPwm;
-         // Структура с параметрами времени удержания форсунки
+         // Минимальное время удержания реле форсунки после решения bang-bang
          HoldSwitch injHold;
  
         // Вытяжка: включение(1) / выключение (0)
@@ -646,8 +644,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.piSupplyCommon = PI{ g_defrostParams.piKp, g_defrostParams.piKi, 0.0f };
        g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
        g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
-       g.injPwm.Reset();              // сброс ШИМ-памяти для форсунки.
-       g.injHold.Reset(0);            // сброс времени удержания форсунки.
+       g.injHold.Reset(0);            // сброс удержания форсунки.
        g.outOn = 0;                   // флаг отключения вытяжки.
        g.outHold_s = 0;               // время удержания вытяжки.
        g.outDamperState = 0;          // заслонка закрыта.
@@ -1210,6 +1207,38 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          const float w_thr = HumidityRatio_kgkg(T_ret_C, thrRH);
          StepExhaustByHumidityError(w_thr - w_sup_avg);
      }
+
+     /* Нормализация гистерезиса форсунки: старый injGain (100..2000) в том же слоте → 3 %. */
+     static float SanitizeInjHysteresisRH(float v)
+     {
+         if (v > 50.0f || v < 0.1f)
+             return 3.0f;
+         return Clamp(v, 0.5f, 20.0f);
+     }
+
+     /**
+      * Bang-bang форсунки по абсолютной влажности с гистерезисом ±hyst % RH
+      * вокруг уставки фазы (returnTargetRH), пересчитанной в w при T возврата:
+      *  ON  при w_sup < w(T_ret, RH_target − hyst)
+      *  OFF при w_sup > w(T_ret, RH_target + hyst)
+      *  иначе — предыдущее состояние.
+      */
+     static uint8_t StepInjectorBangBang(float T_ret_C, float w_sup_avg, float targetRH_percent,
+                                         uint8_t humidityMeasOk, uint8_t prevOn)
+     {
+         if (humidityMeasOk == 0u)
+             return 0u;
+         const float hyst = SanitizeInjHysteresisRH(g_defrostParams.injHysteresisRH_percent);
+         const float rhOn = Clamp(targetRH_percent - hyst, 10.0f, 100.0f);
+         const float rhOff = Clamp(targetRH_percent + hyst, 10.0f, 100.0f);
+         const float w_on = HumidityRatio_kgkg(T_ret_C, rhOn);
+         const float w_off = HumidityRatio_kgkg(T_ret_C, rhOff);
+         if (w_sup_avg < w_on)
+             return 1u;
+         if (w_sup_avg > w_off)
+             return 0u;
+         return prevOn ? 1u : 0u;
+     }
  
     static void ControlStep1s()
      {
@@ -1441,32 +1470,28 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          const uint8_t ventR_on = 1;
  
          // ─────────────────────────────────────────────────────────────────────────
-         // Управление влажностью (форсунка + вытяжка) по абсолютной влажности: среднее по подаче лево/право.
-         // Почему: абсолютная влажность лучше отражает "сушащее" действие воздуха, чем RH (RH зависит от T).
+         // Влажность: форсунка — bang-bang ±hyst % RH; вытяжка — отдельно по порогу.
          // ─────────────────────────────────────────────────────────────────────────
          const float wErr = w_ret_target - w_sup_avg;
- 
-         float injDuty = 0.0f;
+
+         uint8_t inj_desired = 0u;
          if (airIn.humidityMeasOk != 0u)
          {
-             if (wErr > g.wDeadband_kgkg)
-             {
-                 injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
-             }
+             inj_desired = StepInjectorBangBang(airIn.T_ret_C, w_sup_avg, tgt.returnTargetRH_percent,
+                                                airIn.humidityMeasOk, g.injHold.state);
              StepExhaustHumidityWhileRunning(airIn.T_ret_C, w_sup_avg, airIn.humidityMeasOk);
              if (g.outOn != 0)
-                 injDuty = 0.0f;
+                 inj_desired = 0u;
          }
          else
          {
              // Нет T/RH воздуха 0..2: не гонять форсунку и вытяжку по заглушкам T=0 / RH=50%.
              StopExhaustHumidity();
          }
- 
-         const uint8_t inj_desired = g.injPwm.Step(injDuty);
-         // Почему: форсунка (клапан/насос) тоже не любит слишком частые переключения.
-        const uint16_t kInjMinHold_s = g_defrostParams.injMinHold_s;
+
+         const uint16_t kInjMinHold_s = g_defrostParams.injMinHold_s;
          const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
+         const float injDuty = inj_on ? 1.0f : 0.0f;
          const uint8_t out_on = g.outOn ? 1 : 0;
 
         s_lastPhase = static_cast<uint8_t>(phase);
@@ -1584,23 +1609,23 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          const uint8_t ventR_on = 1;
 
          const float wErr = w_ret_target - w_sup_avg;
-         float injDuty = 0.0f;
+         uint8_t inj_desired = 0u;
          if (airIn.humidityMeasOk != 0u)
          {
-             if (wErr > g.wDeadband_kgkg)
-                 injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
+             inj_desired = StepInjectorBangBang(airIn.T_ret_C, w_sup_avg, tgt.returnTargetRH_percent,
+                                                airIn.humidityMeasOk, g.injHold.state);
              StepExhaustHumidityWhileRunning(airIn.T_ret_C, w_sup_avg, airIn.humidityMeasOk);
              if (g.outOn != 0)
-                 injDuty = 0.0f;
+                 inj_desired = 0u;
          }
          else
          {
              StopExhaustHumidity();
          }
 
-         const uint8_t inj_desired = g.injPwm.Step(injDuty);
          const uint16_t kInjMinHold_s = g_defrostParams.injMinHold_s;
          const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
+         const float injDuty = inj_on ? 1.0f : 0.0f;
          const uint8_t out_on = g.outOn ? 1 : 0;
 
         s_lastPhase = static_cast<uint8_t>(phase);
@@ -2090,7 +2115,7 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
             if (paramId == 6)
             {
                 outValue->valueType = DEFROST_PARAM_TYPE_F32;
-                outValue->value.f32 = g_defrostParams.injGain;
+                outValue->value.f32 = g_defrostParams.injHysteresisRH_percent;
                 return 1;
             }
             return 0;
@@ -2162,7 +2187,7 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
             if (paramId == 2) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.piKp; return 1; }
             if (paramId == 3) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.piKi; return 1; }
             if (paramId == 4) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.wDeadband_kgkg; return 1; }
-            if (paramId == 5) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.injGain; return 1; }
+            if (paramId == 5) { outValue->valueType = DEFROST_PARAM_TYPE_F32; outValue->value.f32 = g_defrostParams.injHysteresisRH_percent; return 1; }
             if (paramId == 6) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.outDamperTimer_s; return 1; }
             if (paramId == 7) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.outFanDelay_s; return 1; }
             if (paramId == 8) { outValue->valueType = DEFROST_PARAM_TYPE_U16; outValue->value.u16 = g_defrostParams.outHold_s; return 1; }
@@ -2306,7 +2331,7 @@ static uint8_t DefrostControl_SetParamInternal(uint8_t groupId, uint8_t paramId,
             }
             if (paramId == 6 && inValue->valueType == DEFROST_PARAM_TYPE_F32)
             {
-                g_defrostParams.injGain = Clamp(inValue->value.f32, 100.0f, 2000.0f);
+                g_defrostParams.injHysteresisRH_percent = SanitizeInjHysteresisRH(inValue->value.f32);
                 return 1;
             }
             return 0;
@@ -2562,7 +2587,7 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             p.piKp                = g_defrostParams.piKp;
             p.piKi                = g_defrostParams.piKi;
             p.wDeadband_kgkg      = g_defrostParams.wDeadband_kgkg;
-            p.injGain             = g_defrostParams.injGain;
+            p.injHysteresisRH_percent = g_defrostParams.injHysteresisRH_percent;
             p.outDamperTimer_s    = g_defrostParams.outDamperTimer_s;
             p.outFanDelay_s       = g_defrostParams.outFanDelay_s;
             p.outHold_s           = g_defrostParams.outHold_s;
@@ -2667,7 +2692,8 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             g_defrostParams.piKp                = p.piKp;
             g_defrostParams.piKi                = p.piKi;
             g_defrostParams.wDeadband_kgkg      = p.wDeadband_kgkg;
-            g_defrostParams.injGain             = p.injGain;
+            g_defrostParams.injHysteresisRH_percent =
+                SanitizeInjHysteresisRH(p.injHysteresisRH_percent);
             g_defrostParams.outDamperTimer_s    = p.outDamperTimer_s;
             g_defrostParams.outFanDelay_s       = p.outFanDelay_s;
             g_defrostParams.outHold_s           = p.outHold_s;
@@ -2737,6 +2763,8 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
         }
 
         memcpy(&g_defrostParams, inParams, sizeof(DefrostParams_t));
+        g_defrostParams.injHysteresisRH_percent =
+            SanitizeInjHysteresisRH(g_defrostParams.injHysteresisRH_percent);
         g_defrostParams.useNewWrkAlrAlgorithm = (g_defrostParams.useNewWrkAlrAlgorithm != 0u) ? 1u : 0u;
         if (g_defrostParams.useNewWrkAlrAlgorithm == 0u)
         {
@@ -2795,13 +2823,18 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             const HAL_StatusTypeDef readStatus = EEPROM::Read(
                 kDefrostEepromBaseAddress, (uint8_t *)&rec, (uint16_t)sizeof(rec));
             const uint16_t payloadCrc = EepromPayloadCrc(&rec);
+            /* v4: тот же layout, но float-слот был injGain; v5 — injHysteresisRH_percent. */
             const bool recValid = (readStatus == HAL_OK) &&
-                                  (rec.version == kDefrostEepromVersion) &&
+                                  ((rec.version == kDefrostEepromVersion) || (rec.version == 4u)) &&
                                   (rec.payloadCrc == payloadCrc);
             if (recValid)  // если данные валидны
             {
                 // Параметры всегда берём из валидной записи (не только при autoMode=1).
                 memcpy(&g_defrostParams, &rec.params, sizeof(DefrostParams_t));
+                g_defrostParams.injHysteresisRH_percent =
+                    SanitizeInjHysteresisRH(g_defrostParams.injHysteresisRH_percent);
+                if (rec.version != kDefrostEepromVersion)
+                    g_defrostEepromPersistPending = true; /* перезаписать как v5 */
                 g_defrostPersistedAutoMode = (rec.autoModeEnabled != 0u) ? 1u : 0u;
                 // Сам автозапуск — после старта RTOS (Update1s), не в Init до osKernelStart.
                 g_defrostAutoRestorePending = g_defrostPersistedAutoMode;
