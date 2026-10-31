@@ -502,7 +502,56 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          SigmaDeltaPWM ten2;
          HoldSwitch ten1Hold;
          HoldSwitch ten2Hold;
+         /* 0: TEN1 — базовый (min(u,1)), TEN2 — модулирующий (u−1); 1 — наоборот.
+          * Смена роли — только по фронту «оба включены» (не по таймеру). */
+         uint8_t tenLeadIsSecond = 0;
+         uint8_t tenBothOnPrev = 0;
      };
+
+     /** Каскад 0..2 экв. → две скважности; leadIsSecond меняет, кто базовый. */
+     static void MapPairTenDuties(float uEq, uint8_t leadIsSecond, float *duty1, float *duty2)
+     {
+         const float primary = Clamp(uEq, 0.0f, 1.0f);
+         const float secondary = Clamp(uEq - 1.0f, 0.0f, 1.0f);
+         if (leadIsSecond == 0u)
+         {
+             *duty1 = primary;
+             *duty2 = secondary;
+         }
+         else
+         {
+             *duty1 = secondary;
+             *duty2 = primary;
+         }
+     }
+
+     /**
+      * Шаг пары ТЭНов: ШИМ + hold.
+      * Как только оба оказались включены (фронт), базовый ↔ модулирующий:
+      * при последующем снижении мощности выключится бывший базовый.
+      */
+     static void StepPairTens(SideActuators *side, float uEq, uint16_t minHold_s,
+                              float *outDuty1, float *outDuty2,
+                              uint8_t *ten1_on, uint8_t *ten2_on)
+     {
+         float d1 = 0.0f;
+         float d2 = 0.0f;
+         MapPairTenDuties(uEq, side->tenLeadIsSecond, &d1, &d2);
+         if (outDuty1 != nullptr)
+             *outDuty1 = d1;
+         if (outDuty2 != nullptr)
+             *outDuty2 = d2;
+
+         const uint8_t des1 = side->ten1.Step(d1);
+         const uint8_t des2 = side->ten2.Step(d2);
+         *ten1_on = side->ten1Hold.Step(des1, minHold_s);
+         *ten2_on = side->ten2Hold.Step(des2, minHold_s);
+
+         const uint8_t bothOn = ((*ten1_on != 0u) && (*ten2_on != 0u)) ? 1u : 0u;
+         if (bothOn != 0u && side->tenBothOnPrev == 0u)
+             side->tenLeadIsSecond ^= 1u; /* включение пары → смена ролей на следующие шаги */
+         side->tenBothOnPrev = bothOn;
+     }
  
      struct ControllerState
      {
@@ -636,10 +685,14 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.left.ten2.Reset();           // сброс ШИМ-памяти для левого ТЭНа 2.
        g.left.ten1Hold.Reset(0);      // сброс времени удержания левого ТЭНа 1.
        g.left.ten2Hold.Reset(0);      // сброс времени удержания левого ТЭНа 2.
+       g.left.tenLeadIsSecond = 0;
+       g.left.tenBothOnPrev = 0;
        g.right.ten1.Reset();          // сброс ШИМ-памяти для правого ТЭНа 1.
        g.right.ten2.Reset();          // сброс ШИМ-памяти для правого ТЭНа 2.
        g.right.ten1Hold.Reset(0);     // сброс времени удержания правого ТЭНа 1.
        g.right.ten2Hold.Reset(0);     // сброс времени удержания правого ТЭНа 2.
+       g.right.tenLeadIsSecond = 0;
+       g.right.tenBothOnPrev = 0;
        g.lastFishHot_C = 0.0f;        // последняя измеренная температура продукта.
        g.lastFishCold_C = 0.0f;
        g.haveLastFishHot = 0;         // флаг отсутствия последней измеренной температуры продукта.
@@ -1363,25 +1416,24 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          float uLeft_TEN  = Clamp(uCommon_TEN - trim_TEN, 0.0f, 2.0f);
          float uRight_TEN = Clamp(uCommon_TEN + trim_TEN, 0.0f, 2.0f);
  
-         // Преобразуем "эквиваленты ТЭНа" в скважности для каждого ТЭНа.
-         const float leftTen1Duty  = Clamp(uLeft_TEN, 0.0f, 1.0f);
-         const float leftTen2Duty  = Clamp(uLeft_TEN - 1.0f, 0.0f, 1.0f);
-         const float rightTen1Duty = Clamp(uRight_TEN, 0.0f, 1.0f);
-         const float rightTen2Duty = Clamp(uRight_TEN - 1.0f, 0.0f, 1.0f);
- 
-         const uint8_t ten1L_desired = g.left.ten1.Step(leftTen1Duty);
-         const uint8_t ten2L_desired = g.left.ten2.Step(leftTen2Duty);
-         const uint8_t ten1R_desired = g.right.ten1.Step(rightTen1Duty);
-         const uint8_t ten2R_desired = g.right.ten2.Step(rightTen2Duty);
- 
          // Почему: защита от слишком частого щёлканья реле ТЭНов.
          //         Значение minHold нужно подбирать под силовую часть (реле/контактор/SSR).
         // Ниже 10 с удержание не защищает реле от частых переключений; при сбое параметра задаём минимум 10 с.
         const uint16_t kTenMinHold_s = (g_defrostParams.tenMinHold_s >= 10u) ? g_defrostParams.tenMinHold_s : 10u;
-         const uint8_t ten1L_on = g.left.ten1Hold.Step(ten1L_desired, kTenMinHold_s);
-         const uint8_t ten2L_on = g.left.ten2Hold.Step(ten2L_desired, kTenMinHold_s);
-         const uint8_t ten1R_on = g.right.ten1Hold.Step(ten1R_desired, kTenMinHold_s);
-         const uint8_t ten2R_on = g.right.ten2Hold.Step(ten2R_desired, kTenMinHold_s);
+
+         float leftTen1Duty = 0.0f;
+         float leftTen2Duty = 0.0f;
+         float rightTen1Duty = 0.0f;
+         float rightTen2Duty = 0.0f;
+         uint8_t ten1L_on = 0;
+         uint8_t ten2L_on = 0;
+         uint8_t ten1R_on = 0;
+         uint8_t ten2R_on = 0;
+         /* Смена базовый/модулирующий — по фронту «оба ТЭНа включены». */
+         StepPairTens(&g.left, uLeft_TEN, kTenMinHold_s,
+                      &leftTen1Duty, &leftTen2Duty, &ten1L_on, &ten2L_on);
+         StepPairTens(&g.right, uRight_TEN, kTenMinHold_s,
+                      &rightTen1Duty, &rightTen2Duty, &ten1R_on, &ten2R_on);
  
          // Вентиляторы: работаем непрерывно, пока алгоритм включен.
          // Почему: стабильный расход упрощает идентификацию контуров и защищает ТЭНы от локального перегрева.
@@ -1514,22 +1566,19 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          float uLeft_TEN  = Clamp(uCommon_TEN - trim_TEN, 0.0f, 2.0f);
          float uRight_TEN = Clamp(uCommon_TEN + trim_TEN, 0.0f, 2.0f);
 
-         const float leftTen1Duty  = Clamp(uLeft_TEN, 0.0f, 1.0f);
-         const float leftTen2Duty  = Clamp(uLeft_TEN - 1.0f, 0.0f, 1.0f);
-         const float rightTen1Duty = Clamp(uRight_TEN, 0.0f, 1.0f);
-         const float rightTen2Duty = Clamp(uRight_TEN - 1.0f, 0.0f, 1.0f);
-
-         const uint8_t ten1L_desired = g.left.ten1.Step(leftTen1Duty);
-         const uint8_t ten2L_desired = g.left.ten2.Step(leftTen2Duty);
-         const uint8_t ten1R_desired = g.right.ten1.Step(rightTen1Duty);
-         const uint8_t ten2R_desired = g.right.ten2.Step(rightTen2Duty);
-
-         // Ниже 10 с удержание не защищает реле от частых переключений; при сбое параметра задаём минимум 10 с.
          const uint16_t kTenMinHold_s = (g_defrostParams.tenMinHold_s >= 10u) ? g_defrostParams.tenMinHold_s : 10u;
-         const uint8_t ten1L_on = g.left.ten1Hold.Step(ten1L_desired, kTenMinHold_s);
-         const uint8_t ten2L_on = g.left.ten2Hold.Step(ten2L_desired, kTenMinHold_s);
-         const uint8_t ten1R_on = g.right.ten1Hold.Step(ten1R_desired, kTenMinHold_s);
-         const uint8_t ten2R_on = g.right.ten2Hold.Step(ten2R_desired, kTenMinHold_s);
+         float leftTen1Duty = 0.0f;
+         float leftTen2Duty = 0.0f;
+         float rightTen1Duty = 0.0f;
+         float rightTen2Duty = 0.0f;
+         uint8_t ten1L_on = 0;
+         uint8_t ten2L_on = 0;
+         uint8_t ten1R_on = 0;
+         uint8_t ten2R_on = 0;
+         StepPairTens(&g.left, uLeft_TEN, kTenMinHold_s,
+                      &leftTen1Duty, &leftTen2Duty, &ten1L_on, &ten2L_on);
+         StepPairTens(&g.right, uRight_TEN, kTenMinHold_s,
+                      &rightTen1Duty, &rightTen2Duty, &ten1R_on, &ten2R_on);
 
          const uint8_t ventL_on = 1;
          const uint8_t ventR_on = 1;

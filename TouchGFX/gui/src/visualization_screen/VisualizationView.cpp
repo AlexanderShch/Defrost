@@ -460,18 +460,22 @@ void VisualizationView::syncDeviceAlarmIndicators()
 	Vent_Out_Alarm.setVisible(ventOutAlarm && alarmBlinkOn);
 	Vent_Out_Alarm.invalidate();
 
-	// Авария заслонки (бит 11): только красный квадрат, без иконки Open/Close/Moving под ним.
+	// Авария заслонки (бит 11): мигание красный квадрат ↔ иконка Flap (неопределённое положение).
 	const bool flapAlarm = (af & (1u << 11)) != 0;
 	Flap_Alarm.setColor(colorAlarm);
-	Flap_Alarm.setVisible(flapAlarm && alarmBlinkOn);
 	if (flapAlarm)
 	{
-		Flap.setVisible(false);
 		Flap_Open.setVisible(false);
 		Flap_Close.setVisible(false);
-		Flap.invalidate();
+		Flap_Alarm.setVisible(alarmBlinkOn);
+		Flap.setVisible(!alarmBlinkOn); /* фаза без квадрата — заслонка «не определена» */
 		Flap_Open.invalidate();
 		Flap_Close.invalidate();
+		Flap.invalidate();
+	}
+	else
+	{
+		Flap_Alarm.setVisible(false);
 	}
 	Flap_Alarm.invalidate();
 }
@@ -500,15 +504,16 @@ void VisualizationView::syncExhaustFanAndFlapFromInputs()
 	}
 	AnimFan_Out.invalidate();
 
-	// При аварии заслонки положение не рисуем — мигает только красный Flap_Alarm.
+	/* При аварии Open/Close не показываем; Flap ↔ Flap_Alarm задаёт syncDeviceAlarmIndicators. */
 	if ((Model::Device_AlarmFlags & (uint16_t)(1u << 11)) != 0u)
 	{
-		Flap.setVisible(false);
+		const bool alarmBlinkOn = (Model::DFR_current._Alr != 0);
 		Flap_Open.setVisible(false);
 		Flap_Close.setVisible(false);
-		Flap.invalidate();
+		Flap.setVisible(!alarmBlinkOn);
 		Flap_Open.invalidate();
 		Flap_Close.invalidate();
+		Flap.invalidate();
 		return;
 	}
 
