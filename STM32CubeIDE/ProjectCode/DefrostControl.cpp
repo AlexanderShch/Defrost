@@ -55,7 +55,7 @@ typedef struct
 
 static DefrostParams_t g_defrostParams; // рабочие параметры дефростера
 static const uint8_t kDefrostSensorCount = (SQ < DEFROST_MAX_SENSOR_COUNT) ? SQ : DEFROST_MAX_SENSOR_COUNT;
-static const uint16_t kDefrostEepromVersion = 2u; // версия структуры в EEPROM
+static const uint16_t kDefrostEepromVersion = 3u; // версия структуры в EEPROM (группа 6: +forbidHumidity/+thresholdRH)
 static const uint16_t kDefrostEepromBaseAddress = 0u; // адрес начала записи в EEPROM
 static bool g_defrostEepromAvailable = false; // флаг, определяющий, доступна ли EEPROM
 static uint8_t g_defrostPersistedAutoMode = 0u; // бит, определяющий, включен ли режим авто-дефроста
@@ -288,6 +288,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         {
             p->sensorUseInDefrost[i] = Sensor_array[i].UseInDefrost;
         }
+        /* По умолчанию вытяжку для снижения влажности во время работы не используем. */
+        p->forbidHumidityReduceWhileRunning = 1u;
+        p->humidityThresholdRH_percent = 50.0f; /* как прежний хардкод конца продувки */
     }
 
     static uint8_t IsPhaseIndexValid(uint8_t phaseIndex)
@@ -1133,6 +1136,20 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          g.outHold_s = 0u;
          Model::DFR.Water_Flap = 0u;
      }
+
+     /* Вытяжка для снижения влажности во время работы: порог humidityThresholdRH_percent;
+      * при forbidHumidityReduceWhileRunning=1 контур заглушен. */
+     static void StepExhaustHumidityWhileRunning(float T_ret_C, float w_sup_avg, uint8_t humidityMeasOk)
+     {
+         if (humidityMeasOk == 0u || g_defrostParams.forbidHumidityReduceWhileRunning != 0u)
+         {
+             StopExhaustHumidity();
+             return;
+         }
+         const float thrRH = Clamp(g_defrostParams.humidityThresholdRH_percent, 10.0f, 100.0f);
+         const float w_thr = HumidityRatio_kgkg(T_ret_C, thrRH);
+         StepExhaustByHumidityError(w_thr - w_sup_avg);
+     }
  
     static void ControlStep1s()
      {
@@ -1377,7 +1394,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
              {
                  injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
              }
-             StepExhaustByHumidityError(wErr);
+             StepExhaustHumidityWhileRunning(airIn.T_ret_C, w_sup_avg, airIn.humidityMeasOk);
              if (g.outOn != 0)
                  injDuty = 0.0f;
          }
@@ -1516,7 +1533,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          {
              if (wErr > g.wDeadband_kgkg)
                  injDuty = Clamp(g_defrostParams.injGain * (wErr - g.wDeadband_kgkg), 0.0f, 1.0f);
-             StepExhaustByHumidityError(wErr);
+             StepExhaustHumidityWhileRunning(airIn.T_ret_C, w_sup_avg, airIn.humidityMeasOk);
              if (g.outOn != 0)
                  injDuty = 0.0f;
          }
@@ -1769,10 +1786,11 @@ static void ProcessShutdownStage1s()
                 }
 
                 const float RH_ret = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
+                const float thrRH = Clamp(g_defrostParams.humidityThresholdRH_percent, 10.0f, 100.0f);
                 if (g.shutdownOutFanRemain_s > 0u)
                     g.shutdownOutFanRemain_s--;
 
-                if (g.shutdownOutFanRemain_s == 0u || RH_ret < 50.0f)
+                if (g.shutdownOutFanRemain_s == 0u || RH_ret < thrRH)
                 {
                     g.outFanOn = 0u;
                     g.shutdownOutFanRemain_s = 0u;
@@ -2100,6 +2118,18 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
                 const uint8_t idx = (uint8_t)(paramId - 18u);
                 outValue->valueType = DEFROST_PARAM_TYPE_U8;
                 outValue->value.u8 = g_defrostParams.sensorUseInDefrost[idx];
+                return 1;
+            }
+            if (paramId == 18u + DEFROST_MAX_SENSOR_COUNT)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_U8;
+                outValue->value.u8 = g_defrostParams.forbidHumidityReduceWhileRunning;
+                return 1;
+            }
+            if (paramId == 19u + DEFROST_MAX_SENSOR_COUNT)
+            {
+                outValue->valueType = DEFROST_PARAM_TYPE_F32;
+                outValue->value.f32 = g_defrostParams.humidityThresholdRH_percent;
                 return 1;
             }
             return 0;
@@ -2477,6 +2507,8 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             p.debugDisableDeviceSwitchCheck = g_defrostParams.debugDisableDeviceSwitchCheck;
             p.useNewWrkAlrAlgorithm = g_defrostParams.useNewWrkAlrAlgorithm;
             memcpy(p.sensorUseInDefrost, g_defrostParams.sensorUseInDefrost, sizeof(p.sensorUseInDefrost));
+            p.forbidHumidityReduceWhileRunning = g_defrostParams.forbidHumidityReduceWhileRunning;
+            p.humidityThresholdRH_percent = g_defrostParams.humidityThresholdRH_percent;
             const uint32_t sz = (uint32_t)sizeof(DefrostLogGlobalPayload_t);
             if (outCapacity < sz)
             {
@@ -2593,6 +2625,10 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
             {
                 Sensor_array[i].UseInDefrost = (g_defrostParams.sensorUseInDefrost[i] != 0u) ? 1u : 0u;
             }
+            g_defrostParams.forbidHumidityReduceWhileRunning =
+                (p.forbidHumidityReduceWhileRunning != 0u) ? 1u : 0u;
+            g_defrostParams.humidityThresholdRH_percent =
+                Clamp(p.humidityThresholdRH_percent, 10.0f, 100.0f);
             g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
             g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
             g.outFanDelay_s = g_defrostParams.outFanDelay_s;

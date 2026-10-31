@@ -60,6 +60,8 @@ typedef struct {
     uint8_t debugDisableDeviceSwitchCheck; /* 1 = отключить проверку соответствия входов/выходов (отладка), 0 = проверка включена */
     uint8_t useNewWrkAlrAlgorithm; /* 1 = автоуправление и текущая индикация, 0 = только старые импульсы по серверным СТАРТ/СТОП */
     uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT]; /* 1=использовать датчик в дефросте, 0=игнорировать */
+    uint8_t forbidHumidityReduceWhileRunning; /* 1 = не снижать влажность вытяжкой во время работы */
+    float humidityThresholdRH_percent; /* пороговая RH %: снижение влажности в работе и конец продувки */
 } DefrostParams_t;
 
 typedef struct {
@@ -142,10 +144,12 @@ typedef struct __attribute__((packed)) {
     uint8_t debugDisableDeviceSwitchCheck; /* 1 = отключить проверку входов/выходов (отладка), 0 = проверка включена */
     uint8_t useNewWrkAlrAlgorithm; /* 1 = автоуправление, 0 = старые импульсы без запуска автоуправления */
     uint8_t sensorUseInDefrost[DEFROST_MAX_SENSOR_COUNT];
+    uint8_t forbidHumidityReduceWhileRunning; /* 1 = не снижать влажность вытяжкой во время работы */
+    float humidityThresholdRH_percent; /* пороговая RH %: снижение в работе и конец продувки */
 } DefrostLogGlobalPayload_t;
 
 #ifdef __cplusplus
-static_assert(sizeof(DefrostLogGlobalPayload_t) == 53u, "Unexpected group 6 payload layout");
+static_assert(sizeof(DefrostLogGlobalPayload_t) == 58u, "Unexpected group 6 payload layout");
 #endif
 
 /* Регулярный лог (Type 0x01): сначала отфильтрованные температуры всех датчиков (°C),
