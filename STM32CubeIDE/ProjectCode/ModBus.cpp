@@ -263,10 +263,10 @@ static void DetectDeviceAlarmsAfterIoRead(void)
 
 static void DetectFlapAlarmAfterIoRead(void)
 {
-	// Air_Open: 1=открыта, 0=закрыта. Рассогласование с Water_Flap после таймаута хода.
+	// Air_Open=0 — открыта. Air_Open=1 — закрыта или ещё открывается.
 	const uint8_t desiredOpen = ((Model::Flag_DFR_manual != 0u) ? Model::DFR_manual.Water_Flap : Model::DFR.Water_Flap) ? 1u : 0u;
 	const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
-	const uint8_t flapReached = desiredOpen ? airOpen : ((airOpen == 0u) ? 1u : 0u);
+	const uint8_t flapReached = desiredOpen ? (uint8_t)(airOpen == 0u) : (uint8_t)(airOpen != 0u);
 	if (flapReached != 0u)
 		return;
 

@@ -608,7 +608,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         // Последовательное управление заслонкой и вентилятором вытяжки
         uint8_t outDamperState = 0;     // 0=закрыта, 1=открывается, 2=задержка вентилятора, 3=_Out
         uint16_t outDamperTimer_s = 0;  // таймер открытия заслонки
-        uint16_t outFanDelay_s = 5;     // задержка _Out после Air_Open=1
+        uint16_t outFanDelay_s = 5;     // задержка _Out после Air_Open=0
         uint8_t outFanOn = 0;           // состояние вентилятора вытяжки
         uint16_t shutdownOutFanRemain_s = 0; // остаток продувки при завершении; 0 до старта таймера после проверки Vent_Out
 
@@ -879,9 +879,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         if (deviceSwitchCheckEnabled)
         {
             const uint8_t desiredOpen = ((Model::Flag_DFR_manual != 0u) ? Model::DFR_manual.Water_Flap : Model::DFR.Water_Flap) ? 1u : 0u;
-            // Air_Open: 1=открыта, 0=закрыта. Достижение = совпадение DI с командой Water_Flap.
+            // Air_Open=0 — открыта. Air_Open=1 — закрыта или ещё открывается.
             const uint8_t airOpen = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
-            const uint8_t flapReached = desiredOpen ? airOpen : ((airOpen == 0u) ? 1u : 0u);
+            const uint8_t flapReached = desiredOpen ? (uint8_t)(airOpen == 0u) : (uint8_t)(airOpen != 0u);
             if (g.flapDesiredOpenPrevValid == 0u || g.flapDesiredOpenPrev != desiredOpen)
             {
                 g.flapDesiredOpenPrev = desiredOpen;
@@ -1173,9 +1173,11 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          else
              Model::DFR.Water_Flap = 0u;
 
-         // Air_Open=1 — заслонка открыта; затем outFanDelay_s до включения вентилятора.
+         // Air_Open=0 — заслонка открыта, после outFanDelay_s можно включать вентилятор.
+         // Air_Open=1 — закрыта или ещё открывается, вентилятор держим выключенным.
+         const uint8_t switchCheckOn = (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u) ? 1u : 0u;
          const uint8_t flapOpened =
-             ((Model::DFR.Water_Flap != 0u) && (Model::DI_DFR.Bits.Air_Open != 0u)) ? 1u : 0u;
+             ((Model::DFR.Water_Flap != 0u) && (Model::DI_DFR.Bits.Air_Open == 0u)) ? 1u : 0u;
 
          if (g.outDamperState == 1u)
          {
@@ -1189,7 +1191,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
              {
                  g.outDamperTimer_s--;
              }
-             else if (DefrostControl_IsDeviceSwitchCheckEnabled() == 0u)
+             else if (switchCheckOn == 0u)
              {
                  // Концевик не используем: после outDamperTimer_s считаем заслонку открытой.
                  g.outDamperState = 2u;
@@ -1198,17 +1200,30 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          }
          else if (g.outDamperState == 2u)
          {
-             if (g.outDamperTimer_s > 0u)
+             if (switchCheckOn != 0u && flapOpened == 0u)
+             {
+                 g.outDamperState = 1u;
+                 g.outFanOn = 0u;
+                 g.outDamperTimer_s = g_defrostParams.outDamperTimer_s;
+             }
+             else if (g.outDamperTimer_s > 0u)
                  g.outDamperTimer_s--;
              else
              {
                  g.outDamperState = 3u;
-                 g.outFanOn = (g.flapAlarm == 0u) ? 1u : 0u;
+                 g.outFanOn = (g.flapAlarm == 0u && (switchCheckOn == 0u || flapOpened != 0u)) ? 1u : 0u;
              }
          }
          else if (g.outDamperState == 3u)
          {
-             g.outFanOn = (g.flapAlarm == 0u) ? 1u : 0u;
+             if (switchCheckOn != 0u && flapOpened == 0u)
+             {
+                 g.outFanOn = 0u;
+                 g.outDamperState = 1u;
+                 g.outDamperTimer_s = g_defrostParams.outDamperTimer_s;
+             }
+             else
+                 g.outFanOn = (g.flapAlarm == 0u) ? 1u : 0u;
          }
 
          if (g.flapAlarm != 0u)
@@ -1853,8 +1868,8 @@ static void ProcessShutdownStage1s()
         else
         {
         Model::DFR.Water_Flap = 1u;
-        // Water_Flap=1: открыто при Air_Open=1.
-        const uint8_t flapOpened = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
+        // Открыта только при Air_Open=0. Единица — закрыта или ход на открытие, вентилятор нельзя.
+        const uint8_t flapOpened = (Model::DI_DFR.Bits.Air_Open == 0u) ? 1u : 0u;
         const uint8_t switchCheckOn = (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u) ? 1u : 0u;
         const uint8_t flapTimedOut = (switchCheckOn != 0u)
             ? ((g.flapAlarm != 0u) ? 1u : 0u)
@@ -1935,8 +1950,8 @@ static void ProcessShutdownStage1s()
         }
 
         const uint8_t switchCheckOn = (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u) ? 1u : 0u;
-        // Water_Flap=0: закрыто при Air_Open=0.
-        const uint8_t flapClosedOk = (Model::DI_DFR.Bits.Air_Open == 0u) ? 1u : 0u;
+        // Water_Flap=0: закрыто при Air_Open=1 (концевик ушёл из положения «открыта»).
+        const uint8_t flapClosedOk = (Model::DI_DFR.Bits.Air_Open != 0u) ? 1u : 0u;
 
         uint8_t flapCloseWaitDone = 0u;
         if (switchCheckOn != 0u)   // если проверка устройств включена

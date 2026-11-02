@@ -3,6 +3,7 @@
 #include <gui/common/ExhaustOutputState.hpp>
 #include <gui/model/Model.hpp>
 #include <touchgfx/Color.hpp>
+#include "DefrostControl.h"
 
 #include <stdint.h>
 
@@ -48,6 +49,15 @@ void Air_OutView::setupScreen()
 void Air_OutView::handleTickEvent()
 {
 	Air_OutViewBase::handleTickEvent();
+	if (Model::isDefrostManualModeEnabled() &&
+		DefrostControl_IsDeviceSwitchCheckEnabled() != 0u &&
+		Model::DI_DFR.Bits.Air_Open != 0u &&
+		Model::DFR_manual._Out != 0)
+	{
+		Model::DFR_manual._Out = 0;
+		setToggleOn(BTN_AirFan, false);
+		updateAirOutManualControls();
+	}
 	syncExhaustFanAndFlapFromInputs();
 }
 
@@ -158,7 +168,16 @@ void Air_OutView::updateAirOutManualControls()
 		BTN_AirFlap.setAlpha(255);
 		Label_AirFlap.setAlpha(255);
 
-		const bool fanEnabled = flapOn;
+		// При включённой проверке концевика вентилятор только когда заслонка уже открыта (Air_Open=0).
+		const bool flapPhysicallyOpen =
+			(DefrostControl_IsDeviceSwitchCheckEnabled() == 0u) ||
+			(Model::DI_DFR.Bits.Air_Open == 0u);
+		const bool fanEnabled = flapOn && flapPhysicallyOpen;
+		if (manual && !flapPhysicallyOpen && Model::DFR_manual._Out != 0)
+		{
+			Model::DFR_manual._Out = 0;
+			setToggleOn(BTN_AirFan, false);
+		}
 		BTN_AirFan.setTouchable(fanEnabled);
 		BTN_AirFan.setAlpha(fanEnabled ? 255 : MinAlpha);
 		Label_AirFan.setAlpha(fanEnabled ? 255 : MinAlpha);
@@ -195,6 +214,13 @@ void Air_OutView::BTN_AirFanClicked()
 	}
 	if (Model::DFR_manual.Water_Flap == 0)
 	{
+		return;
+	}
+	if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u &&
+		Model::DI_DFR.Bits.Air_Open != 0u)
+	{
+		Model::DFR_manual._Out = 0;
+		setToggleOn(BTN_AirFan, false);
 		return;
 	}
 
