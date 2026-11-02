@@ -320,13 +320,46 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          return (uint32_t)minutes * 60u;
      }
 
+     /**
+      * Границы фаз «только воздух» от нуля отсчёта (старт цикла или момент выпадения зондов), секунды.
+      * airOnlyPhaseWarmUp_min — длительность WarmUp.
+      * airOnlyPhasePlateau_min — конец Plateau от старта, если значение больше прогрева (10 и 30 → плато 20 мин).
+      *   Если не больше прогрева, это длительность Plateau: иначе режим 1 имеет нулевую длину.
+      * maxRuntime_min — конец всего процесса от старта. Если он не позже конца прогрева,
+      *   цикл раньше обрывался в конце режима 0 и не доходил до плато и финиша;
+      *   тогда maxRuntime — длительность Finish после плато.
+      */
+     struct AirOnlySchedule
+     {
+         uint32_t endWarmUp_s;
+         uint32_t endPlateau_s;
+         uint32_t endProcess_s;
+     };
+
+     static AirOnlySchedule MakeAirOnlySchedule()
+     {
+         const uint32_t warm = AirOnlyMinToSec(g_defrostParams.airOnlyPhaseWarmUp_min);
+         const uint32_t platParam = AirOnlyMinToSec(g_defrostParams.airOnlyPhasePlateau_min);
+         const uint32_t maxParam = AirOnlyMinToSec(g_defrostParams.maxRuntime_min);
+
+         AirOnlySchedule sch;
+         sch.endWarmUp_s = warm;
+         sch.endPlateau_s = (platParam > warm) ? platParam : (warm + platParam);
+         /* maxRuntime позже прогрева — обычный конец процесса (в том числе внутри плато).
+            Не позже прогрева — не гасить цикл в конце режима 0: это длительность Finish. */
+         if (maxParam > sch.endWarmUp_s)
+             sch.endProcess_s = maxParam;
+         else
+             sch.endProcess_s = sch.endPlateau_s + maxParam;
+         return sch;
+     }
+
      // Режим «только по воздуху»: фаза по времени из параметров.
      static Phase SelectPhaseByTime(uint32_t runtime_s)
      {
-         const uint32_t tWarmUp  = AirOnlyMinToSec(g_defrostParams.airOnlyPhaseWarmUp_min);
-         const uint32_t tPlateau = AirOnlyMinToSec(g_defrostParams.airOnlyPhasePlateau_min);
-         if (runtime_s < tWarmUp)  return Phase::WarmUp;
-         if (runtime_s < tPlateau) return Phase::Plateau;
+         const AirOnlySchedule sch = MakeAirOnlySchedule();
+         if (runtime_s < sch.endWarmUp_s)  return Phase::WarmUp;
+         if (runtime_s < sch.endPlateau_s) return Phase::Plateau;
          return Phase::Finish;
      }
 
@@ -335,9 +368,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      {
          if (startPhase == Phase::Finish)
              return Phase::Finish;
-         const uint32_t tWarmUp  = AirOnlyMinToSec(g_defrostParams.airOnlyPhaseWarmUp_min);
-         const uint32_t tPlateau = AirOnlyMinToSec(g_defrostParams.airOnlyPhasePlateau_min);
-         const uint32_t plateauDur = (tPlateau > tWarmUp) ? (tPlateau - tWarmUp) : 0u;
+         const AirOnlySchedule sch = MakeAirOnlySchedule();
+         const uint32_t plateauDur = sch.endPlateau_s - sch.endWarmUp_s;
          if (startPhase == Phase::Plateau)
          {
              if (elapsedSinceSwitch_s < plateauDur)
@@ -1546,8 +1578,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          const float T_sup_avg_C = airIn.T_sup_avg_C;
          const float w_sup_avg  = HumidityRatio_kgkg(T_sup_avg_C, airIn.RH_sup_avg);
 
-         const uint32_t maxRt = AirOnlyMinToSec(g_defrostParams.maxRuntime_min);
-         g.airOnlyRemain_s = (g.runtimeSeconds < maxRt) ? (maxRt - g.runtimeSeconds) : 0u;
+         const AirOnlySchedule sch = MakeAirOnlySchedule();
+         g.airOnlyRemain_s = (g.runtimeSeconds < sch.endProcess_s)
+             ? (sch.endProcess_s - g.runtimeSeconds) : 0u;
 
          Phase phase;
          if (g.airOnlyFromProduct != 0u)
@@ -1575,7 +1608,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
              heatScale01 = 0.0f;
         if (g.airOnlyRemain_s == 0u)
         {
-            // Хвост «только воздух» исчерпан (maxRuntime − время работы к моменту выпадения / старта).
+            // Хвост «только воздух» исчерпан (конец расписания фаз − время работы).
             DefrostControl_SetEnabled(0);
             return;
         }

@@ -59,7 +59,9 @@ void TouchGFXGeneratedHAL::initialize()
 void TouchGFXGeneratedHAL::configureInterrupts()
 {
     NVIC_SetPriority(DMA2D_IRQn, 9);
-    NVIC_SetPriority(LTDC_IRQn, 9);
+    /* 5 — самый срочный приоритет, которому ещё можно звать CMSIS-RTOS из прерывания.
+       При 9 прерывание строки опаздывает за UART/DMA, и смена буфера попадает в картинку. */
+    NVIC_SetPriority(LTDC_IRQn, 5);
 }
 
 void TouchGFXGeneratedHAL::enableInterrupts()
@@ -76,7 +78,9 @@ void TouchGFXGeneratedHAL::disableInterrupts()
 
 void TouchGFXGeneratedHAL::enableLCDControllerInterrupt()
 {
-    lcd_int_active_line = (LTDC->BPCR & 0x7FF) - 1;
+    /* Строка 0 — начало гашения. До первой видимой строки (AccumulatedVBP) остаётся
+       весь VSYNC и заднее крыльцо, чтобы IMR смены буфера не разрезал кадр. */
+    lcd_int_active_line = 0;
     lcd_int_porch_line = (LTDC->AWCR & 0x7FF) - 1;
 
     /* Sets the Line Interrupt position */
