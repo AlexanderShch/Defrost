@@ -460,23 +460,13 @@ void VisualizationView::syncDeviceAlarmIndicators()
 	Vent_Out_Alarm.setVisible(ventOutAlarm && alarmBlinkOn);
 	Vent_Out_Alarm.invalidate();
 
-	// Авария заслонки (бит 11): мигание красный квадрат ↔ иконка Flap (неопределённое положение).
+	// Авария заслонки (бит 11): красный квадрат мигает поверх иконки по Air_Close.
+	// Картинка с точкой (Flap) не показывается.
 	const bool flapAlarm = (af & (1u << 11)) != 0;
+	Flap.setVisible(false);
+	Flap.invalidate();
 	Flap_Alarm.setColor(colorAlarm);
-	if (flapAlarm)
-	{
-		Flap_Open.setVisible(false);
-		Flap_Close.setVisible(false);
-		Flap_Alarm.setVisible(alarmBlinkOn);
-		Flap.setVisible(!alarmBlinkOn); /* фаза без квадрата — заслонка «не определена» */
-		Flap_Open.invalidate();
-		Flap_Close.invalidate();
-		Flap.invalidate();
-	}
-	else
-	{
-		Flap_Alarm.setVisible(false);
-	}
+	Flap_Alarm.setVisible(flapAlarm && alarmBlinkOn);
 	Flap_Alarm.invalidate();
 }
 
@@ -504,33 +494,17 @@ void VisualizationView::syncExhaustFanAndFlapFromInputs()
 	}
 	AnimFan_Out.invalidate();
 
-	/* При аварии Open/Close не показываем; Flap ↔ Flap_Alarm задаёт syncDeviceAlarmIndicators. */
-	if ((Model::Device_AlarmFlags & (uint16_t)(1u << 11)) != 0u)
-	{
-		const bool alarmBlinkOn = (Model::DFR_current._Alr != 0);
-		Flap_Open.setVisible(false);
-		Flap_Close.setVisible(false);
-		Flap.setVisible(!alarmBlinkOn);
-		Flap_Open.invalidate();
-		Flap_Close.invalidate();
-		Flap.invalidate();
-		return;
-	}
-
+	// Иконка только по концевику. Flap.png (точка) не используется.
 	const uint8_t waterFlapCmd = (Model::Flag_DFR_manual != 0)
 		? (uint8_t)Model::DFR_manual.Water_Flap
 		: (uint8_t)Model::DFR_current.Water_Flap;
 	const AirFlapState flapState = ResolveAirFlapState(
 		waterFlapCmd,
-		(uint8_t)Model::DI_DFR.Bits.Air_Open);
+		(uint8_t)Model::DI_DFR.Bits.Air_Close);
 
-	const bool showFlap = (flapState == AirFlapState::Moving);
-	const bool showOpen = (flapState == AirFlapState::Open);
-	const bool showClose = (flapState == AirFlapState::Closed);
-
-	Flap.setVisible(showFlap);
-	Flap_Open.setVisible(showOpen);
-	Flap_Close.setVisible(showClose);
+	Flap.setVisible(false);
+	Flap_Open.setVisible(flapState == AirFlapState::Open);
+	Flap_Close.setVisible(flapState == AirFlapState::Closed);
 	Flap.invalidate();
 	Flap_Open.invalidate();
 	Flap_Close.invalidate();

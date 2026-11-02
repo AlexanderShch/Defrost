@@ -51,7 +51,7 @@ void Air_OutView::handleTickEvent()
 	Air_OutViewBase::handleTickEvent();
 	if (Model::isDefrostManualModeEnabled() &&
 		DefrostControl_IsDeviceSwitchCheckEnabled() != 0u &&
-		Model::DI_DFR.Bits.Air_Open != 0u &&
+		Model::DI_DFR.Bits.Air_Close != 0u &&
 		Model::DFR_manual._Out != 0)
 	{
 		Model::DFR_manual._Out = 0;
@@ -96,7 +96,7 @@ void Air_OutView::syncExhaustFanAndFlapFromInputs()
 		: (unsigned char)Model::DFR_current.Water_Flap;
 	const AirFlapState flapState = ResolveAirFlapState(
 		waterFlapCmd,
-		(unsigned char)Model::DI_DFR.Bits.Air_Open);
+		(unsigned char)Model::DI_DFR.Bits.Air_Close);
 
 	// Мигать аварийными надписями синхронно с красной лампой _Alr.
 	const bool alarmBlinkOnPhase = (Model::DFR_current._Alr != 0u);
@@ -104,13 +104,13 @@ void Air_OutView::syncExhaustFanAndFlapFromInputs()
 	const bool flapAlarmActive = (deviceAlarmFlags & kFlapAlarmBit) != 0u;
 	const bool outFanAlarmActive = (deviceAlarmFlags & kOutFanAlarmBit) != 0u;
 
-	const bool showFlapOn = (!flapAlarmActive) && (flapState == AirFlapState::Open);
-	const bool showFlapOff = (!flapAlarmActive) && (flapState == AirFlapState::Closed);
-	const bool showFlapMoving = (!flapAlarmActive) && (flapState == AirFlapState::Moving);
+	// Иконка по концевику и при аварии. Flap.png (точка) не используется.
+	const bool showFlapOn = (flapState == AirFlapState::Open);
+	const bool showFlapOff = (flapState == AirFlapState::Closed);
 
 	Flap_On.setVisible(showFlapOn);
 	Flap_Off.setVisible(showFlapOff);
-	Flap.setVisible(showFlapMoving);
+	Flap.setVisible(false);
 	Flap_On.invalidate();
 	Flap_Off.invalidate();
 	Flap.invalidate();
@@ -168,10 +168,10 @@ void Air_OutView::updateAirOutManualControls()
 		BTN_AirFlap.setAlpha(255);
 		Label_AirFlap.setAlpha(255);
 
-		// При включённой проверке концевика вентилятор только когда заслонка уже открыта (Air_Open=0).
+		// При включённой проверке концевика вентилятор только когда заслонка уже открыта (Air_Close=0).
 		const bool flapPhysicallyOpen =
 			(DefrostControl_IsDeviceSwitchCheckEnabled() == 0u) ||
-			(Model::DI_DFR.Bits.Air_Open == 0u);
+			(Model::DI_DFR.Bits.Air_Close == 0u);
 		const bool fanEnabled = flapOn && flapPhysicallyOpen;
 		if (manual && !flapPhysicallyOpen && Model::DFR_manual._Out != 0)
 		{
@@ -217,7 +217,7 @@ void Air_OutView::BTN_AirFanClicked()
 		return;
 	}
 	if (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u &&
-		Model::DI_DFR.Bits.Air_Open != 0u)
+		Model::DI_DFR.Bits.Air_Close != 0u)
 	{
 		Model::DFR_manual._Out = 0;
 		setToggleOn(BTN_AirFan, false);

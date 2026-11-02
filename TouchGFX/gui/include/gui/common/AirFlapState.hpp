@@ -3,25 +3,21 @@
 
 enum class AirFlapState : unsigned char
 {
-    Moving = 0, // команда и концевик не совпадают (ход)
-    Open,       // Air_Open=0, заслонка открыта
-    Closed,     // Air_Open=1 при команде закрыть
+    Moving = 0, // не рисуется: картинка «не определено» (точка) больше не используется
+    Open,       // Air_Close=0, канал открыт
+    Closed,     // Air_Close=1, перегородка: закрыта или ещё открывается
     Invalid
 };
 
-/** Air_Open=0 — открыта, вентилятор продувки можно включать.
- *  Air_Open=1 — закрыта или ещё открывается, вентилятор включать нельзя. */
-inline AirFlapState ResolveAirFlapState(unsigned char waterFlapOpen, unsigned char airOpen)
+/** Картинка заслонки следует концевику, а не рассогласованию с командой.
+ *  Air_Close=0 — открыта. Air_Close=1 — перегородка (закрыта или ход на открытие).
+ *  Картинка с точкой (Flap.png) на экран не выводится. */
+inline AirFlapState ResolveAirFlapState(unsigned char waterFlapOpen, unsigned char airClose)
 {
-    if (waterFlapOpen != 0u)
-    {
-        if (airOpen == 0u)
-            return AirFlapState::Open;
-        return AirFlapState::Moving;
-    }
-    if (airOpen != 0u)
-        return AirFlapState::Closed;
-    return AirFlapState::Moving;
+    (void)waterFlapOpen;
+    if (airClose == 0u)
+        return AirFlapState::Open;
+    return AirFlapState::Closed;
 }
 
 #endif // AIRFLAPSTATE_HPP
