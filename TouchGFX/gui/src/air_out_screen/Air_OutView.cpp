@@ -49,13 +49,18 @@ void Air_OutView::setupScreen()
 void Air_OutView::handleTickEvent()
 {
 	Air_OutViewBase::handleTickEvent();
-	if (Model::isDefrostManualModeEnabled() &&
-		DefrostControl_IsDeviceSwitchCheckEnabled() != 0u &&
-		Model::DI_DFR.Bits.Air_Close != 0u &&
-		Model::DFR_manual._Out != 0)
+
+	// Доступность вентилятора зависит от концевика, который меняется после команды On.
+	// Пока Air_Close=1, кнопка заблокирована; при Air_Close=0 и On её нужно снова разрешить.
+	const bool manual = Model::isDefrostManualModeEnabled();
+	const bool flapOn = isToggleOn(BTN_AirFlap);
+	const bool flapPhysicallyOpen =
+		(DefrostControl_IsDeviceSwitchCheckEnabled() == 0u) ||
+		(Model::DI_DFR.Bits.Air_Close == 0u);
+	const bool fanEnabled = manual && flapOn && flapPhysicallyOpen;
+	if (fanEnabled != BTN_AirFan.isTouchable() ||
+		(manual && !flapPhysicallyOpen && Model::DFR_manual._Out != 0))
 	{
-		Model::DFR_manual._Out = 0;
-		setToggleOn(BTN_AirFan, false);
 		updateAirOutManualControls();
 	}
 	syncExhaustFanAndFlapFromInputs();
