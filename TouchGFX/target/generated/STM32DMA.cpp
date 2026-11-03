@@ -409,8 +409,21 @@ void STM32DMA::setupDataFill(const BlitOp& blitOp)
         /* DMA2D FGOR register configuration */
         WRITE_REG(DMA2D->FGOR, 0);
 
-        /* OCOLR для RGB565-фреймбуфера: без повторной конвертации, если цвет уже native */
-        WRITE_REG(DMA2D->OCOLR, blitColorToRgb565(blitOp.color));
+        /* TouchGFX 4.26 (HAL::blitFill), непрозрачная заливка:
+         *  - dstFormat = RGB565: цвет уже native RGB565 (младшие 16 бит);
+         *  - dstFormat = ARGB8888: если X, ширина и шаг строки чётные, библиотека
+         *    делит ширину на 2 и кладёт в color два пикселя RGB565 (c565 | c565 << 16),
+         *    DMA2D пишет 32-битными словами. Это слово нельзя конвертировать —
+         *    иначе старшая половина обнуляется и каждый второй пиксель становится
+         *    чёрным (полосы на FlexButton на экранах «Программирование»/«Коррекция»). */
+        if (blitOp.dstFormat == Bitmap::RGB565)
+        {
+            WRITE_REG(DMA2D->OCOLR, blitColorToRgb565(blitOp.color));
+        }
+        else
+        {
+            WRITE_REG(DMA2D->OCOLR, blitOp.color);
+        }
 
         /* Enable the Peripheral and Enable the transfer complete interrupt */
         WRITE_REG(DMA2D->CR, (DMA2D_IT_TC | DMA2D_CR_START | DMA2D_R2M));
