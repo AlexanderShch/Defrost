@@ -12,7 +12,7 @@
 #include "cmsis_os.h"
 #include "ModBus.hpp"
 
-#define TQ 16				// размер буфера (кол-во тактов) для хранения измерений при расчёте среднего значения температуры
+#define TQ 32				// размер буфера (кол-во тактов) для хранения измерений при расчёте среднего значения температуры
 #define SQ 7				// датчики TH дефростера (0-2) + датчики продукта (3, 4) + T корпуса (5) + MB_IO (6)
 #define STQ 5				// количество типов датчиков и IO-модулей
 #define FLAG_ReadData 1ul	// флаг события чтения данных 0x00000001ul
@@ -26,6 +26,8 @@ public:
 	Sensor(unsigned int Time, int T, int H){};		// конструктор
 	static void PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param, int Val);
 	static int GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned char Param);
+	/** Отфильтрованная T (Param 4) в десятых °C без округления. Действительна для последних TQ тактов. */
+	static float GetAverageT_Deci(unsigned int TimeFromStart, unsigned char SensNum);
 	/** Сырая T (Param 2) → обрезание попомехе → слот T_Clamped → среднее в Param 4. timeSec = TimeFromStart. */
 	static void ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsigned int timeSec);
 	/** Датчики продукта 3/4: идёт T-переход (сырая устойчиво расходится с фильтрованной). */
@@ -46,7 +48,7 @@ protected:
 	static int T[TQ][SQ];			// сырая температура с датчика (Param 2): экран и телеметрия
 	static int T_Clamped[TQ][SQ];		// после ограничения скорости изменения (антиспайк, обрезка по помехе); участвует в среднем
 	static int8_t T_ClampHit[TQ][SQ];	// продукт: −1/0/+1 (знак обрезки); воздух: 0/1
-	static int T_Average[TQ][SQ];		// отфильтрованная T (Param 4): алгоритм и лог
+	static float T_Average[TQ][SQ];		// отфильтрованная T (Param 4), десятые °C без округления: алгоритм и лог
 	static int H[TQ][SQ];			// влажность
 };
 

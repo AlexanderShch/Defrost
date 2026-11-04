@@ -87,11 +87,12 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      // Если T датчика продукта близка к T воздуха дефростера — считаем, что зонд не в продукте.
      constexpr float kProductVsAirClose_C = 3.0f;
 
-     /** Температура для расчётов автоматики: Param 4 — усреднение по буферу + ограничение скорости (Clatch), см. Data.cpp.
-      *  В Model::setCurrentVal_T попадает сырая T с шины (Param 2) — для экрана; для ControlStep1s нужен Param 4, как в логе T_filt_C. */
-     inline int16_t FilteredSensorT_Deci(int8_t sensorIndex)
+     /** Температура для расчётов автоматики, °C: Param 4 — среднее по буферу T_Clamped (float), см. Data.cpp.
+      *  В Model::setCurrentVal_T попадает сырая T с шины (Param 2) — для экрана; для ControlStep1s нужен Param 4, как в логе T_filt_C.
+      *  timeSec — такт кольца; значение действительно только для последних TQ тактов. */
+     inline float FilteredSensorT_C(int8_t sensorIndex, unsigned int timeSec = TimeFromStart)
      {
-         return (int16_t)Sensor::GetData(TimeFromStart, (unsigned char)sensorIndex, 4);
+         return Sensor::GetAverageT_Deci(timeSec, (unsigned char)sensorIndex) * 0.1f;
      }
 
      /** Бит аварии датчика (обрезки) или недоступность канала для контура управления. */
@@ -137,9 +138,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      // учитываются только исправные датчики воздушного потока и датчик возврата
      inline void ComputeDefrostAirControlInputs(DefrostAirControlInputs* a)
      {
-         a->mL   = DeciToC(FilteredSensorT_Deci(kSensSupLeft_T_H)); // получаем значения с левого датчика воздушного потока
-         a->mR   = DeciToC(FilteredSensorT_Deci(kSensSupRight_T_H)); // получаем значения с правого датчика воздушного потока
-         a->mRet = DeciToC(FilteredSensorT_Deci(kSensReturn_T_H)); // получаем значения с датчика возврата
+         a->mL   = FilteredSensorT_C(kSensSupLeft_T_H); // получаем значения с левого датчика воздушного потока
+         a->mR   = FilteredSensorT_C(kSensSupRight_T_H); // получаем значения с правого датчика воздушного потока
+         a->mRet = FilteredSensorT_C(kSensReturn_T_H); // получаем значения с датчика возврата
          a->okL   = DefrostAirThChannelUsable(kSensSupLeft_T_H) ? 1u : 0u; // проверяем, исправен ли левый датчик воздушного потока
          a->okR   = DefrostAirThChannelUsable(kSensSupRight_T_H) ? 1u : 0u; // проверяем, исправен ли правый датчик воздушного потока
          a->okRet = DefrostAirThChannelUsable(kSensReturn_T_H) ? 1u : 0u; // проверяем, исправен ли датчик возврата
@@ -645,13 +646,16 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          // Структуры ШИМ-управления левой и правой группами ТЭНов
          SideActuators left;
          SideActuators right;
-         // Последняя зафиксированная самая высокая Т продукта
-         float lastFishHot_C = 0.0f;
+         // Т самой холодной точки продукта на прошлом такте (автостоп по переходу через fishColdTarget_C)
          float lastFishCold_C = 0.0f;
-         // Флаг, указывающий на наличие предыдущего измерения температуры самой горячей точки продукта
+         // Флаг, указывающий на наличие предыдущего такта расчёта по продукту
          uint8_t haveLastFishHot = 0;
          // Бит0 = датчик 3, бит1 = датчик 4; смена состава сбрасывает rate_Cps.
          uint8_t prevFishEnableMask = 0;
+         // Секунды подряд с неизменным составом датчиков продукта; rate_Cps — только когда окно кольца целиком из них.
+         uint16_t fishMaskStable_s = 0;
+         // Тактов подряд с rate_Cps выше лимита; ограничение мощности — только с kRateExceedConfirm-го.
+         uint8_t rateExceedCount = 0;
          // Выпадение зонда из продукта (рост T): авария, канал выключен из алгоритма до возврата в продукт.
          uint8_t productFallen[2] = {1, 1};
          // После выпадения видели переходную вниз (повторная установка).
@@ -722,10 +726,11 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.right.ten2Hold.Reset(0);     // сброс времени удержания правого ТЭНа 2.
        g.right.tenLeadIsSecond = 0;
        g.right.tenBothOnPrev = 0;
-       g.lastFishHot_C = 0.0f;        // последняя измеренная температура продукта.
        g.lastFishCold_C = 0.0f;
        g.haveLastFishHot = 0;         // флаг отсутствия последней измеренной температуры продукта.
        g.prevFishEnableMask = 0;
+       g.fishMaskStable_s = 0;
+       g.rateExceedCount = 0;
        g.productFallen[0] = 1;
        g.productFallen[1] = 1;
        g.productCoolRecover[0] = 0;
@@ -772,17 +777,17 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         uint8_t airRefCnt = 0u;
         if (DefrostAirThChannelUsable(kSensSupLeft_T_H))
         {
-            airRefSum_C += DeciToC(FilteredSensorT_Deci(kSensSupLeft_T_H));
+            airRefSum_C += FilteredSensorT_C(kSensSupLeft_T_H);
             ++airRefCnt;
         }
         if (DefrostAirThChannelUsable(kSensSupRight_T_H))
         {
-            airRefSum_C += DeciToC(FilteredSensorT_Deci(kSensSupRight_T_H));
+            airRefSum_C += FilteredSensorT_C(kSensSupRight_T_H);
             ++airRefCnt;
         }
         if (DefrostAirThChannelUsable(kSensReturn_T_H))
         {
-            airRefSum_C += DeciToC(FilteredSensorT_Deci(kSensReturn_T_H));
+            airRefSum_C += FilteredSensorT_C(kSensReturn_T_H);
             ++airRefCnt;
         }
         const uint8_t airRefValid = (airRefCnt > 0u) ? 1u : 0u;
@@ -804,7 +809,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
                 g.productCoolRecover[i] = 0u;
                 continue;
             }
-            const float fishT_C = DeciToC(FilteredSensorT_Deci((i == 0u) ? kSensFish1_T : kSensFish2_T));
+            const float fishT_C = FilteredSensorT_C((i == 0u) ? kSensFish1_T : kSensFish2_T);
             float dAir = fishT_C - airRef_C;
             if (dAir < 0.0f)
                 dAir = -dAir;
@@ -1317,8 +1322,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          const float RH_ret   = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
          (void)RH_ret;
 
-         const float fish1_C = DeciToC(FilteredSensorT_Deci(kSensFish1_T));
-         const float fish2_C = DeciToC(FilteredSensorT_Deci(kSensFish2_T));
+         const float fish1_C = FilteredSensorT_C(kSensFish1_T);
+         const float fish2_C = FilteredSensorT_C(kSensFish2_T);
 
          // Датчик продукта в расчёте: на шине, в алгоритме, не выпал, нет T-перехода.
          // Если оба вне продукта (старт на воздухе) — ниже уйдём в ControlStep1s_AirOnly.
@@ -1331,6 +1336,11 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
              // Смена набора рабочих датчиков продукта: не считать rate_Cps от несравнимых T.
              g.haveLastFishHot = 0;
              g.prevFishEnableMask = fishEnableMask;
+             g.fishMaskStable_s = 0;
+         }
+         else if (g.fishMaskStable_s < 0xFFFFu)
+         {
+             ++g.fishMaskStable_s;
          }
 
          float fishHot_C = 0.0f;
@@ -1426,14 +1436,29 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
              heatScale01 = Clamp(x, 0.0f, 1.0f); // ограничиваем значение от 0 до 1
          }
  
-         // Ограничение по скорости прогрева "горячей" точки (только при наличии предыдущей температуры продукта).
-         // Пока fishHot далеко от fishHotMax И подача далеко от supplySet — rate не режем:
-         // на холодном старте LSB-шум ±0.1 °C/с ложно срабатывает на лимите 0.02 °C/с и через
-         // tenMinHold гасит ТЭНы на 10 с при полном запросе мощности.
-         float rate_Cps = 0.0f;   // для лога; при отсутствии предыдущего замера — 0
-         if (g.haveLastFishHot != 0)
+         // Ограничение по скорости прогрева "горячей" точки продукта.
+         // Скорость — по кольцу T_Average: fishHot сейчас минус fishHot тех же датчиков TQ−1 тактов назад.
+         // Разность соседних секунд не годится: при шаге датчика 0.1 °C она даёт ложные 0.1 °C/с.
+         // Пока окно кольца не заполнено тем же составом датчиков продукта — rate_Cps = 0, лимит не применяется.
+         // Пока fishHot далеко от fishHotMax И подача далеко от supplySet — rate не режем.
+         // Превышение должно подтвердиться kRateExceedConfirm тактов подряд, иначе ТЭНы не переключаем.
+         float rate_Cps = 0.0f;   // для лога; до заполнения окна — 0
+         const unsigned int kRateWindow_s = (unsigned int)(TQ - 1);
+         const uint8_t kRateExceedConfirm = 3u;
+         uint8_t rateExceeded = 0u;
+         if ((g.fishMaskStable_s >= kRateWindow_s) && (TimeFromStart > kRateWindow_s))
          {
-             rate_Cps = (fishHot_C - g.lastFishHot_C) / kDt_s; // скорость прогрева "горячей" точки, град/сек
+             const unsigned int tPast = TimeFromStart - kRateWindow_s;
+             const float past1_C = FilteredSensorT_C(kSensFish1_T, tPast);
+             const float past2_C = FilteredSensorT_C(kSensFish2_T, tPast);
+             float pastHot_C = fishHot_C;
+             if (fish1Enabled && fish2Enabled)
+                 pastHot_C = (past1_C >= past2_C) ? past1_C : past2_C;
+             else if (fish1Enabled)
+                 pastHot_C = past1_C;
+             else if (fish2Enabled)
+                 pastHot_C = past2_C;
+             rate_Cps = (fishHot_C - pastHot_C) / ((float)kRateWindow_s * kDt_s); // скорость прогрева "горячей" точки, град/сек
              const float kFishHotRateArm_C = 3.0f;   // включать rate-лимит ближе чем на 3 °C к fishHotMax
              const float kSupplySetRateArm_C = 5.0f; // или ближе чем на 5 °C к уставке подачи
              const uint8_t rateLimitArmed =
@@ -1441,12 +1466,19 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
                   (T_sup_avg_C >= (tgt.supplySet_C - kSupplySetRateArm_C))) ? 1u : 0u;
              if ((rateLimitArmed != 0u) && (rate_Cps > lim.fishHotRateMax_Cps))
              {
-                 // Пропорционально снижаем; защищаемся от полного "затыка" из-за шума.
-                const float s = lim.fishHotRateMax_Cps / Clamp(rate_Cps, 0.01f, rate_Cps); // коэффициент снижения мощности нагрева
-                heatScale01 = Clamp(heatScale01 * s, 0.0f, 1.0f); // ограничиваем значение от 0 до 1
+                 rateExceeded = 1u;
+                 if (g.rateExceedCount < 255u)
+                     ++g.rateExceedCount;
+                 if (g.rateExceedCount >= kRateExceedConfirm)
+                 {
+                     // Пропорционально снижаем; защищаемся от полного "затыка" из-за шума.
+                     const float s = lim.fishHotRateMax_Cps / Clamp(rate_Cps, 0.01f, rate_Cps); // коэффициент снижения мощности нагрева
+                     heatScale01 = Clamp(heatScale01 * s, 0.0f, 1.0f); // ограничиваем значение от 0 до 1
+                 }
              }
          }
-         g.lastFishHot_C = fishHot_C;
+         if (rateExceeded == 0u)
+             g.rateExceedCount = 0u;
          g.lastFishCold_C = fishCold_C;
          g.haveLastFishHot = 1;
  
@@ -1544,12 +1576,12 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         s_lastPhase = static_cast<uint8_t>(phase);
 
         // Формируем текущее состояние алгоритма управления для регулярного лога (6 датчиков: 0..5).
-        s_controlLogPayload.T_filt_C[0] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 0, 4));  // defroster T,H left
-        s_controlLogPayload.T_filt_C[1] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 1, 4));  // defroster T,H right
-        s_controlLogPayload.T_filt_C[2] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 2, 4));  // defroster T,H center
-        s_controlLogPayload.T_filt_C[3] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 3, 4));  // fish T left
-        s_controlLogPayload.T_filt_C[4] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 4, 4));  // fish T right
-        s_controlLogPayload.T_filt_C[5] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 5, 4));  // defroster operating T
+        s_controlLogPayload.T_filt_C[0] = FilteredSensorT_C(0);  // defroster T,H left
+        s_controlLogPayload.T_filt_C[1] = FilteredSensorT_C(1);  // defroster T,H right
+        s_controlLogPayload.T_filt_C[2] = FilteredSensorT_C(2);  // defroster T,H center
+        s_controlLogPayload.T_filt_C[3] = FilteredSensorT_C(3);  // fish T left
+        s_controlLogPayload.T_filt_C[4] = FilteredSensorT_C(4);  // fish T right
+        s_controlLogPayload.T_filt_C[5] = FilteredSensorT_C(5);  // defroster operating T
 
          s_controlLogPayload.phase = s_lastPhase;
          s_controlLogPayload.eT_common = eT_common;
@@ -1690,12 +1722,12 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         s_controlLogPayload.rightTen2Duty = rightTen2Duty;
 
         // Отфильтрованные температуры 6 датчиков (индексы 0..5, в °C) — первыми в логе.
-        s_controlLogPayload.T_filt_C[0] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 0, 4));  // defroster T,H left
-        s_controlLogPayload.T_filt_C[1] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 1, 4));  // defroster T,H right
-        s_controlLogPayload.T_filt_C[2] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 2, 4));  // defroster T,H center
-        s_controlLogPayload.T_filt_C[3] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 3, 4));  // fish T left
-        s_controlLogPayload.T_filt_C[4] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 4, 4));  // fish T right
-        s_controlLogPayload.T_filt_C[5] = DeciToC((int16_t)Sensor::GetData(TimeFromStart, 5, 4));  // defroster operating T
+        s_controlLogPayload.T_filt_C[0] = FilteredSensorT_C(0);  // defroster T,H left
+        s_controlLogPayload.T_filt_C[1] = FilteredSensorT_C(1);  // defroster T,H right
+        s_controlLogPayload.T_filt_C[2] = FilteredSensorT_C(2);  // defroster T,H center
+        s_controlLogPayload.T_filt_C[3] = FilteredSensorT_C(3);  // fish T left
+        s_controlLogPayload.T_filt_C[4] = FilteredSensorT_C(4);  // fish T right
+        s_controlLogPayload.T_filt_C[5] = FilteredSensorT_C(5);  // defroster operating T
 
         s_controlLogPayload.w_sup_avg = w_sup_avg;
         s_controlLogPayload.wErr = wErr;

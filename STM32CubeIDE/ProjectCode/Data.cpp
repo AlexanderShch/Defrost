@@ -134,7 +134,7 @@ unsigned int Sensor::Time[TQ][SQ] = {{0}};	// номер такта измере
 int Sensor::T[TQ][SQ] = {{0}};		// сырая температура (Param 2)
 int Sensor::T_Clamped[TQ][SQ] = {{0}};	// обрезанная по шагу ΔT (антиспайк)
 int8_t Sensor::T_ClampHit[TQ][SQ] = {{0}}; // знак/факт обрезки на такте (продукт −1/0/+1, воздух 0/1)
-int Sensor::T_Average[TQ][SQ] = {{0}};	// усреднённая по буферу обрезанных (Param 4)
+float Sensor::T_Average[TQ][SQ] = {{0.0f}};	// усреднённая по буферу обрезанных (Param 4), десятые °C
 int Sensor::H[TQ][SQ] = {{0}};		// влажность
 // !!! ВНИМАНИЕ! Если меняется структура MSGQUEUE_OBJ_t, надо поменять и размер буфера MAX_MB_BUFSIZE в ModBus.cpp
 
@@ -162,7 +162,7 @@ void Sensor::PutData(unsigned int TimeFromStart, unsigned char SensNum, unsigned
 		H[i][SensNum] = Val;
 		break;
 	case 4:
-		T_Average[i][SensNum] = Val;
+		T_Average[i][SensNum] = (float)Val;
 		break;
 	default:
 		break;
@@ -187,10 +187,19 @@ int Sensor::GetData(unsigned int TimeFromStart, unsigned char SensNum, unsigned 
 	case 3:
 		return H[i][SensNum];
 	case 4:
-		return T_Average[i][SensNum];
+	{
+		// Целое округляется до ближайшего; для расчётов алгоритма — GetAverageT_Deci.
+		const float v = T_Average[i][SensNum];
+		return (int)((v >= 0.0f) ? (v + 0.5f) : (v - 0.5f));
+	}
 	default:
 		return 0;
 	}
+}
+
+float Sensor::GetAverageT_Deci(unsigned int TimeFromStart, unsigned char SensNum)
+{
+	return T_Average[TimeFromStart % TQ][SensNum];
 }
 
 void Sensor::SetAverageTemperature(unsigned char SensNum)
@@ -215,14 +224,14 @@ void Sensor::SetAverageTemperature(unsigned char SensNum)
 			++count;
 		}
 	}
-	const int TempAverage = (count > 0) ? (int)(sum / (long)count) : 0;
-	PutData(TimeFromStart, SensNum, 4, TempAverage);
+	// Без целочисленного деления: шаг среднего 0.1/TQ десятых, а не 0.1 °C.
+	T_Average[TimeFromStart % TQ][SensNum] = (count > 0) ? ((float)sum / (float)count) : 0.0f;
 }
 
 static constexpr unsigned char kSensProductLeft = 3u;
 static constexpr unsigned char kSensProductRight = 4u;
 /** Для продукта: меньшее из nPos/nNeg не ниже этого — считаем двусторонним шумом, а не тепловой переходной. */
-static constexpr unsigned kClampNoiseMinorityMin = 3u;
+static constexpr unsigned kClampNoiseMinorityMin = 6u;
 
 static bool IsProductTempSensor(unsigned char sensNum)
 {
@@ -249,7 +258,7 @@ static void ResetProductChaseState(unsigned char SensNum)
 	s_productConsecClear[SensNum] = 0;
 }
 
-static void UpdateProductChaseFromRawVsFilt(unsigned char SensNum, int rawDeci, int filtDeci)
+static void UpdateProductChaseFromRawVsFilt(unsigned char SensNum, int rawDeci, float filtDeci)
 {
 	if (!IsProductTempSensor(SensNum))
 		return;
@@ -258,7 +267,7 @@ static void UpdateProductChaseFromRawVsFilt(unsigned char SensNum, int rawDeci, 
 		ResetProductChaseState(SensNum);
 		return;
 	}
-	const int d = rawDeci - filtDeci;
+	const float d = (float)rawDeci - filtDeci;
 	if (d > kProductChaseEnterDeci)
 	{
 		if (s_productConsecUp[SensNum] < 255u)
@@ -373,8 +382,8 @@ uint8_t Sensor::IsProductFalloutPending(unsigned char SensNum)
 	if (Sensor_array[SensNum].Active != 1u)
 		return 0u;
 	const int rawDeci = GetData(TimeFromStart, SensNum, 2);
-	const int filtDeci = GetData(TimeFromStart, SensNum, 4);
-	return ((rawDeci - filtDeci) > kProductChaseEnterDeci) ? 1u : 0u;
+	const float filtDeci = GetAverageT_Deci(TimeFromStart, SensNum);
+	return (((float)rawDeci - filtDeci) > (float)kProductChaseEnterDeci) ? 1u : 0u;
 }
 
 /** Воздух: защёлка при sumHits > TQ/2. Продукт: авария только при двустороннем шуме; иначе бит снимается. */
@@ -436,7 +445,7 @@ void Sensor::ApplyTemperatureClampedBufferAndAverage(unsigned char SensNum, unsi
 	SetAverageTemperature(SensNum);
 	EvaluateClampAlarmForSensor(SensNum);
 	if (IsProductTempSensor(SensNum))
-		UpdateProductChaseFromRawVsFilt(SensNum, rawDeci, GetData(timeSec, SensNum, 4));
+		UpdateProductChaseFromRawVsFilt(SensNum, rawDeci, GetAverageT_Deci(timeSec, SensNum));
 }
 
 // 1. Operating system timer 1 sec will start this function
