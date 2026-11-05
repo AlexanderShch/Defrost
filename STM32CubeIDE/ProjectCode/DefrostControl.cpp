@@ -466,30 +466,46 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          }
      };
  
-     // Расчёт скважности для ШИМ методом сигма-дельта
-     struct SigmaDeltaPWM
-     {
-         float acc = 0.0f;                  // накопитель
-         uint8_t Step(float duty01)         // duty01 — заданная скважность 0…1 (0 = выкл, 1 = вкл)
-         {
-             // При обновлении раз в секунду выход принимает значения только 0 или 1; 
-             // накопитель распределяет включения по тактам так, чтобы средняя скважность за период 
-             // совпадала с заданной (эквивалент ШИМ).
-             duty01 = Clamp(duty01, 0.0f, 1.0f);
-             acc += duty01;                 // накопитель скважности
-             if (acc >= 1.0f)               // накопитель превысил 100%, нужно включить устройство
-             {
-                 acc -= 1.0f;               // устройство включаем, накопитель сбрасываем на 100%
-                 return 1;                  // возвращаем команду на включение
-             }
-             return 0;                      // накопитель ещё не полный, устройство включать не нужно
-         }
- 
-         void Reset()
-         {
-             acc = 0.0f;
-         }
-     };
+    /*
+     * Сигма-дельта ШИМ с обратной связью по фактическому выходу (после HoldSwitch).
+     * acc — «долг по энергии» в секундах работы: сумма (duty − фактическое состояние).
+     * Пока удержание не даёт переключиться, долг копится и отдаётся после — средняя
+     * скважность равна заданной; короткое из состояний длится minHold, длинное
+     * подстраивается (0.7 при 60 с → ~140 с вкл / 60 с выкл).
+     * Порядок за такт: Desired() → HoldSwitch::Step() → Update(фактическое состояние).
+     */
+    struct SigmaDeltaPWM
+    {
+        float acc = 0.0f;
+
+        uint8_t Desired(float duty01) const
+        {
+            duty01 = Clamp(duty01, 0.0f, 1.0f);
+            if (duty01 <= 0.0f)
+                return 0u;
+            if (duty01 >= 1.0f)
+                return 1u;
+            return ((acc + duty01) >= 0.5f) ? 1u : 0u;
+        }
+
+        // accLimit ограничивает долг одним периодом удержания: после длительного 0/1
+        // (защиты, насыщение ПИ) регулятор не «отыгрывает» старую историю.
+        void Update(float duty01, uint8_t actualOn, float accLimit)
+        {
+            duty01 = Clamp(duty01, 0.0f, 1.0f);
+            if (duty01 <= 0.0f || duty01 >= 1.0f)
+            {
+                acc = 0.0f;
+                return;
+            }
+            acc = Clamp(acc + duty01 - (actualOn ? 1.0f : 0.0f), -accLimit, accLimit);
+        }
+
+        void Reset()
+        {
+            acc = 0.0f;
+        }
+    };
  
      // Удержание объекта от переключения в течение не менее заданного времени
      struct HoldSwitch
@@ -535,10 +551,12 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          SigmaDeltaPWM ten2;
          HoldSwitch ten1Hold;
          HoldSwitch ten2Hold;
-         /* 0: TEN1 — базовый (min(u,1)), TEN2 — модулирующий (u−1); 1 — наоборот.
-          * Смена роли — только по фронту «оба включены» (не по таймеру). */
-         uint8_t tenLeadIsSecond = 0;
-         uint8_t tenBothOnPrev = 0;
+        /* 0: TEN1 — базовый (min(u,1)), TEN2 — модулирующий (u−1); 1 — наоборот.
+         * Смена роли — по фронту «оба включены» или «оба выключены» (не по таймеру),
+         * вместе с накопителями ШИМ. */
+        uint8_t tenLeadIsSecond = 0;
+        uint8_t tenBothOnPrev = 0;
+        uint8_t tenBothOffPrev = 1;
      };
 
      /** Каскад 0..2 экв. → две скважности; leadIsSecond меняет, кто базовый. */
@@ -558,11 +576,15 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          }
      }
 
-     /**
-      * Шаг пары ТЭНов: ШИМ + hold.
-      * Как только оба оказались включены (фронт), базовый ↔ модулирующий:
-      * при последующем снижении мощности выключится бывший базовый.
-      */
+    /**
+     * Шаг пары ТЭНов: ШИМ + hold.
+     * Как только оба оказались включены или оба выключены (фронт), базовый ↔ модулирующий —
+     * для равномерного износа. «Оба выключены» нужен при u ≤ 1, когда работает только базовый:
+     * следующее включение достаётся второму ТЭНу, только что выключенный отдыхает.
+     * Накопители ШИМ меняются вместе с ролями: долг модуляции принадлежит роли, а не ТЭНу.
+     * Иначе бывший базовый (удержание давно истекло, накопитель пуст) выключается через 1–2 с
+     * и пара фактически работает одним ТЭНом.
+     */
      static void StepPairTens(SideActuators *side, float uEq, uint16_t minHold_s,
                               float *outDuty1, float *outDuty2,
                               uint8_t *ten1_on, uint8_t *ten2_on)
@@ -575,16 +597,25 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          if (outDuty2 != nullptr)
              *outDuty2 = d2;
 
-         const uint8_t des1 = side->ten1.Step(d1);
-         const uint8_t des2 = side->ten2.Step(d2);
-         *ten1_on = side->ten1Hold.Step(des1, minHold_s);
-         *ten2_on = side->ten2Hold.Step(des2, minHold_s);
+        *ten1_on = side->ten1Hold.Step(side->ten1.Desired(d1), minHold_s);
+        *ten2_on = side->ten2Hold.Step(side->ten2.Desired(d2), minHold_s);
+        const float accLimit = (float)((minHold_s > 0u) ? minHold_s : 1u);
+        side->ten1.Update(d1, *ten1_on, accLimit);
+        side->ten2.Update(d2, *ten2_on, accLimit);
 
-         const uint8_t bothOn = ((*ten1_on != 0u) && (*ten2_on != 0u)) ? 1u : 0u;
-         if (bothOn != 0u && side->tenBothOnPrev == 0u)
-             side->tenLeadIsSecond ^= 1u; /* включение пары → смена ролей на следующие шаги */
-         side->tenBothOnPrev = bothOn;
-     }
+        const uint8_t bothOn = ((*ten1_on != 0u) && (*ten2_on != 0u)) ? 1u : 0u;
+        const uint8_t bothOff = ((*ten1_on == 0u) && (*ten2_on == 0u)) ? 1u : 0u;
+        if ((bothOn != 0u && side->tenBothOnPrev == 0u) ||
+            (bothOff != 0u && side->tenBothOffPrev == 0u))
+        {
+            side->tenLeadIsSecond ^= 1u;
+            const float acc1 = side->ten1.acc;
+            side->ten1.acc = side->ten2.acc;
+            side->ten2.acc = acc1;
+        }
+        side->tenBothOnPrev = bothOn;
+        side->tenBothOffPrev = bothOff;
+    }
  
      struct ControllerState
      {
@@ -720,12 +751,14 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.left.ten2Hold.Reset(0);      // сброс времени удержания левого ТЭНа 2.
        g.left.tenLeadIsSecond = 0;
        g.left.tenBothOnPrev = 0;
+      g.left.tenBothOffPrev = 1;
        g.right.ten1.Reset();          // сброс ШИМ-памяти для правого ТЭНа 1.
        g.right.ten2.Reset();          // сброс ШИМ-памяти для правого ТЭНа 2.
        g.right.ten1Hold.Reset(0);     // сброс времени удержания правого ТЭНа 1.
        g.right.ten2Hold.Reset(0);     // сброс времени удержания правого ТЭНа 2.
        g.right.tenLeadIsSecond = 0;
        g.right.tenBothOnPrev = 0;
+      g.right.tenBothOffPrev = 1;
        g.lastFishCold_C = 0.0f;
        g.haveLastFishHot = 0;         // флаг отсутствия последней измеренной температуры продукта.
        g.prevFishEnableMask = 0;
@@ -1537,7 +1570,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          uint8_t ten2L_on = 0;
          uint8_t ten1R_on = 0;
          uint8_t ten2R_on = 0;
-         /* Смена базовый/модулирующий — по фронту «оба ТЭНа включены». */
+         /* Смена базовый/модулирующий — по фронту «оба ТЭНа включены» или «оба выключены». */
          StepPairTens(&g.left, uLeft_TEN, kTenMinHold_s,
                       &leftTen1Duty, &leftTen2Duty, &ten1L_on, &ten2L_on);
          StepPairTens(&g.right, uRight_TEN, kTenMinHold_s,
