@@ -762,6 +762,17 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
             CommandReceiver_SendResponse(&response);
             break;
         }
+        case REQ_CMD_GET_SENSOR_DIAG:
+        {
+            response.dataLength = MB_SensorDiag_Fill(response.data, CMD_MAX_DATA_LENGTH);
+            if (response.dataLength == 0u)
+            {
+                status = CMD_STATUS_EXECUTION_ERROR;
+                response.status = status;
+            }
+            CommandReceiver_SendResponse(&response);
+            break;
+        }
         default:
             status = CMD_STATUS_INVALID_CODE;
             response.status = status;

@@ -43,6 +43,12 @@ static volatile UART_HandleTypeDef *s_mbArmRxUart = nullptr;
 static volatile uint8_t s_mbArmRxPending = 0;
 static volatile uint8_t s_mbArmRxOk = 0;
 
+/* Диагностика обмена с датчиками UART5: заполняется в прерываниях текущей транзакции. */
+static volatile uint32_t s_mbTxDoneTick = 0;	// HAL_GetTick() по окончании передачи запроса
+static volatile uint32_t s_mbRxDoneTick = 0;	// HAL_GetTick() по окончании приёма ответа (IDLE)
+static volatile uint16_t s_mbRxSize = 0;		// длина принятого кадра из RxEvent
+static volatile uint32_t s_mbRxUartError = 0;	// ErrorCode UART5 (шум, кадр, переполнение) за транзакцию
+
 /* Сброс флагов ошибок и вычитка DR — готовность аппаратного приёмника к новому кадру. */
 static void MB_FlushUartReceiver(UART_HandleTypeDef *huart)
 {
@@ -345,8 +351,8 @@ MB_Error_t MB_IO_WriteOutputs(uint8_t SensIndex, uint16_t outputs)
 		Sensor_array[SensIndex].TxErrorCnt++;
 	else if (result != MB_ERROR_NO)
 		Sensor_array[SensIndex].RxErrorCnt++;
-	// Межкадровая пауза перед первым датчиком, в том числе после ошибки записи.
-	osDelay(5);
+	// Датчики Т/Н после ответа модуля IO теряют запрос при паузе 5 мс, нужна та же выдержка, что между датчиками.
+	osDelay(FrameDelay1);
 	return result;
 }
 // Читает Т/Н датчика либо пару DO/DI модуля IO без повторной записи выходов.
@@ -555,6 +561,8 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	if (huart == &huart5)		// приём от датчика
  	{
+		s_mbRxSize = (uint16_t)MAX_MB_BUFSIZE;
+		s_mbRxDoneTick = HAL_GetTick();
 		// Открыть семафор окончания приёма, продолжится задача ReadData
 		osSemaphoreRelease(RX_Compl_SemHandle);
 	}
@@ -566,6 +574,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
 // обработка прерывания ошибки
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *Uart) {
+	if (Uart == &huart5)
+	{
+		s_mbRxUartError |= Uart->ErrorCode;
+		s_mbRxDoneTick = HAL_GetTick();
+	}
 	HAL_UART_AbortTransmit_IT(Uart);
 	if (Uart == &huart5)		// ошибка датчика
 	{
@@ -598,6 +611,8 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *Uart) {
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 	if (huart == &huart5)		// приём от датчика
  	{
+		s_mbRxSize = Size;
+		s_mbRxDoneTick = HAL_GetTick();
 		// Открыть семафор окончания приёма, продолжится задача ReadData
 		osSemaphoreRelease(RX_Compl_SemHandle);
 	}
@@ -623,6 +638,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *Uart) {
 	{
 		// DE на приём сразу после последнего бита TX — до возврата в задачу.
 		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
+		s_mbTxDoneTick = HAL_GetTick();
 		if (s_mbArmRxPending != 0u && s_mbArmRxUart == Uart && s_mbArmRxBuf != nullptr)
 		{
 			s_mbArmRxPending = 0;
@@ -1035,6 +1051,143 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 	return result;
 }
 
+/*********** ДИАГНОСТИКА ОШИБОК ПРИЁМА ОТ ДАТЧИКОВ (UART5) ***********/
+/* Счётчики копятся между запросами сервера REQ_CMD_GET_SENSOR_DIAG и обнуляются при чтении.
+ * Формат ответа описан у MB_SensorDiag_Fill; сервер разбирает его в том же порядке. */
+static const uint32_t kMbLateWindowMs = 100u;	// дополнительное ожидание запоздалого ответа после тайм-аута
+
+typedef struct
+{
+	uint8_t cnt[MB_DIAG_CAT_COUNT];	// сбои по причинам, насыщение на 255
+	uint8_t ok;						// успешные ответы, насыщение на 255
+	uint8_t maxLatOkMs;				// максимальная задержка успешного ответа (конец запроса → конец ответа)
+} MB_SensorDiag_t;
+
+static_assert(MB_DIAG_PAYLOAD_SIZE == 85u, "MB_DIAG_PAYLOAD_SIZE must stay in sync with ProjectServerW");
+static_assert(4u + MB_DIAG_PAYLOAD_SIZE + 2u <= SERVER_TX_ITEM_SIZE - 2u, "GET_SENSOR_DIAG response does not fit the server TX queue");
+static MB_SensorDiag_t s_diag[SQ];
+static uint8_t s_diagSnapIndex = 0xFFu;		// датчик последнего сбоя за период, 0xFF — сбоев не было
+static uint8_t s_diagSnapCat = 0u;
+static uint8_t s_diagSnapRxLen = 0u;
+static uint8_t s_diagSnapUartErr = 0u;
+static uint8_t s_diagSnapLatMs = 0u;
+static uint8_t s_diagSnapBytes[MB_DIAG_SNAPSHOT_BYTES];
+static unsigned int s_diagPeriodStart = 0u;
+
+/* Состояние текущей транзакции UART5: индекс датчика и итог приёма для классификации. */
+static uint8_t s_mbDiagIndex = 0xFFu;
+static uint8_t s_mbDiagCat = MB_DIAG_CAT_COUNT;	// MB_DIAG_CAT_COUNT — причина ещё не определена
+static uint16_t s_mbDiagRxLen = 0u;
+
+static inline uint8_t MB_DiagSat8(uint32_t v)
+{
+	return (v > 255u) ? 255u : (uint8_t)v;
+}
+
+static uint8_t MB_DiagFindIndex(int address)
+{
+	for (uint8_t i = 0; i < SQ; ++i)
+	{
+		if (Sensor_array[i].Address == (uint8_t)address)
+			return i;
+	}
+	return 0xFFu;
+}
+
+static uint16_t MB_DiagRxBytesNow(UART_HandleTypeDef *uart)
+{
+	if (uart == nullptr || uart->hdmarx == nullptr)
+		return 0u;
+	const uint32_t left = __HAL_DMA_GET_COUNTER(uart->hdmarx);
+	return (left >= (uint32_t)MAX_MB_BUFSIZE) ? 0u : (uint16_t)(MAX_MB_BUFSIZE - left);
+}
+
+/* Причина отказа для кадра, который пришёл целиком, но не прошёл проверку Master_RW. */
+static MB_DiagCat_t MB_DiagClassifyAnswer(const MB_Active_t *MB, int address, MB_Command_t CMD, uint16_t rxLen)
+{
+	if (s_mbRxUartError != 0u)
+		return MB_DIAG_UART_ERR;
+	if (rxLen < 5u)
+		return MB_DIAG_SHORT;
+	if (MB->Rx_Buffer[0] != (uint8_t)address || MB->Rx_Buffer[1] != (uint8_t)CMD)
+		return MB_DIAG_FORMAT;
+	const bool echo = (CMD == MB_CMD_WRITE_REG || CMD == MB_CMD_WRITE_COIL ||
+		CMD == MB_CMD_WRITE_COILS || CMD == MB_CMD_WRITE_REGS);
+	const uint16_t need = echo ? 8u : (uint16_t)(MB->Rx_Buffer[2] + 5u);
+	if (rxLen < need)
+		return MB_DIAG_SHORT;
+	if (MB_GetCRC((volatile uint8_t *)MB->Rx_Buffer, need) != 0u)
+		return MB_DIAG_CRC;
+	return MB_DIAG_FORMAT;
+}
+
+static void MB_DiagRecord(const MB_Active_t *MB, MB_Error_t result)
+{
+	const uint8_t idx = s_mbDiagIndex;
+	if (idx >= SQ)
+		return;
+	uint32_t lat = 0u;
+	if (s_mbRxDoneTick != 0u && s_mbTxDoneTick != 0u)
+		lat = s_mbRxDoneTick - s_mbTxDoneTick;
+
+	osKernelLock();
+	MB_SensorDiag_t *d = &s_diag[idx];
+	if (result == MB_ERROR_NO)
+	{
+		if (d->ok < 255u) d->ok++;
+		if (MB_DiagSat8(lat) > d->maxLatOkMs) d->maxLatOkMs = MB_DiagSat8(lat);
+	}
+	else
+	{
+		const uint8_t cat = (s_mbDiagCat < MB_DIAG_CAT_COUNT) ? s_mbDiagCat : (uint8_t)MB_DIAG_OTHER;
+		if (d->cnt[cat] < 255u) d->cnt[cat]++;
+		s_diagSnapIndex = idx;
+		s_diagSnapCat = cat;
+		s_diagSnapRxLen = MB_DiagSat8(s_mbDiagRxLen);
+		s_diagSnapUartErr = (uint8_t)(s_mbRxUartError & 0xFFu);
+		s_diagSnapLatMs = (cat == MB_DIAG_NO_ANSWER) ? 0u : MB_DiagSat8(lat);
+		memcpy(s_diagSnapBytes, MB->Rx_Buffer, MB_DIAG_SNAPSHOT_BYTES);
+	}
+	osKernelUnlock();
+}
+
+/* Ответ REQ_CMD_GET_SENSOR_DIAG (MB_DIAG_PAYLOAD_SIZE байт):
+ * [0..1]   длительность периода, с (uint16)
+ * для каждого из SQ датчиков 10 байт: cnt[MB_DIAG_CAT_COUNT], ok, maxLatOkMs
+ * снимок последнего сбоя: index (0xFF — не было), cat, rxLen, uartErr, latMs, первые MB_DIAG_SNAPSHOT_BYTES байт кадра */
+uint8_t MB_SensorDiag_Fill(uint8_t *out, uint8_t capacity)
+{
+	if (out == nullptr || capacity < MB_DIAG_PAYLOAD_SIZE)
+		return 0u;
+	uint8_t *p = out;
+	osKernelLock();
+	const unsigned int now = TimeFromStart;
+	const uint16_t period = (uint16_t)((now >= s_diagPeriodStart) ? (now - s_diagPeriodStart) : 0u);
+	*p++ = (uint8_t)(period & 0xFFu);
+	*p++ = (uint8_t)(period >> 8);
+	for (uint8_t i = 0; i < SQ; ++i)
+	{
+		memcpy(p, s_diag[i].cnt, MB_DIAG_CAT_COUNT);
+		p += MB_DIAG_CAT_COUNT;
+		*p++ = s_diag[i].ok;
+		*p++ = s_diag[i].maxLatOkMs;
+	}
+	*p++ = s_diagSnapIndex;
+	*p++ = s_diagSnapCat;
+	*p++ = s_diagSnapRxLen;
+	*p++ = s_diagSnapUartErr;
+	*p++ = s_diagSnapLatMs;
+	memcpy(p, s_diagSnapBytes, MB_DIAG_SNAPSHOT_BYTES);
+	p += MB_DIAG_SNAPSHOT_BYTES;
+
+	memset(s_diag, 0, sizeof(s_diag));
+	s_diagSnapIndex = 0xFFu;
+	memset(s_diagSnapBytes, 0, sizeof(s_diagSnapBytes));
+	s_diagPeriodStart = now;
+	osKernelUnlock();
+	return (uint8_t)(p - out);
+}
+
 /* Функция считывает данные с датчика или записывает данные в датчик в зависимости от команды CMD
  * Используется для работы с датчиками для чтения нескольких и записи одного регистра
  * Параметры:
@@ -1047,6 +1200,13 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 MB_Error_t Master_RW(MB_Active_t *MB, int SensAddress, MB_Command_t CMD, MB_Reg_t START_REG, uint16_t DATA, MultWR_t WR_Buf)
 {
 	MB_Error_t result;
+	const bool diag = (MB->UART == &huart5);
+	if (diag)
+	{
+		s_mbDiagIndex = MB_DiagFindIndex(SensAddress);
+		s_mbDiagCat = MB_DIAG_CAT_COUNT;
+		s_mbDiagRxLen = 0u;
+	}
 	memset(MB->Tx_Buffer, 0, MAX_MB_BUFSIZE);
 	memset(MB->Rx_Buffer, 0, MAX_MB_BUFSIZE);
 	/* в обычной работе для чтения нескольких регистров (команда 0х03)
@@ -1154,7 +1314,11 @@ MB_Error_t Master_RW(MB_Active_t *MB, int SensAddress, MB_Command_t CMD, MB_Reg_
 				result = MB_ERROR_UART_RECIEVE;
 				break;	}
 		}
+		if (diag && result != MB_ERROR_NO && s_mbDiagIndex < SQ)
+			s_mbDiagCat = (uint8_t)MB_DiagClassifyAnswer(MB, SensAddress, CMD, s_mbDiagRxLen);
 	}
+	if (diag && s_mbDiagIndex < SQ)
+		MB_DiagRecord(MB, result);
 	return result;
 }
 
@@ -1341,6 +1505,14 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 	// Перед TX: abort leftovers, сброс ORE/FE/NE, DE=приём — чистый старт кадра.
 	MB_PrepareUartForMasterRx(MB->UART, MB->PORT, MB->PORT_PIN);
 	DrainBinarySemaphore(*MB->Sem_Rx);
+	const bool diag = (MB->UART == &huart5) && (s_mbDiagIndex < SQ);
+	if (MB->UART == &huart5)
+	{
+		s_mbTxDoneTick = 0u;
+		s_mbRxDoneTick = 0u;
+		s_mbRxSize = 0u;
+		s_mbRxUartError = 0u;
+	}
 
 	// ПЕРЕДАЧА DMA ********************************
 	// Включим направление - передача
@@ -1365,6 +1537,7 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 		{	// обработка ошибки передачи по UART
 			s_mbArmRxPending = 0;
 			MB_ERR = MB_ERROR_UART_SEND;
+			if (diag) s_mbDiagCat = MB_DIAG_OTHER;
 			HAL_UART_AbortTransmit_IT(MB->UART);
 			HAL_UART_AbortReceive_IT(MB->UART);
 			HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_RESET);
@@ -1385,14 +1558,32 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 			if (resultSem != osOK)
 			{
 				MB_ERR = MB_ERROR_UART_RECIEVE;
+				if (diag)
+				{
+					// Ответ всё равно считается ошибкой; дожидаемся его только чтобы отличить медленный датчик от молчащего.
+					// Неактивные датчики и модуль IO с его тремя повторами не ждём, иначе цикл опроса выходит за 1 с.
+					uint8_t late = 0u;
+					if (Sensor_array[s_mbDiagIndex].Active != 0u && Sensor_array[s_mbDiagIndex].TypeOfSensor != 4u)
+						late = (osSemaphoreAcquire(*MB->Sem_Rx, kMbLateWindowMs) == osOK) ? 1u : 0u;
+					s_mbDiagRxLen = (s_mbRxSize != 0u) ? s_mbRxSize : MB_DiagRxBytesNow(MB->UART);
+					if (s_mbRxUartError != 0u)
+						s_mbDiagCat = MB_DIAG_UART_ERR;
+					else if (late != 0u)
+						s_mbDiagCat = MB_DIAG_LATE;
+					else
+						s_mbDiagCat = (s_mbDiagRxLen != 0u) ? MB_DIAG_PARTIAL : MB_DIAG_NO_ANSWER;
+				}
 				HAL_UART_AbortReceive_IT(MB->UART);
 				MB_PrepareUartForMasterRx(MB->UART, MB->PORT, MB->PORT_PIN);
 				return MB_ERR;
 			}
+			if (diag)
+				s_mbDiagRxLen = (s_mbRxSize != 0u) ? s_mbRxSize : MB_DiagRxBytesNow(MB->UART);
 		}
 		else
 		{
 			MB_ERR = MB_ERROR_DMA_RECIEVE;
+			if (diag) s_mbDiagCat = MB_DIAG_OTHER;
 			MB_PrepareUartForMasterRx(MB->UART, MB->PORT, MB->PORT_PIN);
 		}
 	}
@@ -1400,6 +1591,7 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 	{  // обработка ошибки передачи по DMA
 		s_mbArmRxPending = 0;
 		MB_ERR = MB_ERROR_DMA_SEND;
+		if (diag) s_mbDiagCat = MB_DIAG_OTHER;
 		HAL_UART_AbortTransmit_IT(MB->UART);
 		HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_RESET);
 	}

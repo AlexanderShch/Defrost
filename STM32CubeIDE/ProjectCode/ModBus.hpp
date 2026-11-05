@@ -94,6 +94,26 @@ typedef enum
 	MB_ERROR_DMA_RECIEVE = 0x07,	// ошибка DMA при приёме
 }MB_Error_t;
 
+// Причины сбоя приёма от датчика для REQ_CMD_GET_SENSOR_DIAG; порядок совпадает с разбором на сервере
+typedef enum
+{
+	MB_DIAG_NO_ANSWER = 0,	// за тайм-аут и окно ожидания запоздалого ответа не пришло ни байта
+	MB_DIAG_LATE = 1,		// полный ответ пришёл, но позже тайм-аута приёма
+	MB_DIAG_PARTIAL = 2,	// байты начали приходить, но кадр не завершился
+	MB_DIAG_UART_ERR = 3,	// аппаратная ошибка UART: шум, ошибка кадра, переполнение
+	MB_DIAG_SHORT = 4,		// кадр короче ожидаемой длины
+	MB_DIAG_CRC = 5,		// длина верна, CRC не совпал
+	MB_DIAG_FORMAT = 6,		// чужой адрес, код функции, исключение ModBus или неверное поле длины
+	MB_DIAG_OTHER = 7,		// сбой передачи запроса или запуска приёма DMA
+	MB_DIAG_CAT_COUNT = 8
+} MB_DiagCat_t;
+
+#define MB_DIAG_SNAPSHOT_BYTES 8
+#define MB_DIAG_PAYLOAD_SIZE (2u + SQ * (MB_DIAG_CAT_COUNT + 2u) + 5u + MB_DIAG_SNAPSHOT_BYTES)
+
+/* Заполняет ответ REQ_CMD_GET_SENSOR_DIAG и обнуляет счётчики периода; возвращает длину или 0. */
+uint8_t MB_SensorDiag_Fill(uint8_t *out, uint8_t capacity);
+
 // Адреса регистров устройств на шине
 typedef enum
 {
