@@ -13,16 +13,8 @@ extern SENSOR_typedef_t Sensor_array[SQ];
     uint8_t SetAddressOld;
     uint8_t FlagWrite_visible = 0;	// флаг разрешения видимости кнопки "Запись" в датчик
 
-    /* Definitions for ProgrammingSens */
-osThreadId_t ProgrammingSensHandle;
-const osThreadAttr_t ProgrammingSens_attributes = {
-  .name = "ProgrammingSens",
-  .stack_size = 1024 * 4,
-  .priority = (osPriority_t) osPriorityLow,
-};
-
-void StartProgrammingSensor(void *argument);
-extern void ProgrammingSensor(void);
+extern void ProgrammingSensor_Start(void);
+extern void ProgrammingSensor_RequestStop(void);
 extern SENSOR_typedef_t Sensor_array[SQ];
 extern uint8_t SensNullValue;
 extern int BaudRate_Type1[];	// список скоростей для типа 1
@@ -42,8 +34,6 @@ Settings5View::Settings5View():
 void Settings5View::setupScreen()
 {
     Settings5ViewBase::setupScreen();
-    /* creation of ProgrammingSens task */
-    ProgrammingSensHandle = osThreadNew(StartProgrammingSensor, NULL, &ProgrammingSens_attributes);
 
     //В контейнерах колёс прокрутки устанавливаются Callback функции обработки события
     //например, для передачи ItemSelected значения при окончании анимации скролла при выборе значения в колесе
@@ -56,19 +46,14 @@ void Settings5View::setupScreen()
     SetAddress = 0;
 	SetSensor = 0;
 	presenter -> PR_Sensor_Type(SetSensor);
-
+	// Сканирование начнётся только после выбора типа датчика оператором.
+	ProgrammingSensor_Start();
 }
 
 void Settings5View::tearDownScreen()
 {
     Settings5ViewBase::tearDownScreen();
-    /* delete ProgrammingSens task */
-    osThreadTerminate(ProgrammingSensHandle);
-}
-
-void StartProgrammingSensor(void *argument)
-{
-	ProgrammingSensor();
+    ProgrammingSensor_RequestStop();
 }
 
 //Запись значений в ScrollItemContainer и обновление на кнопке BTNSetSpeed

@@ -748,6 +748,50 @@ uint16_t resCRC = 65535;
 
 /********************** ПРОГРАММИРОВАНИЕ ДАТЧИКОВ ******************************/
 /*********************************************************************/
+/*
+ * Задача программирования живёт только пока открыт экран программирования.
+ * Завершать её снаружи (osThreadTerminate) нельзя: посреди сканирования она держит
+ * UART4_MutexHandle и UART4 на чужой скорости — связь с сервером пропадает до перезагрузки.
+ * Поэтому экран только просит остановку, а задача сама доводит проход, возвращает UART4
+ * серверу и завершается.
+ */
+static volatile uint8_t s_progStopRequest = 0u;
+static volatile uint8_t s_progTaskRunning = 0u;
+
+static const osThreadAttr_t s_progTaskAttributes = {
+	.name = "ProgrammingSens",
+	.stack_size = 1024 * 4,
+	.priority = (osPriority_t) osPriorityLow,
+};
+
+static void ProgrammingSensorTask(void *argument)
+{
+	(void)argument;
+	ProgrammingSensor();
+}
+
+void ProgrammingSensor_Start(void)
+{
+	osKernelLock();
+	const uint8_t alive = s_progTaskRunning;
+	s_progStopRequest = 0u;
+	if (alive == 0u)
+		s_progTaskRunning = 1u;
+	osKernelUnlock();
+	// Повторный вход на экран, пока прежняя задача ещё дорабатывает: продолжаем её же.
+	if (alive != 0u)
+		return;
+	if (osThreadNew(ProgrammingSensorTask, NULL, &s_progTaskAttributes) == NULL)
+		s_progTaskRunning = 0u;
+}
+
+void ProgrammingSensor_RequestStop(void)
+{
+	// Тип 0 выводит задачу из цикла сканирования по условию while (Type_of_sensor == TypeOfSens).
+	Model::Type_of_sensor = 0;
+	s_progStopRequest = 1u;
+}
+
 void ProgrammingSensor()
 {
 /*
@@ -770,6 +814,18 @@ void ProgrammingSensor()
 
 	while (1)
 	{
+		if (s_progStopRequest != 0u)
+		{
+			osKernelLock();
+			if (s_progStopRequest != 0u)
+			{
+				s_progTaskRunning = 0u;
+				osKernelUnlock();
+				osThreadExit();
+			}
+			osKernelUnlock();
+		}
+
 		switch (Model::Type_of_sensor)
 		{
 // тип 0 - датчика нет, тип датчика не назначен
@@ -854,6 +910,8 @@ void ProgrammingSensor()
 				break;
 			}
 		}	// конец оператора switch
+		// Ожидание выбора типа датчика оператором — без нагрузки на процессор.
+		osDelay(50);
 	}	// конец бесконечного цикла
 }	// конец функции ProgrammingSensor()
 

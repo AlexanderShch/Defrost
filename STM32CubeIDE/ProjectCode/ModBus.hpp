@@ -138,6 +138,10 @@ MB_Error_t MB_IO_WriteOutputs(uint8_t SensIndex, uint16_t outputs);
 /* Подготовка UART5 (датчики): abort/flush RX, DE=приём, сброс семафоров TX/RX. */
 void MB_Master_RxChannelPrepare(void);
 void ProgrammingSensor(void);
+/* Запуск задачи программирования датчиков при входе на экран программирования. */
+void ProgrammingSensor_Start(void);
+/* Выход с экрана: задача доводит сканирование, возвращает UART4 серверу и завершается сама. */
+void ProgrammingSensor_RequestStop(void);
 void PR_UART4_Init(int BaudRateValue);
 void WriteToServer(uint8_t* Data, int length);
 uint16_t MB_GetCRC(volatile uint8_t* buf, uint16_t len);
