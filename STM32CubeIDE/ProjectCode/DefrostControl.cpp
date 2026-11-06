@@ -291,7 +291,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
         p->outFanDelay_s = 5u;
         p->outHold_s = 15u;
         p->tenMinHold_s = 10u;
-        p->injMinHold_s = 5u;
+        p->injMinHold_s = 10u; /* длительность импульса впрыска */
         p->airOnlyPhaseWarmUp_min = 10u;   /* 10 мин */
         p->airOnlyPhasePlateau_min = 30u;  /* 30 мин от старта */
         p->maxRuntime_min = 120u;          /* 2 ч */
@@ -646,6 +646,11 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          float wDeadband_kgkg = 0.0008f;   // ~0.8 г/кг сухого воздуха
          // Минимальное время удержания реле форсунки после решения bang-bang
          HoldSwitch injHold;
+         // Остаток добавки мощности ТЭНов после окончания впрыска, с
+         uint8_t injFfTail_s = 0;
+         // Импульсный впрыск: секунды текущего импульса и остаток обязательной паузы после него
+         uint16_t injPulse_s = 0;
+         uint8_t injPause_s = 0;
  
         // Вытяжка: включение(1) / выключение (0)
         uint8_t outOn = 0;
@@ -727,6 +732,9 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
        g.leftRightTrimGain = g_defrostParams.leftRightTrimGain;
        g.wDeadband_kgkg = g_defrostParams.wDeadband_kgkg;
        g.injHold.Reset(0);            // сброс удержания форсунки.
+       g.injFfTail_s = 0;
+       g.injPulse_s = 0;
+       g.injPause_s = 0;
        g.outOn = 0;                   // флаг отключения вытяжки.
        g.outHold_s = 0;               // время удержания вытяжки.
        g.outDamperState = 0;          // заслонка закрыта.
@@ -1345,6 +1353,48 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          return prevOn ? 1u : 0u;
      }
  
+    /* Добавка к мощности ПИ на время впрыска: испарение воды охлаждает воздух быстрее, чем ПИ успевает
+     * включить ТЭНы, а ТЭНы отдают тепло с запаздыванием, поэтому добавка держится и после впрыска.
+     * Добавляется после ПИ, чтобы не разгонять интегратор; защиты (heatScale01) применяются к сумме. */
+    constexpr float kInjFeedforward_Eq = 2.0f;
+    constexpr uint8_t kInjFeedforwardTail_s = 30u;
+
+    static float StepInjFeedforward_Eq(uint8_t injOn)
+    {
+        if (injOn != 0u)
+            g.injFfTail_s = kInjFeedforwardTail_s;
+        else if (g.injFfTail_s > 0u)
+            --g.injFfTail_s;
+        return (injOn != 0u || g.injFfTail_s > 0u) ? kInjFeedforward_Eq : 0.0f;
+    }
+
+    /* Влажность в подаче начинает расти через 15–30 с после открытия форсунки, а растёт ещё ~3 мин
+     * после закрытия: при непрерывном впрыске до верхнего порога влажность перелетала его на ~8 % RH.
+     * Поэтому вода подаётся импульсами с паузой, за которую успевает проявиться результат. */
+    constexpr uint8_t kInjPulsePause_s = 90u;
+
+    static uint8_t LimitInjectorPulse(uint8_t wantOn)
+    {
+        // Длительность импульса — параметр injMinHold_s (имя осталось от удержания форсунки ради формата EEPROM).
+        const uint16_t pulseMax_s = (g_defrostParams.injMinHold_s > 0u) ? g_defrostParams.injMinHold_s : 1u;
+        if (g.injPause_s > 0u)
+        {
+            --g.injPause_s;
+            return 0u;
+        }
+        if (wantOn != 0u && g.injPulse_s < pulseMax_s)
+        {
+            ++g.injPulse_s;
+            return 1u;
+        }
+        if (g.injPulse_s > 0u)
+        {
+            g.injPulse_s = 0u;
+            g.injPause_s = kInjPulsePause_s - 1u;
+        }
+        return 0u;
+    }
+
     static void ControlStep1s()
      {
        // Water_Flap в авто-режиме открывается только когда контур влажности включает вытяжку.
@@ -1563,10 +1613,35 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          // Выход выражен в "эквивалентах ТЭНа": 0..2 на сторону (два ТЭНа на сторону).
          // Почему: так отображение на актуаторы явно и удобно строить скважность.
          // ─────────────────────────────────────────────────────────────────────────
+         // ─────────────────────────────────────────────────────────────────────────
+         // Влажность: форсунка — bang-bang ±hyst % RH; вытяжка — отдельно по порогу.
+         // ─────────────────────────────────────────────────────────────────────────
+         const float wErr = w_ret_target - w_sup_avg;
+
+         uint8_t inj_desired = 0u;
+         if (airIn.humidityMeasOk != 0u)
+         {
+             inj_desired = StepInjectorBangBang(airIn.T_ret_C, w_sup_avg, tgt.returnTargetRH_percent,
+                                                airIn.humidityMeasOk, g.injHold.state);
+             StepExhaustHumidityWhileRunning(airIn.T_ret_C, w_sup_avg, airIn.humidityMeasOk);
+             if (g.outOn != 0)
+                 inj_desired = 0u;
+         }
+         else
+         {
+             // Нет T/RH воздуха 0..2: не гонять форсунку и вытяжку по заглушкам T=0 / RH=50%.
+             StopExhaustHumidity();
+         }
+
+         const uint8_t inj_on = LimitInjectorPulse(g.injHold.Step(inj_desired, 1u));
+         const float injDuty = inj_on ? 1.0f : 0.0f;
+         const uint8_t out_on = g.outOn ? 1 : 0;
+
          const float eT_common = tgt.supplySet_C - T_sup_avg_C;
  
          // Базовый запрос мощности с учётом ограничителя.
          float uCommon_TEN = g.piSupplyCommon.Step(eT_common, kDt_s, 0.0f, 2.0f);
+         uCommon_TEN = Clamp(uCommon_TEN + StepInjFeedforward_Eq(inj_on), 0.0f, 2.0f);
          uCommon_TEN *= heatScale01;
  
          // Балансировка лево/право только если обе подачи исправны; иначе симметричное управление (без перекоса по «нулю»).
@@ -1600,31 +1675,6 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
          // Почему: стабильный расход упрощает идентификацию контуров и защищает ТЭНы от локального перегрева.
          const uint8_t ventL_on = 1;
          const uint8_t ventR_on = 1;
- 
-         // ─────────────────────────────────────────────────────────────────────────
-         // Влажность: форсунка — bang-bang ±hyst % RH; вытяжка — отдельно по порогу.
-         // ─────────────────────────────────────────────────────────────────────────
-         const float wErr = w_ret_target - w_sup_avg;
-
-         uint8_t inj_desired = 0u;
-         if (airIn.humidityMeasOk != 0u)
-         {
-             inj_desired = StepInjectorBangBang(airIn.T_ret_C, w_sup_avg, tgt.returnTargetRH_percent,
-                                                airIn.humidityMeasOk, g.injHold.state);
-             StepExhaustHumidityWhileRunning(airIn.T_ret_C, w_sup_avg, airIn.humidityMeasOk);
-             if (g.outOn != 0)
-                 inj_desired = 0u;
-         }
-         else
-         {
-             // Нет T/RH воздуха 0..2: не гонять форсунку и вытяжку по заглушкам T=0 / RH=50%.
-             StopExhaustHumidity();
-         }
-
-         const uint16_t kInjMinHold_s = g_defrostParams.injMinHold_s;
-         const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
-         const float injDuty = inj_on ? 1.0f : 0.0f;
-         const uint8_t out_on = g.outOn ? 1 : 0;
 
         s_lastPhase = static_cast<uint8_t>(phase);
 
@@ -1713,8 +1763,28 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
             return;
         }
 
+         const float wErr = w_ret_target - w_sup_avg;
+         uint8_t inj_desired = 0u;
+         if (airIn.humidityMeasOk != 0u)
+         {
+             inj_desired = StepInjectorBangBang(airIn.T_ret_C, w_sup_avg, tgt.returnTargetRH_percent,
+                                                airIn.humidityMeasOk, g.injHold.state);
+             StepExhaustHumidityWhileRunning(airIn.T_ret_C, w_sup_avg, airIn.humidityMeasOk);
+             if (g.outOn != 0)
+                 inj_desired = 0u;
+         }
+         else
+         {
+             StopExhaustHumidity();
+         }
+
+         const uint8_t inj_on = LimitInjectorPulse(g.injHold.Step(inj_desired, 1u));
+         const float injDuty = inj_on ? 1.0f : 0.0f;
+         const uint8_t out_on = g.outOn ? 1 : 0;
+
          const float eT_common = tgt.supplySet_C - T_sup_avg_C;
          float uCommon_TEN = g.piSupplyCommon.Step(eT_common, kDt_s, 0.0f, 2.0f);
+         uCommon_TEN = Clamp(uCommon_TEN + StepInjFeedforward_Eq(inj_on), 0.0f, 2.0f);
          uCommon_TEN *= heatScale01;
 
          const float eT_diff = (airIn.okL != 0u && airIn.okR != 0u) ? (airIn.mL - airIn.mR) : 0.0f;
@@ -1740,26 +1810,6 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
 
          const uint8_t ventL_on = 1;
          const uint8_t ventR_on = 1;
-
-         const float wErr = w_ret_target - w_sup_avg;
-         uint8_t inj_desired = 0u;
-         if (airIn.humidityMeasOk != 0u)
-         {
-             inj_desired = StepInjectorBangBang(airIn.T_ret_C, w_sup_avg, tgt.returnTargetRH_percent,
-                                                airIn.humidityMeasOk, g.injHold.state);
-             StepExhaustHumidityWhileRunning(airIn.T_ret_C, w_sup_avg, airIn.humidityMeasOk);
-             if (g.outOn != 0)
-                 inj_desired = 0u;
-         }
-         else
-         {
-             StopExhaustHumidity();
-         }
-
-         const uint16_t kInjMinHold_s = g_defrostParams.injMinHold_s;
-         const uint8_t inj_on = g.injHold.Step(inj_desired, kInjMinHold_s);
-         const float injDuty = inj_on ? 1.0f : 0.0f;
-         const uint8_t out_on = g.outOn ? 1 : 0;
 
         s_lastPhase = static_cast<uint8_t>(phase);
         s_controlLogPayload.phase = s_lastPhase;
