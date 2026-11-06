@@ -86,6 +86,11 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      constexpr uint16_t kProductTDownRightBit  = Model::kSensorAlarmProductTDownRight;
      // Если T датчика продукта близка к T воздуха дефростера — считаем, что зонд не в продукте.
      constexpr float kProductVsAirClose_C = 3.0f;
+     // Во время работы близость к воздуху — выпадение только при быстром росте T: в конце процесса
+     // тёплая точка рыбы и остывающий без нагрева воздух сходятся медленно и закономерно.
+     constexpr float kProductFalloutRise_Cpm = 2.0f;
+     constexpr unsigned int kProductRiseWindow_s = 30u;   // меньше TQ: обе точки ещё в кольце T_Average
+     static_assert(kProductRiseWindow_s < TQ, "kProductRiseWindow_s must fit the T_Average ring");
 
      /** Температура для расчётов автоматики, °C: Param 4 — среднее по буферу T_Clamped (float), см. Data.cpp.
       *  В Model::setCurrentVal_T попадает сырая T с шины (Param 2) — для экрана; для ControlStep1s нужен Param 4, как в логе T_filt_C.
@@ -93,6 +98,16 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
      inline float FilteredSensorT_C(int8_t sensorIndex, unsigned int timeSec = TimeFromStart)
      {
          return Sensor::GetAverageT_Deci(timeSec, (unsigned char)sensorIndex) * 0.1f;
+     }
+
+     /** Скорость роста отфильтрованной T за kProductRiseWindow_s, °C/мин; 0, пока окно не набрано. */
+     inline float FilteredSensorRise_Cpm(int8_t sensorIndex)
+     {
+         const unsigned int now = TimeFromStart;
+         if (now <= kProductRiseWindow_s)
+             return 0.0f;
+         const float dT_C = FilteredSensorT_C(sensorIndex, now) - FilteredSensorT_C(sensorIndex, now - kProductRiseWindow_s);
+         return dT_C * (60.0f / (float)kProductRiseWindow_s);
      }
 
      /** Бит аварии датчика (обрезки) или недоступность канала для контура управления. */
@@ -842,7 +857,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
                 g.productCoolRecover[i] = 0u;
                 continue;
             }
-            const float fishT_C = FilteredSensorT_C((i == 0u) ? kSensFish1_T : kSensFish2_T);
+            const int8_t fishSens = (i == 0u) ? kSensFish1_T : kSensFish2_T;
+            const float fishT_C = FilteredSensorT_C(fishSens);
             float dAir = fishT_C - airRef_C;
             if (dAir < 0.0f)
                 dAir = -dAir;
@@ -862,6 +878,10 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEP
             }
             if (closeToAir != 0u)
             {
+                // Зонд в продукте у T воздуха без быстрого роста — продукт догнал воздух, не выпадение.
+                if (g.productFallen[i] == 0u && FilteredSensorRise_Cpm(fishSens) < kProductFalloutRise_Cpm)
+                    continue;
+                // Выпавший зонд у T воздуха в продукт не возвращаем, даже если воздух остыл и дал переходную вниз.
                 g.productFallen[i] = 1u;
                 g.productCoolRecover[i] = 0u;
                 continue;

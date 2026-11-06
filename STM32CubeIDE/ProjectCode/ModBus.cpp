@@ -98,6 +98,12 @@ static HAL_StatusTypeDef MB_StartReceiveToIdle(UART_HandleTypeDef *huart, uint8_
 	{
 		__HAL_DMA_DISABLE_IT(huart->hdmarx, DMA_IT_HT);
 	}
+	if (st == HAL_OK && huart == &huart5)
+	{
+		// Шум на линии датчиков ставит NE и на верно принятых байтах, а HAL в режиме DMA обрывает приём
+		// по любой ошибке UART. Кадр принимаем целиком, его целостность проверяет CRC.
+		ATOMIC_CLEAR_BIT(huart->Instance->CR3, USART_CR3_EIE);
+	}
 	return st;
 }
 
@@ -225,6 +231,7 @@ typedef struct
 MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes);
 MB_Error_t Master_SendTelemetry(MB_Active_t *MB, int N_Bytes);
 MB_Error_t Master_RW(MB_Active_t *MB, int Address, MB_Command_t CMD, MB_Reg_t START_REG, uint16_t DATA, MultWR_t WR_Buf);
+static MB_Error_t MB_ReadSensorRegs(MB_Active_t *MB, uint8_t SensIndex, MB_Reg_t startReg, uint16_t regCount);
 //MB_Error_t Master_Read(MB_Active_t *MB, uint8_t SensIndex, MB_Command_t CMD, MB_Reg_t START_REG, uint8_t DATA);
 MB_Error_t ScanSensor(MB_Active_t *MB);
 MB_Error_t WriteToSensor(MB_Active_t *PR);
@@ -383,13 +390,13 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 		case 1:		{
 			uint8_t REG_COUNT = 2;		// запросим два значения: Н и Т
 			// Запросим данные с датчика
-			result = Master_RW(&SW, SensAddress, MB_CMD_READ_REGS, Type1_H, REG_COUNT, WR_Buffer);
+			result = MB_ReadSensorRegs(&SW, SensIndex, Type1_H, REG_COUNT);
 			break; 	}
 	// тип датчика: 2 - датчик температуры РТ100 с RS485
 		case 2:		{
 			uint8_t REG_COUNT = 1;		// запросим одно значение: Т
 			// Запросим данные с датчика
-			result = Master_RW(&SW, SensAddress, MB_CMD_READ_REGS, Type2_T, REG_COUNT, WR_Buffer);
+			result = MB_ReadSensorRegs(&SW, SensIndex, Type2_T, REG_COUNT);
 			break;	}
 	// тип датчика: 4 - модуль ввода-вывода с RS485
 		case 4:		{
@@ -1149,6 +1156,29 @@ static void MB_DiagRecord(const MB_Active_t *MB, MB_Error_t result)
 		memcpy(s_diagSnapBytes, MB->Rx_Buffer, MB_DIAG_SNAPSHOT_BYTES);
 	}
 	osKernelUnlock();
+}
+
+static const uint8_t kMbSensorReadRetries = 3u;
+static const uint32_t kMbSensorRetryDelayMs = 10u;
+
+/* Чтение регистров датчика Т/Н с повторами при ошибке приёма.
+ * Молчащий датчик не повторяем: каждая попытка с ожиданием запоздалого ответа занимает ~150 мс,
+ * и повторы вывели бы цикл опроса за 1 с. Неактивные датчики опрашиваются только для обнаружения. */
+static MB_Error_t MB_ReadSensorRegs(MB_Active_t *MB, uint8_t SensIndex, MB_Reg_t startReg, uint16_t regCount)
+{
+	MB_Error_t result = MB_ERROR_NO;
+	for (uint8_t retry = 0; ; ++retry)
+	{
+		result = Master_RW(MB, Sensor_array[SensIndex].Address, MB_CMD_READ_REGS, startReg, regCount, WR_Buffer);
+		if (result == MB_ERROR_NO || retry >= kMbSensorReadRetries || Sensor_array[SensIndex].Active == 0u)
+			break;
+		if (result != MB_ERROR_UART_RECIEVE && result != MB_ERROR_DMA_RECIEVE)
+			break;
+		if (s_mbDiagCat == MB_DIAG_NO_ANSWER || s_mbDiagCat == MB_DIAG_LATE)
+			break;
+		osDelay(kMbSensorRetryDelayMs);
+	}
+	return result;
 }
 
 /* Ответ REQ_CMD_GET_SENSOR_DIAG (MB_DIAG_PAYLOAD_SIZE байт):
