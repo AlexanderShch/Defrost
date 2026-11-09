@@ -3621,7 +3621,7 @@
             "SelectedItemTemplateName": "TextSelectedContainer",
             "IsCircular": true,
             "ItemTemplateName": "TextContainer",
-            "NumberofItems": 5,
+            "NumberofItems": 6,
             "Easing": "Back",
             "EasingOption": "Out",
             "SwipeAcceleration": 1.0,

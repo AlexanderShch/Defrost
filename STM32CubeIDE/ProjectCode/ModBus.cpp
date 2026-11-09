@@ -187,7 +187,8 @@ SENSOR_Type_t Sensor_type[STQ] =
 		{1, "Double T&H"},		// 1 - совмещенный температура и влажность GL-TH04-MT
 		{2, "Single T"},		// 2 - датчик температуры РТ100 с RS485
 		{3, "BT T"},			// 3 - датчик температуры Bluetooth
-		{4, "MB IO"}			// 4 - модуль ввода-вывода MB 16DI-16RO
+		{4, "MB IO"},			// 4 - модуль ввода-вывода MB 16DI-16RO
+		{5, "DS18B20"}		// 5 - Taidacent TDRS458DS18B20TG4
 };
 
 SENSOR_typedef_t Sensor_array[SQ] =
@@ -208,6 +209,8 @@ uint8_t SensBaudRateIndex;				// индекс в массиве скорости
 int Sens_WR_value;						// переменная для чтения записанного в датчик значения, применяется при контроля после записи в датчик
 // массив скорости шины для датчика типа 1 GL-TH04-MT
 int BaudRate_Type1[BAUD_RATE_NUMBER] = {2400, 4800, 9600, 19200, 38400, 57600, 115200, 1200};
+// Скорости Taidacent: индекс регистра 0x65, 115200 не поддерживается.
+int BaudRate_Type5[TYPE5_BAUD_RATE_NUMBER] = {1200, 2400, 4800, 9600, 19200, 38400, 57600};
 // массив скорости шины для датчика типа 2 PT100 PT21A01
 int BaudRate_Type2[BAUD_RATE_NUMBER] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
 // массив скорости шины для датчика типа 4 MB 16DI-16RO
@@ -398,6 +401,9 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			// Запросим данные с датчика
 			result = MB_ReadSensorRegs(&SW, SensIndex, Type2_T, REG_COUNT);
 			break;	}
+		case 5:		{
+			result = MB_ReadSensorRegs(&SW, SensIndex, Type5_T, 1);
+			break;	}
 	// тип датчика: 4 - модуль ввода-вывода с RS485
 		case 4:		{
 			// DO уже записан в начале цикла, до опроса датчиков Т/Н.
@@ -459,10 +465,11 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			Sensor_array[SensIndex].OkCnt++;
 			// запись в массив данных
 			// Важно: температуры от ModBus приходят 16-битным словом в доп.коде.
-			// Для датчиков температуры (типы 1 и 2) нормализуем знак сразу в int16_t,
+			// Для датчиков температуры (типы 1, 2 и 5) нормализуем знак сразу в int16_t,
 			// иначе в буферах/усреднении появляются значения около 655xx и скачки +/-3000 °C.
 			int tempSigned = SW.Read_Data_2;
-			if (Sensor_array[SensIndex].TypeOfSensor == 1 || Sensor_array[SensIndex].TypeOfSensor == 2)
+			if (Sensor_array[SensIndex].TypeOfSensor == 1 || Sensor_array[SensIndex].TypeOfSensor == 2 ||
+				Sensor_array[SensIndex].TypeOfSensor == 5)
 			{
 				tempSigned = (int16_t)SW.Read_Data_2;
 			}
@@ -947,7 +954,7 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 //	uint8_t i = 0;
 	uint8_t WR_BaudRate = 0;
 	uint8_t WR_Address = 0;
-	MB_Error_t result;
+	MB_Error_t result = MB_ERROR_NO;
 
 /*
 * Запись данных в датчик в режиме программирования датчика, если флаг установлен
@@ -976,10 +983,24 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 			case 2:
 				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type2_Addr, REG_COUNT, WR_Buffer);
 				break;
+			case 5:
+				if (WR_BaudRate >= TYPE5_BAUD_RATE_NUMBER || WR_Address == 0u || WR_Address == 255u ||
+					SensPortNumber == 0u || SensPortNumber == 255u)
+				{
+					result = MB_ERROR_WRONG_VALUE;
+					break;
+				}
+				// Standard FC10: address, baud index, parity=none. Apply after power cycle.
+				WR_Buffer[0] = 6;
+				WR_Buffer[5] = 0;
+				WR_Buffer[6] = 0;
+				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type5_Addr, 3, WR_Buffer);
+				break;
 			case 4:
 				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type4_Addr, REG_COUNT, WR_Buffer);
 				break;
 			default:
+				result = MB_ERROR_COMMAND;
 				break;
 		}
 
@@ -989,7 +1010,7 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 			// сбрасываем флаг записи в датчик
 			Model::Flag_WR_to_sensor = 0;
 			// Установим флаг для всплывающего окна предупреждения о необходимости сбросить питание для модуля типа 2 или 4
-			if ((Model::Type_of_sensor == 2)||(Model::Type_of_sensor == 4)) {
+			if ((Model::Type_of_sensor == 2)||(Model::Type_of_sensor == 4)||(Model::Type_of_sensor == 5)) {
 				Model::Flag_Alert = 1;
 			}
 		} // конец проверки записанного
@@ -1009,7 +1030,8 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 	MB_Error_t result = MB_ERROR_NO;
 
 	// Производим сканирование широковещательной посылкой шины на всех скоростях
-	for (int i = 0; i < BAUD_RATE_NUMBER; ++i)
+	const int baudCount = (Model::Type_of_sensor == 5) ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER;
+	for (int i = 0; i < baudCount; ++i)
 	{
 		switch (Model::Type_of_sensor) {
 			case 1: 	{
@@ -1032,6 +1054,22 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 					SensBaudRateIndex = i;
 				}
 				break; 	}
+			case 5: {
+				PR_UART4_Init(BaudRate_Type5[i]);
+				// The manual specifies only a single address register at control address FF.
+				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type5_Addr, 1, WR_Buffer);
+				if (result == MB_ERROR_NO)
+				{
+					const uint16_t address = MB->Read_Data_2;
+					if (address >= 1u && address <= 254u && MB->Rx_Buffer[0] == address && MB->Rx_Buffer[2] == 2u)
+					{
+						SensPortNumber = (uint8_t)address;
+						SensBaudRateIndex = (uint8_t)i;
+					}
+					else
+						result = MB_ERROR_WRONG_VALUE;
+				}
+				break; }
 			case 4: 	{
 				PR_UART4_Init(BaudRate_Type4[i]);
 				// для этого типа не работает широковещательный адрес, будем перебирать все адреса до ответа устройства
@@ -1302,7 +1340,10 @@ MB_Error_t Master_RW(MB_Active_t *MB, int SensAddress, MB_Command_t CMD, MB_Reg_
 			case MB_CMD_READ_REGS: {	
 				// holding-регистры - это регистры для хранения данных (датчики TH/PT100, сканирование ВВ)
 				// проверяем с CheckAnswerCRC: код функции в ответе совпадает с запрошенным CMD, CRC всего принятого кадра корректен,
-				if (CheckAnswerCRC)
+				const bool type5Read = (MB->UART == &huart4 && Model::Type_of_sensor == 5) ||
+					(diag && s_mbDiagIndex < SQ && Sensor_array[s_mbDiagIndex].TypeOfSensor == 5);
+				if (CheckAnswerCRC && (!type5Read ||
+					(MB->Rx_Buffer[2] == DATA * 2u && (SensAddress == 0xFF || MB->Rx_Buffer[0] == SensAddress))))
 				{
 					// если DATA == 1, то считываем один регистр
 					if (DATA == 1)
@@ -1337,7 +1378,8 @@ MB_Error_t Master_RW(MB_Active_t *MB, int SensAddress, MB_Command_t CMD, MB_Reg_
 			case MB_CMD_WRITE_COILS:
 			case MB_CMD_WRITE_REGS: {
 				// Echo 8 байт — подтверждение записи без полезной нагрузки
-				if (!PR_CheckAnswerCRC)
+				if (!PR_CheckAnswerCRC ||
+					(MB->UART == &huart4 && Model::Type_of_sensor == 5 && memcmp(MB->Rx_Buffer, MB->Tx_Buffer, 6) != 0))
 					result = MB_ERROR_UART_RECIEVE;
 				break;	}
 			default:	{

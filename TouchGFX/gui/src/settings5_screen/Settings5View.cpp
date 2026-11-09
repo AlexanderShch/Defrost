@@ -19,6 +19,7 @@ extern SENSOR_typedef_t Sensor_array[SQ];
 extern uint8_t SensNullValue;
 extern int BaudRate_Type1[];	// список скоростей для типа 1
 extern int BaudRate_Type2[];	// список скоростей для типа 2
+extern int BaudRate_Type5[];
 extern int BaudRate_Type4[];	// список скоростей для типа 4
 
 Settings5View::Settings5View():
@@ -41,8 +42,9 @@ void Settings5View::setupScreen()
     scrollSensorSpeedNew.setItemSelectedCallback(scrollSensorSpeedNewItemSelectedCallback);
     scrollSensorAddressNew.setItemSelectedCallback(scrollSensorAddressNewItemSelectedCallback);
 
+    scrollSensorType.setNumberOfItems(STQ);
     FlagWrite_visible = 0;
-    SetSpeed = 0;
+    SetSpeed = SensNullValue;
     SetAddress = 0;
 	SetSensor = 0;
 	presenter -> PR_Sensor_Type(SetSensor);
@@ -94,6 +96,9 @@ void Settings5View::scrollSensorSpeedNewUpdateItem(ScrollItemContainer& item, in
 		case 2:		{
 			item.updateScrollItem(BaudRate_Type2[itemIndex]);
 			break;	}
+		case 5:		{
+			item.updateScrollItem(BaudRate_Type5[itemIndex]);
+			break;	}
 		case 4:		{
 			item.updateScrollItem(BaudRate_Type4[itemIndex]);
 			break;	}
@@ -112,6 +117,9 @@ void Settings5View::scrollSensorSpeedNewUpdateCenterItem(ScrollSelectedItemConta
 			break;	}
 		case 2:		{
 			item.updateScrollSelectedItem(BaudRate_Type2[itemIndex]);
+			break;	}
+		case 5:		{
+			item.updateScrollSelectedItem(BaudRate_Type5[itemIndex]);
 			break;	}
 		case 4:		{
 			item.updateScrollSelectedItem(BaudRate_Type4[itemIndex]);
@@ -188,6 +196,10 @@ void Settings5View::BTNSetSpeedClicked()
 {
 	Selected = 1;
 	SetSpeedOld = SetSpeed;
+	scrollSensorSpeedNew.setNumberOfItems(SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER);
+	if (SetSpeed >= (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))
+		SetSpeed = 0;
+	scrollSensorSpeedNew.animateToItem(SetSpeed, 0);
 	scrollSensorSpeedNew.setVisible(true);
 	scrollSensorSpeedNew.invalidate();
 	BTNConfirm.setVisible(true);
@@ -219,6 +231,13 @@ void Settings5View::BTNConfirmClicked()
 	switch (Selected)
 	{
 		case 0:		// обработка выбора типа датчика
+			if (SetSensor != SetSensorOld)
+			{
+				SetSpeed = SensNullValue;
+				FlagWrite_visible = 0;
+				Unicode::strncpy(BTNSetSpeedBuffer, "---", BTNSETSPEED_SIZE);
+				Model::setCurrentVal_PR(SensNullValue, SensNullValue);
+			}
 			SetSensorOld = SetSensor;
 			Unicode::snprintf(BTNSensorTypeBuffer, BTNSENSORTYPE_SIZE, "%d", SetSensor);
 			scrollSensorType.setVisible(false);
@@ -232,6 +251,9 @@ void Settings5View::BTNConfirmClicked()
 					break;	}
 				case 2:		{
 					Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", BaudRate_Type2[SetSpeed]);
+					break;	}
+				case 5:		{
+					Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", BaudRate_Type5[SetSpeed]);
 					break;	}
 				case 4:		{
 					Unicode::snprintf(BTNSetSpeedBuffer, BTNSETSPEED_SIZE, "%d", BaudRate_Type4[SetSpeed]);
@@ -260,7 +282,7 @@ void Settings5View::BTNConfirmClicked()
 	BTNCancel.setVisible(false);
 	BTNConfirm.invalidate();
 	BTNCancel.invalidate();
-	if ((FlagWrite_visible == 1)&&(SetSpeed != 0)&&(SetAddress != 0))
+	if ((FlagWrite_visible == 1)&&(SetSpeed < (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))&&(SetAddress != 0))
 		BTNWrite.setVisible(true);
 	else
 		BTNWrite.setVisible(false);
@@ -290,7 +312,7 @@ void Settings5View::BTNCancelClicked()
 	BTNCancel.setVisible(false);
 	BTNConfirm.invalidate();
 	BTNCancel.invalidate();
-	if ((FlagWrite_visible == 1)&&(SetSpeed != 0)&&(SetAddress != 0))
+	if ((FlagWrite_visible == 1)&&(SetSpeed < (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))&&(SetAddress != 0))
 		BTNWrite.setVisible(true);
 	else
 		BTNWrite.setVisible(false);
@@ -305,7 +327,7 @@ void Settings5View::Val_Addr_UpdateView(uint8_t Val)
 	{
 		Unicode::snprintf(SensorCurrentAddressBuffer, sizeof(SensorCurrentAddressBuffer), "%d", Val);
 		FlagWrite_visible = 1;
-		if ((FlagWrite_visible == 1)&&(SetSpeed != 0)&&(SetAddress != 0))
+		if ((FlagWrite_visible == 1)&&(SetSpeed < (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))&&(SetAddress != 0))
 			BTNWrite.setVisible(true);
 		else
 			BTNWrite.setVisible(false);
@@ -323,7 +345,7 @@ void Settings5View::Val_Addr_UpdateView(uint8_t Val)
 // Вывод на экран значения скорости из Модели
 void Settings5View::Val_BaudRate_UpdateView(uint8_t Val)
 {
-	if (Val != SensNullValue)
+	if (Val < (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))
 	{
 		switch (SetSensor) {
 			case 1:		{
@@ -332,6 +354,9 @@ void Settings5View::Val_BaudRate_UpdateView(uint8_t Val)
 			case 2:		{
 				Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate_Type2[Val]);
 				break;	}
+			case 5:		{
+				Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate_Type5[Val]);
+				break;	}
 			case 4:		{
 				Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate_Type4[Val]);
 				break;	}
@@ -339,7 +364,7 @@ void Settings5View::Val_BaudRate_UpdateView(uint8_t Val)
 				break;
 		}
 		FlagWrite_visible = 1;
-		if ((FlagWrite_visible == 1)&&(SetSpeed != 0)&&(SetAddress != 0))
+		if ((FlagWrite_visible == 1)&&(SetSpeed < (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))&&(SetAddress != 0))
 			BTNWrite.setVisible(true);
 		else
 			BTNWrite.setVisible(false);

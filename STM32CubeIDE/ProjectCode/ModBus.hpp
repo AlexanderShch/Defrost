@@ -22,6 +22,7 @@
 
 #define MB_SLAVE_ADDRESS	200
 #define BAUD_RATE_NUMBER	8
+#define TYPE5_BAUD_RATE_NUMBER 7
 
 /* Описание набора датчиков дефростера */
 typedef struct {
@@ -145,6 +146,12 @@ typedef enum
 	Tipe4_Version = 0x0006,		// год + месяц + день
 	Type4_DI = 0x0000,
 	Type4_DO = 0x0000,
+
+	// Taidacent TDRS458DS18B20TG4 (DS18B20), signed temperature in 0.1 C.
+	Type5_T = 0x0000,
+	Type5_Addr = 0x0064,
+	Type5_Baud = 0x0065,
+	Type5_Parity = 0x0066,
 
 }MB_Reg_t;
 

@@ -330,7 +330,7 @@ static bool SensorIndexIsTempThForClampAlarm(unsigned char sensNum)
 	if (sensNum >= SQ)
 		return false;
 	const uint8_t t = Sensor_array[sensNum].TypeOfSensor;
-	return (t == 1u || t == 2u);
+	return (t == 1u || t == 2u || t == 5u);
 }
 
 void Sensor::CountClampHitSigns(unsigned char SensNum, unsigned* nPos, unsigned* nNeg)
