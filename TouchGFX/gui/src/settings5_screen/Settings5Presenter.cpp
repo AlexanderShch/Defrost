@@ -32,6 +32,12 @@ void Settings5Presenter::ValUpdatePresenter()
 		view.Val_Addr_UpdateView(Model::getCurrentAddress_PR());
 		view.Val_BaudRate_UpdateView(Model::getCurrentBaudRate_PR());
 	}
+    MB_Error_t writeResult;
+    if (ProgrammingSensor_TakeWriteResult(&writeResult) != 0u)
+    {
+        if (writeResult == MB_ERROR_NO) view.WriteSaved_Output();
+        else view.WriteError_Output(writeResult);
+    }
 }
 
 // здесь передаем в Model установленные параметры скорости и адреса для программирования в датчик

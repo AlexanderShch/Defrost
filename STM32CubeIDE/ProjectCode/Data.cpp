@@ -672,7 +672,11 @@ void Data_SaveLastSentTelemetryPacket(const uint8_t* packet, uint16_t length)
 /*
  * Функция: ResendLastTelemetry
  * Описание: Повторная отправка сохранённого байтового пакета телеметрии.
- * Добавляет в начало маркер [AA 55] и передаёт в WriteToServer().
+ * Вызывается при DATA_FALSE и ставит сохранённый кадр в общую очередь передачи.
+ * Параметров и возвращаемого значения нет; при отсутствии сохранённого пакета повтор пропускается.
+ * Кадр уже содержит заголовок и CRC. Префикс [AA 55] добавит задача TX_ToServer.
+ * Прямой вызов WriteToServer здесь недопустим: он ждёт снятия флага обработки
+ * команды, а этот флаг снимается только после возврата из текущего обработчика.
  */
 void ResendLastTelemetry(void)
 {
@@ -680,13 +684,10 @@ void ResendLastTelemetry(void)
 	{
 		return;
 	}
-	static uint8_t buf[2u + TELEMETRY_PACKET_MAX];
-
-	buf[0] = SYNC_START_1;
-	buf[1] = SYNC_START_2;
-	memcpy(&buf[2], s_lastSentTelemetryPacket, s_lastSentTelemetryPacketLen);
-
-	WriteToServer(buf, (int)(2u + s_lastSentTelemetryPacketLen));
+	// Очередь копирует кадр: обработчик DATA_FALSE сможет завершиться и освободить передачу.
+	// Постановка выполняется без ожидания; при заполнении очереди текущая реализация
+	// ServerTx_EnqueueHighPriority не гарантирует сохранение этого повтора.
+	ServerTx_EnqueueHighPriority(s_lastSentTelemetryPacket, s_lastSentTelemetryPacketLen);
 }
 
 // Единая очередь отправки на сервер (телеметрия, лог, ответы на команды)

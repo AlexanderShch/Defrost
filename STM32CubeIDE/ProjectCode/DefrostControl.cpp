@@ -64,7 +64,7 @@ static uint8_t g_defrostPersistedAutoMode = 0u; // бит, определяющ�
 static bool g_defrostEepromPersistPending = false;
 /* Восстановить авторежим после сбоя питания: StartAutomaticSequence — на первом Update1s (уже RTOS, есть DI). */
 static uint8_t g_defrostAutoRestorePending = 0u;
-static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes, "Defrost EEPROM payload exceeds M24C16 capacity");
+static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "Defrost EEPROM payload exceeds M24C16 capacity");
  
  namespace
  {
@@ -2999,6 +2999,7 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
         // иначе при пустой/битой EEPROM main блокируется на I2C3 до osKernelStart.
         g_defrostEepromAvailable = EEPROM::Init();
         g_defrostEepromPersistPending = false;  // флаг ожидания записи в EEPROM
+        SensorConfig_Load(g_defrostEepromAvailable);
         if (g_defrostEepromAvailable)
         {
             DefrostEepromStorage_t rec = {};  // инициализация структуры

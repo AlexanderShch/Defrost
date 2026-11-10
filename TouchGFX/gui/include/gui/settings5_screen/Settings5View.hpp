@@ -31,8 +31,12 @@ public:
     virtual void Val_Addr_UpdateView(uint8_t Val);
     virtual void Val_BaudRate_UpdateView(uint8_t Val);
     virtual void Alert_Message_Output();
+    void WriteError_Output(MB_Error_t error);
+    void WriteSaved_Output();
 
 protected:
+    touchgfx::TextAreaWithOneWildcard writeErrorMessage;
+    touchgfx::Unicode::UnicodeChar writeErrorBuffer[64];
     // В классе Settings5View
     // описываются смарт-пойнтеры класса Callback на функции, обслуживающие обратный вызов
     // в скобках <...> определён шаблон для передачи в класс Callback - тип вызывающего функцию объекта и параметр для вызова

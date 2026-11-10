@@ -4,3 +4,6 @@
 /Middlewares/*
 # Локальные пути компилятора CubeIDE — не коммитить
 STM32CubeIDE/.settings/language.settings.xml
+
+# Локальные журналы и измерения (ссылка на папку OneDrive)
+/Регулирование/

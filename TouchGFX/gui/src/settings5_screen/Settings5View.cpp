@@ -42,6 +42,14 @@ void Settings5View::setupScreen()
     scrollSensorSpeedNew.setItemSelectedCallback(scrollSensorSpeedNewItemSelectedCallback);
     scrollSensorAddressNew.setItemSelectedCallback(scrollSensorAddressNewItemSelectedCallback);
 
+    writeErrorMessage.setTypedText(SensorCurrentSpeed.getTypedText());
+    writeErrorMessage.setWildcard(writeErrorBuffer);
+    writeErrorMessage.setPosition(20, 70, 200, 100);
+    writeErrorMessage.setColor(Alert_Message.getColor());
+    writeErrorMessage.setVisible(false);
+    add(writeErrorMessage);
+    MB_Error_t previousResult;
+    (void)ProgrammingSensor_TakeWriteResult(&previousResult);
     scrollSensorType.setNumberOfItems(STQ);
     FlagWrite_visible = 0;
     SetSpeed = SensNullValue;
@@ -196,6 +204,9 @@ void Settings5View::BTNSetSpeedClicked()
 {
 	Selected = 1;
 	SetSpeedOld = SetSpeed;
+	// У Taidacent своя таблица из семи скоростей, без 115200 бод.
+	// Размер колеса и допустимость сохранённого индекса должны соответствовать типу.
+	// Индекс 0 означает допустимые 1200 бод; это не признак отсутствия выбора.
 	scrollSensorSpeedNew.setNumberOfItems(SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER);
 	if (SetSpeed >= (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))
 		SetSpeed = 0;
@@ -273,6 +284,7 @@ void Settings5View::BTNConfirmClicked()
 			Model::Flag_Alert = 0;
 			Alert_Background.setVisible(false);
 			Alert_Message.setVisible(false);
+			writeErrorMessage.setVisible(false);
 			BTNConfirm.setVisible(false);
 			Alert_Background.invalidate();
 			Alert_Message.invalidate();
@@ -338,6 +350,7 @@ void Settings5View::Val_Addr_UpdateView(uint8_t Val)
 		FlagWrite_visible = 0;
 		BTNWrite.setVisible(false);
 	}
+	if (Alert_Background.isVisible()) BTNWrite.setVisible(false);
 	BTNWrite.invalidate();
 	SensorCurrentAddress.invalidate();
 }
@@ -375,6 +388,8 @@ void Settings5View::Val_BaudRate_UpdateView(uint8_t Val)
 		FlagWrite_visible = 0;
 		BTNWrite.setVisible(false);
 	}
+	if (Alert_Background.isVisible()) BTNWrite.setVisible(false);
+	BTNWrite.invalidate();
 	SensorCurrentSpeed.invalidate();
 }
 
@@ -392,3 +407,30 @@ void Settings5View::Alert_Message_Output()
 	BTNWrite.invalidate();
 }
 
+
+void Settings5View::WriteError_Output(MB_Error_t error)
+{
+    Selected = 3;
+    Unicode::snprintf(writeErrorBuffer, 24, "error\n%d", (int)error);
+    Alert_Background.setVisible(true);
+    Alert_Message.setVisible(false);
+    writeErrorMessage.setVisible(true);
+    BTNConfirm.setVisible(true);
+    BTNCancel.setVisible(false);
+    BTNWrite.setVisible(false);
+    invalidate();
+}
+
+void Settings5View::WriteSaved_Output()
+{
+    WriteError_Output(MB_ERROR_NO);
+    Model::Flag_Alert = 0;
+    // Тип 5 уже программно перезапущен и проверен в Type5_Program.
+    // Оператору остаётся перезапустить контроллер для применения сохранённых
+    // назначений датчиков; для остальных типов сохраняем прежнюю инструкцию.
+    const char *message = (Model::Type_of_sensor == 5)
+        ? "Записано\nПерезапустите\nконтроллер"
+        : "Записано\nПерезапустите\nдатчик и\nконтроллер";
+    Unicode::fromUTF8((const uint8_t *)message, writeErrorBuffer, 64);
+    writeErrorMessage.invalidate();
+}

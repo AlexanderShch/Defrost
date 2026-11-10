@@ -2,6 +2,7 @@
 #include "cmsis_os.h"
 #include "ModBus.hpp"
 #include "Data.hpp"
+#include "EEPROM.hpp"
 #include "CommandReceiver.hpp"
 #include "DefrostControl.h"
 #include "stdio.h"
@@ -196,11 +197,149 @@ SENSOR_typedef_t Sensor_array[SQ] =
 		{101,3,0,1,"Left def", 0,0,0,0,1},		// 0 - дефростер левый, 	GL-TH04-MT
 		{102,3,0,1,"Right def",0,0,0,0,1},		// 1 - дефростер правый,	GL-TH04-MT
 		{103,3,0,1,"Center def",0,0,0,0,1},	// 2 - дефростер центральный, GL-TH04-MT
-		{104,3,0,2,"Left prod",0,0,0,0,1},		// 3 - продукт левый, 		РТ100 с RS485
-		{105,3,0,2,"Right prod",0,0,0,0,1},	// 4 - продукт правый,		РТ100 с RS485
-		{106,3,0,2,"Body def",0,0,0,0,1},		// 5 - Т корпуса дефростера,	РТ100 с RS485
+		{104,4,0,2,"Left prod",0,0,0,0,1},		// 3 - продукт левый, 		РТ100 с RS485
+		{105,4,0,2,"Right prod",0,0,0,0,1},	// 4 - продукт правый,		РТ100 с RS485
+		{106,4,0,2,"Body def",0,0,0,0,1},		// 5 - Т корпуса дефростера,	РТ100 с RS485
 		{002,3,0,4,"MB 16IO",0,0,0,0,1}		// 6 - модуль ввода-вывода с RS485, диапазон адресов: 2 и 3
 };
+
+// SENSOR_CONFIG_STORAGE_BEGIN
+namespace
+{
+constexpr uint16_t kConfigBytes = EEPROM::kSensorConfigSlotBytes;
+constexpr uint16_t kConfigCrcOffset = kConfigBytes - 2u;
+constexpr uint8_t kConfigEntriesOffset = 10u;
+static_assert(kConfigEntriesOffset + SQ * 3u <= kConfigCrcOffset, "Sensor table exceeds journal slot");
+static_assert(EEPROM::kSensorConfigEnd <= EEPROM::kSizeBytes, "Sensor journal exceeds EEPROM");
+uint8_t s_sensorConfig[kConfigBytes] = {};
+uint8_t s_sensorDefaults[SQ * 3u] = {};
+bool s_sensorDefaultsCaptured = false;
+bool s_sensorEepromAvailable = false;
+int8_t s_sensorConfigSlot = -1;
+
+uint32_t ConfigSequence(const uint8_t *record)
+{
+    return (uint32_t)record[6] | ((uint32_t)record[7] << 8) |
+           ((uint32_t)record[8] << 16) | ((uint32_t)record[9] << 24);
+}
+
+bool ConfigEntryValid(uint8_t index, uint8_t address, uint8_t baud, uint8_t type)
+{
+    if (address == 0u || address > 247u) return false;
+    // Channels 0..2 supply humidity to the controller; channel 6 is the relay/DI module.
+    if (index < 3u && type != 1u) return false;
+    if (index == 6u && type != 4u) return false;
+    if (index >= 3u && index < 6u && type != 1u && type != 2u && type != 5u) return false;
+    // UART5 polls all channels at 19200 8N1. Baud indices are device-specific.
+    return baud == ((type == 2u || type == 5u) ? 4u : 3u);
+}
+
+bool ConfigRecordValid(uint8_t *record)
+{
+    if (memcmp(record, "SNS1", 4) != 0 || record[4] != 1u || record[5] != SQ) return false;
+    const uint16_t crc = MB_GetCRC(record, kConfigCrcOffset);
+    if (record[kConfigCrcOffset] != (uint8_t)crc || record[kConfigCrcOffset + 1u] != (uint8_t)(crc >> 8)) return false;
+    for (uint8_t i = 0; i < SQ; ++i)
+    {
+        const uint8_t *entry = &record[kConfigEntriesOffset + 3u * i];
+        if (!ConfigEntryValid(i, entry[0], entry[1], entry[2])) return false;
+        for (uint8_t j = 0; j < i; ++j)
+            if (record[kConfigEntriesOffset + 3u * j] == entry[0]) return false;
+    }
+    return true;
+}
+
+MB_Error_t ConfigCheckProgramming(uint8_t address, uint8_t baud, uint8_t type, uint8_t *destination)
+{
+    if (!s_sensorEepromAvailable) return MB_ERROR_EEPROM;
+    for (uint8_t i = 0; i < SQ; ++i)
+    {
+        // The address wheel identifies the destination through the active position table.
+        if (Sensor_array[i].Address != address) continue;
+        if (!ConfigEntryValid(i, address, baud, type)) return MB_ERROR_WRONG_VALUE;
+        *destination = i;
+        return MB_ERROR_NO;
+    }
+    return MB_ERROR_WRONG_ADDRESS;
+}
+
+MB_Error_t ConfigSaveProgramming(uint8_t destination, uint8_t address, uint8_t baud, uint8_t type)
+{
+    if (!EEPROM::Lock()) return MB_ERROR_EEPROM;
+    uint8_t next[kConfigBytes];
+    memcpy(next, s_sensorConfig, sizeof(next));
+    uint8_t *entry = &next[kConfigEntriesOffset + 3u * destination];
+    // Avoid EEPROM wear when an already stored assignment is programmed again.
+    if (s_sensorConfigSlot >= 0 && entry[0] == address && entry[1] == baud && entry[2] == type)
+    {
+        EEPROM::Unlock();
+        return MB_ERROR_NO;
+    }
+    entry[0] = address; entry[1] = baud; entry[2] = type;
+    const uint32_t sequence = ConfigSequence(next) + 1u;
+    for (uint8_t i = 0; i < 4u; ++i) next[6u + i] = (uint8_t)(sequence >> (8u * i));
+    const uint16_t crc = MB_GetCRC(next, kConfigCrcOffset);
+    next[kConfigCrcOffset] = (uint8_t)crc;
+    next[kConfigCrcOffset + 1u] = (uint8_t)(crc >> 8);
+    const int8_t target = (s_sensorConfigSlot == 0) ? 1 : 0;
+    const uint16_t base = EEPROM::kSensorConfigAddress + target * kConfigBytes;
+    const uint8_t invalidMagic[4] = {};
+    uint8_t readBack[kConfigBytes] = {};
+    // Invalidate the target, write payload+CRC, commit magic last. Leave the other slot intact.
+    const bool saved = EEPROM::Write(base, invalidMagic, 4u) == HAL_OK &&
+        EEPROM::Write(base + 4u, next + 4u, kConfigBytes - 4u) == HAL_OK &&
+        EEPROM::Write(base, next, 4u) == HAL_OK &&
+        EEPROM::Read(base, readBack, sizeof(readBack)) == HAL_OK &&
+        memcmp(readBack, next, sizeof(next)) == 0 && ConfigRecordValid(readBack);
+    if (saved)
+    {
+        memcpy(s_sensorConfig, next, sizeof(next));
+        s_sensorConfigSlot = target;
+    }
+    EEPROM::Unlock();
+    return saved ? MB_ERROR_NO : MB_ERROR_EEPROM;
+}
+} // namespace
+
+void SensorConfig_Load(bool eepromAvailable)
+{
+    // Called during controller initialization, before RTOS polling or control can use the table.
+    if (!s_sensorDefaultsCaptured)
+    {
+        for (uint8_t i = 0; i < SQ; ++i)
+        {
+            s_sensorDefaults[3u*i] = Sensor_array[i].Address;
+            s_sensorDefaults[3u*i+1u] = Sensor_array[i].BaudRate;
+            s_sensorDefaults[3u*i+2u] = Sensor_array[i].TypeOfSensor;
+        }
+        s_sensorDefaultsCaptured = true;
+    }
+    memset(s_sensorConfig, 0, sizeof(s_sensorConfig));
+    memcpy(s_sensorConfig, "SNS1", 4);
+    s_sensorConfig[4] = 1u; s_sensorConfig[5] = SQ;
+    memcpy(s_sensorConfig + kConfigEntriesOffset, s_sensorDefaults, sizeof(s_sensorDefaults));
+    s_sensorEepromAvailable = eepromAvailable;
+    s_sensorConfigSlot = -1;
+    uint8_t records[2][kConfigBytes] = {};
+    for (uint8_t slot = 0; eepromAvailable && slot < 2u; ++slot)
+    {
+        if (EEPROM::Read(EEPROM::kSensorConfigAddress + slot * kConfigBytes,
+                         records[slot], kConfigBytes) != HAL_OK || !ConfigRecordValid(records[slot])) continue;
+        if (s_sensorConfigSlot < 0 || (int32_t)(ConfigSequence(records[slot]) - ConfigSequence(s_sensorConfig)) > 0)
+        {
+            memcpy(s_sensorConfig, records[slot], kConfigBytes);
+            s_sensorConfigSlot = slot;
+        }
+    }
+    for (uint8_t i = 0; i < SQ; ++i)
+    {
+        const uint8_t *entry = &s_sensorConfig[kConfigEntriesOffset + 3u*i];
+        Sensor_array[i].Address = entry[0];
+        Sensor_array[i].BaudRate = entry[1];
+        Sensor_array[i].TypeOfSensor = entry[2];
+    }
+}
+// SENSOR_CONFIG_STORAGE_END
 
 uint8_t SensNullValue = 255;
 uint8_t SensPortNumber;					// физический адрес устройства на шине - получает значение из устройства при сканировании шины
@@ -401,6 +540,9 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 			// Запросим данные с датчика
 			result = MB_ReadSensorRegs(&SW, SensIndex, Type2_T, REG_COUNT);
 			break;	}
+		// Тип 5: Taidacent с DS18B20 выдаёт только температуру, без влажности.
+		// Читаем один 16-битный holding-регистр 0x0000 функцией 03. Значение уже
+		// задано в десятых градуса; ниже общая ветка нормализует знак через int16_t.
 		case 5:		{
 			result = MB_ReadSensorRegs(&SW, SensIndex, Type5_T, 1);
 			break;	}
@@ -815,6 +957,17 @@ void ProgrammingSensor_Start(void)
 		s_progTaskRunning = 0u;
 }
 
+static MB_Error_t s_progWriteResult = MB_ERROR_NO;
+static volatile uint8_t s_progWriteDone = 0u;
+
+uint8_t ProgrammingSensor_TakeWriteResult(MB_Error_t *result)
+{
+    if (s_progWriteDone == 0u || result == nullptr) return 0u;
+    *result = s_progWriteResult;
+    s_progWriteDone = 0u;
+    return 1u;
+}
+
 void ProgrammingSensor_RequestStop(void)
 {
 	// Тип 0 выводит задачу из цикла сканирования по условию while (Type_of_sensor == TypeOfSens).
@@ -946,6 +1099,110 @@ void ProgrammingSensor()
 }	// конец функции ProgrammingSensor()
 
 /*
+ * Ищет доступное подключение к Taidacent и подтверждает значение регистра чтением.
+ * pr — контекст UART4; reg/expected — проверяемый регистр и ожидаемое значение;
+ * oldAddress/newAddress и oldBaud/newBaud — адреса и индексы скоростей до/после записи.
+ * При успехе возвращает MB_ERROR_NO и записывает рабочее подключение в liveAddress/liveBaud;
+ * если ни одна комбинация не подтверждена — MB_ERROR_WRONG_VALUE. UART4 остаётся
+ * на последней проверенной скорости; вызывающий код управляет владением портом.
+ * Датчик может применить настройку сразу и потерять подтверждение записи. Поэтому
+ * проверяем обе скорости и оба адреса, пропуская дубли, вместо слепого повтора записи.
+ */
+static MB_Error_t Type5_FindSetting(MB_Active_t *pr, MB_Reg_t reg, uint16_t expected,
+                                    uint8_t oldAddress, uint8_t newAddress,
+                                    uint8_t oldBaud, uint8_t newBaud,
+                                    uint8_t *liveAddress, uint8_t *liveBaud)
+{
+    MultWR_t unused = {};
+    const uint8_t addresses[2] = {oldAddress, newAddress};
+    const uint8_t bauds[2] = {oldBaud, newBaud};
+    for (uint8_t b = 0; b < 2u; ++b)
+    {
+        if (b != 0u && bauds[b] == bauds[0]) continue;
+        PR_UART4_Init(BaudRate_Type5[bauds[b]]);
+        for (uint8_t a = 0; a < 2u; ++a)
+        {
+            if (a != 0u && addresses[a] == addresses[0]) continue;
+            osDelay(10);
+            const MB_Error_t result = Master_RW(pr, addresses[a], MB_CMD_READ_REGS, reg, 1, unused);
+            if (result == MB_ERROR_NO && pr->Read_Data_2 == expected)
+            {
+                *liveAddress = addresses[a];
+                *liveBaud = bauds[b];
+                return MB_ERROR_NO;
+            }
+        }
+    }
+    return MB_ERROR_WRONG_VALUE;
+}
+
+/*
+ * Программирует адрес и скорость единственного датчика типа 5 на UART4.
+ * newAddress — адрес 1..254; newBaud — индекс в BaudRate_Type5, а не скорость в бодах.
+ * pr — контекст обмена; задача программирования должна удерживать mutex UART4.
+ * Запись каждого регистра выполняется функцией 06 и подтверждается чтением.
+ * После перезапуска повторно проверяются обе настройки. Только при полном успехе
+ * обновляются найденные адрес/скорость и модель экрана; иначе возвращается ошибка.
+ * При частичном успехе параметры самого датчика уже могли измениться: отката нет.
+ */
+static MB_Error_t Type5_Program(MB_Active_t *pr, uint8_t newAddress, uint8_t newBaud)
+{
+    if (newAddress == 0u || newAddress == 255u || newBaud >= TYPE5_BAUD_RATE_NUMBER ||
+        SensPortNumber == 0u || SensPortNumber == 255u || SensBaudRateIndex >= TYPE5_BAUD_RATE_NUMBER ||
+        Model::getCurrentAddress_PR() == SensNullValue)
+        return MB_ERROR_WRONG_VALUE;
+
+    const uint8_t oldAddress = SensPortNumber;
+    const uint8_t oldBaud = SensBaudRateIndex;
+    uint8_t liveAddress = oldAddress;
+    uint8_t liveBaud = oldBaud;
+    MultWR_t unused = {};
+    PR_UART4_Init(BaudRate_Type5[oldBaud]);
+    // Подтверждаем присутствие найденного датчика адресным запросом перед изменениями.
+    // Это защищает от программирования по устаревшему результату предыдущего поиска.
+    if (Master_RW(pr, oldAddress, MB_CMD_READ_REGS, Type5_Addr, 1, unused) != MB_ERROR_NO)
+        return MB_ERROR_UART_RECIEVE;
+
+    // Сначала меняем скорость: адрес пока известен. Потеря эха записи допустима,
+    // но новое значение обязательно должно подтвердиться последующим чтением.
+    (void)Master_RW(pr, liveAddress, MB_CMD_WRITE_REG, Type5_Baud, newBaud, unused);
+    osDelay(50);
+    MB_Error_t result = Type5_FindSetting(pr, Type5_Baud, newBaud, oldAddress, oldAddress,
+                                         oldBaud, newBaud, &liveAddress, &liveBaud);
+    if (result != MB_ERROR_NO) return result;
+
+    // Затем меняем адрес на уже подтверждённом подключении и снова ищем датчик
+    // по старому/новому адресу: момент применения зависит от прошивки устройства.
+    (void)Master_RW(pr, liveAddress, MB_CMD_WRITE_REG, Type5_Addr, newAddress, unused);
+    osDelay(50);
+    result = Type5_FindSetting(pr, Type5_Addr, newAddress, oldAddress, newAddress,
+                               liveBaud, newBaud, &liveAddress, &liveBaud);
+    if (result != MB_ERROR_NO) return result;
+
+    // Управляющий адрес FF допустим только для единственного подключённого датчика.
+    // Перезапуск способен оборвать подтверждение, поэтому результат записи здесь
+    // не является критерием успеха: далее проверяем адрес и скорость до пяти раз.
+    (void)Master_RW(pr, 0xFF, MB_CMD_WRITE_REG, Type5_Reset, 0, unused);
+    PR_UART4_Init(BaudRate_Type5[newBaud]);
+    // Даём устройству загрузиться; успешным считаем чтение ОБОИХ регистров
+    // на новой скорости и новом адресе, а не сам факт ответа после перезапуска.
+    for (uint8_t attempt = 0; attempt < 5u; ++attempt)
+    {
+        osDelay(200);
+        if (Master_RW(pr, newAddress, MB_CMD_READ_REGS, Type5_Addr, 1, unused) != MB_ERROR_NO ||
+            pr->Read_Data_2 != newAddress) continue;
+        osDelay(10);
+        if (Master_RW(pr, newAddress, MB_CMD_READ_REGS, Type5_Baud, 1, unused) != MB_ERROR_NO ||
+            pr->Read_Data_2 != newBaud) continue;
+        SensPortNumber = newAddress;
+        SensBaudRateIndex = newBaud;
+        Model::setCurrentVal_PR(newAddress, newBaud);
+        return MB_ERROR_NO;
+    }
+    return MB_ERROR_UART_RECIEVE;
+}
+
+/*
  * Функция записывает новые скорость и адрес в датчик, затем считывает записанное и сверяет с заданными
  * Возвращается с результатом записи
  */
@@ -955,6 +1212,7 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 	uint8_t WR_BaudRate = 0;
 	uint8_t WR_Address = 0;
 	MB_Error_t result = MB_ERROR_NO;
+	MultWR_t writeBuffer = {};
 
 /*
 * Запись данных в датчик в режиме программирования датчика, если флаг установлен
@@ -967,56 +1225,59 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 		// устанавливаем данные для записи нового адреса порта
 		WR_Address = Model::Address_WR_to_sensor;
 		WR_BaudRate = Model::BaudRate_WR_to_sensor;
+        const uint8_t programmedType = Model::Type_of_sensor;
+        uint8_t destination = 0;
+        result = ConfigCheckProgramming(WR_Address, WR_BaudRate, programmedType, &destination);
+        if (result != MB_ERROR_NO)
+        {
+            Model::Flag_WR_to_sensor = 0;
+            s_progWriteResult = result;
+            s_progWriteDone = 1u;
+            return result;
+        }
 		uint8_t REG_COUNT = 2;						// делаем запись в 2 регистра: адрес и скорость
 		// заполним буфер для mult записи
-		WR_Buffer[0] = 4;							// кол-во байт для записи
-		WR_Buffer[1] = (WR_Address>>8) & 0xFF;		// адрес старший байт
-		WR_Buffer[2] = WR_Address & 0xFF;			// адрес младший байт
-		WR_Buffer[3] = (WR_BaudRate>>8) & 0xFF;		// скорость старший байт
-		WR_Buffer[4] = WR_BaudRate & 0xFF;			// скорость младший байт
+		writeBuffer[0] = 4;							// кол-во байт для записи
+		writeBuffer[1] = (WR_Address>>8) & 0xFF;		// адрес старший байт
+		writeBuffer[2] = WR_Address & 0xFF;			// адрес младший байт
+		writeBuffer[3] = (WR_BaudRate>>8) & 0xFF;		// скорость старший байт
+		writeBuffer[4] = WR_BaudRate & 0xFF;			// скорость младший байт
 
 		// запись адреса и скорости
-		switch (Model::Type_of_sensor) {
+		switch (programmedType) {
 			case 1:
-				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type1_Addr, REG_COUNT, WR_Buffer);
+				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type1_Addr, REG_COUNT, writeBuffer);
 				break;
 			case 2:
-				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type2_Addr, REG_COUNT, WR_Buffer);
+				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type2_Addr, REG_COUNT, writeBuffer);
 				break;
 			case 5:
-				if (WR_BaudRate >= TYPE5_BAUD_RATE_NUMBER || WR_Address == 0u || WR_Address == 255u ||
-					SensPortNumber == 0u || SensPortNumber == 255u)
-				{
-					result = MB_ERROR_WRONG_VALUE;
-					break;
-				}
-				// Standard FC10: address, baud index, parity=none. Apply after power cycle.
-				WR_Buffer[0] = 6;
-				WR_Buffer[5] = 0;
-				WR_Buffer[6] = 0;
-				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type5_Addr, 3, WR_Buffer);
+				result = Type5_Program(PR, WR_Address, WR_BaudRate);
 				break;
 			case 4:
-				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type4_Addr, REG_COUNT, WR_Buffer);
+				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type4_Addr, REG_COUNT, writeBuffer);
 				break;
 			default:
 				result = MB_ERROR_COMMAND;
 				break;
 		}
 
-		// проверка записанного
+        if (result == MB_ERROR_NO)
+            result = ConfigSaveProgramming(destination, WR_Address, WR_BaudRate, programmedType);
+		// Device ACK and verified EEPROM save are both required for success.
 		if (result == MB_ERROR_NO)
 		{	//всё хорошо, датчик записан
 			// сбрасываем флаг записи в датчик
 			Model::Flag_WR_to_sensor = 0;
 			// Установим флаг для всплывающего окна предупреждения о необходимости сбросить питание для модуля типа 2 или 4
-			if ((Model::Type_of_sensor == 2)||(Model::Type_of_sensor == 4)||(Model::Type_of_sensor == 5)) {
+			if ((programmedType == 2)||(programmedType == 4)) {
 				Model::Flag_Alert = 1;
 			}
 		} // конец проверки записанного
 		else
 			Model::Flag_WR_to_sensor = 0;
-		// надо как-то оповестить об ошибке записи
+		s_progWriteResult = result;
+		s_progWriteDone = 1u;
 	} // конец записи в датчик
 	return result;
 }
@@ -1056,7 +1317,10 @@ MB_Error_t ScanSensor(MB_Active_t *MB)
 				break; 	}
 			case 5: {
 				PR_UART4_Init(BaudRate_Type5[i]);
-				// The manual specifies only a single address register at control address FF.
+				// Поиск типа 5: на каждой поддерживаемой скорости читаем один регистр
+				// адреса через управляющий адрес FF. На порту должен быть один датчик.
+				// Далее сверяем значение регистра с адресом отправителя и размером данных,
+				// чтобы не принять посторонний ответ за найденный Taidacent.
 				result = Master_RW(MB, 0xFF, MB_CMD_READ_REGS, Type5_Addr, 1, WR_Buffer);
 				if (result == MB_ERROR_NO)
 				{
@@ -1340,6 +1604,9 @@ MB_Error_t Master_RW(MB_Active_t *MB, int SensAddress, MB_Command_t CMD, MB_Reg_
 			case MB_CMD_READ_REGS: {	
 				// holding-регистры - это регистры для хранения данных (датчики TH/PT100, сканирование ВВ)
 				// проверяем с CheckAnswerCRC: код функции в ответе совпадает с запрошенным CMD, CRC всего принятого кадра корректен,
+				// Для типа 5 дополнительно проверяем ByteCount и адрес ответа как при
+				// обычном опросе UART5, так и при программировании через UART4.
+				// Для поиска по FF адрес заранее неизвестен; его проверит ScanSensor.
 				const bool type5Read = (MB->UART == &huart4 && Model::Type_of_sensor == 5) ||
 					(diag && s_mbDiagIndex < SQ && Sensor_array[s_mbDiagIndex].TypeOfSensor == 5);
 				if (CheckAnswerCRC && (!type5Read ||

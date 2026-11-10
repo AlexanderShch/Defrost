@@ -92,6 +92,7 @@ typedef enum
 	MB_ERROR_DMA_SEND = 0x04,	// ошибка DMA при отправке
 	MB_ERROR_UART_SEND = 0x05,	// ошибка UART при отправке
 	MB_ERROR_UART_RECIEVE = 0x06,	// ошибка UART при приёме
+	MB_ERROR_EEPROM = 0x08,       // EEPROM unavailable or assignment save failed
 	MB_ERROR_DMA_RECIEVE = 0x07,	// ошибка DMA при приёме
 }MB_Error_t;
 
@@ -147,11 +148,15 @@ typedef enum
 	Type4_DI = 0x0000,
 	Type4_DO = 0x0000,
 
-	// Taidacent TDRS458DS18B20TG4 (DS18B20), signed temperature in 0.1 C.
+	// Карта holding-регистров Taidacent TDRS458DS18B20TG4 (DS18B20, тип 5).
+	// Температура — знаковое 16-битное слово в десятых °C; отрицательные значения
+	// интерпретируются в дополнительном коде. Скорость хранится индексом BaudRate_Type5.
+	// Измерение читается функцией 03, настройки/перезапуск записываются функцией 06.
 	Type5_T = 0x0000,
 	Type5_Addr = 0x0064,
 	Type5_Baud = 0x0065,
 	Type5_Parity = 0x0066,
+	Type5_Reset = 0x00E0,
 
 }MB_Reg_t;
 
@@ -169,6 +174,9 @@ void ProgrammingSensor(void);
 void ProgrammingSensor_Start(void);
 /* Выход с экрана: задача доводит сканирование, возвращает UART4 серверу и завершается сама. */
 void ProgrammingSensor_RequestStop(void);
+uint8_t ProgrammingSensor_TakeWriteResult(MB_Error_t *result);
+// Load before polling; saved changes take effect on the next controller boot.
+void SensorConfig_Load(bool eepromAvailable);
 void PR_UART4_Init(int BaudRateValue);
 void WriteToServer(uint8_t* Data, int length);
 uint16_t MB_GetCRC(volatile uint8_t* buf, uint16_t len);

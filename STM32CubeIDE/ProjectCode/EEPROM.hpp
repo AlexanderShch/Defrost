@@ -9,6 +9,14 @@ namespace EEPROM
 // Параметры M24C16 (16 Kbit = 2048 байт).
 static constexpr uint16_t kSizeBytes = 2048u;
 static constexpr uint16_t kPageSizeBytes = 16u;
+// Independent sensor configuration journal, two 64-byte slots.
+static constexpr uint16_t kSensorConfigAddress = 0x0100u;
+static constexpr uint16_t kSensorConfigSlotBytes = 64u;
+static constexpr uint16_t kSensorConfigEnd = kSensorConfigAddress + 2u * kSensorConfigSlotBytes;
+
+// Recursive transaction lock; no-op before the scheduler starts.
+bool Lock();
+void Unlock();
 // Базовый 8-битный адрес HAL (блок 0, A10..A8=000).
 // У M24C16 биты A10..A8 памяти входят в device select: 1010 A10 A9 A8 R/W.
 static constexpr uint16_t kDefaultDeviceAddress = 0xA0u;

@@ -1,9 +1,41 @@
 #include "EEPROM.hpp"
+#include "cmsis_os2.h"
 
 extern I2C_HandleTypeDef hi2c3;
 
 namespace EEPROM
 {
+static osMutexId_t s_mutex = nullptr;
+
+bool Lock()
+{
+    const osKernelState_t state = osKernelGetState();
+    if (state != osKernelRunning && state != osKernelLocked) return true;
+    const int32_t previous = osKernelLock();
+    if (s_mutex == nullptr)
+    {
+        const osMutexAttr_t attributes = {"EEPROM", osMutexRecursive | osMutexPrioInherit, nullptr, 0u};
+        s_mutex = osMutexNew(&attributes);
+    }
+    osKernelRestoreLock(previous);
+    return s_mutex != nullptr && osMutexAcquire(s_mutex, osWaitForever) == osOK;
+}
+
+void Unlock()
+{
+    const osKernelState_t state = osKernelGetState();
+    if ((state == osKernelRunning || state == osKernelLocked) && s_mutex != nullptr)
+        osMutexRelease(s_mutex);
+}
+
+class AccessGuard
+{
+public:
+    AccessGuard() : acquired(Lock()) {}
+    ~AccessGuard() { if (acquired) Unlock(); }
+    bool acquired;
+};
+
 // Базовый адрес 0xA0; для каждого 256-байтного блока A10..A8 кодируются в device select.
 static uint16_t s_baseDeviceAddress = kDefaultDeviceAddress;
 static constexpr uint16_t kBlockSizeBytes = 256u;
@@ -45,6 +77,8 @@ bool Init(uint16_t deviceAddress, uint32_t timeoutMs)
 
 HAL_StatusTypeDef Read(uint16_t memAddress, uint8_t* dst, uint16_t length, uint32_t timeoutMs)
 {
+    AccessGuard guard;
+    if (!guard.acquired) return HAL_BUSY;
     if (dst == nullptr)
     {
         return HAL_ERROR;
@@ -89,6 +123,8 @@ HAL_StatusTypeDef Read(uint16_t memAddress, uint8_t* dst, uint16_t length, uint3
 
 HAL_StatusTypeDef Write(uint16_t memAddress, const uint8_t* src, uint16_t length, uint32_t timeoutMs)
 {
+    AccessGuard guard;
+    if (!guard.acquired) return HAL_BUSY;
     if (src == nullptr)
     {
         return HAL_ERROR;
