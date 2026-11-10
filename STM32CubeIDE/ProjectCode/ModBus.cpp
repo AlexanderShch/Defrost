@@ -229,7 +229,7 @@ bool ConfigEntryValid(uint8_t index, uint8_t address, uint8_t baud, uint8_t type
     // Channels 0..2 supply humidity to the controller; channel 6 is the relay/DI module.
     if (index < 3u && type != 1u) return false;
     if (index == 6u && type != 4u) return false;
-    if (index >= 3u && index < 6u && type != 1u && type != 2u && type != 5u) return false;
+    if (index >= 3u && index < 6u && type != 2u && type != 5u) return false;
     // UART5 polls all channels at 19200 8N1. Baud indices are device-specific.
     return baud == ((type == 2u || type == 5u) ? 4u : 3u);
 }
