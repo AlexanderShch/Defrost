@@ -202,6 +202,7 @@ const osThreadAttr_t TX_To_Server_attributes = {
 
 /* Единая очередь отправки на сервер (телеметрия, лог, ответы на команды) */
 osMessageQueueId_t Data_QueueHandle;
+osMessageQueueId_t Telemetry_QueueHandle;
 const osMessageQueueAttr_t Data_Queue_attributes = {
   .name = "Data_Queue"
 };
@@ -404,6 +405,7 @@ int main(void)
   /* USER CODE BEGIN RTOS_QUEUES */
   /* Единая очередь отправки на сервер */
   Data_QueueHandle = osMessageQueueNew (MSGQUEUE_OBJECTS, MSGQUEUE_OBJECT_SIZE, &Data_Queue_attributes);
+  Telemetry_QueueHandle = osMessageQueueNew(4u, MSGQUEUE_OBJECT_SIZE, NULL);
   /* USER CODE END RTOS_QUEUES */
 
   /* Создание потоков */

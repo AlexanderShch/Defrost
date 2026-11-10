@@ -97,12 +97,17 @@ typedef enum {
 typedef struct __attribute__((packed)) {
 	uint8_t PacketLength;
 	uint8_t data[SERVER_TX_ITEM_SIZE - 2u];
+	uint8_t Reserved; // Queue copies SERVER_TX_ITEM_SIZE bytes, including this padding.
 } ServerTxItem_t;
+static_assert(sizeof(ServerTxItem_t) == SERVER_TX_ITEM_SIZE, "Server TX queue element size mismatch");
 
 extern osMessageQueueId_t Data_QueueHandle;
+extern osMessageQueueId_t Telemetry_QueueHandle;
+// Visible in debugger: rejected queue puts; no silent queue overflow.
+extern volatile uint32_t g_serverTxRejected;
 
-/* Поставить в очередь (ответ на команду, повтор телеметрии). Тот же буфер, тип SERVER_TX_TYPE_HIGH. */
-void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length);
+/* Nonblocking enqueue. Telemetry has a dedicated queue; false means rejected. */
+bool ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length);
 
 /* По команде SEND_STATE: сформировать текущую телеметрию и передать для постановки в очередь. */
 MSGQUEUE_OBJ_t Data_CurrentTelemetry(void);

@@ -96,6 +96,8 @@ static void WaitForResetAckTransmission(uint32_t timeoutMs)
             qCount = osMessageQueueGetCount(Data_QueueHandle);
         }
 
+        if (Telemetry_QueueHandle != NULL) qCount += osMessageQueueGetCount(Telemetry_QueueHandle);
+
         // Очередь опустела и линия UART завершила передачу.
         if (qCount == 0 && __HAL_UART_GET_FLAG(&huart4, UART_FLAG_TC) != RESET)
         {
@@ -188,17 +190,12 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     // SYNC-префикс [AA 55] добавляется позже, на этапе фактической отправки по UART,
     // в WriteToServerWithSync (в ModBus.cpp), куда доезжает item.data из очереди:
     // ═══════════════════════════════════════════════════════════════════════════
-	ServerTx_EnqueueHighPriority(TX_Response_Buffer, (uint16_t)txLength);
-
-    if (response->commandType == (uint8_t)CMD_TYPE_REQUEST && response->commandCode == (uint8_t)REQ_CMD_SEND_STATE)
-    {
-        Data_SaveLastSentTelemetryPacket(TX_Response_Buffer, (uint16_t)txLength);
-    }
+	const bool queued = ServerTx_EnqueueHighPriority(TX_Response_Buffer, (uint16_t)txLength);
 
     if (g_currentCmdSkipAudit == 0)
     {
-        g_lastCmdAckSent = 1;
-        g_lastCmdStatus = response->status;
+        g_lastCmdAckSent = queued ? 1u : 0u;
+        g_lastCmdStatus = queued ? response->status : CMD_STATUS_EXECUTION_ERROR;
     }
 }
 

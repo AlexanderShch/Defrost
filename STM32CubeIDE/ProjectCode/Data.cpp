@@ -5,6 +5,7 @@
  *  Автор: gdr
  */
 #include "Data.hpp"
+#include "CommandReceiver.hpp"
 #include "GateControl.hpp"
 #include "DefrostControl.h"
 #include "main.h"
@@ -672,62 +673,79 @@ void Data_SaveLastSentTelemetryPacket(const uint8_t* packet, uint16_t length)
 /*
  * Функция: ResendLastTelemetry
  * Описание: Повторная отправка сохранённого байтового пакета телеметрии.
- * Вызывается при DATA_FALSE и ставит сохранённый кадр в общую очередь передачи.
+ * Вызывается при DATA_FALSE и отмечает сохранённый кадр для приоритетного повтора.
  * Параметров и возвращаемого значения нет; при отсутствии сохранённого пакета повтор пропускается.
  * Кадр уже содержит заголовок и CRC. Префикс [AA 55] добавит задача TX_ToServer.
  * Прямой вызов WriteToServer здесь недопустим: он ждёт снятия флага обработки
  * команды, а этот флаг снимается только после возврата из текущего обработчика.
  */
+// SERVER_TX_PIPELINE_BEGIN
+static volatile uint8_t s_telemetryRetryPending = 0u;
+volatile uint32_t g_serverTxRejected = 0u;
+
+static bool IsTelemetryFrame(const uint8_t *data, uint16_t length)
+{
+    // Request/SEND_STATE response, distinct from telemetry ACK/control-log and sensor diagnostics.
+    return length >= 6u && data[0] == CMD_TYPE_REQUEST && data[1] == REQ_CMD_SEND_STATE;
+}
+
 void ResendLastTelemetry(void)
 {
-	if (s_lastSentTelemetryPacketLen == 0u)
-	{
-		return;
-	}
-	// Очередь копирует кадр: обработчик DATA_FALSE сможет завершиться и освободить передачу.
-	// Постановка выполняется без ожидания; при заполнении очереди текущая реализация
-	// ServerTx_EnqueueHighPriority не гарантирует сохранение этого повтора.
-	ServerTx_EnqueueHighPriority(s_lastSentTelemetryPacket, s_lastSentTelemetryPacketLen);
+    // No UART, queue wait or mutex acquisition in the RX handler. Repeated NACKs
+    // request the same outstanding frame and cannot overwrite it with a diagnostic.
+    if (s_lastSentTelemetryPacketLen != 0u) s_telemetryRetryPending = 1u;
 }
 
-// Единая очередь отправки на сервер (телеметрия, лог, ответы на команды)
-void ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length)
+bool ServerTx_EnqueueHighPriority(const uint8_t* data, uint16_t length)
 {
-	if (data == NULL || length > (SERVER_TX_ITEM_SIZE - 2u))
-	{
-		return;
-	}
-	ServerTxItem_t item = {};
-	item.PacketLength = (uint8_t)length;
-	memcpy(item.data, data, length);
-
-	osMessageQueuePut(Data_QueueHandle, &item, 0U, 0U);
+    if (data == NULL || length == 0u || length > sizeof(ServerTxItem_t::data))
+        return false;
+    ServerTxItem_t item = {};
+    item.PacketLength = (uint8_t)length;
+    memcpy(item.data, data, length);
+    const osMessageQueueId_t queue = IsTelemetryFrame(data, length) ? Telemetry_QueueHandle : Data_QueueHandle;
+    if (queue == NULL || osMessageQueuePut(queue, &item, 0u, 0u) != osOK)
+    {
+        ++g_serverTxRejected;
+        return false;
+    }
+    return true;
 }
 
-// Ждём элемент из очереди Data_QueueHandle (таймаут 50 мс, чтобы не нагружать CPU)
-// принимаем элемент из очереди, добавляем CRC и отправляем на сервер через WriteToServerWithSync
 void TX_ToServer()
 {
-	ServerTxItem_t item = {};
+    ServerTxItem_t item = {};
+    while (1)
+    {
+        // Retry is independent of both queues; diagnostics cannot evict it.
+        if (s_telemetryRetryPending != 0u)
+        {
+            s_telemetryRetryPending = 0u;
+            item.PacketLength = (uint8_t)s_lastSentTelemetryPacketLen;
+            memcpy(item.data, s_lastSentTelemetryPacket, item.PacketLength);
+        }
+        else if (osMessageQueueGet(Telemetry_QueueHandle, &item, NULL, 0u) != osOK &&
+                 osMessageQueueGet(Data_QueueHandle, &item, NULL, 5u) != osOK)
+            continue;
 
-	while (1)
-	{
-		item = {};
-		osStatus_t st = osMessageQueueGet(Data_QueueHandle, &item, 0u, 50u);
-		if (st != osOK)
-		{
-			continue;
-		}
-
-		uint16_t len = (uint16_t)item.PacketLength;
-		if (len == 0)
-		{
-			continue;
-		}
-
-		WriteToServerWithSync(item.data, (int)len);
-
-	}
+        const uint16_t len = item.PacketLength;
+        if (len == 0u || len > sizeof(item.data)) continue;
+        const bool telemetry = IsTelemetryFrame(item.data, len);
+        if (telemetry)
+        {
+            while (osSemaphoreAcquire(ServerResponseReceived_SemHandle, 0u) == osOK) {}
+            // Update only when this frame reaches TX, never when a newer snapshot is enqueued.
+            Data_SaveLastSentTelemetryPacket(item.data, len);
+        }
+        // Retain the dequeued frame on DMA/UART failure or during sensor programming.
+        while (WriteToServerWithSync(item.data, (int)len) != MB_ERROR_NO) osDelay(10u);
+        if (telemetry)
+        {
+            // Leave the half-duplex line to the server for DATA_OK/DATA_FALSE.
+            // Never hold UART4 mutex or the command-handler flag while waiting.
+            const uint32_t waitTicks = (osKernelGetTickFreq() + 9u) / 10u;
+            (void)osSemaphoreAcquire(ServerResponseReceived_SemHandle, waitTicks);
+        }
+    }
 }
-
-
+// SERVER_TX_PIPELINE_END

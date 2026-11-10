@@ -810,6 +810,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *Uart) {
 			s_mbArmRxPending = 0;
 			s_mbArmRxOk = (MB_StartReceiveToIdle(Uart, (uint8_t *)s_mbArmRxBuf, s_mbArmRxSize) == HAL_OK) ? 1u : 0u;
 		}
+		if (UART4_IsOwner_Programming() == 0u) CommandReceiver_RestartReception();
 		osSemaphoreRelease(PR_TX_Compl_SemHandle);
 	}
 }
@@ -2134,8 +2135,10 @@ MB_Error_t Master_SendTelemetry(MB_Active_t *MB, int N_Bytes)
 	osStatus_t resultSem;
 	
 	// Вычислим паузу для ожидания завершения передачи
-	double var = (1000 * 1000) / MB->UART->Init.BaudRate;
-	uint8_t pause = uint8_t (var);
+	const uint32_t baud = MB->UART->Init.BaudRate;
+    if (baud == 0u) return MB_ERROR_WRONG_VALUE;
+    const uint32_t txTicks = ((uint32_t)N_Bytes * 10u * osKernelGetTickFreq() + baud - 1u) / baud;
+    const uint32_t timeoutTicks = txTicks + (osKernelGetTickFreq() + 49u) / 50u;
 
 	// ═══════════════════════════════════════════════════════════════════════════
 	// Проверки для UART4 (RS-485 Half Duplex с сервером)
@@ -2175,11 +2178,12 @@ MB_Error_t Master_SendTelemetry(MB_Active_t *MB, int N_Bytes)
 	HAL_GPIO_WritePin(MB->PORT, MB->PORT_PIN, GPIO_PIN_SET);
 	osDelay(1);	// задержка перед стартовым битом
 
+	DrainBinarySemaphore(*MB->Sem_Tx);
 	result = HAL_UART_Transmit_DMA(MB->UART, MB->Tx_Buffer, N_Bytes);
 	if (result == HAL_OK)
 	{
 		// Ждём завершения передачи
-		resultSem = osSemaphoreAcquire(*MB->Sem_Tx, pause/portTICK_RATE_MS);
+		resultSem = osSemaphoreAcquire(*MB->Sem_Tx, timeoutTicks);
 		if (resultSem != osOK)
 		{
 			MB_ERR = MB_ERROR_UART_SEND;
@@ -2227,6 +2231,12 @@ static MB_Error_t UART4_TryEnterForTx(void)
 		return MB_ERROR_UART_SEND;
 	}
 
+	if (UART4_IsOwner_Programming() != 0u)
+	{
+		osMutexRelease(UART4_MutexHandle);
+		return MB_ERROR_UART_SEND;
+	}
+
 	// Повторная проверка после захвата: если CommandReceiver начал обработку, сразу уступаем.
 	if (CommandReceiver_IsHandling() != 0)
 	{
@@ -2256,15 +2266,16 @@ static MB_Error_t UART4_TryEnterForTx(void)
 }
 
 // Функция для передачи данных на сервер
-void WriteToServer(uint8_t* Data, int length)
+MB_Error_t WriteToServer(uint8_t* Data, int length)
 {
+	if (Data == nullptr || length <= 0 || length > MAX_MB_BUFSIZE) return MB_ERROR_WRONG_VALUE;
 	MB_Error_t result;
 	MB_Active_t MB;						// объявляем среду работы с шиной
 
 	// Если UART4 занят программированием, не отправляем данные на сервер.
 	if (UART4_IsOwner_Programming() != 0)
 	{
-		return;
+		return MB_ERROR_UART_SEND;
 	}
 
 	// Ждём завершения обработки данных (команд) от сервера
@@ -2276,6 +2287,7 @@ void WriteToServer(uint8_t* Data, int length)
 	// Пытаемся захватить мьютекс UART4 для передачи данных на сервер
 	for (;;)
 	{
+		if (UART4_IsOwner_Programming() != 0u) return MB_ERROR_UART_SEND;
 		result = UART4_TryEnterForTx();
 		if (result != MB_ERROR_NO)
 		{
@@ -2315,6 +2327,7 @@ void WriteToServer(uint8_t* Data, int length)
 	if (result != MB_ERROR_NO){
 		// Обработка ошибки передачи (можно добавить логирование)
 	}
+	return result;
 }
 
 /*
@@ -2336,8 +2349,9 @@ void WriteToServer(uint8_t* Data, int length)
  *   - data			данные data
  *   - CRC16		CRC по пакету Data
  */
-void WriteToServerWithSync(uint8_t* Data, int length)
+MB_Error_t WriteToServerWithSync(uint8_t* Data, int length)
 {
+    if (Data == nullptr || length <= 0 || length > MAX_MB_BUFSIZE - 2) return MB_ERROR_WRONG_VALUE;
 	static uint8_t TxBufferWithSync[MAX_MB_BUFSIZE];
 
 	TxBufferWithSync[0] = SYNC_START_1;  // 0xAA
@@ -2346,5 +2360,5 @@ void WriteToServerWithSync(uint8_t* Data, int length)
 	// Добавляем в буфер данные (Type + Len + PayLoad + CRC)
 	memcpy(&TxBufferWithSync[2], Data, length);
 	
-	WriteToServer(TxBufferWithSync, length + 2);	// Отправляем пакет на сервер
+	return WriteToServer(TxBufferWithSync, length + 2);	// Отправляем пакет на сервер
 }

@@ -178,7 +178,7 @@ uint8_t ProgrammingSensor_TakeWriteResult(MB_Error_t *result);
 // Load before polling; saved changes take effect on the next controller boot.
 void SensorConfig_Load(bool eepromAvailable);
 void PR_UART4_Init(int BaudRateValue);
-void WriteToServer(uint8_t* Data, int length);
+MB_Error_t WriteToServer(uint8_t* Data, int length);
 uint16_t MB_GetCRC(volatile uint8_t* buf, uint16_t len);
 
 // Арбитраж UART4 между связью с сервером и программированием датчиков.
@@ -211,7 +211,7 @@ extern const uint16_t crc16_table[];
 #define SYNC_START_2  0x55
 
 // Функция отправки пакета с маркером начала (AA 55)
-void WriteToServerWithSync(uint8_t* Data, int length);
+MB_Error_t WriteToServerWithSync(uint8_t* Data, int length);
 
 // Вариант высокого приоритета для контекста CommandReceiver (ответы на команды, повтор телеметрии).
 // Обходит низкоприоритетные ограничения, чтобы телеметрия не блокировала обработку команд.
