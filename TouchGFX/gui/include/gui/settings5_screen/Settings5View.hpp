@@ -35,6 +35,14 @@ public:
     void WriteSaved_Output();
 
 protected:
+    enum class Panel : uint8_t { Idle, Type, Speed, Address, Message, Writing };
+    Panel panel = Panel::Idle;
+    bool currentAddressValid = false;
+    bool currentBaudValid = false;
+    bool restartWarningPending = false;
+    bool CanWrite() const;
+    void HideOverlays();
+    void UpdateControls();
     void UpdateDestinationChoices();
     touchgfx::TextAreaWithOneWildcard writeErrorMessage;
     touchgfx::Unicode::UnicodeChar writeErrorBuffer[64];

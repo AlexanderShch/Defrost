@@ -1312,6 +1312,46 @@ static MB_Error_t Type5_Program(MB_Active_t *pr, uint8_t newAddress, uint8_t new
     return MB_ERROR_UART_RECIEVE;
 }
 
+// TYPE2_PROGRAM_BEGIN
+// PT21A01 keeps the active connection until power cycling. Use FC06 separately:
+// older revisions do not support FC10, and the documented baud write uses FC06.
+// Do not probe the new baud/address or send Type2_reset (it is FACTORY reset).
+static MB_Error_t Type2_Program(MB_Active_t *pr, uint8_t newAddress, uint8_t newBaud)
+{
+    s_progWriteStage = 1u;
+    if (newAddress < 1u || newAddress > 247u || newBaud >= BAUD_RATE_NUMBER ||
+        SensPortNumber < 1u || SensPortNumber > 247u || SensBaudRateIndex >= BAUD_RATE_NUMBER ||
+        Model::getCurrentAddress_PR() == SensNullValue)
+        return MB_ERROR_WRONG_VALUE;
+
+    const uint8_t activeAddress = SensPortNumber;
+    const uint8_t activeBaud = SensBaudRateIndex;
+    PR_UART4_Init(BaudRate_Type2[activeBaud]);
+    MultWR_t unused = {};
+    // Read a measurement: a settings register may expose the pending setting.
+    MB_Error_t result = Master_RW(pr, activeAddress, MB_CMD_READ_REGS, Type2_T, 1u, unused);
+    if (result != MB_ERROR_NO) return result;
+    if (pr->Rx_Buffer[0] != activeAddress || pr->Rx_Buffer[2] != 2u)
+        return MB_ERROR_UART_RECIEVE;
+
+    s_progWriteStage = 2u;
+    result = Master_RW(pr, activeAddress, MB_CMD_WRITE_REG, Type2_Baud, newBaud, unused);
+    if (result != MB_ERROR_NO) return result;
+    // CRC alone does not prove that the requested register/value was acknowledged.
+    if (memcmp(pr->Rx_Buffer, pr->Tx_Buffer, 6u) != 0) return MB_ERROR_UART_RECIEVE;
+    osDelay(50);
+
+    s_progWriteStage = 3u;
+    result = Master_RW(pr, activeAddress, MB_CMD_WRITE_REG, Type2_Addr, newAddress, unused);
+    if (result != MB_ERROR_NO) return result;
+    if (memcmp(pr->Rx_Buffer, pr->Tx_Buffer, 6u) != 0) return MB_ERROR_UART_RECIEVE;
+    osDelay(50);
+    // Both commands were acknowledged. The operator must power-cycle the sensor.
+    // Keep the currently active connection in the model until it is rediscovered.
+    return MB_ERROR_NO;
+}
+// TYPE2_PROGRAM_END
+
 /*
  * Функция записывает новые скорость и адрес в датчик, затем считывает записанное и сверяет с заданными
  * Возвращается с результатом записи
@@ -1361,7 +1401,7 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type1_Addr, REG_COUNT, writeBuffer);
 				break;
 			case 2:
-				result = Master_RW(PR, SensPortNumber, MB_CMD_WRITE_REGS, Type2_Addr, REG_COUNT, writeBuffer);
+				result = Type2_Program(PR, WR_Address, WR_BaudRate);
 				break;
 			case 5:
 				result = Type5_Program(PR, WR_Address, WR_BaudRate);
@@ -1378,7 +1418,7 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
             result = ConfigSaveProgramming(destination, WR_Address, WR_BaudRate, programmedType);
         if (result == MB_ERROR_NO)
             s_progWriteNeeds19200 = SensorConfig_IsWorkingBaud(programmedType, WR_BaudRate) ? 0u : 1u;
-		// Device ACK and verified EEPROM save are both required for success.
+		// Confirmed device programming and verified EEPROM save are both required for success.
 		if (result == MB_ERROR_NO)
 		{	//всё хорошо, датчик записан
 			// сбрасываем флаг записи в датчик

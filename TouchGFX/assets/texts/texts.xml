@@ -293,7 +293,7 @@
         <Translation Language="GB">Коррекция</Translation>
       </Text>
       <Text Id="Alert_Message" Alignment="Center" TypographyId="Default">
-        <Translation Language="GB">Скорость модуля&#10;будет изменена&#10;после отключения&#10;питания модуля</Translation>
+        <Translation Language="GB">Записано&#10;Сбросьте питание&#10;датчика и&#10;контроллера</Translation>
       </Text>
       <Text Id="LabelSensorCurrentSpeed" Alignment="Center" TypographyId="Default">
         <Translation Language="GB">Скорость</Translation>

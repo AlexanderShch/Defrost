@@ -11,7 +11,6 @@ extern SENSOR_typedef_t Sensor_array[SQ];
     uint8_t SetSpeedOld;
     uint8_t SetAddress;
     uint8_t SetAddressOld;
-    uint8_t FlagWrite_visible = 0;	// флаг разрешения видимости кнопки "Запись" в датчик
 
 extern void ProgrammingSensor_Start(void);
 extern void ProgrammingSensor_RequestStop(void);
@@ -52,7 +51,10 @@ void Settings5View::setupScreen()
     MB_Error_t previousResult;
     (void)ProgrammingSensor_TakeWriteResult(&previousResult);
     scrollSensorType.setNumberOfItems(STQ);
-    FlagWrite_visible = 0;
+    panel = Panel::Idle;
+    restartWarningPending = false;
+    currentAddressValid = currentBaudValid = false;
+    HideOverlays();
     SetSpeed = SensNullValue;
     SetAddress = 0;
 	SetSensor = 0;
@@ -60,6 +62,7 @@ void Settings5View::setupScreen()
 	presenter -> PR_Sensor_Type(SetSensor);
 	// Сканирование начнётся только после выбора типа датчика оператором.
 	ProgrammingSensor_Start();
+    UpdateControls();
 }
 
 void Settings5View::tearDownScreen()
@@ -171,73 +174,63 @@ void Settings5View::scrollSensorAddressNewUpdateCenterItem(TextSelectedContainer
 // Вызывается при установке значения в центральное положение в колесе, в фокус
 void Settings5View::scrollSensorTypeItemSelectedHandler(int16_t itemSelected)
 {
-	SetSensor = itemSelected;
+	if (panel == Panel::Type && itemSelected >= 0 && itemSelected < STQ) SetSensor = itemSelected;
 }
 // Вызывается при установке значения в центральное положение в колесе, в фокус
 void Settings5View::scrollSensorSpeedNewItemSelectedHandler(int16_t itemSelected)
 {
-	SetSpeed = itemSelected;
+	if (panel == Panel::Speed && itemSelected >= 0 && itemSelected < SensorConfig_BaudCount((uint8_t)SetSensor)) SetSpeed = itemSelected;
 }
 // Вызывается при установке значения в центральное положение в колесе, в фокус
 void Settings5View::scrollSensorAddressNewItemSelectedHandler(int16_t itemSelected)
 {
     const uint8_t channel = (itemSelected < 0) ? SQ :
         SensorConfig_DestinationChannel((uint8_t)SetSensor, (uint8_t)itemSelected);
-    if (channel < SQ) SetAddress = Sensor_array[channel].Address;
+    if (panel == Panel::Address && channel < SQ) SetAddress = Sensor_array[channel].Address;
 }
 
 //Запись выбранных значений скорости и адреса в датчик при нажатии "Запись" в окне Settings5
 void Settings5View::BTNWriteClicked()
 {
-    if (SensorConfig_DestinationCount((uint8_t)SetSensor) == 0u || SetAddress == 0u ||
-        SetSpeed >= SensorConfig_BaudCount((uint8_t)SetSensor)) return;
-	presenter -> PR_Sensor_Data_Write(SetSpeed, SetAddress);
-
+    if (panel != Panel::Idle || !CanWrite()) return;
+    panel = Panel::Writing;
+    UpdateControls();
+    presenter->PR_Sensor_Data_Write(SetSpeed, SetAddress);
 }
 
 //Запуск колеса прокрутки "Выбор типа датчика"
 void Settings5View::BTNSensorTypeClicked()
 {
-	Selected = 0;
-	SetSensorOld = SetSensor;
-	scrollSensorType.setVisible(true);
-	scrollSensorType.invalidate();
-	BTNConfirm.setVisible(true);
-	BTNConfirm.invalidate();
-	BTNCancel.setVisible(true);
-	BTNCancel.invalidate();
-	BTNWrite.setVisible(false);
-	BTNWrite.invalidate();
+    if (panel != Panel::Idle) return;
+    panel = Panel::Type;
+    SetSensorOld = SetSensor;
+    scrollSensorType.animateToItem(SetSensor, 0);
+    scrollSensorType.setVisible(true);
+    UpdateControls();
 }
 
 //Запуск колеса прокрутки "Выбор скорости передачи датчика"
 void Settings5View::BTNSetSpeedClicked()
 {
-	Selected = 1;
-	SetSpeedOld = SetSpeed;
-	// У Taidacent своя таблица из семи скоростей, без 115200 бод.
-	// Размер колеса и допустимость сохранённого индекса должны соответствовать типу.
-	// Индекс 0 означает допустимые 1200 бод; это не признак отсутствия выбора.
-	scrollSensorSpeedNew.setNumberOfItems(SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER);
-	if (SetSpeed >= (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))
-		SetSpeed = 0;
-	scrollSensorSpeedNew.animateToItem(SetSpeed, 0);
-	scrollSensorSpeedNew.setVisible(true);
-	scrollSensorSpeedNew.invalidate();
-	BTNConfirm.setVisible(true);
-	BTNConfirm.invalidate();
-	BTNCancel.setVisible(true);
-	BTNCancel.invalidate();
-	BTNWrite.setVisible(false);
-	BTNWrite.invalidate();
+    if (panel != Panel::Idle) return;
+    const uint8_t count = SensorConfig_BaudCount((uint8_t)SetSensor);
+    if (count == 0u) return;
+    panel = Panel::Speed;
+    SetSpeedOld = SetSpeed;
+    scrollSensorSpeedNew.setNumberOfItems(count);
+    if (SetSpeed >= count) SetSpeed = 0u;
+    scrollSensorSpeedNew.animateToItem(SetSpeed, 0);
+    scrollSensorSpeedNew.setVisible(true);
+    UpdateControls();
 }
 
 //Запуск колеса прокрутки "Выбор адреса датчика"
 void Settings5View::BTNSetAddressClicked()
 {
+    if (panel != Panel::Idle) return;
     const uint8_t count = SensorConfig_DestinationCount((uint8_t)SetSensor);
     if (count == 0u) return;
-	Selected = 2;
+    panel = Panel::Address;
 	SetAddressOld = SetAddress;
     uint8_t selectedItem = 0u;
     for (uint8_t item = 0u; item < count; ++item)
@@ -248,25 +241,19 @@ void Settings5View::BTNSetAddressClicked()
     scrollSensorAddressNew.animateToItem(selectedItem, 0);
     scrollSensorAddressNewItemSelectedHandler(selectedItem);
 	scrollSensorAddressNew.setVisible(true);
-	scrollSensorAddressNew.invalidate();
-	BTNConfirm.setVisible(true);
-	BTNConfirm.invalidate();
-	BTNCancel.setVisible(true);
-	BTNCancel.invalidate();
-	BTNWrite.setVisible(false);
-	BTNWrite.invalidate();
+    UpdateControls();
 }
 
 //Кнопка подтверждения "Принять"
 void Settings5View::BTNConfirmClicked()
 {
-	switch (Selected)
+	switch (panel)
 	{
-		case 0:		// обработка выбора типа датчика
+		case Panel::Type:		// обработка выбора типа датчика
 			if (SetSensor != SetSensorOld)
 			{
 				SetSpeed = SensNullValue;
-				FlagWrite_visible = 0;
+				currentAddressValid = currentBaudValid = false;
 				Unicode::strncpy(BTNSetSpeedBuffer, "---", BTNSETSPEED_SIZE);
 				Model::setCurrentVal_PR(SensNullValue, SensNullValue);
                 UpdateDestinationChoices();
@@ -276,7 +263,7 @@ void Settings5View::BTNConfirmClicked()
 			scrollSensorType.setVisible(false);
 			presenter -> PR_Sensor_Type(SetSensor);
 			break;
-		case 1:		// обработка выбора скорости датчика
+		case Panel::Speed:		// обработка выбора скорости датчика
 			SetSpeedOld = SetSpeed;
 			switch (SetSensor) {
 				case 1:		{
@@ -296,143 +283,100 @@ void Settings5View::BTNConfirmClicked()
 			}
 			scrollSensorSpeedNew.setVisible(false);
 			break;
-		case 2:		// обработка выбора адреса датчика
+		case Panel::Address:		// обработка выбора адреса датчика
 			SetAddressOld = SetAddress;
 			Unicode::snprintf(BTNSetAddressBuffer, BTNSETADDRESS_SIZE, "%d", SetAddress);
 			BTNSetAddress.invalidate();
 			scrollSensorAddressNew.setVisible(false);
 			break;
-		case 3:		// обработка подтверждения прочтения предупреждения
-			Model::Flag_Alert = 0;
-			Alert_Background.setVisible(false);
-			Alert_Message.setVisible(false);
-			writeErrorMessage.setVisible(false);
-			BTNConfirm.setVisible(false);
-			Alert_Background.invalidate();
-			Alert_Message.invalidate();
-			break;
-	}
-	BTNConfirm.setVisible(false);
-	BTNCancel.setVisible(false);
-	BTNConfirm.invalidate();
-	BTNCancel.invalidate();
-	if ((FlagWrite_visible == 1)&&(SetSpeed < (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))&&(SetAddress != 0))
-		BTNWrite.setVisible(true);
-	else
-		BTNWrite.setVisible(false);
-	BTNWrite.invalidate();
-	Settings5ViewBase::setupScreen();
+        case Panel::Message:
+            Model::Flag_Alert = 0;
+            if (restartWarningPending)
+            {
+                Alert_Message_Output();
+                return;
+            }
+            break;
+        default:
+            return;
+    }
+    HideOverlays();
+    panel = Panel::Idle;
+    UpdateControls();
 }
 
 //Кнопка отмены выбора значения в колесе прокрутки
 void Settings5View::BTNCancelClicked()
 {
-	switch (Selected)
-	{
-		case 0:
-			SetSensor = SetSensorOld;
-			scrollSensorType.setVisible(false);
-			break;
-		case 1:
-			SetSpeed = SetSpeedOld;
-			scrollSensorSpeedNew.setVisible(false);
-			break;
-		case 2:
-			SetAddress = SetAddressOld;
-			scrollSensorAddressNew.setVisible(false);
-			break;
-	}
-	BTNConfirm.setVisible(false);
-	BTNCancel.setVisible(false);
-	BTNConfirm.invalidate();
-	BTNCancel.invalidate();
-	if ((FlagWrite_visible == 1)&&(SetSpeed < (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))&&(SetAddress != 0))
-		BTNWrite.setVisible(true);
-	else
-		BTNWrite.setVisible(false);
-	BTNWrite.invalidate();
-	Settings5ViewBase::setupScreen();
+    switch (panel)
+    {
+        case Panel::Type: SetSensor = SetSensorOld; break;
+        case Panel::Speed: SetSpeed = SetSpeedOld; break;
+        case Panel::Address: SetAddress = SetAddressOld; break;
+        default: return;
+    }
+    HideOverlays();
+    panel = Panel::Idle;
+    UpdateControls();
 }
 
 // Вывод на экран значения адреса из Модели
 void Settings5View::Val_Addr_UpdateView(uint8_t Val)
 {
-	if (Val != SensNullValue)
-	{
-		Unicode::snprintf(SensorCurrentAddressBuffer, sizeof(SensorCurrentAddressBuffer), "%d", Val);
-		FlagWrite_visible = 1;
-		if ((FlagWrite_visible == 1)&&(SetSpeed < (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))&&(SetAddress != 0))
-			BTNWrite.setVisible(true);
-		else
-			BTNWrite.setVisible(false);
-	}
-	else
-	{
-		Unicode::strncpy(SensorCurrentAddressBuffer, "---", 4); //buffer belongs to textArea
-		FlagWrite_visible = 0;
-		BTNWrite.setVisible(false);
-	}
-	if (Alert_Background.isVisible()) BTNWrite.setVisible(false);
-	BTNWrite.invalidate();
-	SensorCurrentAddress.invalidate();
+    currentAddressValid = Val != SensNullValue && Val >= 1u && Val <= 247u;
+    if (currentAddressValid)
+        Unicode::snprintf(SensorCurrentAddressBuffer, SENSORCURRENTADDRESS_SIZE, "%d", Val);
+    else
+        Unicode::strncpy(SensorCurrentAddressBuffer, "---", SENSORCURRENTADDRESS_SIZE);
+    UpdateControls();
 }
 
 // Вывод на экран значения скорости из Модели
 void Settings5View::Val_BaudRate_UpdateView(uint8_t Val)
 {
-	if (Val < (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))
-	{
-		switch (SetSensor) {
+    currentBaudValid = Val < SensorConfig_BaudCount((uint8_t)Model::Type_of_sensor);
+    if (currentBaudValid)
+    {
+		switch (Model::Type_of_sensor) {
 			case 1:		{
-				Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate_Type1[Val]);
+				Unicode::snprintf(SensorCurrentSpeedBuffer, SENSORCURRENTSPEED_SIZE, "%d", BaudRate_Type1[Val]);
 				break;	}
 			case 2:		{
-				Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate_Type2[Val]);
+				Unicode::snprintf(SensorCurrentSpeedBuffer, SENSORCURRENTSPEED_SIZE, "%d", BaudRate_Type2[Val]);
 				break;	}
 			case 5:		{
-				Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate_Type5[Val]);
+				Unicode::snprintf(SensorCurrentSpeedBuffer, SENSORCURRENTSPEED_SIZE, "%d", BaudRate_Type5[Val]);
 				break;	}
 			case 4:		{
-				Unicode::snprintf(SensorCurrentSpeedBuffer, sizeof(SensorCurrentSpeedBuffer), "%d", BaudRate_Type4[Val]);
+				Unicode::snprintf(SensorCurrentSpeedBuffer, SENSORCURRENTSPEED_SIZE, "%d", BaudRate_Type4[Val]);
 				break;	}
 			default:
 				break;
 		}
-		FlagWrite_visible = 1;
-		if ((FlagWrite_visible == 1)&&(SetSpeed < (SetSensor == 5 ? TYPE5_BAUD_RATE_NUMBER : BAUD_RATE_NUMBER))&&(SetAddress != 0))
-			BTNWrite.setVisible(true);
-		else
-			BTNWrite.setVisible(false);
-	}
-	else
-	{
-		Unicode::strncpy(SensorCurrentSpeedBuffer, "---", 4); //buffer belongs to textArea
-		FlagWrite_visible = 0;
-		BTNWrite.setVisible(false);
-	}
-	if (Alert_Background.isVisible()) BTNWrite.setVisible(false);
-	BTNWrite.invalidate();
-	SensorCurrentSpeed.invalidate();
+    }
+    else
+        Unicode::strncpy(SensorCurrentSpeedBuffer, "---", SENSORCURRENTSPEED_SIZE);
+    UpdateControls();
 }
 
 // Выод на экран сообщения о необходимости сбросить питание модуля
 void Settings5View::Alert_Message_Output()
 {
-	Selected = 3;
-	Alert_Background.setVisible(true);
-	Alert_Message.setVisible(true);
-	BTNConfirm.setVisible(true);
-	BTNWrite.setVisible(false);
-	Alert_Background.invalidate();
-	Alert_Message.invalidate();
-	BTNConfirm.invalidate();
-	BTNWrite.invalidate();
+    Model::Flag_Alert = 0;
+    restartWarningPending = false;
+    HideOverlays();
+    panel = Panel::Message;
+    Alert_Background.setVisible(true);
+    Alert_Message.setVisible(true);
+    UpdateControls();
 }
 
 
 void Settings5View::WriteError_Output(MB_Error_t error)
 {
-    Selected = 3;
+    restartWarningPending = false;
+    HideOverlays();
+    panel = Panel::Message;
     const uint8_t stage = ProgrammingSensor_GetWriteStage();
     if (error == MB_ERROR_EEPROM)
     {
@@ -447,16 +391,21 @@ void Settings5View::WriteError_Output(MB_Error_t error)
     Alert_Background.setVisible(true);
     Alert_Message.setVisible(false);
     writeErrorMessage.setVisible(true);
-    BTNConfirm.setVisible(true);
-    BTNCancel.setVisible(false);
-    BTNWrite.setVisible(false);
-    invalidate();
+    UpdateControls();
 }
 
 void Settings5View::WriteSaved_Output()
 {
-    WriteError_Output(MB_ERROR_NO);
     Model::Flag_Alert = 0;
+    const bool needsPowerCycle = Model::Type_of_sensor == 2 || Model::Type_of_sensor == 4;
+    if (needsPowerCycle && ProgrammingSensor_Needs19200() == 0u)
+    {
+        Alert_Message_Output();
+        return;
+    }
+    WriteError_Output(MB_ERROR_NO);
+    // Preserve the baud warning; acknowledge it before the separate power-cycle window.
+    restartWarningPending = needsPowerCycle;
     // Тип 5 уже программно перезапущен и проверен в Type5_Program.
     // Оператору остаётся перезапустить контроллер для применения сохранённых
     // назначений датчиков; для остальных типов сохраняем прежнюю инструкцию.
@@ -489,4 +438,42 @@ void Settings5View::UpdateDestinationChoices()
     Unicode::strncpy(BTNSetAddressBuffer, "---", BTNSETADDRESS_SIZE);
     BTNSetAddress.invalidate();
     scrollSensorAddressNew.invalidate();
+}
+
+bool Settings5View::CanWrite() const
+{
+    if (!currentAddressValid || !currentBaudValid ||
+        SetSpeed >= SensorConfig_BaudCount((uint8_t)SetSensor)) return false;
+    for (uint8_t channel = 0u; channel < SQ; ++channel)
+        if (Sensor_array[channel].Address == SetAddress &&
+            SensorConfig_IsTypeAllowed(channel, (uint8_t)SetSensor)) return true;
+    return false;
+}
+
+void Settings5View::HideOverlays()
+{
+    scrollSensorType.setVisible(false);
+    scrollSensorSpeedNew.setVisible(false);
+    scrollSensorAddressNew.setVisible(false);
+    Alert_Background.setVisible(false);
+    Alert_Message.setVisible(false);
+    writeErrorMessage.setVisible(false);
+}
+
+void Settings5View::UpdateControls()
+{
+    const bool selecting = panel == Panel::Type || panel == Panel::Speed || panel == Panel::Address;
+    const bool confirm = selecting || panel == Panel::Message;
+    const bool write = panel == Panel::Idle && CanWrite();
+    BTNConfirm.setVisible(confirm);
+    BTNConfirm.setTouchable(confirm);
+    BTNCancel.setVisible(selecting);
+    BTNCancel.setTouchable(selecting);
+    BTNWrite.setVisible(write);
+    BTNWrite.setTouchable(write);
+    BTNSensorType.setTouchable(panel == Panel::Idle);
+    BTNSetSpeed.setTouchable(panel == Panel::Idle);
+    BTNSetAddress.setTouchable(panel == Panel::Idle);
+    // Invalidate the whole screen: closing an overlay must also erase its text.
+    invalidate();
 }
