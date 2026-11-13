@@ -16,6 +16,7 @@
 #define  MAX_MB_BUFSIZE 101						// максимальный размер пакета UART4 с SYNC: лог 0x01 только группа 3 (2+~68+2)+AA55; телеметрия и ответы меньше
 
 extern "C" {
+extern I2C_HandleTypeDef hi2c3;
 extern UART_HandleTypeDef huart4;				// UART4: программирование датчиков и связь с сервером
 extern UART_HandleTypeDef huart5;				// UART5: опрос датчиков в рабочем режиме
 extern osSemaphoreId_t TX_Compl_SemHandle;		// завершение передачи к датчикам
@@ -38,11 +39,32 @@ static volatile UART4_Owner_t g_uart4Owner = UART4_OWNER_SERVER;
 
 /* Вооружение RX DMA сразу в TxCplt — чтобы не потерять первые байты ответа датчика
  * из‑за задержки планировщика между Acquire(Sem_Tx) и ReceiveToIdle_DMA в задаче. */
-static volatile uint8_t *s_mbArmRxBuf = nullptr;
-static volatile uint16_t s_mbArmRxSize = 0;
-static volatile UART_HandleTypeDef *s_mbArmRxUart = nullptr;
-static volatile uint8_t s_mbArmRxPending = 0;
-static volatile uint8_t s_mbArmRxOk = 0;
+// UART_RX_ARM_STATE_BEGIN
+struct MB_RxArmState_t
+{
+    uint8_t * volatile buffer;
+    volatile uint16_t size;
+    volatile uint8_t pending;
+    volatile uint8_t ok;
+};
+static MB_RxArmState_t s_mbRxArm4 = {};
+static MB_RxArmState_t s_mbRxArm5 = {};
+
+static MB_RxArmState_t *MB_RxArmFor(UART_HandleTypeDef *uart)
+{
+    if (uart == &huart4) return &s_mbRxArm4;
+    if (uart == &huart5) return &s_mbRxArm5;
+    return nullptr;
+}
+
+static void MB_QueueRxArm(MB_RxArmState_t *arm, uint8_t *buffer, uint16_t size)
+{
+    arm->buffer = buffer;
+    arm->size = size;
+    arm->ok = 0u;
+    arm->pending = 1u;
+}
+// UART_RX_ARM_STATE_END
 
 /* Диагностика обмена с датчиками UART5: заполняется в прерываниях текущей транзакции. */
 static volatile uint32_t s_mbTxDoneTick = 0;	// HAL_GetTick() по окончании передачи запроса
@@ -108,6 +130,18 @@ static HAL_StatusTypeDef MB_StartReceiveToIdle(UART_HandleTypeDef *huart, uint8_
 	return st;
 }
 
+// UART_RX_ARM_CALLBACK_BEGIN
+static void MB_CompleteRxArm(UART_HandleTypeDef *uart)
+{
+    MB_RxArmState_t *arm = MB_RxArmFor(uart);
+    if (arm != nullptr && arm->pending != 0u && arm->buffer != nullptr)
+    {
+        arm->pending = 0u;
+        arm->ok = (MB_StartReceiveToIdle(uart, arm->buffer, arm->size) == HAL_OK) ? 1u : 0u;
+    }
+}
+// UART_RX_ARM_CALLBACK_END
+
 static void DrainBinarySemaphore(osSemaphoreId_t sem);
 
 // Функция установки владения UART4 сервером
@@ -153,11 +187,6 @@ uint8_t FrameDelay1 = 30;						// Задержка между фреймами �
 */
 
 uint16_t MB_TransactionHandler();
-osStatus_t resultSem;			/* статус семафора:  	osOK: токен получен, и количество токенов уменьшено.
-														osErrorTimeout: не удалось получить токен в заданное время.
-														osErrorResource: не удалось получить токен, если не был указан тайм-аут.
-														osErrorParameter: параметр semaphore_id имеет значение NULL или недопустим */
-
 /*Таблицы CRC16-CITT*/
 const uint16_t crc16_table[] =
   {
@@ -203,6 +232,45 @@ SENSOR_typedef_t Sensor_array[SQ] =
 		{002,3,0,4,"MB 16IO",0,0,0,0,1}		// 6 - модуль ввода-вывода с RS485, диапазон адресов: 2 и 3
 };
 
+// SENSOR_ASSIGNMENT_POLICY_BEGIN
+bool SensorConfig_IsTypeAllowed(uint8_t channel, uint8_t type)
+{
+    if (channel < 3u) return type == 1u;
+    if (channel < 6u) return type == 2u || type == 5u;
+    return channel == 6u && type == 4u;
+}
+
+uint8_t SensorConfig_DestinationCount(uint8_t type)
+{
+    uint8_t count = 0u;
+    for (uint8_t channel = 0u; channel < SQ; ++channel)
+        if (SensorConfig_IsTypeAllowed(channel, type)) ++count;
+    return count;
+}
+
+uint8_t SensorConfig_DestinationChannel(uint8_t type, uint8_t item)
+{
+    for (uint8_t channel = 0u; channel < SQ; ++channel)
+        if (SensorConfig_IsTypeAllowed(channel, type))
+        {
+            if (item == 0u) return channel;
+            --item;
+        }
+    return SQ;
+}
+
+uint8_t SensorConfig_BaudCount(uint8_t type)
+{
+    if (type == 5u) return TYPE5_BAUD_RATE_NUMBER;
+    return (type == 1u || type == 2u || type == 4u) ? BAUD_RATE_NUMBER : 0u;
+}
+
+bool SensorConfig_IsWorkingBaud(uint8_t type, uint8_t baud)
+{
+    return SensorConfig_BaudCount(type) != 0u && baud == ((type == 2u || type == 5u) ? 4u : 3u);
+}
+// SENSOR_ASSIGNMENT_POLICY_END
+
 // SENSOR_CONFIG_STORAGE_BEGIN
 namespace
 {
@@ -215,6 +283,7 @@ uint8_t s_sensorConfig[kConfigBytes] = {};
 uint8_t s_sensorDefaults[SQ * 3u] = {};
 bool s_sensorDefaultsCaptured = false;
 bool s_sensorEepromAvailable = false;
+SensorEepromDiagnostic s_sensorEepromDiagnostic = {};
 int8_t s_sensorConfigSlot = -1;
 
 uint32_t ConfigSequence(const uint8_t *record)
@@ -225,13 +294,8 @@ uint32_t ConfigSequence(const uint8_t *record)
 
 bool ConfigEntryValid(uint8_t index, uint8_t address, uint8_t baud, uint8_t type)
 {
-    if (address == 0u || address > 247u) return false;
-    // Channels 0..2 supply humidity to the controller; channel 6 is the relay/DI module.
-    if (index < 3u && type != 1u) return false;
-    if (index == 6u && type != 4u) return false;
-    if (index >= 3u && index < 6u && type != 2u && type != 5u) return false;
-    // UART5 polls all channels at 19200 8N1. Baud indices are device-specific.
-    return baud == ((type == 2u || type == 5u) ? 4u : 3u);
+    return address >= 1u && address <= 247u && SensorConfig_IsTypeAllowed(index, type) &&
+        baud < SensorConfig_BaudCount(type);
 }
 
 bool ConfigRecordValid(uint8_t *record)
@@ -251,7 +315,12 @@ bool ConfigRecordValid(uint8_t *record)
 
 MB_Error_t ConfigCheckProgramming(uint8_t address, uint8_t baud, uint8_t type, uint8_t *destination)
 {
-    if (!s_sensorEepromAvailable) return MB_ERROR_EEPROM;
+    s_sensorEepromDiagnostic = {};
+    if (!s_sensorEepromAvailable)
+    {
+        s_sensorEepromDiagnostic = {1u, (uint8_t)HAL_ERROR, 0u};
+        return MB_ERROR_EEPROM;
+    }
     for (uint8_t i = 0; i < SQ; ++i)
     {
         // The address wheel identifies the destination through the active position table.
@@ -265,7 +334,12 @@ MB_Error_t ConfigCheckProgramming(uint8_t address, uint8_t baud, uint8_t type, u
 
 MB_Error_t ConfigSaveProgramming(uint8_t destination, uint8_t address, uint8_t baud, uint8_t type)
 {
-    if (!EEPROM::Lock()) return MB_ERROR_EEPROM;
+    s_sensorEepromDiagnostic = {};
+    if (!EEPROM::Lock())
+    {
+        s_sensorEepromDiagnostic = {2u, (uint8_t)HAL_BUSY, 0u};
+        return MB_ERROR_EEPROM;
+    }
     uint8_t next[kConfigBytes];
     memcpy(next, s_sensorConfig, sizeof(next));
     uint8_t *entry = &next[kConfigEntriesOffset + 3u * destination];
@@ -286,11 +360,31 @@ MB_Error_t ConfigSaveProgramming(uint8_t destination, uint8_t address, uint8_t b
     const uint8_t invalidMagic[4] = {};
     uint8_t readBack[kConfigBytes] = {};
     // Invalidate the target, write payload+CRC, commit magic last. Leave the other slot intact.
-    const bool saved = EEPROM::Write(base, invalidMagic, 4u) == HAL_OK &&
-        EEPROM::Write(base + 4u, next + 4u, kConfigBytes - 4u) == HAL_OK &&
-        EEPROM::Write(base, next, 4u) == HAL_OK &&
-        EEPROM::Read(base, readBack, sizeof(readBack)) == HAL_OK &&
-        memcmp(readBack, next, sizeof(next)) == 0 && ConfigRecordValid(readBack);
+    bool saved = false;
+    HAL_StatusTypeDef status = HAL_OK;
+    uint8_t stage = 3u;
+    do
+    {
+        status = EEPROM::Write(base, invalidMagic, 4u);
+        if (status != HAL_OK) break;
+        stage = 4u;
+        status = EEPROM::Write(base + 4u, next + 4u, kConfigBytes - 4u);
+        if (status != HAL_OK) break;
+        stage = 5u;
+        status = EEPROM::Write(base, next, 4u);
+        if (status != HAL_OK) break;
+        stage = 6u;
+        status = EEPROM::Read(base, readBack, sizeof(readBack));
+        if (status != HAL_OK) break;
+        stage = 7u;
+        if (memcmp(readBack, next, sizeof(next)) != 0) { status = HAL_ERROR; break; }
+        stage = 8u;
+        if (!ConfigRecordValid(readBack)) { status = HAL_ERROR; break; }
+        saved = true;
+    } while (false);
+    if (!saved)
+        s_sensorEepromDiagnostic = {stage, (uint8_t)status,
+            stage <= 6u ? HAL_I2C_GetError(&hi2c3) : 0u};
     if (saved)
     {
         memcpy(s_sensorConfig, next, sizeof(next));
@@ -300,6 +394,11 @@ MB_Error_t ConfigSaveProgramming(uint8_t destination, uint8_t address, uint8_t b
     return saved ? MB_ERROR_NO : MB_ERROR_EEPROM;
 }
 } // namespace
+
+SensorEepromDiagnostic ProgrammingSensor_GetEepromDiagnostic(void)
+{
+    return s_sensorEepromDiagnostic;
+}
 
 void SensorConfig_Load(bool eepromAvailable)
 {
@@ -795,21 +894,13 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *Uart) {
 		// DE на приём сразу после последнего бита TX — до возврата в задачу.
 		HAL_GPIO_WritePin(MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin, GPIO_PIN_RESET);
 		s_mbTxDoneTick = HAL_GetTick();
-		if (s_mbArmRxPending != 0u && s_mbArmRxUart == Uart && s_mbArmRxBuf != nullptr)
-		{
-			s_mbArmRxPending = 0;
-			s_mbArmRxOk = (MB_StartReceiveToIdle(Uart, (uint8_t *)s_mbArmRxBuf, s_mbArmRxSize) == HAL_OK) ? 1u : 0u;
-		}
+		MB_CompleteRxArm(Uart);
 		osSemaphoreRelease(TX_Compl_SemHandle);
 	}
 	else if (Uart == &huart4)
 	{
 		HAL_GPIO_WritePin(PROG_MASTER_DE_GPIO_Port, PROG_MASTER_DE_Pin, GPIO_PIN_RESET);
-		if (s_mbArmRxPending != 0u && s_mbArmRxUart == Uart && s_mbArmRxBuf != nullptr)
-		{
-			s_mbArmRxPending = 0;
-			s_mbArmRxOk = (MB_StartReceiveToIdle(Uart, (uint8_t *)s_mbArmRxBuf, s_mbArmRxSize) == HAL_OK) ? 1u : 0u;
-		}
+		MB_CompleteRxArm(Uart);
 		if (UART4_IsOwner_Programming() == 0u) CommandReceiver_RestartReception();
 		osSemaphoreRelease(PR_TX_Compl_SemHandle);
 	}
@@ -960,6 +1051,18 @@ void ProgrammingSensor_Start(void)
 
 static MB_Error_t s_progWriteResult = MB_ERROR_NO;
 static volatile uint8_t s_progWriteDone = 0u;
+static volatile uint8_t s_progWriteStage = 0u;
+static volatile uint8_t s_progWriteNeeds19200 = 0u;
+
+uint8_t ProgrammingSensor_Needs19200(void)
+{
+    return s_progWriteNeeds19200;
+}
+
+uint8_t ProgrammingSensor_GetWriteStage(void)
+{
+    return s_progWriteStage;
+}
 
 uint8_t ProgrammingSensor_TakeWriteResult(MB_Error_t *result)
 {
@@ -1158,6 +1261,7 @@ static MB_Error_t Type5_Program(MB_Active_t *pr, uint8_t newAddress, uint8_t new
     uint8_t liveAddress = oldAddress;
     uint8_t liveBaud = oldBaud;
     MultWR_t unused = {};
+    s_progWriteStage = 1u; // Verify the original connection.
     PR_UART4_Init(BaudRate_Type5[oldBaud]);
     // Подтверждаем присутствие найденного датчика адресным запросом перед изменениями.
     // Это защищает от программирования по устаревшему результату предыдущего поиска.
@@ -1166,6 +1270,7 @@ static MB_Error_t Type5_Program(MB_Active_t *pr, uint8_t newAddress, uint8_t new
 
     // Сначала меняем скорость: адрес пока известен. Потеря эха записи допустима,
     // но новое значение обязательно должно подтвердиться последующим чтением.
+    s_progWriteStage = 2u; // Write/read back baud.
     (void)Master_RW(pr, liveAddress, MB_CMD_WRITE_REG, Type5_Baud, newBaud, unused);
     osDelay(50);
     MB_Error_t result = Type5_FindSetting(pr, Type5_Baud, newBaud, oldAddress, oldAddress,
@@ -1174,6 +1279,7 @@ static MB_Error_t Type5_Program(MB_Active_t *pr, uint8_t newAddress, uint8_t new
 
     // Затем меняем адрес на уже подтверждённом подключении и снова ищем датчик
     // по старому/новому адресу: момент применения зависит от прошивки устройства.
+    s_progWriteStage = 3u; // Write/read back address.
     (void)Master_RW(pr, liveAddress, MB_CMD_WRITE_REG, Type5_Addr, newAddress, unused);
     osDelay(50);
     result = Type5_FindSetting(pr, Type5_Addr, newAddress, oldAddress, newAddress,
@@ -1183,6 +1289,7 @@ static MB_Error_t Type5_Program(MB_Active_t *pr, uint8_t newAddress, uint8_t new
     // Управляющий адрес FF допустим только для единственного подключённого датчика.
     // Перезапуск способен оборвать подтверждение, поэтому результат записи здесь
     // не является критерием успеха: далее проверяем адрес и скорость до пяти раз.
+    s_progWriteStage = 4u; // Reset.
     (void)Master_RW(pr, 0xFF, MB_CMD_WRITE_REG, Type5_Reset, 0, unused);
     PR_UART4_Init(BaudRate_Type5[newBaud]);
     // Даём устройству загрузиться; успешным считаем чтение ОБОИХ регистров
@@ -1190,9 +1297,11 @@ static MB_Error_t Type5_Program(MB_Active_t *pr, uint8_t newAddress, uint8_t new
     for (uint8_t attempt = 0; attempt < 5u; ++attempt)
     {
         osDelay(200);
+        s_progWriteStage = 5u; // Verify address after reset.
         if (Master_RW(pr, newAddress, MB_CMD_READ_REGS, Type5_Addr, 1, unused) != MB_ERROR_NO ||
             pr->Read_Data_2 != newAddress) continue;
         osDelay(10);
+        s_progWriteStage = 6u; // Verify baud after reset.
         if (Master_RW(pr, newAddress, MB_CMD_READ_REGS, Type5_Baud, 1, unused) != MB_ERROR_NO ||
             pr->Read_Data_2 != newBaud) continue;
         SensPortNumber = newAddress;
@@ -1221,6 +1330,8 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 */
 	while (Model::Flag_WR_to_sensor == 1)
 	{	// начало записи в датчик
+        s_progWriteStage = 0u;
+        s_progWriteNeeds19200 = 0u;
 		// скорость шины установлена той, на которой датчик работает
 		// адрес датчика считан из устройства и записан в SensPortNumber
 		// устанавливаем данные для записи нового адреса порта
@@ -1265,6 +1376,8 @@ MB_Error_t WriteToSensor(MB_Active_t *PR)
 
         if (result == MB_ERROR_NO)
             result = ConfigSaveProgramming(destination, WR_Address, WR_BaudRate, programmedType);
+        if (result == MB_ERROR_NO)
+            s_progWriteNeeds19200 = SensorConfig_IsWorkingBaud(programmedType, WR_BaudRate) ? 0u : 1u;
 		// Device ACK and verified EEPROM save are both required for success.
 		if (result == MB_ERROR_NO)
 		{	//всё хорошо, датчик записан
@@ -1740,10 +1853,10 @@ static void DrainBinarySemaphore(osSemaphoreId_t sem)
 /* Публичная подготовка канала датчиков (UART5) после Init / перед опросом. */
 void MB_Master_RxChannelPrepare(void)
 {
-	s_mbArmRxPending = 0;
-	s_mbArmRxOk = 0;
-	s_mbArmRxBuf = nullptr;
-	s_mbArmRxUart = nullptr;
+	s_mbRxArm5.pending = 0;
+	s_mbRxArm5.ok = 0;
+	s_mbRxArm5.buffer = nullptr;
+	s_mbRxArm5.size = 0;
 	DrainBinarySemaphore(TX_Compl_SemHandle);
 	DrainBinarySemaphore(RX_Compl_SemHandle);
 	MB_PrepareUartForMasterRx(&huart5, MB_MASTER_DE_GPIO_Port, MB_MASTER_DE_Pin);
@@ -1793,6 +1906,9 @@ static uint8_t UART4_IsReceivingBytesNow(void)
 MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 {
 	MB_Error_t MB_ERR = MB_ERROR_NO;
+	osStatus_t resultSem;
+	MB_RxArmState_t *arm = MB_RxArmFor(MB->UART);
+	if (arm == nullptr) return MB_ERROR_WRONG_ADDRESS;
 	HAL_StatusTypeDef result;		// статус HAL: HAL_OK, HAL_ERROR, HAL_BUSY, HAL_TIMEOUT
 	// Рассчитываем таймаут примерно на 1000 бит для текущего baud.
 	// Важно: переполнение uint8_t на низких скоростях укорачивает ожидание и даёт ложные таймауты.
@@ -1861,11 +1977,7 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 	osDelay(1);	// задержка перед стартовым битом
 
 	// Заказать вооружение RX в TxCplt сразу после DE→RX (минимальное окно до ответа датчика).
-	s_mbArmRxBuf = MB->Rx_Buffer;
-	s_mbArmRxSize = (uint16_t)MAX_MB_BUFSIZE;
-	s_mbArmRxUart = MB->UART;
-	s_mbArmRxOk = 0;
-	s_mbArmRxPending = 1;
+	MB_QueueRxArm(arm, MB->Rx_Buffer, (uint16_t)MAX_MB_BUFSIZE);
 
 	result = HAL_UART_Transmit_DMA(MB->UART, MB->Tx_Buffer, N_Bytes);
 	if (result == HAL_OK)
@@ -1875,7 +1987,7 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 		resultSem = osSemaphoreAcquire(*MB->Sem_Tx, pauseMs);
 		if (resultSem != osOK)
 		{	// обработка ошибки передачи по UART
-			s_mbArmRxPending = 0;
+			arm->pending = 0;
 			MB_ERR = MB_ERROR_UART_SEND;
 			if (diag) s_mbDiagCat = MB_DIAG_OTHER;
 			HAL_UART_AbortTransmit_IT(MB->UART);
@@ -1885,13 +1997,13 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 		}
 
 		// Fallback: если TxCplt не смог поднять RX — поднимаем из задачи.
-		if (s_mbArmRxOk == 0u)
+		if (arm->ok == 0u)
 		{
 			result = MB_StartReceiveToIdle(MB->UART, MB->Rx_Buffer, (uint16_t)MAX_MB_BUFSIZE);
-			s_mbArmRxOk = (result == HAL_OK) ? 1u : 0u;
+			arm->ok = (result == HAL_OK) ? 1u : 0u;
 		}
 
-		if (s_mbArmRxOk != 0u)
+		if (arm->ok != 0u)
 		{
 			// Ждём IDLE/полный буфер (токен из RxEvent/RxCplt или ErrorCallback).
 			resultSem = osSemaphoreAcquire(*MB->Sem_Rx, pauseMs);
@@ -1929,7 +2041,7 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 	}
 	else
 	{  // обработка ошибки передачи по DMA
-		s_mbArmRxPending = 0;
+		arm->pending = 0;
 		MB_ERR = MB_ERROR_DMA_SEND;
 		if (diag) s_mbDiagCat = MB_DIAG_OTHER;
 		HAL_UART_AbortTransmit_IT(MB->UART);

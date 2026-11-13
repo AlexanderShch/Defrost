@@ -14,7 +14,7 @@ bool Lock()
     const int32_t previous = osKernelLock();
     if (s_mutex == nullptr)
     {
-        const osMutexAttr_t attributes = {"EEPROM", osMutexRecursive | osMutexPrioInherit, nullptr, 0u};
+        const osMutexAttr_t attributes = {"I2C3", osMutexRecursive | osMutexPrioInherit, nullptr, 0u};
         s_mutex = osMutexNew(&attributes);
     }
     osKernelRestoreLock(previous);
@@ -64,12 +64,30 @@ static uint16_t WordAddress8(uint16_t memAddress)
 
 static HAL_StatusTypeDef WaitDeviceReady(uint16_t deviceAddress, uint32_t timeoutMs)
 {
-    // Внутренний цикл программирования M24C16 обычно до 5 мс; даём запас по повторам.
-    return HAL_I2C_IsDeviceReady(&hi2c3, deviceAddress, 20u, timeoutMs);
+    // Count elapsed time, not immediate ACK attempts: a page write can take 5 ms.
+    const uint32_t started = HAL_GetTick();
+    for (;;)
+    {
+        const uint32_t elapsed = HAL_GetTick() - started;
+        const uint32_t remaining = elapsed < timeoutMs ? timeoutMs - elapsed : 0u;
+        const uint32_t probeTimeout = remaining < 5u ? remaining : 5u;
+        if (HAL_I2C_IsDeviceReady(&hi2c3, deviceAddress, 1u, probeTimeout) == HAL_OK)
+            return HAL_OK;
+        if (HAL_GetTick() - started >= timeoutMs) return HAL_TIMEOUT;
+        const osKernelState_t state = osKernelGetState();
+        if (state == osKernelRunning)
+        {
+            const uint32_t ticks = (osKernelGetTickFreq() + 999u) / 1000u;
+            osDelay(ticks);
+        }
+        else HAL_Delay(1u);
+    }
 }
 
 bool Init(uint16_t deviceAddress, uint32_t timeoutMs)
 {
+    AccessGuard guard;
+    if (!guard.acquired) return false;
     // Сохраняем только «семейство» 0xA0: биты A10..A8 выбираются по адресу памяти.
     s_baseDeviceAddress = (uint16_t)(deviceAddress & 0xF0u);
     return (WaitDeviceReady(DeviceAddressForMem(0u), timeoutMs) == HAL_OK);
@@ -174,3 +192,7 @@ HAL_StatusTypeDef Write(uint16_t memAddress, const uint8_t* src, uint16_t length
 }
 
 } // namespace EEPROM
+
+// The touch controller and EEPROM share I2C3, including the same HAL handle.
+extern "C" uint8_t I2C3_BusLock(void) { return EEPROM::Lock() ? 1u : 0u; }
+extern "C" void I2C3_BusUnlock(void) { EEPROM::Unlock(); }

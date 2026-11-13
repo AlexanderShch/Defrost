@@ -66,6 +66,9 @@ extern volatile uint32_t g_bootFaultMarker;
 extern volatile uint32_t g_bootResetFlagsSnapshot;
 extern volatile uint32_t g_bootFaultCounter;
 void BootDiag_CaptureResetFlags(void);
+/* Shared recursive bus lock for the touch controller and EEPROM. */
+uint8_t I2C3_BusLock(void);
+void I2C3_BusUnlock(void);
 
 /* USER CODE END EFP */
 

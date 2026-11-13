@@ -35,6 +35,7 @@ public:
     void WriteSaved_Output();
 
 protected:
+    void UpdateDestinationChoices();
     touchgfx::TextAreaWithOneWildcard writeErrorMessage;
     touchgfx::Unicode::UnicodeChar writeErrorBuffer[64];
     // В классе Settings5View

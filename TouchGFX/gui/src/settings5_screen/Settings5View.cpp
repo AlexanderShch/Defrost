@@ -45,6 +45,7 @@ void Settings5View::setupScreen()
     writeErrorMessage.setTypedText(SensorCurrentSpeed.getTypedText());
     writeErrorMessage.setWildcard(writeErrorBuffer);
     writeErrorMessage.setPosition(20, 70, 200, 100);
+    writeErrorMessage.setWideTextAction(touchgfx::WIDE_TEXT_WORDWRAP);
     writeErrorMessage.setColor(Alert_Message.getColor());
     writeErrorMessage.setVisible(false);
     add(writeErrorMessage);
@@ -55,6 +56,7 @@ void Settings5View::setupScreen()
     SetSpeed = SensNullValue;
     SetAddress = 0;
 	SetSensor = 0;
+    UpdateDestinationChoices();
 	presenter -> PR_Sensor_Type(SetSensor);
 	// Сканирование начнётся только после выбора типа датчика оператором.
 	ProgrammingSensor_Start();
@@ -97,6 +99,8 @@ void Settings5View::scrollSensorTypeUpdateCenterItem(TextSelectedContainer& item
 //Вызывается для каждого значения в массиве значений колеса
 void Settings5View::scrollSensorSpeedNewUpdateItem(ScrollItemContainer& item, int16_t itemIndex)
 {
+    if (itemIndex < 0 || itemIndex >= SensorConfig_BaudCount((uint8_t)SetSensor))
+    { item.updateScrollItem(0); return; }
 	switch (SetSensor) {
 		case 1:		{
 			item.updateScrollItem(BaudRate_Type1[itemIndex]);
@@ -119,6 +123,8 @@ void Settings5View::scrollSensorSpeedNewUpdateItem(ScrollItemContainer& item, in
 //Заполнение фокусного значения BaudRate в колесе прокрутки после остановки прокрутки даже после нажатия "Записать" в колесе
 void Settings5View::scrollSensorSpeedNewUpdateCenterItem(ScrollSelectedItemContainer& item, int16_t itemIndex)
 {
+    if (itemIndex < 0 || itemIndex >= SensorConfig_BaudCount((uint8_t)SetSensor))
+    { item.updateScrollSelectedItem(0); return; }
 	switch (SetSensor) {
 		case 1:		{
 			item.updateScrollSelectedItem(BaudRate_Type1[itemIndex]);
@@ -143,23 +149,24 @@ void Settings5View::scrollSensorSpeedNewUpdateCenterItem(ScrollSelectedItemConta
 //Вызывается для каждого значения в массиве значений колеса
 void Settings5View::scrollSensorAddressNewUpdateItem(TextContainer& item, int16_t itemIndex)
 {
-	//	Формирование строки с именем датчика и его адресом
-	char str[20];
-	char FormatText[] = " %d";
-	strcpy(str, Sensor_array[itemIndex].PositionName);	// копирование PositionName в начало строки str, включая символ окончания строки \0
-	strcat(str, FormatText);							// добавление символа форматирования в строку str
-	item.updateTextItem(str, Sensor_array[itemIndex].Address);
+    const uint8_t channel = (itemIndex < 0) ? SQ :
+        SensorConfig_DestinationChannel((uint8_t)SetSensor, (uint8_t)itemIndex);
+    if (channel >= SQ) { char empty[] = "---"; item.updateTextItem(empty, 0); return; }
+    char text[20];
+    strcpy(text, Sensor_array[channel].PositionName);
+    strcat(text, " %d");
+    item.updateTextItem(text, Sensor_array[channel].Address);
 }
 //Заполнение фокусного значения SensorAddress в колесе прокрутки после остановки прокрутки даже после нажатия "Записать" в колесе
 void Settings5View::scrollSensorAddressNewUpdateCenterItem(TextSelectedContainer& item, int16_t itemIndex)
 {
-//	item.updateScrollSelectedItem(Sensor_array[itemIndex].Address);
-	//	Формирование строки с именем типа датчика и его идентификатором
-	char str[20];
-	char FormatText[] = " %d";
-	strcpy(str, Sensor_array[itemIndex].PositionName);	// копирование PositionName в начало строки str, включая символ окончания строки \0
-	strcat(str, FormatText);							// добавление символа форматирования в строку str
-	item.updateTextSelectedItem(str, Sensor_array[itemIndex].Address);
+    const uint8_t channel = (itemIndex < 0) ? SQ :
+        SensorConfig_DestinationChannel((uint8_t)SetSensor, (uint8_t)itemIndex);
+    if (channel >= SQ) { char empty[] = "---"; item.updateTextSelectedItem(empty, 0); return; }
+    char text[20];
+    strcpy(text, Sensor_array[channel].PositionName);
+    strcat(text, " %d");
+    item.updateTextSelectedItem(text, Sensor_array[channel].Address);
 }
 // Вызывается при установке значения в центральное положение в колесе, в фокус
 void Settings5View::scrollSensorTypeItemSelectedHandler(int16_t itemSelected)
@@ -174,12 +181,16 @@ void Settings5View::scrollSensorSpeedNewItemSelectedHandler(int16_t itemSelected
 // Вызывается при установке значения в центральное положение в колесе, в фокус
 void Settings5View::scrollSensorAddressNewItemSelectedHandler(int16_t itemSelected)
 {
-	SetAddress = Sensor_array[itemSelected].Address;
+    const uint8_t channel = (itemSelected < 0) ? SQ :
+        SensorConfig_DestinationChannel((uint8_t)SetSensor, (uint8_t)itemSelected);
+    if (channel < SQ) SetAddress = Sensor_array[channel].Address;
 }
 
 //Запись выбранных значений скорости и адреса в датчик при нажатии "Запись" в окне Settings5
 void Settings5View::BTNWriteClicked()
 {
+    if (SensorConfig_DestinationCount((uint8_t)SetSensor) == 0u || SetAddress == 0u ||
+        SetSpeed >= SensorConfig_BaudCount((uint8_t)SetSensor)) return;
 	presenter -> PR_Sensor_Data_Write(SetSpeed, SetAddress);
 
 }
@@ -224,8 +235,18 @@ void Settings5View::BTNSetSpeedClicked()
 //Запуск колеса прокрутки "Выбор адреса датчика"
 void Settings5View::BTNSetAddressClicked()
 {
+    const uint8_t count = SensorConfig_DestinationCount((uint8_t)SetSensor);
+    if (count == 0u) return;
 	Selected = 2;
 	SetAddressOld = SetAddress;
+    uint8_t selectedItem = 0u;
+    for (uint8_t item = 0u; item < count; ++item)
+    {
+        const uint8_t channel = SensorConfig_DestinationChannel((uint8_t)SetSensor, item);
+        if (Sensor_array[channel].Address == SetAddress) selectedItem = item;
+    }
+    scrollSensorAddressNew.animateToItem(selectedItem, 0);
+    scrollSensorAddressNewItemSelectedHandler(selectedItem);
 	scrollSensorAddressNew.setVisible(true);
 	scrollSensorAddressNew.invalidate();
 	BTNConfirm.setVisible(true);
@@ -248,6 +269,7 @@ void Settings5View::BTNConfirmClicked()
 				FlagWrite_visible = 0;
 				Unicode::strncpy(BTNSetSpeedBuffer, "---", BTNSETSPEED_SIZE);
 				Model::setCurrentVal_PR(SensNullValue, SensNullValue);
+                UpdateDestinationChoices();
 			}
 			SetSensorOld = SetSensor;
 			Unicode::snprintf(BTNSensorTypeBuffer, BTNSENSORTYPE_SIZE, "%d", SetSensor);
@@ -411,7 +433,17 @@ void Settings5View::Alert_Message_Output()
 void Settings5View::WriteError_Output(MB_Error_t error)
 {
     Selected = 3;
-    Unicode::snprintf(writeErrorBuffer, 24, "error\n%d", (int)error);
+    const uint8_t stage = ProgrammingSensor_GetWriteStage();
+    if (error == MB_ERROR_EEPROM)
+    {
+        const SensorEepromDiagnostic diagnostic = ProgrammingSensor_GetEepromDiagnostic();
+        Unicode::snprintf(writeErrorBuffer, 64, "error 8-%d\nHAL %d\nI2C %d",
+            (int)diagnostic.stage, (int)diagnostic.halStatus, (int)diagnostic.i2cError);
+    }
+    else if (error != MB_ERROR_NO && stage != 0u)
+        Unicode::snprintf(writeErrorBuffer, 24, "error\n%d-%d", (int)error, (int)stage);
+    else
+        Unicode::snprintf(writeErrorBuffer, 24, "error\n%d", (int)error);
     Alert_Background.setVisible(true);
     Alert_Message.setVisible(false);
     writeErrorMessage.setVisible(true);
@@ -431,6 +463,30 @@ void Settings5View::WriteSaved_Output()
     const char *message = (Model::Type_of_sensor == 5)
         ? "Записано\nПерезапустите\nконтроллер"
         : "Записано\nПерезапустите\nдатчик и\nконтроллер";
+    if (ProgrammingSensor_Needs19200() != 0u) message = "Записано, но нужно 19200";
     Unicode::fromUTF8((const uint8_t *)message, writeErrorBuffer, 64);
     writeErrorMessage.invalidate();
+}
+
+void Settings5View::UpdateDestinationChoices()
+{
+    const uint8_t count = SensorConfig_DestinationCount((uint8_t)SetSensor);
+    scrollSensorAddressNew.setVisible(false);
+    BTNSetAddress.setVisible(count != 0u);
+    if (count != 0u)
+    {
+        scrollSensorAddressNew.setNumberOfItems(count);
+        scrollSensorAddressNew.animateToItem(0, 0);
+    }
+    const uint8_t baudCount = SensorConfig_BaudCount((uint8_t)SetSensor);
+    if (baudCount != 0u) scrollSensorSpeedNew.setNumberOfItems(baudCount);
+    BTNSetSpeed.setVisible(baudCount != 0u);
+    SetSpeed = SetSpeedOld = SensNullValue;
+    Unicode::strncpy(BTNSetSpeedBuffer, "---", BTNSETSPEED_SIZE);
+    BTNSetSpeed.invalidate();
+    // A type change invalidates the previous destination; require a fresh confirmation.
+    SetAddress = SetAddressOld = 0u;
+    Unicode::strncpy(BTNSetAddressBuffer, "---", BTNSETADDRESS_SIZE);
+    BTNSetAddress.invalidate();
+    scrollSensorAddressNew.invalidate();
 }

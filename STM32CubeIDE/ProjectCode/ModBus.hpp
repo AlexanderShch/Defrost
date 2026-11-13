@@ -175,8 +175,22 @@ void ProgrammingSensor_Start(void);
 /* Выход с экрана: задача доводит сканирование, возвращает UART4 серверу и завершается сама. */
 void ProgrammingSensor_RequestStop(void);
 uint8_t ProgrammingSensor_TakeWriteResult(MB_Error_t *result);
+uint8_t ProgrammingSensor_GetWriteStage(void);
+struct SensorEepromDiagnostic
+{
+    uint8_t stage;       // Error 8 stage, independent of the Modbus programming stage.
+    uint8_t halStatus;
+    uint32_t i2cError;
+};
+SensorEepromDiagnostic ProgrammingSensor_GetEepromDiagnostic(void);
 // Load before polling; saved changes take effect on the next controller boot.
 void SensorConfig_Load(bool eepromAvailable);
+bool SensorConfig_IsTypeAllowed(uint8_t channel, uint8_t type);
+uint8_t SensorConfig_DestinationCount(uint8_t type);
+uint8_t SensorConfig_DestinationChannel(uint8_t type, uint8_t item);
+uint8_t SensorConfig_BaudCount(uint8_t type);
+bool SensorConfig_IsWorkingBaud(uint8_t type, uint8_t baud);
+uint8_t ProgrammingSensor_Needs19200(void);
 void PR_UART4_Init(int BaudRateValue);
 MB_Error_t WriteToServer(uint8_t* Data, int length);
 uint16_t MB_GetCRC(volatile uint8_t* buf, uint16_t len);

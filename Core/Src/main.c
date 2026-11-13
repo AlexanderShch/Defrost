@@ -1045,9 +1045,11 @@ void IOE_Delay(uint32_t Delay)
   */
 static void I2C3_WriteData(uint8_t Addr, uint8_t Reg, uint8_t Value)
 {
+  if (!I2C3_BusLock()) return;
   HAL_StatusTypeDef status = HAL_OK;
 
   status = HAL_I2C_Mem_Write(&hi2c3, Addr, (uint16_t)Reg, I2C_MEMADD_SIZE_8BIT, &Value, 1, I2c3Timeout);
+  I2C3_BusUnlock();
 
   /* Проверка статуса обмена */
   if(status != HAL_OK)
@@ -1065,10 +1067,12 @@ static void I2C3_WriteData(uint8_t Addr, uint8_t Reg, uint8_t Value)
   */
 static uint8_t I2C3_ReadData(uint8_t Addr, uint8_t Reg)
 {
+  if (!I2C3_BusLock()) return 0;
   HAL_StatusTypeDef status = HAL_OK;
   uint8_t value = 0;
 
   status = HAL_I2C_Mem_Read(&hi2c3, Addr, Reg, I2C_MEMADD_SIZE_8BIT, &value, 1, I2c3Timeout);
+  I2C3_BusUnlock();
 
   /* Проверка статуса обмена */
   if(status != HAL_OK)
@@ -1090,9 +1094,11 @@ static uint8_t I2C3_ReadData(uint8_t Addr, uint8_t Reg)
   */
 static uint8_t I2C3_ReadBuffer(uint8_t Addr, uint8_t Reg, uint8_t *pBuffer, uint16_t Length)
 {
+  if (!I2C3_BusLock()) return 1;
   HAL_StatusTypeDef status = HAL_OK;
 
   status = HAL_I2C_Mem_Read(&hi2c3, Addr, (uint16_t)Reg, I2C_MEMADD_SIZE_8BIT, pBuffer, Length, I2c3Timeout);
+  I2C3_BusUnlock();
 
   /* Проверка статуса обмена */
   if(status == HAL_OK)
