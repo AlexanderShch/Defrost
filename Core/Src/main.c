@@ -65,7 +65,8 @@ uint8_t ucHeap[65536];  // Явно указываем размер вместо
 #define SPI5_TIMEOUT_MAX                    0x1000
 
 #define MSGQUEUE_OBJECTS        9       // единая очередь: телеметрия, лог, ответы на команды
-#define MSGQUEUE_OBJECT_SIZE    98     // размер элемента: ServerTxItem_t (type + length + data)
+#include "ServerTxSize.h"
+#define MSGQUEUE_OBJECT_SIZE SERVER_TX_ITEM_SIZE
 /* USER CODE END PD */
 
 /* Локальные макросы ---------------------------------------------------------*/

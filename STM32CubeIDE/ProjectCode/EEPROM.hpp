@@ -13,6 +13,11 @@ static constexpr uint16_t kPageSizeBytes = 16u;
 static constexpr uint16_t kSensorConfigAddress = 0x0100u;
 static constexpr uint16_t kSensorConfigSlotBytes = 64u;
 static constexpr uint16_t kSensorConfigEnd = kSensorConfigAddress + 2u * kSensorConfigSlotBytes;
+// Single PID Plateau record with CRC, separate from legacy process/sensor settings.
+static constexpr uint16_t kPlateauConfigAddress = kSensorConfigEnd; // 0x0180
+static constexpr uint16_t kPlateauConfigBytes = 128u;
+static constexpr uint16_t kPlateauConfigEnd = kPlateauConfigAddress + kPlateauConfigBytes;
+static_assert(kPlateauConfigEnd <= kSizeBytes, "Plateau EEPROM record exceeds device capacity");
 
 // Recursive transaction lock; no-op before the scheduler starts.
 bool Lock();

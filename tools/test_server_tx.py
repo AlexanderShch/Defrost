@@ -15,8 +15,8 @@ PREFIX = r"""
 #include <cassert>
 #include <deque>
 #include <vector>
-struct ServerTxItem_t{uint8_t PacketLength;uint8_t data[96];uint8_t Reserved;};
-static_assert(sizeof(ServerTxItem_t)==98,"queue size");
+struct ServerTxItem_t{uint8_t PacketLength;uint8_t data[126];uint8_t Reserved;};
+static_assert(sizeof(ServerTxItem_t)==128,"queue size");
 struct Queue{std::deque<ServerTxItem_t> items;size_t cap;};
 using osMessageQueueId_t=Queue*;
 Queue normal{{},9},telemetry{{},4};
@@ -64,7 +64,7 @@ void init(){
 }
 void run(){try{TX_ToServer();}catch(Stop&){} }
 int main(){
- auto a=frame(8,0xa1),diag=frame(10,0xd3,91),log=frame(1,0xc4,95);log.data[0]=0;
+ auto a=frame(8,0xa1),diag=frame(10,0xd3,91),log=frame(1,0xc4,111);log.data[0]=0;
  init();for(int i=0;i<9;++i)assert(ServerTx_EnqueueHighPriority(diag.data,91));
  assert(!ServerTx_EnqueueHighPriority(diag.data,91));assert(g_serverTxRejected==1);
  assert(ServerTx_EnqueueHighPriority(a.data,66));run();
@@ -76,11 +76,11 @@ int main(){
  handling=true;for(int i=0;i<20;++i)ResendLastTelemetry();handling=false;assert(calls==0);run();
  assert(sent.size()==10&&sent[0].data[4]==0xa1&&g_serverTxRejected==0);
  init();failures=2;assert(ServerTx_EnqueueHighPriority(a.data,66));run();assert(calls==3&&sent.size()==1);
- init();assert(!ServerTx_EnqueueHighPriority(nullptr,0));assert(!ServerTx_EnqueueHighPriority(a.data,97));
- init();assert(ServerTx_EnqueueHighPriority(a.data,66));assert(ServerTx_EnqueueHighPriority(diag.data,91));assert(ServerTx_EnqueueHighPriority(log.data,95));run();
+ init();assert(!ServerTx_EnqueueHighPriority(nullptr,0));assert(!ServerTx_EnqueueHighPriority(a.data,127));
+ init();assert(ServerTx_EnqueueHighPriority(a.data,66));assert(ServerTx_EnqueueHighPriority(diag.data,91));assert(ServerTx_EnqueueHighPriority(log.data,111));run();
  assert(sent.size()==3&&ticks<1000);std::printf("PASS: telemetry+diag+log, simulated %u ms including 100 ms ACK timeout\n",ticks);
  init();Data_SaveLastSentTelemetryPacket(a.data,66);ResendLastTelemetry();
- assert(ServerTx_EnqueueHighPriority(a.data,66));assert(ServerTx_EnqueueHighPriority(diag.data,91));assert(ServerTx_EnqueueHighPriority(log.data,95));run();
+ assert(ServerTx_EnqueueHighPriority(a.data,66));assert(ServerTx_EnqueueHighPriority(diag.data,91));assert(ServerTx_EnqueueHighPriority(log.data,111));run();
  assert(sent.size()==4&&ticks<1000);std::printf("PASS: with one retry, simulated %u ms including two 100 ms ACK timeouts\n",ticks);
  std::puts("PASS: queue saturation, retry priority, exact retransmission despite newer queued snapshot, UART failure retention, RX nonblocking, packet bounds");
 }

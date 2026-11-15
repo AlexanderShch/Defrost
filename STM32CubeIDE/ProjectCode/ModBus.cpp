@@ -13,7 +13,10 @@
 
 //#include "usb_host.h"
 
-#define  MAX_MB_BUFSIZE 101						// максимальный размер пакета UART4 с SYNC: лог 0x01 только группа 3 (2+~68+2)+AA55; телеметрия и ответы меньше
+static constexpr int MAX_MB_BUFSIZE = (int)SERVER_TX_ITEM_SIZE; // includes two-byte SYNC
+static_assert(SERVER_TX_ITEM_SIZE - 2u + 2u <= MAX_MB_BUFSIZE, "UART must fit every queued frame plus SYNC");
+static_assert(4u + CMD_MAX_DATA_LENGTH + 2u + 2u <= MAX_MB_BUFSIZE, "UART must fit the largest response plus SYNC");
+static_assert(4u + CMD_MAX_DATA_LENGTH + 2u <= SERVER_TX_ITEM_SIZE - 2u, "TX queue must fit the largest response");
 
 extern "C" {
 extern I2C_HandleTypeDef hi2c3;

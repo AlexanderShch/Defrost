@@ -66,7 +66,7 @@ extern volatile unsigned int g_CommittedTick;
 // Единая очередь отправки на сервер (телеметрия, лог, ответы на команды).
 // Один поток TX_ToServer забирает из очереди и вызывает WriteToServerWithSync при возможности (нет приёма).
 // ═══════════════════════════════════════════════════════════════════════════
-#define SERVER_TX_ITEM_SIZE  98u   /* размер элемента очереди (type + length + payload); регулярный лог только группа 3 ~68 байт */
+#include "ServerTxSize.h"
 // Маркер "нет данных" для телеметрии неактивного датчика.
 #define SENSOR_NO_DATA_MARKER ((int16_t)-32768)
 

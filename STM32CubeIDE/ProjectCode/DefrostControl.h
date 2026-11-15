@@ -17,7 +17,9 @@ typedef enum {
     DEFROST_PARAM_GROUP_HUMIDITY = 3,
     DEFROST_PARAM_GROUP_PWM = 4,
     DEFROST_PARAM_GROUP_LOG_PHASE = 5,   /* группа 1 лога: параметры, зависящие от фазы (по запросу REQ_CMD_GET_DEFROST_GROUP) */
-    DEFROST_PARAM_GROUP_LOG_GLOBAL = 6    /* группа 2 лога: параметры, общие для всех фаз (по запросу REQ_CMD_GET_DEFROST_GROUP) */
+    DEFROST_PARAM_GROUP_LOG_GLOBAL = 6,   /* legacy payload unchanged */
+    DEFROST_PARAM_GROUP_PLATEAU = 7,     /* PlateauParams: verified EEPROM + live apply */
+    DEFROST_PARAM_GROUP_PLATEAU_DIAG = 8 /* Result: heat,I,D,FF,duty + water byte */
 } DefrostParamGroup_t;
 
 typedef enum {
@@ -166,6 +168,8 @@ typedef struct __attribute__((packed)) {
     float w_sup_avg, wErr, injDuty;
     float rate_Cps;
     float fishHot_C, fishCold_C;
+    /* v2.12: append-only extension; first 89 bytes retain legacy layout. */
+    float pidIntegral, pidDerivative, pidFeedforward, pidWaterDuty;
 } ControlLogPayload_t;
 
 ControlLogPayload_t DefrostControl_GetControlLogPayload(void);

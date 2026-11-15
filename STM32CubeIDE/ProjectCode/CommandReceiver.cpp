@@ -154,6 +154,7 @@ void CommandReceiver_Init(void)
  */
 void CommandReceiver_SendResponse(CommandResponse_t *response)
 {
+    if (response == nullptr || response->dataLength > CMD_MAX_DATA_LENGTH) return;
     uint16_t txLength = 0;
     
     // КРИТИЧНО: Очищаем буфер перед формированием нового ответа

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * DefrostControl.cpp
  *
  * Практичный алгоритм управления дефростером с двумя потоками:
@@ -23,6 +23,8 @@
  
  #include "Data.hpp"                 // индексы датчиков SQ
  #include "DefrostControl.h"
+#include "PlateauControl.hpp"
+#include "PlateauStorage.hpp"
 #include "EEPROM.hpp"
  #include "GateControl.hpp"
 #include "main.h"
@@ -39,9 +41,14 @@ extern unsigned int TimeFromStart;
 
 /* Буфер параметров для лога (заполняется в ControlStep1s/ControlStep1s_AirOnly, читается из Data.cpp). */
 static ControlLogPayload_t s_controlLogPayload;
-static_assert(sizeof(ControlLogPayload_t) == 89, "ControlLogPayload_t size must be 89 bytes");
+static_assert(sizeof(ControlLogPayload_t) == 105, "ControlLogPayload_t size must be 105 bytes");
+static_assert(4u + sizeof(ControlLogPayload_t) + 2u <= SERVER_TX_ITEM_SIZE - 2u, "Control log must fit TX queue");
 /* Текущая фаза для ответа по REQ_CMD_GET_DEFROST_GROUP groupId 5 (группа 1 лога). */
 static uint8_t s_lastPhase = 0;
+/* Group 7: verified EEPROM commit followed by live RAM publication. */
+static PlateauParams s_plateauParams = Plateau::Defaults();
+static Plateau::Controller s_plateauControl;
+static Plateau::Result s_plateauResult = {};
 
 // структура для хранения параметров в EEPROM
 typedef struct
@@ -62,6 +69,16 @@ static uint8_t g_defrostPersistedAutoMode = 0u; // бит, определяющ�
 /* Отложенная запись в EEPROM: не пишем в LoadParams до старта RTOS (блокирующая запись
  * по страницам на I2C3 может надолго задержать main и сорвать запуск опроса датчиков). */
 static bool g_defrostEepromPersistPending = false;
+static bool g_plateauEepromPersistPending = false;
+struct PlateauEepromBackend {
+    static bool Read(uint16_t address,uint8_t* data,uint16_t length) {
+        return EEPROM::Read(address,data,length)==HAL_OK;
+    }
+    static bool Write(uint16_t address,const uint8_t* data,uint16_t length) {
+        return EEPROM::Write(address,data,length)==HAL_OK;
+    }
+};
+typedef Plateau::Storage<PlateauEepromBackend,EEPROM::kPlateauConfigAddress,EEPROM::kPlateauConfigBytes> PlateauEepromStore;
 /* Восстановить авторежим после сбоя питания: StartAutomaticSequence — на первом Update1s (уже RTOS, есть DI). */
 static uint8_t g_defrostAutoRestorePending = 0u;
 static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "Defrost EEPROM payload exceeds M24C16 capacity");
@@ -251,12 +268,36 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
         }
     }
 
+    /* Owns the EEPROM transaction lock. RAM changes only after verified storage. */
+    static bool CommitPlateauParams(const PlateauParams& p)
+    {
+        if (!Plateau::Valid(p) || !g_defrostEepromAvailable || !EEPROM::Lock()) return false;
+        const bool saved = PlateauEepromStore::Save(p);
+        if (saved)
+        {
+            taskENTER_CRITICAL(); s_plateauParams = p; taskEXIT_CRITICAL();
+            g_plateauEepromPersistPending = false;
+        }
+        EEPROM::Unlock();
+        return saved;
+    }
+
+    static void PersistPlateauSnapshot(void)
+    {
+        if (!g_defrostEepromAvailable || !EEPROM::Lock()) return;
+        PlateauParams p;
+        taskENTER_CRITICAL(); p = s_plateauParams; taskEXIT_CRITICAL();
+        g_plateauEepromPersistPending = !PlateauEepromStore::Save(p);
+        EEPROM::Unlock();
+    }
+
     static void FlushPendingEepromPersistIfNeeded(void)
     {
         if (g_defrostEepromPersistPending)
         {
             PersistParamsToEepromIfAvailable();
         }
+        if (g_plateauEepromPersistPending) PersistPlateauSnapshot();
     }
     // загрузка параметров из EEPROM, если EEPROM доступна
     static void LoadDefaultParams(DefrostParams_t *p)
@@ -726,6 +767,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
  
      static void ResetState()
      {
+       s_plateauControl.Reset();
+       s_plateauResult = Plateau::Result{};
        // Почему: при (пере)запуске нужны предсказуемые состояния без "хвоста" интегратора/ШИМ-памяти.
        g.runtimeSeconds = 0;
        g.piSupplyCommon = PI{ g_defrostParams.piKp, g_defrostParams.piKi, 0.0f };
@@ -1389,6 +1432,42 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
         return 0u;
     }
 
+    /* Snapshot group 7 once per tick; setters never mutate controller state. */
+    static PlateauParams PlateauSnapshot()
+    {
+        PlateauParams p;
+        taskENTER_CRITICAL(); p = s_plateauParams; taskEXIT_CRITICAL();
+        return p;
+    }
+
+    static uint8_t StepCoordinatedPlateau(Phase phase, const DefrostAirControlInputs& air,
+        float rhTarget, float supplySet, float heatScale, uint8_t* injOn, float* heat)
+    {
+        const PlateauParams p = PlateauSnapshot();
+        if (phase != Phase::Plateau || p.enabled == 0.0f)
+        {
+            s_plateauControl.Reset();
+            s_plateauResult = Plateau::Result{};
+            return 0u;
+        }
+        const float error = supplySet - air.T_sup_avg_C;
+        const float previous = Clamp(g.piSupplyCommon.kp * error + g.piSupplyCommon.i, 0, 2);
+        // Only measured return humidity is used: no hidden fallback to another flow location.
+        const bool waterAllowed = air.okRet != 0u && air.humidityMeasOk != 0u && g.outOn == 0u;
+        const float measuredRH = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
+        const Plateau::Result result = s_plateauControl.Step(p, air.T_sup_avg_C, supplySet,
+            measuredRH, rhTarget, waterAllowed, heatScale, previous);
+        taskENTER_CRITICAL(); s_plateauResult = result; taskEXIT_CRITICAL();
+        *injOn = result.water;
+        *heat = result.heat * heatScale;
+        // Track the legacy PI for a bumpless exit from Plateau; no integration in parallel.
+        g.piSupplyCommon.i = result.heat - g.piSupplyCommon.kp * error;
+        g.injFfTail_s = 0u; g.injPause_s = 0u; g.injPulse_s = 0u;
+        g.injHold.state = *injOn;
+        g.injHold.hold_s = 0u;
+        return 1u;
+    }
+
     static void ControlStep1s()
      {
        // Water_Flap в авто-режиме открывается только когда контур влажности включает вытяжку.
@@ -1627,21 +1706,27 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
              StopExhaustHumidity();
          }
 
-         const uint8_t inj_on = LimitInjectorPulse(g.injHold.Step(inj_desired, 1u));
-         const float injDuty = inj_on ? 1.0f : 0.0f;
-         const uint8_t out_on = g.outOn ? 1 : 0;
-
+         uint8_t inj_on = 0u;
+         float uCommon_TEN = 0.0f;
          const float eT_common = tgt.supplySet_C - T_sup_avg_C;
+         const uint8_t coordinated = StepCoordinatedPlateau(phase, airIn,
+             tgt.returnTargetRH_percent, tgt.supplySet_C, heatScale01, &inj_on, &uCommon_TEN);
+         if (coordinated == 0u)
+         {
+             inj_on = LimitInjectorPulse(g.injHold.Step(inj_desired, 1u));
+             uCommon_TEN = g.piSupplyCommon.Step(eT_common, kDt_s, 0.0f, 2.0f);
+             uCommon_TEN = Clamp(uCommon_TEN + StepInjFeedforward_Eq(inj_on), 0.0f, 2.0f);
+             uCommon_TEN *= heatScale01;
+         }
+         const float injDuty = inj_on ? 1.0f : 0.0f; // legacy log contract; requested fraction is in group 8
+         const uint8_t out_on = g.outOn ? 1 : 0;
  
-         // Базовый запрос мощности с учётом ограничителя.
-         float uCommon_TEN = g.piSupplyCommon.Step(eT_common, kDt_s, 0.0f, 2.0f);
-         uCommon_TEN = Clamp(uCommon_TEN + StepInjFeedforward_Eq(inj_on), 0.0f, 2.0f);
-         uCommon_TEN *= heatScale01;
  
          // Балансировка лево/право только если обе подачи исправны; иначе симметричное управление (без перекоса по «нулю»).
          const float eT_diff = (airIn.okL != 0u && airIn.okR != 0u) ? (airIn.mL - airIn.mR) : 0.0f;
         float trim_TEN = g.leftRightTrimGain * eT_diff;
         trim_TEN = Clamp(trim_TEN, -g_defrostParams.leftRightTrimMaxEq, g_defrostParams.leftRightTrimMaxEq);
+        if (coordinated != 0u) trim_TEN *= heatScale01;
  
          float uLeft_TEN  = Clamp(uCommon_TEN - trim_TEN, 0.0f, 2.0f);
          float uRight_TEN = Clamp(uCommon_TEN + trim_TEN, 0.0f, 2.0f);
@@ -1671,32 +1756,38 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
          const uint8_t ventR_on = 1;
 
         s_lastPhase = static_cast<uint8_t>(phase);
+        ControlLogPayload_t logPayload = {};
 
         // Формируем текущее состояние алгоритма управления для регулярного лога (6 датчиков: 0..5).
-        s_controlLogPayload.T_filt_C[0] = FilteredSensorT_C(0);  // defroster T,H left
-        s_controlLogPayload.T_filt_C[1] = FilteredSensorT_C(1);  // defroster T,H right
-        s_controlLogPayload.T_filt_C[2] = FilteredSensorT_C(2);  // defroster T,H center
-        s_controlLogPayload.T_filt_C[3] = FilteredSensorT_C(3);  // fish T left
-        s_controlLogPayload.T_filt_C[4] = FilteredSensorT_C(4);  // fish T right
-        s_controlLogPayload.T_filt_C[5] = FilteredSensorT_C(5);  // defroster operating T
+        logPayload.T_filt_C[0] = FilteredSensorT_C(0);  // defroster T,H left
+        logPayload.T_filt_C[1] = FilteredSensorT_C(1);  // defroster T,H right
+        logPayload.T_filt_C[2] = FilteredSensorT_C(2);  // defroster T,H center
+        logPayload.T_filt_C[3] = FilteredSensorT_C(3);  // fish T left
+        logPayload.T_filt_C[4] = FilteredSensorT_C(4);  // fish T right
+        logPayload.T_filt_C[5] = FilteredSensorT_C(5);  // defroster operating T
 
-         s_controlLogPayload.phase = s_lastPhase;
-         s_controlLogPayload.eT_common = eT_common;
-         s_controlLogPayload.heatScale01 = heatScale01;
-         s_controlLogPayload.uCommon_TEN = uCommon_TEN;
-         s_controlLogPayload.trim_TEN = trim_TEN;
-         s_controlLogPayload.uLeft_TEN = uLeft_TEN;
-         s_controlLogPayload.uRight_TEN = uRight_TEN;
-         s_controlLogPayload.leftTen1Duty = leftTen1Duty;
-         s_controlLogPayload.leftTen2Duty = leftTen2Duty;
-         s_controlLogPayload.rightTen1Duty = rightTen1Duty;
-         s_controlLogPayload.rightTen2Duty = rightTen2Duty;
-         s_controlLogPayload.w_sup_avg = w_sup_avg;
-         s_controlLogPayload.wErr = wErr;
-         s_controlLogPayload.injDuty = injDuty;
-         s_controlLogPayload.rate_Cps = rate_Cps;
-         s_controlLogPayload.fishHot_C = fishHot_C;
-         s_controlLogPayload.fishCold_C = fishCold_C;
+         logPayload.phase = s_lastPhase;
+         logPayload.eT_common = eT_common;
+         logPayload.heatScale01 = heatScale01;
+         logPayload.uCommon_TEN = uCommon_TEN;
+         logPayload.trim_TEN = trim_TEN;
+         logPayload.uLeft_TEN = uLeft_TEN;
+         logPayload.uRight_TEN = uRight_TEN;
+         logPayload.leftTen1Duty = leftTen1Duty;
+         logPayload.leftTen2Duty = leftTen2Duty;
+         logPayload.rightTen1Duty = rightTen1Duty;
+         logPayload.rightTen2Duty = rightTen2Duty;
+         logPayload.w_sup_avg = w_sup_avg;
+         logPayload.wErr = wErr;
+         logPayload.injDuty = injDuty;
+         logPayload.pidIntegral = coordinated ? s_plateauResult.integral : g.piSupplyCommon.i;
+         logPayload.pidDerivative = coordinated ? s_plateauResult.derivative : 0.0f;
+         logPayload.pidFeedforward = coordinated ? s_plateauResult.feedforward : ((inj_on || g.injFfTail_s) ? kInjFeedforward_Eq : 0.0f);
+         logPayload.pidWaterDuty = coordinated ? s_plateauResult.waterDuty : injDuty;
+         logPayload.rate_Cps = rate_Cps;
+         logPayload.fishHot_C = fishHot_C;
+         logPayload.fishCold_C = fishCold_C;
+        taskENTER_CRITICAL(); s_controlLogPayload = logPayload; taskEXIT_CRITICAL();
 
          // Устанавливаем порядок включения мощных устройств с интервалом между включениями
          ApplyOutputs(
@@ -1772,18 +1863,25 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
              StopExhaustHumidity();
          }
 
-         const uint8_t inj_on = LimitInjectorPulse(g.injHold.Step(inj_desired, 1u));
-         const float injDuty = inj_on ? 1.0f : 0.0f;
-         const uint8_t out_on = g.outOn ? 1 : 0;
-
+         uint8_t inj_on = 0u;
+         float uCommon_TEN = 0.0f;
          const float eT_common = tgt.supplySet_C - T_sup_avg_C;
-         float uCommon_TEN = g.piSupplyCommon.Step(eT_common, kDt_s, 0.0f, 2.0f);
-         uCommon_TEN = Clamp(uCommon_TEN + StepInjFeedforward_Eq(inj_on), 0.0f, 2.0f);
-         uCommon_TEN *= heatScale01;
+         const uint8_t coordinated = StepCoordinatedPlateau(phase, airIn,
+             tgt.returnTargetRH_percent, tgt.supplySet_C, heatScale01, &inj_on, &uCommon_TEN);
+         if (coordinated == 0u)
+         {
+             inj_on = LimitInjectorPulse(g.injHold.Step(inj_desired, 1u));
+             uCommon_TEN = g.piSupplyCommon.Step(eT_common, kDt_s, 0.0f, 2.0f);
+             uCommon_TEN = Clamp(uCommon_TEN + StepInjFeedforward_Eq(inj_on), 0.0f, 2.0f);
+             uCommon_TEN *= heatScale01;
+         }
+         const float injDuty = inj_on ? 1.0f : 0.0f; // legacy log contract; requested fraction is in group 8
+         const uint8_t out_on = g.outOn ? 1 : 0;
 
          const float eT_diff = (airIn.okL != 0u && airIn.okR != 0u) ? (airIn.mL - airIn.mR) : 0.0f;
          float trim_TEN = g.leftRightTrimGain * eT_diff;
          trim_TEN = Clamp(trim_TEN, -g_defrostParams.leftRightTrimMaxEq, g_defrostParams.leftRightTrimMaxEq);
+         if (coordinated != 0u) trim_TEN *= heatScale01;
 
          float uLeft_TEN  = Clamp(uCommon_TEN - trim_TEN, 0.0f, 2.0f);
          float uRight_TEN = Clamp(uCommon_TEN + trim_TEN, 0.0f, 2.0f);
@@ -1806,32 +1904,38 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
          const uint8_t ventR_on = 1;
 
         s_lastPhase = static_cast<uint8_t>(phase);
-        s_controlLogPayload.phase = s_lastPhase;
-        s_controlLogPayload.eT_common = eT_common;
-        s_controlLogPayload.heatScale01 = heatScale01;
-        s_controlLogPayload.uCommon_TEN = uCommon_TEN;
-        s_controlLogPayload.trim_TEN = trim_TEN;
-        s_controlLogPayload.uLeft_TEN = uLeft_TEN;
-        s_controlLogPayload.uRight_TEN = uRight_TEN;
-        s_controlLogPayload.leftTen1Duty = leftTen1Duty;
-        s_controlLogPayload.leftTen2Duty = leftTen2Duty;
-        s_controlLogPayload.rightTen1Duty = rightTen1Duty;
-        s_controlLogPayload.rightTen2Duty = rightTen2Duty;
+        ControlLogPayload_t logPayload = {};
+        logPayload.phase = s_lastPhase;
+        logPayload.eT_common = eT_common;
+        logPayload.heatScale01 = heatScale01;
+        logPayload.uCommon_TEN = uCommon_TEN;
+        logPayload.trim_TEN = trim_TEN;
+        logPayload.uLeft_TEN = uLeft_TEN;
+        logPayload.uRight_TEN = uRight_TEN;
+        logPayload.leftTen1Duty = leftTen1Duty;
+        logPayload.leftTen2Duty = leftTen2Duty;
+        logPayload.rightTen1Duty = rightTen1Duty;
+        logPayload.rightTen2Duty = rightTen2Duty;
 
         // Отфильтрованные температуры 6 датчиков (индексы 0..5, в °C) — первыми в логе.
-        s_controlLogPayload.T_filt_C[0] = FilteredSensorT_C(0);  // defroster T,H left
-        s_controlLogPayload.T_filt_C[1] = FilteredSensorT_C(1);  // defroster T,H right
-        s_controlLogPayload.T_filt_C[2] = FilteredSensorT_C(2);  // defroster T,H center
-        s_controlLogPayload.T_filt_C[3] = FilteredSensorT_C(3);  // fish T left
-        s_controlLogPayload.T_filt_C[4] = FilteredSensorT_C(4);  // fish T right
-        s_controlLogPayload.T_filt_C[5] = FilteredSensorT_C(5);  // defroster operating T
+        logPayload.T_filt_C[0] = FilteredSensorT_C(0);  // defroster T,H left
+        logPayload.T_filt_C[1] = FilteredSensorT_C(1);  // defroster T,H right
+        logPayload.T_filt_C[2] = FilteredSensorT_C(2);  // defroster T,H center
+        logPayload.T_filt_C[3] = FilteredSensorT_C(3);  // fish T left
+        logPayload.T_filt_C[4] = FilteredSensorT_C(4);  // fish T right
+        logPayload.T_filt_C[5] = FilteredSensorT_C(5);  // defroster operating T
 
-        s_controlLogPayload.w_sup_avg = w_sup_avg;
-        s_controlLogPayload.wErr = wErr;
-        s_controlLogPayload.injDuty = injDuty;
-        s_controlLogPayload.rate_Cps = 0.0f;
-        s_controlLogPayload.fishHot_C = 0.0f;
-        s_controlLogPayload.fishCold_C = 0.0f;
+        logPayload.w_sup_avg = w_sup_avg;
+        logPayload.wErr = wErr;
+        logPayload.injDuty = injDuty;
+        logPayload.pidIntegral = coordinated ? s_plateauResult.integral : g.piSupplyCommon.i;
+        logPayload.pidDerivative = coordinated ? s_plateauResult.derivative : 0.0f;
+        logPayload.pidFeedforward = coordinated ? s_plateauResult.feedforward : ((inj_on || g.injFfTail_s) ? kInjFeedforward_Eq : 0.0f);
+        logPayload.pidWaterDuty = coordinated ? s_plateauResult.waterDuty : injDuty;
+        logPayload.rate_Cps = 0.0f;
+        logPayload.fishHot_C = 0.0f;
+        logPayload.fishCold_C = 0.0f;
+        taskENTER_CRITICAL(); s_controlLogPayload = logPayload; taskEXIT_CRITICAL();
 
          ApplyOutputs(
              ventL_on, ventR_on,
@@ -2204,6 +2308,14 @@ static uint8_t DefrostControl_GetParamInternal(uint8_t groupId, uint8_t paramId,
         return 0;
     }
 
+    if (groupId == DEFROST_PARAM_GROUP_PLATEAU && paramId < PLATEAU_PARAM_COUNT)
+    {
+        const PlateauParams p = PlateauSnapshot();
+        outValue->valueType = DEFROST_PARAM_TYPE_F32;
+        memcpy(&outValue->value.f32, ((const uint8_t*)&p) + paramId * 4u, 4u);
+        return 1u;
+    }
+
     switch (groupId)
     {
         case DEFROST_PARAM_GROUP_SENSORS:
@@ -2422,6 +2534,15 @@ static uint8_t DefrostControl_SetParamInternal(uint8_t groupId, uint8_t paramId,
     if (inValue == nullptr)
     {
         return 0;
+    }
+
+    if (groupId == DEFROST_PARAM_GROUP_PLATEAU)
+    {
+        if (paramId >= PLATEAU_PARAM_COUNT || inValue->valueType != DEFROST_PARAM_TYPE_F32) return 0u;
+        PlateauParams p = PlateauSnapshot();
+        memcpy(((uint8_t*)&p) + paramId * 4u, &inValue->value.f32, 4u);
+        if (!Plateau::Valid(p)) return 0u;
+        return CommitPlateauParams(p) ? 1u : 0u;
     }
 
     switch (groupId)
@@ -2737,7 +2858,7 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
     uint8_t DefrostControl_SetParam(uint8_t groupId, uint8_t paramId, const DefrostParamValue_t *inValue)
     {
         const uint8_t ok = DefrostControl_SetParamInternal(groupId, paramId, inValue);
-        if (ok != 0u)
+        if (ok != 0u && groupId != DEFROST_PARAM_GROUP_PLATEAU)
         {
             DefrostControl_SaveParams();
         }
@@ -2750,6 +2871,20 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
         if (outData == nullptr || outLength == nullptr)
         {
             return 0;
+        }
+
+        if (groupId == DEFROST_PARAM_GROUP_PLATEAU)
+        {
+            if (page != 0u || outCapacity < sizeof(PlateauParams)) return 0u;
+            const PlateauParams p = PlateauSnapshot();
+            memcpy(outData, &p, sizeof(p)); *outLength = sizeof(p); return 1u;
+        }
+        if (groupId == DEFROST_PARAM_GROUP_PLATEAU_DIAG)
+        {
+            if (page != 0u || outCapacity < 21u) return 0u;
+            Plateau::Result r;
+            taskENTER_CRITICAL(); r = s_plateauResult; taskEXIT_CRITICAL();
+            memcpy(outData, &r, 20u); outData[20] = r.water; *outLength = 21u; return 1u;
         }
 
         /* Группы 5 и 6: фиксированная структура — копирование куска памяти из g_defrostParams. */
@@ -2838,6 +2973,13 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
         if (payload == nullptr)
         {
             return 0;
+        }
+        if (groupId == DEFROST_PARAM_GROUP_PLATEAU)
+        {
+            if (payloadLen != sizeof(PlateauParams)) return 0u;
+            PlateauParams p; memcpy(&p, payload, sizeof(p));
+            if (!Plateau::Valid(p)) return 0u;
+            return CommitPlateauParams(p) ? 1u : 0u;
         }
         if (groupId == DEFROST_PARAM_GROUP_LOG_PHASE)
         {
@@ -2976,11 +3118,15 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
     void DefrostControl_SaveParams(void)
     {
         PersistParamsToEepromIfAvailable();
+        PersistPlateauSnapshot();
     }
 
     void DefrostControl_RestoreDefaultParams(void)
     {
         LoadDefaultParams(&g_defrostParams);
+        const PlateauParams defaults = Plateau::Defaults();
+        taskENTER_CRITICAL(); s_plateauParams = defaults; taskEXIT_CRITICAL();
+        g_plateauEepromPersistPending = true;
         for (uint8_t i = 0; i < kDefrostSensorCount; ++i)
         {
             Sensor_array[i].UseInDefrost = (g_defrostParams.sensorUseInDefrost[i] != 0u) ? 1u : 0u;
@@ -3002,6 +3148,10 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
         g_defrostEepromAvailable = EEPROM::Init();
         g_defrostEepromPersistPending = false;  // флаг ожидания записи в EEPROM
         SensorConfig_Load(g_defrostEepromAvailable);
+        s_plateauParams = Plateau::Defaults();
+        g_plateauEepromPersistPending = false;
+        if (g_defrostEepromAvailable && !PlateauEepromStore::Load(s_plateauParams))
+            g_plateauEepromPersistPending = true; // write initial/default CRC record on first RTOS tick
         if (g_defrostEepromAvailable)
         {
             DefrostEepromStorage_t rec = {};  // инициализация структуры
@@ -3201,7 +3351,9 @@ extern "C" {
 ControlLogPayload_t DefrostControl_GetControlLogPayload(void)
 {
 	ControlLogPayload_t out = {};
+    taskENTER_CRITICAL();
     memcpy(&out, &s_controlLogPayload, sizeof(ControlLogPayload_t));
+    taskEXIT_CRITICAL();
     return out;
 }
 #ifdef __cplusplus
