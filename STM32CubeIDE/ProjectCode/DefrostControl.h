@@ -10,8 +10,6 @@
 
 #define DEFROST_PHASE_COUNT 3
 #define DEFROST_MAX_SENSOR_COUNT 6   /* в алгоритме участвуют только датчики 0..5 */
-/** Таймаут достижения положения заслонки по Air_Close (1=закрыта или открывается / 0=открыта), с. */
-#define DEFROST_FLAP_POSITION_TIMEOUT_S  18u
 
 typedef enum {
     DEFROST_PARAM_GROUP_SENSORS = 1,
@@ -113,6 +111,8 @@ uint8_t DefrostControl_UsesNewWrkAlrAlgorithm(void);
 void DefrostControl_NotifyFlapWaterDiMismatchFromIo(void);
 /** Секунды с момента смены Water_Flap при включённой проверке (0, если проверка выключена). Для грации в ModBus. */
 uint16_t DefrostControl_GetFlapTransitionElapsedSForSwitchCheck(void);
+/** Допустимое время хода заслонки: параметр outDamperTimer_s, с. */
+uint16_t DefrostControl_GetFlapPositionTimeoutS(void);
 
 /* Ответ GET_DEFROST_GROUP(groupId=5): фиксированная структура — копирование памяти, без TLV. */
 typedef struct __attribute__((packed)) {

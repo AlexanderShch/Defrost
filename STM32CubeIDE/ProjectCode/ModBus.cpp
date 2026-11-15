@@ -525,7 +525,7 @@ static void DetectFlapAlarmAfterIoRead(void)
 		return;
 
 	const uint16_t flapElapsed = DefrostControl_GetFlapTransitionElapsedSForSwitchCheck();
-	if (flapElapsed >= (uint16_t)DEFROST_FLAP_POSITION_TIMEOUT_S)
+	if (flapElapsed >= DefrostControl_GetFlapPositionTimeoutS())
 		DefrostControl_NotifyFlapWaterDiMismatchFromIo();
 }
 

@@ -962,11 +962,11 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
             }
             else
             {
-                if (g.flapTransitionElapsed_s < DEFROST_FLAP_POSITION_TIMEOUT_S)
+                if (g.flapTransitionElapsed_s < g_defrostParams.outDamperTimer_s)
                 {
                     ++g.flapTransitionElapsed_s;
                 }
-                if (g.flapTransitionElapsed_s >= DEFROST_FLAP_POSITION_TIMEOUT_S)
+                if (g.flapTransitionElapsed_s >= g_defrostParams.outDamperTimer_s)
                 {
                     g.flapAlarm = 1u;
                 }
@@ -1203,7 +1203,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
         Model::DFR.Ten2_Right  = g.stagedTen2RightOn ? 1 : 0;
  
          Model::DFR._Inj        = injOn ? 1 : 0;
-         Model::DFR._Out        = outOn ? 1 : 0;
+         Model::DFR._Out        = (outOn && Model::DFR.Water_Flap != 0u &&
+                                  Model::DI_DFR.Bits.Air_Close == 0u) ? 1 : 0;
         ApplyModeLamps(LampModeState::AutoActive);
      }
 
@@ -1241,7 +1242,6 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
 
          // Air_Close=0 — заслонка открыта, после outFanDelay_s можно включать вентилятор.
          // Air_Close=1 — закрыта или ещё открывается, вентилятор держим выключенным.
-         const uint8_t switchCheckOn = (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u) ? 1u : 0u;
          const uint8_t flapOpened =
              ((Model::DFR.Water_Flap != 0u) && (Model::DI_DFR.Bits.Air_Close == 0u)) ? 1u : 0u;
 
@@ -1257,16 +1257,10 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
              {
                  g.outDamperTimer_s--;
              }
-             else if (switchCheckOn == 0u)
-             {
-                 // Концевик не используем: после outDamperTimer_s считаем заслонку открытой.
-                 g.outDamperState = 2u;
-                 g.outDamperTimer_s = g_defrostParams.outFanDelay_s;
-             }
          }
          else if (g.outDamperState == 2u)
          {
-             if (switchCheckOn != 0u && flapOpened == 0u)
+             if (flapOpened == 0u)
              {
                  g.outDamperState = 1u;
                  g.outFanOn = 0u;
@@ -1277,12 +1271,12 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
              else
              {
                  g.outDamperState = 3u;
-                 g.outFanOn = (g.flapAlarm == 0u && (switchCheckOn == 0u || flapOpened != 0u)) ? 1u : 0u;
+                 g.outFanOn = (g.flapAlarm == 0u && flapOpened != 0u) ? 1u : 0u;
              }
          }
          else if (g.outDamperState == 3u)
          {
-             if (switchCheckOn != 0u && flapOpened == 0u)
+             if (flapOpened == 0u)
              {
                  g.outFanOn = 0u;
                  g.outDamperState = 1u;
@@ -1902,6 +1896,15 @@ static void HandleFlapAlarmDuringShutdown()
     if (g_defrostParams.useNewWrkAlrAlgorithm != 0u && g.shutdownActive != 0u)
         ShutdownGoToFullGateOpen_VentCleanup();
 }
+
+/** При недоступной RH продуваем по таймауту; при RH ниже порога продувка не нужна. */
+static uint8_t ShutdownVentilationNeeded(void)
+{
+    const uint8_t rhOk = DefrostAirThChannelUsable(kSensReturn_T_H) ? 1u : 0u;
+    const float RH_ret = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
+    const float thrRH = Clamp(g_defrostParams.humidityThresholdRH_percent, 10.0f, 100.0f);
+    return (rhOk == 0u || RH_ret >= thrRH) ? 1u : 0u;
+}
  
  static void ShutdownSequence()
 {
@@ -1919,9 +1922,9 @@ static void HandleFlapAlarmDuringShutdown()
     g.shutdownGateOpenReleased = 0;
     g.shutdownGateOpenSawActive = 0;
     g.shutdownGateOpenPhase_s = 0;
-    // Открываем заслонку сразу с началом завершения процесса.
-    // Вытяжка (_Out) остаётся выключенной до шага Ventilation.
-    Model::DFR.Water_Flap = 1u;
+    // Открываем заслонку заранее, только если влажность требует продувки.
+    // Вытяжка (_Out) остаётся выключенной до подтверждения Air_Close=0 в Ventilation.
+    Model::DFR.Water_Flap = ShutdownVentilationNeeded();
     g.outDamperState = 0;
     g.outDamperTimer_s = 0;
     g.outFanOn = 0;
@@ -1994,7 +1997,11 @@ static void ProcessShutdownStage1s()
         // Шаг 2: продувка перед полным открытием ворот.
         // Авария заслонки или Vent_Out → шаг пропускаем (сразу FullGateOpen), алгоритм уже остановлен штатно.
         // Без DeviceSwitchCheck: таймаут ожидания Air_Close; Vent_Out не учитываем.
-        if (ShouldSkipShutdownVentilation() != 0u)
+        if (ShutdownVentilationNeeded() == 0u)
+        {
+            ShutdownGoToFullGateOpen_VentCleanup();
+        }
+        else if (ShouldSkipShutdownVentilation() != 0u)
         {
             if ((Model::Device_AlarmFlags & (uint16_t)(1u << 11)) != 0u || g.flapAlarm != 0u)
                 DetectFlapAlarmDuringShutdown();
@@ -2008,7 +2015,7 @@ static void ProcessShutdownStage1s()
         const uint8_t switchCheckOn = (DefrostControl_IsDeviceSwitchCheckEnabled() != 0u) ? 1u : 0u;
         const uint8_t flapTimedOut = (switchCheckOn != 0u)
             ? ((g.flapAlarm != 0u) ? 1u : 0u)
-            : ((g.shutdownFlapOpenWait_s >= DEFROST_FLAP_POSITION_TIMEOUT_S) ? 1u : 0u);
+            : ((g.shutdownFlapOpenWait_s >= g_defrostParams.outDamperTimer_s) ? 1u : 0u);
 
         if (flapTimedOut != 0u && flapOpened == 0u)
         {
@@ -2022,7 +2029,7 @@ static void ProcessShutdownStage1s()
             Model::DFR._Out = 0u;
             if (switchCheckOn == 0u)
             {
-                if (g.shutdownFlapOpenWait_s < DEFROST_FLAP_POSITION_TIMEOUT_S)
+                if (g.shutdownFlapOpenWait_s < g_defrostParams.outDamperTimer_s)
                     ++g.shutdownFlapOpenWait_s;
             }
         }
@@ -2051,16 +2058,11 @@ static void ProcessShutdownStage1s()
                     g.shutdownOutFanRemain_s = purgeTo;
                 }
 
-                /* Конец продувки: по порогу RH (если измерение доступно) или по таймауту. */
-                const uint8_t rhOk = DefrostAirThChannelUsable(kSensReturn_T_H) ? 1u : 0u;
-                const float RH_ret = DeciToRH((int16_t)Model::getCurrentVal_H(kSensReturn_T_H));
-                const float thrRH = Clamp(g_defrostParams.humidityThresholdRH_percent, 10.0f, 100.0f);
+                /* Порог RH проверен до ожидания заслонки; здесь ограничиваем время продувки. */
                 if (g.shutdownOutFanRemain_s > 0u)
                     g.shutdownOutFanRemain_s--;
 
-                const uint8_t humidityReached =
-                    ((rhOk != 0u) && (RH_ret < thrRH)) ? 1u : 0u;
-                if (g.shutdownOutFanRemain_s == 0u || humidityReached != 0u)
+                if (g.shutdownOutFanRemain_s == 0u)
                 {
                     g.outFanOn = 0u;
                     g.shutdownOutFanRemain_s = 0u;
@@ -2095,11 +2097,11 @@ static void ProcessShutdownStage1s()
         }
         else   // если проверка устройств выключена
         {
-            if (g.shutdownFlapOpenWait_s < DEFROST_FLAP_POSITION_TIMEOUT_S)   // если время ожидания закрытия заслонки ещё меньше таймаута
+            if (g.shutdownFlapOpenWait_s < g_defrostParams.outDamperTimer_s)   // если время ожидания закрытия заслонки ещё меньше таймаута
             {
                 ++g.shutdownFlapOpenWait_s;   // ожидаем и увеличиваем время ожидания закрытия заслонки
             }
-            flapCloseWaitDone = (g.shutdownFlapOpenWait_s >= DEFROST_FLAP_POSITION_TIMEOUT_S) ? 1u : 0u;   
+            flapCloseWaitDone = (g.shutdownFlapOpenWait_s >= g_defrostParams.outDamperTimer_s) ? 1u : 0u;
             // заслонка закрыта условно, время закрытия выдержано по таймауту
         }
 
@@ -3078,6 +3080,11 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
         if (g_defrostParams.useNewWrkAlrAlgorithm == 0u) return;
         g.flapAlarm = 1u;
         Model::Device_AlarmFlags |= (uint16_t)(1u << 11);
+    }
+
+    uint16_t DefrostControl_GetFlapPositionTimeoutS(void)
+    {
+        return g_defrostParams.outDamperTimer_s;
     }
 
     uint16_t DefrostControl_GetFlapTransitionElapsedSForSwitchCheck(void)
