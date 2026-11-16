@@ -17,7 +17,7 @@ inline bool Valid(const PlateauParams& p) {
 #define PLATEAU_CHECK(name, def, lo, hi) if(!isfinite(p.name)||p.name<lo||p.name>hi) return false;
  PLATEAU_FIELDS(PLATEAU_CHECK)
 #undef PLATEAU_CHECK
- return (p.enabled==0||p.enabled==1) && p.pulseMin_s<=p.pulseMax_s &&
+ return p.pulseMin_s<=p.pulseMax_s &&
    floorf(p.rateWindow_s)==p.rateWindow_s && floorf(p.pulseMax_s)==p.pulseMax_s &&
    floorf(p.pulseMin_s)==p.pulseMin_s && floorf(p.pauseMin_s)==p.pauseMin_s;
 }
@@ -37,7 +37,7 @@ public:
   Result out={};
   if(!Valid(p)||!isfinite(temperature)||!isfinite(setpoint)||!isfinite(heatScale)) { Reset();return out; }
   bool first=!initialized;
-  bool changed=!first && memcmp(&prev,&p,sizeof(p))!=0;
+  bool changed=!first && memcmp(((const uint8_t*)&prev)+sizeof(float),((const uint8_t*)&p)+sizeof(float),sizeof(p)-sizeof(float))!=0;
   if(first) { rhFiltered=isfinite(rh)?rh:rhSet;lastHeat=Bound(previousHeat,0,2); }
   if(changed && p.rateWindow_s!=prev.rateWindow_s) {count=0;slope=0;}
   unsigned window=(unsigned)p.rateWindow_s;

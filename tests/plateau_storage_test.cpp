@@ -52,5 +52,12 @@ extern "C" int test_main() {
  memcpy(Memory::bytes+0x180,&r,sizeof(r));CHECK(!Store::Load(loaded));
  // Startup fallback is backfilled and remains readable on the next reboot.
  CHECK(Store::Save(p));loaded=changed;CHECK(Store::Load(loaded));CHECK(memcmp(&loaded,&p,sizeof(p))==0);
+ // Existing EEPROM records with the former selector set to either value remain readable.
+ for(unsigned bit=0;bit<2;++bit) {
+  Plateau::StorageRecord old={};old.magic=0x37444950u;old.version=2;old.length=sizeof(p);
+  old.params=changed;old.params.reservedAlgorithm=(float)bit;old.crc=Plateau::StorageCrc(old);
+  memcpy(Memory::bytes+0x180,&old,sizeof(old));
+  CHECK(Store::Load(loaded));CHECK(loaded.tempKp==changed.tempKp&&loaded.tempKi==changed.tempKi);
+ }
  return 0;
 }

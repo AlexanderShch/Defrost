@@ -60,5 +60,30 @@ extern "C" int test_main() {
  float protectedI=r.integral;
  for(int q=0;q<1000;++q)r=c.Step(p,23,24,80,80,true,0,1);
  CHECK(fabsf(r.integral-protectedI)<1e-5f);
+ // The former enable bit is a reserved wire slot, never an algorithm switch.
+ p=Plateau::Defaults();PlateauParams compatible=p;compatible.reservedAlgorithm=0;
+ CHECK(Plateau::Valid(compatible));
+ Plateau::Controller normal,reservedZero;
+ for(int tick=0;tick<300;++tick) {
+  if(tick==150)compatible.reservedAlgorithm=1;
+  auto a=normal.Step(p,22,24,65,80,true,1,1);
+  auto b=reservedZero.Step(compatible,22,24,65,80,true,1,1);
+  CHECK(fabsf(a.heat-b.heat)<1e-6f&&fabsf(a.integral-b.integral)<1e-6f);
+  CHECK(a.water==b.water&&fabsf(a.waterDuty-b.waterDuty)<1e-6f);
+ }
+ // WarmUp -> Plateau -> Finish use the same live integrator. Setpoint changes
+ // do not clear I, D remains based on measured temperature, and protections apply.
+ p=Plateau::Defaults();p.ffMaxEq=0;c.Reset();
+ for(int tick=0;tick<10;++tick)r=c.Step(p,20,21,80,80,true,1,.5f);
+ const float warmupI=r.integral;
+ r=c.Step(p,20,20.5f,80,80,true,1,.5f);
+ CHECK(fabsf(r.integral-(warmupI+p.tempKi*.5f))<1e-6f);
+ const float plateauI=r.integral;
+ r=c.Step(p,20,22,80,80,true,1,.5f);
+ CHECK(fabsf(r.integral-(plateauI+p.tempKi*2))<1e-6f);
+ CHECK(fabsf(r.derivative)<1e-6f);
+ const float finishI=r.integral;
+ for(int tick=0;tick<100;++tick)r=c.Step(p,20,22,80,80,false,0,.5f);
+ CHECK(fabsf(r.integral-finishI)<1e-6f&&!r.water);
  return 0;
 }

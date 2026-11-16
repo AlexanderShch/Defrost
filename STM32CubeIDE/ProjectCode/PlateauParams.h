@@ -1,8 +1,8 @@
 #ifndef PLATEAU_PARAMS_H
 #define PLATEAU_PARAMS_H
-/* Wire group 7: 20 little-endian IEEE754 floats, unchanged groups 5/6. */
+/* Wire group 7: 20 float32 slots; slot 0 is reserved and never selects an algorithm. */
 #define PLATEAU_FIELDS(X) \
- X(enabled, 1.0f, 0.0f, 1.0f) \
+ X(reservedAlgorithm, 1.0f, 0.0f, 1.0f) \
  X(tempKp, .18f, 0.0f, 2.0f) \
  X(tempKi, .003f, 0.0f, .05f) \
  X(tempKd, 60.0f, 0.0f, 120.0f) \
