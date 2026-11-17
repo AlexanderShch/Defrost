@@ -815,7 +815,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
     static void DetectSensorAlarms1s(void)
     {
         // Выпадение: сырая T устойчиво выше фильтрованной, либо T близка к воздуху (в т.ч. старт контроллера).
-        // Возврат в алгоритм только по критерию после переходной вниз.
+        // После подтверждённого выпадения возврат — по переходной вниз;
+        // при обрыве связи классификация сохраняется, возврат — по Active.
         const int8_t dir[2] = {   // знаки догонки продукта
             Sensor::GetProductThermalChaseDir((unsigned char)kSensFish1_T),
             Sensor::GetProductThermalChaseDir((unsigned char)kSensFish2_T)
@@ -852,16 +853,14 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
         {
             if (usable[i] == 0u)
             {
-                g.productFallen[i] = 1u;
-                g.productCoolRecover[i] = 0u;
-                g.productClassified[i] = 0u;
+                // Потеря связи не меняет физическое состояние зонда. Active
+                // исключает его из расчёта и автоматически вернёт после ответа.
                 continue;
             }
             if (airRefValid == 0u)
             {
-                // Нет опоры по воздуху — не считаем зонд установленным в продукт.
-                g.productFallen[i] = 1u;
-                g.productCoolRecover[i] = 0u;
+                // Без воздушной опоры классификация неизвестна: сохраняем
+                // прежнее состояние, а не объявляем выпадение продукта.
                 continue;
             }
             const int8_t fishSens = (i == 0u) ? kSensFish1_T : kSensFish2_T;
@@ -922,14 +921,14 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
         };
         if (onBus[0] != 0u)
         {
-            if ((dir[0] > 0) || (g.productFallen[0] != 0u))
+            if ((dir[0] > 0) || (g.productClassified[0] != 0u && g.productFallen[0] != 0u))
                 Model::Device_AlarmFlags |= kProductFallenLeftBit;
             if (dir[0] < 0)
                 Model::Sensor_AlarmFlags |= kProductTDownLeftBit;
         }
         if (onBus[1] != 0u)
         {
-            if ((dir[1] > 0) || (g.productFallen[1] != 0u))
+            if ((dir[1] > 0) || (g.productClassified[1] != 0u && g.productFallen[1] != 0u))
                 Model::Device_AlarmFlags |= kProductFallenRightBit;
             if (dir[1] < 0)
                 Model::Sensor_AlarmFlags |= kProductTDownRightBit;
