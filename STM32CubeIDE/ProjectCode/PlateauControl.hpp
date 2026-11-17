@@ -21,7 +21,7 @@ inline bool Valid(const PlateauParams& p) {
    floorf(p.rateWindow_s)==p.rateWindow_s && floorf(p.pulseMax_s)==p.pulseMax_s &&
    floorf(p.pulseMin_s)==p.pulseMin_s && floorf(p.pauseMin_s)==p.pauseMin_s;
 }
-struct Result { float heat, integral, derivative, feedforward, waterDuty; uint8_t water; };
+struct Result { float heat, integral, derivative, feedforward, waterDuty, proportional; uint8_t water; };
 /* One invocation per real 1s control tick; no heap allocation, no IO. */
 class Controller {
  PlateauParams prev;
@@ -95,6 +95,8 @@ public:
    if(!((wanted>2&&error>0)||(wanted<0&&error<0)||(heatScale<.999f&&error>0)))integral=trial;
   }
   out.heat=Bound(p.tempKp*error+integral+derivative+ff,0,2);
+  // Фактическое P сохраняется в том же такте, что I/D/FF, для журнала сервера.
+  out.proportional=p.tempKp*error;
   out.integral=integral;out.derivative=derivative;out.feedforward=ff;
   lastHeat=out.heat;prev=p;initialized=true;
   return out;

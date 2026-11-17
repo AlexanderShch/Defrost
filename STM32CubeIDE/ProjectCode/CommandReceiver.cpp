@@ -11,6 +11,7 @@
 #include "Data.hpp"
 #include "DefrostControl.h"
 #include "version.h"
+#include "ButtonEvents.hpp"
 #include <string.h>
 #include <gui/model/model.hpp>
 
@@ -757,6 +758,27 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
             memcpy(&response.data[2], &sensorFlags, sizeof(uint16_t));
             response.dataLength = 4;
 
+            CommandReceiver_SendResponse(&response);
+            break;
+        }
+        case REQ_CMD_GET_BUTTON_EVENTS:
+        case REQ_CMD_ACK_BUTTON_EVENTS:
+        {
+            const bool read = cmd->commandCode == REQ_CMD_GET_BUTTON_EVENTS;
+            if (cmd->dataLength != (read ? 16u : 20u))
+                response.status = CMD_STATUS_INVALID_LENGTH;
+            else {
+                // Копирование/удаление ограничены размером RAM-очереди; UART
+                // отправляется после освобождения блокировки планировщика.
+                osKernelLock();
+                if (read) response.dataLength = g_buttonEvents.Read(cmd->data, response.data);
+                else {
+                    uint32_t sequence; memcpy(&sequence,cmd->data+16,4);
+                    if (!g_buttonEvents.Ack(cmd->data,sequence)) response.status=CMD_STATUS_EXECUTION_ERROR;
+                }
+                osKernelUnlock();
+            }
+            status=static_cast<CommandStatus_t>(response.status);
             CommandReceiver_SendResponse(&response);
             break;
         }

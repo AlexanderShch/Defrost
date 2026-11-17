@@ -30,7 +30,7 @@ extern "C" int test_main(){
  CHECK(c.dataLength==81);CHECK(BuildCommandBuffer(c,buffer,sizeof(buffer))==86);
  CHECK(BuildCommandBuffer(c,buffer,85)==0);
  // Exercise the actual server response parser at PID/log/diagnostics/max lengths.
- const unsigned sizes[]={0,60,74,82,85,89,105,113};
+ const unsigned sizes[]={0,60,74,82,85,89,105,109,113};
  for(unsigned k=0;k<sizeof(sizes)/sizeof(sizes[0]);++k){
   unsigned n=sizes[k];memset(buffer,0,sizeof(buffer));buffer[0]=3;buffer[1]=9;buffer[3]=n;
   for(unsigned i=0;i<n;++i)buffer[4+i]=i;

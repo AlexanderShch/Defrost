@@ -2,7 +2,8 @@
 #include "DefrostControl.h"
 #include "ServerTxSize.h"
 #include <stddef.h>
-static_assert(sizeof(ControlLogPayload_t)==105,"Extended log payload");
+static_assert(sizeof(ControlLogPayload_t)==109,"Extended log payload");
+static_assert(offsetof(ControlLogPayload_t,pidProportional)==105,"P follows existing diagnostics");
 static_assert(offsetof(ControlLogPayload_t,pidIntegral)==89,"Legacy prefix must not move");
 static_assert(4+sizeof(ControlLogPayload_t)+2<=SERVER_TX_ITEM_SIZE-2,"Extended frame fits queue");
 #define CHECK(x) do { if(!(x)) return __LINE__; } while(0)
@@ -31,6 +32,7 @@ extern "C" int test_main() {
  r=c.Step(p,24,25,80,80,true,1,1);CHECK(fabsf(r.derivative)<1e-6f);
  // Saturation includes FF; prolonged high demand cannot wind up without limit.
  c.Reset();for(int n=0;n<2000;++n)r=c.Step(p,20,24,60,80,true,1,1);
+ CHECK(fabsf(r.proportional-p.tempKp*4)<1e-6f);
  CHECK(r.heat<=2&&r.integral<2);CHECK(r.waterDuty<=p.humidityDutyMax+1e-6f);
  // Water scheduling depends only on humidity; temperature cannot postpone water.
  Plateau::Controller hot,cold;bool hadWater=false;int run=0,pause=600,lastRun=0;

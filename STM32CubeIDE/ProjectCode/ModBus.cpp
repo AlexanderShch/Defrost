@@ -5,6 +5,9 @@
 #include "EEPROM.hpp"
 #include "CommandReceiver.hpp"
 #include "DefrostControl.h"
+#include "ButtonEvents.hpp"
+
+ButtonEventQueue g_buttonEvents;
 #include "stdio.h"
 #include "task.h"
 #include "string.h"
@@ -741,13 +744,21 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 				}
 				else if (butStopNow == 0u && DefrostControl_IsEnabled() != 0u)
 				{
-					// В норме But_Stop=1. Уровень 0 при активном автоалгоритме трактуем как команду STOP (как от сервера).
+					// В норме But_Stop=1. Событие создаём именно при обработке
+                    // физического СТОП, а не по редкому снимку входов на сервере.
+                    osKernelLock();
+                    g_buttonEvents.Push(2u, TimeFromStart);
+                    osKernelUnlock();
 					DefrostControl_SetEnabled(0);
 				}
 
 				else if (butStartNow != 0u && g_prevButStart == 0u && DefrostControl_IsEnabled() == 0u)
 				{
-					// Вход But_Start (бит 14, IN14) запускает автоалгоритм только по фронту и только если авто ещё не запущен.
+					// Вход But_Start запускает по фронту. Сохраняем событие до
+                    // смены режима; удержание и команды сервера его не дублируют.
+                    osKernelLock();
+                    g_buttonEvents.Push(1u, TimeFromStart);
+                    osKernelUnlock();
 					DefrostControl_SetEnabled(1);
 				}
 				g_prevButStart = butStartNow;

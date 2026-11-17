@@ -170,6 +170,8 @@ typedef struct __attribute__((packed)) {
     float fishHot_C, fishCold_C;
     /* v2.12: append-only extension; first 89 bytes retain legacy layout. */
     float pidIntegral, pidDerivative, pidFeedforward, pidWaterDuty;
+    // Добавлено в конец: первые 105 байт совместимы с прежним форматом лога.
+    float pidProportional;
 } ControlLogPayload_t;
 
 ControlLogPayload_t DefrostControl_GetControlLogPayload(void);
