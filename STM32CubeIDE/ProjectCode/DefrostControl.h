@@ -172,6 +172,7 @@ typedef struct __attribute__((packed)) {
     float pidIntegral, pidDerivative, pidFeedforward, pidWaterDuty;
     // Добавлено в конец: первые 105 байт совместимы с прежним форматом лога.
     float pidProportional;
+    float supplyAverage_C; // Температура подачи, использованная регулятором.
 } ControlLogPayload_t;
 
 ControlLogPayload_t DefrostControl_GetControlLogPayload(void);

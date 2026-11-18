@@ -41,7 +41,7 @@ extern unsigned int TimeFromStart;
 
 /* Буфер параметров для лога (заполняется в ControlStep1s/ControlStep1s_AirOnly, читается из Data.cpp). */
 static ControlLogPayload_t s_controlLogPayload;
-static_assert(sizeof(ControlLogPayload_t) == 109, "ControlLogPayload_t size must be 109 bytes");
+static_assert(sizeof(ControlLogPayload_t) == 113, "ControlLogPayload_t size must be 113 bytes");
 static_assert(4u + sizeof(ControlLogPayload_t) + 2u <= SERVER_TX_ITEM_SIZE - 2u, "Control log must fit TX queue");
 /* Текущая фаза для ответа по REQ_CMD_GET_DEFROST_GROUP groupId 5 (группа 1 лога). */
 static uint8_t s_lastPhase = 0;
@@ -1650,6 +1650,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
          logPayload.pidFeedforward = s_plateauResult.feedforward;
          logPayload.pidWaterDuty = s_plateauResult.waterDuty;
          logPayload.pidProportional = s_plateauResult.proportional;
+         logPayload.supplyAverage_C = T_sup_avg_C;
          logPayload.rate_Cps = rate_Cps;
          logPayload.fishHot_C = fishHot_C;
          logPayload.fishCold_C = fishCold_C;
@@ -1787,6 +1788,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
         logPayload.pidFeedforward = s_plateauResult.feedforward;
         logPayload.pidWaterDuty = s_plateauResult.waterDuty;
          logPayload.pidProportional = s_plateauResult.proportional;
+         logPayload.supplyAverage_C = T_sup_avg_C;
         logPayload.rate_Cps = 0.0f;
         logPayload.fishHot_C = 0.0f;
         logPayload.fishCold_C = 0.0f;

@@ -18,7 +18,7 @@
 // GET_DEFROST_GROUP(5) возвращает DefrostLogPhasePayload_t (72 байта) + 2 (groupId, page) = 74 байта данных
 #define CMD_HEADER_SIZE 3
 #define CMD_CRC_SIZE 2
-#define CMD_MAX_DATA_LENGTH 113  // fits extended ControlLogPayload_t=105 and configuration groups
+#define CMD_MAX_DATA_LENGTH 113  // вмещает лог регулирования и группы конфигурации
 #define CMD_RESPONSE_HEADER_SIZE 4
 #define CMD_MAX_LENGTH (CMD_RESPONSE_HEADER_SIZE + CMD_MAX_DATA_LENGTH + CMD_CRC_SIZE)
 

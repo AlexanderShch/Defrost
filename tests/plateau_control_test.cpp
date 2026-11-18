@@ -2,7 +2,8 @@
 #include "DefrostControl.h"
 #include "ServerTxSize.h"
 #include <stddef.h>
-static_assert(sizeof(ControlLogPayload_t)==109,"Extended log payload");
+static_assert(sizeof(ControlLogPayload_t)==113,"Extended log payload");
+static_assert(offsetof(ControlLogPayload_t,supplyAverage_C)==109,"Supply average follows P");
 static_assert(offsetof(ControlLogPayload_t,pidProportional)==105,"P follows existing diagnostics");
 static_assert(offsetof(ControlLogPayload_t,pidIntegral)==89,"Legacy prefix must not move");
 static_assert(4+sizeof(ControlLogPayload_t)+2<=SERVER_TX_ITEM_SIZE-2,"Extended frame fits queue");
