@@ -596,10 +596,13 @@ MB_Error_t MB_IO_WriteOutputs(uint8_t SensIndex, uint16_t outputs)
 	const MB_Error_t result = Master_RW(&sw, Sensor_array[SensIndex].Address,
 		MB_CMD_WRITE_COILS, Type4_DO, 16u, writeBuffer);
 	// Раздельно учитываем ошибки передачи и ошибки получения подтверждения.
-	if (result == MB_ERROR_DMA_SEND || result == MB_ERROR_UART_SEND)
-		Sensor_array[SensIndex].TxErrorCnt++;
-	else if (result != MB_ERROR_NO)
-		Sensor_array[SensIndex].RxErrorCnt++;
+	if (Sensor_array[SensIndex].Active != 0u)
+	{
+		if (result == MB_ERROR_DMA_SEND || result == MB_ERROR_UART_SEND)
+			Sensor_array[SensIndex].TxErrorCnt++;
+		else if (result != MB_ERROR_NO)
+			Sensor_array[SensIndex].RxErrorCnt++;
+	}
 	// Датчики Т/Н после ответа модуля IO теряют запрос при паузе 5 мс, нужна та же выдержка, что между датчиками.
 	osDelay(FrameDelay1);
 	return result;
@@ -701,6 +704,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 
 	// Обработка считанных данных
 	bool needHoldPrevious = false;
+	const bool countErrors = Sensor_array[SensIndex].Active != 0u;
 	switch (result)
 	{
 		case MB_ERROR_NO: {
@@ -771,25 +775,31 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 		}
 		case MB_ERROR_DMA_SEND:
 		case MB_ERROR_UART_SEND:
-			Sensor_array[SensIndex].TxErrorCnt++;
+			if (countErrors)
+				Sensor_array[SensIndex].TxErrorCnt++;
 			needHoldPrevious = true;
 			break;
 		case MB_ERROR_COMMAND:
 		case MB_ERROR_WRONG_ADDRESS:
 		case MB_ERROR_WRONG_VALUE:
-			Sensor_array[SensIndex].ErrCnt++;
+			if (countErrors)
+				Sensor_array[SensIndex].ErrCnt++;
 			result = MB_ERROR_UART_RECIEVE;
-			Sensor_array[SensIndex].RxErrorCnt++;
+			if (countErrors)
+				Sensor_array[SensIndex].RxErrorCnt++;
 			needHoldPrevious = true;
 			break;
 		case MB_ERROR_UART_RECIEVE:
 		case MB_ERROR_DMA_RECIEVE:
-			Sensor_array[SensIndex].RxErrorCnt++;
+			if (countErrors)
+				Sensor_array[SensIndex].RxErrorCnt++;
 			needHoldPrevious = true;
 			break;
 		default:
-			Sensor_array[SensIndex].ErrCnt++;
-			Sensor_array[SensIndex].RxErrorCnt++;
+			if (countErrors)
+				Sensor_array[SensIndex].ErrCnt++;
+			if (countErrors)
+				Sensor_array[SensIndex].RxErrorCnt++;
 			result = MB_ERROR_UART_RECIEVE;
 			needHoldPrevious = true;
 			break;
@@ -1619,6 +1629,10 @@ static void MB_DiagRecord(const MB_Active_t *MB, MB_Error_t result, unsigned exp
 {
 	const uint8_t idx = s_mbDiagIndex;
 	if (idx >= SQ)
+		return;
+	// Неудачный пробный опрос неактивного устройства не является новым сбоем.
+	// Успешный ответ может закрыть серию ошибок, начатую до потери связи.
+	if (result != MB_ERROR_NO && Sensor_array[idx].Active == 0u)
 		return;
 	uint32_t lat = 0u;
 	if (s_mbRxDoneTick != 0u && s_mbTxDoneTick != 0u)
