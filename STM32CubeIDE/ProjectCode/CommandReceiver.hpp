@@ -74,6 +74,8 @@ typedef enum {
     REQ_CMD_SEND_STATE       = 0x08, // Отправить состояние: телеметрия
     REQ_CMD_GET_ALARM_FLAGS  = 0x09, // Запрос регистров аварий: устройства и датчики
     REQ_CMD_GET_BUTTON_EVENTS = 0x0B, // Прочитать очередь, не удаляя события
+    REQ_CMD_GET_EVENT = 0x0D,
+    REQ_CMD_ACK_EVENT = 0x0E,
     REQ_CMD_ACK_BUTTON_EVENTS = 0x0C, // Подтвердить записанный сервером префикс
     REQ_CMD_GET_SENSOR_DIAG  = 0x0A  // Причины ошибок приёма от датчиков за период с прошлого запроса
 } RequestCommand_t;

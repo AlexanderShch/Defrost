@@ -75,6 +75,7 @@ static void MB_QueueRxArm(MB_RxArmState_t *arm, uint8_t *buffer, uint16_t size)
 /* Диагностика обмена с датчиками UART5: заполняется в прерываниях текущей транзакции. */
 static volatile uint32_t s_mbTxDoneTick = 0;	// HAL_GetTick() по окончании передачи запроса
 static volatile uint32_t s_mbRxDoneTick = 0;	// HAL_GetTick() по окончании приёма ответа (IDLE)
+static volatile uint16_t programmingRxSize = 0;
 static volatile uint16_t s_mbRxSize = 0;		// длина принятого кадра из RxEvent
 static volatile uint32_t s_mbRxUartError = 0;	// ErrorCode UART5 (шум, кадр, переполнение) за транзакцию
 
@@ -483,12 +484,6 @@ static MB_Error_t MB_ReadSensorRegs(MB_Active_t *MB, uint8_t SensIndex, MB_Reg_t
 MB_Error_t ScanSensor(MB_Active_t *MB);
 MB_Error_t WriteToSensor(MB_Active_t *PR);
 MB_Error_t CheckAndWaitForActiveReception(UART_HandleTypeDef *uart, osSemaphoreId_t *sem_rx);
-// Ответ с полем ByteCount (0x01/0x02/0x03): [Addr][FC][ByteCount][Data…][CRC16], длина кадра = ByteCount+5
-#define CheckAnswerCRC (MB->Rx_Buffer[1] == (uint8_t)(CMD) && \
-	MB->Rx_Buffer[2] >= 1u && \
-	MB_GetCRC(MB->Rx_Buffer, (uint16_t)(MB->Rx_Buffer[2] + 5u)) == 0)
-// Ответ фиксированной длины 8 байт (0x05/0x06/0x0F/0x10 — echo запроса)
-#define PR_CheckAnswerCRC (MB->Rx_Buffer[1] == (uint8_t)(CMD) && MB_GetCRC(MB->Rx_Buffer, 8) == 0)
 int Parametr_CORR;
 
 // Проверка DO->DI управляется только runtime-параметром debugDisableDeviceSwitchCheck.
@@ -837,6 +832,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	}
 	else if (huart == &huart4)	// сканирование устройства на шине программирования
 	{
+        programmingRxSize = MAX_MB_BUFSIZE;
 		osSemaphoreRelease(PR_RX_Compl_SemHandle);
 	}
 }
@@ -889,6 +885,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 	{
 		if (UART4_IsOwner_Programming() != 0)
 		{
+			programmingRxSize = Size;
 			// Во время программирования датчиков UART4 RX-to-IDLE принадлежит ModBus-транзакциям.
 			// Приём сервера должен быть выключен, чтобы не конкурировать за DMA-буферы и семафоры.
 			osSemaphoreRelease(PR_RX_Compl_SemHandle);
@@ -1579,26 +1576,46 @@ static uint16_t MB_DiagRxBytesNow(UART_HandleTypeDef *uart)
 	return (left >= (uint32_t)MAX_MB_BUFSIZE) ? 0u : (uint16_t)(MAX_MB_BUFSIZE - left);
 }
 
-/* Причина отказа для кадра, который пришёл целиком, но не прошёл проверку Master_RW. */
-static MB_DiagCat_t MB_DiagClassifyAnswer(const MB_Active_t *MB, int address, MB_Command_t CMD, uint16_t rxLen)
+// Расширенные причины для журнала событий. Минутная сводка сохраняет старые 8 категорий.
+enum { MB_DETAIL_ADDRESS=8, MB_DETAIL_FUNCTION, MB_DETAIL_BYTE_COUNT, MB_DETAIL_EXTRA,
+       MB_DETAIL_EXCEPTION, MB_DETAIL_ECHO, MB_DETAIL_OK=255 };
+
+static unsigned MB_ExpectedLength(MB_Command_t cmd, uint16_t quantity)
 {
-	if (s_mbRxUartError != 0u)
-		return MB_DIAG_UART_ERR;
-	if (rxLen < 5u)
-		return MB_DIAG_SHORT;
-	if (MB->Rx_Buffer[0] != (uint8_t)address || MB->Rx_Buffer[1] != (uint8_t)CMD)
-		return MB_DIAG_FORMAT;
-	const bool echo = (CMD == MB_CMD_WRITE_REG || CMD == MB_CMD_WRITE_COIL ||
-		CMD == MB_CMD_WRITE_COILS || CMD == MB_CMD_WRITE_REGS);
-	const uint16_t need = echo ? 8u : (uint16_t)(MB->Rx_Buffer[2] + 5u);
-	if (rxLen < need)
-		return MB_DIAG_SHORT;
-	if (MB_GetCRC((volatile uint8_t *)MB->Rx_Buffer, need) != 0u)
-		return MB_DIAG_CRC;
-	return MB_DIAG_FORMAT;
+    if (cmd == MB_CMD_READ_REGS) return 5u + 2u*quantity;
+    if (cmd == MB_CMD_READ_COILS || cmd == MB_CMD_READ_INPUT) return 5u + (quantity+7u)/8u;
+    return 8u;
 }
 
-static void MB_DiagRecord(const MB_Active_t *MB, MB_Error_t result)
+static uint8_t MB_CheckSensorReply(MB_Active_t* mb, MB_Command_t cmd, unsigned expected, unsigned received)
+{
+    const uint8_t* frame = mb->Rx_Buffer;
+    const bool programming = mb->UART == &huart4;
+    if (!programming && s_mbRxUartError) return MB_DIAG_UART_ERR;
+    if (!received) return MB_DIAG_NO_ANSWER;
+    if (received > sizeof(mb->Rx_Buffer)) return MB_DETAIL_EXTRA;
+    if (received < 5) return MB_DIAG_SHORT;
+    if (frame[0] != mb->Tx_Buffer[0] && !(programming && mb->Tx_Buffer[0]==0xFF)) return MB_DETAIL_ADDRESS;
+    if (frame[1] == (uint8_t)(cmd | 0x80)) {
+        if (received != 5) return MB_DETAIL_EXTRA;
+        return MB_GetCRC(mb->Rx_Buffer,5) ? (uint8_t)MB_DIAG_CRC : (uint8_t)MB_DETAIL_EXCEPTION;
+    }
+    if (frame[1] != (uint8_t)cmd) return MB_DETAIL_FUNCTION;
+    if (received < expected) return MB_DIAG_SHORT;
+    if (received > expected) return MB_DETAIL_EXTRA;
+    const bool reading = cmd == MB_CMD_READ_REGS || cmd == MB_CMD_READ_COILS || cmd == MB_CMD_READ_INPUT;
+    if (reading && frame[2] != expected-5u) return MB_DETAIL_BYTE_COUNT;
+    if (MB_GetCRC(mb->Rx_Buffer,received) != 0) return MB_DIAG_CRC;
+    if (!reading && (!programming || (Model::Type_of_sensor==5 && cmd!=MB_CMD_WRITE_REG)) && memcmp(frame,mb->Tx_Buffer,6)) return MB_DETAIL_ECHO;
+    return MB_DETAIL_OK;
+}
+
+struct SensorFailureRun {
+    uint32_t firstSec, attempts;
+};
+// У IO три независимых запроса. Успех записи DO не завершает сбой чтения DI.
+static SensorFailureRun failureRuns[SQ][3];
+static void MB_DiagRecord(const MB_Active_t *MB, MB_Error_t result, unsigned expected, uint8_t detailReason, uint32_t started)
 {
 	const uint8_t idx = s_mbDiagIndex;
 	if (idx >= SQ)
@@ -1607,8 +1624,34 @@ static void MB_DiagRecord(const MB_Active_t *MB, MB_Error_t result)
 	if (s_mbRxDoneTick != 0u && s_mbTxDoneTick != 0u)
 		lat = s_mbRxDoneTick - s_mbTxDoneTick;
 
-	osKernelLock();
-	MB_SensorDiag_t *d = &s_diag[idx];
+	if (!s_mbRxDoneTick || !s_mbTxDoneTick || s_mbDiagCat == MB_DIAG_OTHER ||
+        (s_mbDiagCat == MB_DIAG_CAT_COUNT && result != MB_ERROR_NO)) lat = HAL_GetTick() - started;
+    const uint8_t function = MB->Tx_Buffer[1];
+    const unsigned stream = function == MB_CMD_READ_INPUT ? 1 : (function == MB_CMD_READ_COILS ? 2 : 0);
+    SensorFailureRun& run = failureRuns[idx][stream];
+    osKernelLock();
+    if ((result != MB_ERROR_NO && run.attempts == 0) || (result == MB_ERROR_NO && run.attempts)) {
+        SensorEventDetail info = {};
+        info.index = idx;
+        info.address = MB->Tx_Buffer[0];
+        info.function = function;
+        info.reason = detailReason;
+        info.expected = MB_DiagSat8(expected);
+        info.received = MB_DiagSat8(s_mbDiagRxLen);
+        info.uart = s_mbRxUartError;
+        info.elapsedMs = lat > 65535 ? 65535 : lat;
+        info.sampleSize = info.received < sizeof(info.sample) ? info.received : sizeof(info.sample);
+        memcpy(info.sample,MB->Rx_Buffer,info.sampleSize);
+        info.attempts = run.attempts;
+        if (run.attempts) info.durationSec = TimeFromStart-run.firstSec;
+        g_buttonEvents.PushDiagnostic(result == MB_ERROR_NO ? 4 : 3,TimeFromStart,info);
+    }
+    if (result == MB_ERROR_NO) run.attempts = 0;
+    else {
+        if (!run.attempts) run.firstSec = TimeFromStart;
+        if (run.attempts != UINT32_MAX) ++run.attempts;
+    }
+    MB_SensorDiag_t *d = &s_diag[idx];
 	if (result == MB_ERROR_NO)
 	{
 		if (d->ok < 255u) d->ok++;
@@ -1622,7 +1665,7 @@ static void MB_DiagRecord(const MB_Active_t *MB, MB_Error_t result)
 		s_diagSnapCat = cat;
 		s_diagSnapRxLen = MB_DiagSat8(s_mbDiagRxLen);
 		s_diagSnapUartErr = (uint8_t)(s_mbRxUartError & 0xFFu);
-		s_diagSnapLatMs = (cat == MB_DIAG_NO_ANSWER) ? 0u : MB_DiagSat8(lat);
+		s_diagSnapLatMs = MB_DiagSat8(lat);
 		memcpy(s_diagSnapBytes, MB->Rx_Buffer, MB_DIAG_SNAPSHOT_BYTES);
 	}
 	osKernelUnlock();
@@ -1700,7 +1743,11 @@ uint8_t MB_SensorDiag_Fill(uint8_t *out, uint8_t capacity)
 MB_Error_t Master_RW(MB_Active_t *MB, int SensAddress, MB_Command_t CMD, MB_Reg_t START_REG, uint16_t DATA, MultWR_t WR_Buf)
 {
 	MB_Error_t result;
-	const bool diag = (MB->UART == &huart5);
+	const unsigned expected = MB_ExpectedLength(CMD,DATA);
+    const uint32_t started = HAL_GetTick();
+    uint8_t detailReason = MB_DIAG_OTHER;
+    if (MB->UART == &huart4) programmingRxSize = 0;
+    const bool diag = (MB->UART == &huart5);
 	if (diag)
 	{
 		s_mbDiagIndex = MB_DiagFindIndex(SensAddress);
@@ -1744,88 +1791,52 @@ MB_Error_t Master_RW(MB_Active_t *MB, int SensAddress, MB_Command_t CMD, MB_Reg_
 		// для обычных команд кадр фиксированного размера (N_Bytes, обычно 8 байт) уже готов, просто отправляется без дополнительной сборки.
 		result = Master_Request(MB, N_Bytes);
 	
-	// проверяем результат отправки и приёма данных
+	if (result == MB_ERROR_NO) {
+        detailReason = MB_CheckSensorReply(MB,CMD,expected,diag ? s_mbDiagRxLen : programmingRxSize);
+        if (detailReason != MB_DETAIL_OK) {
+            if (diag) s_mbDiagCat = detailReason < MB_DIAG_CAT_COUNT ? detailReason : (uint8_t)MB_DIAG_FORMAT;
+            result = MB_ERROR_UART_RECIEVE;
+        }
+    } else if (diag && s_mbDiagCat < MB_DIAG_CAT_COUNT) {
+        detailReason = s_mbDiagCat;
+    }
+    // проверяем результат отправки и приёма данных
 	if (result == MB_ERROR_NO)
 	{
-		// Данные приняты по UART — проверяем Command+CRC; при провале Read_Data_* не трогаем.
-		switch (CMD)	{
-			case MB_CMD_READ_COILS:	{
-				// DOutput Coils модуля ВВ: ожидаем ByteCount>=2 (16 катушек)
-				// проверяем с CheckAnswerCRC: код функции в ответе совпадает с запрошенным CMD, CRC всего принятого кадра корректен,
-				// & ByteCount>=2 (16 катушек)
-				if (CheckAnswerCRC && MB->Rx_Buffer[2] >= 2u)
-					MB->Read_Data_1 = *(uint16_t*) &MB->Rx_Buffer[3];
-				else
-					// если не прошли проверку, то возвращаем ошибку
-					result = MB_ERROR_UART_RECIEVE;
-				break;	}
-			case MB_CMD_READ_INPUT:	{
-				// DInput модуля ВВ: ожидаем ByteCount>=2 (16 входов)
-				// проверяем с CheckAnswerCRC: код функции в ответе совпадает с запрошенным CMD, CRC всего принятого кадра корректен,
-				// & ByteCount>=2 (16 входов)
-				if (CheckAnswerCRC && MB->Rx_Buffer[2] >= 2u)
-					MB->Read_Data_2 = *(uint16_t*) &MB->Rx_Buffer[3];
-				else
-					// если не прошли проверку, то возвращаем ошибку
-					result = MB_ERROR_UART_RECIEVE;
-				break;	}
-			case MB_CMD_READ_REGS: {	
-				// holding-регистры - это регистры для хранения данных (датчики TH/PT100, сканирование ВВ)
-				// проверяем с CheckAnswerCRC: код функции в ответе совпадает с запрошенным CMD, CRC всего принятого кадра корректен,
-				// Для типа 5 дополнительно проверяем ByteCount и адрес ответа как при
-				// обычном опросе UART5, так и при программировании через UART4.
-				// Для поиска по FF адрес заранее неизвестен; его проверит ScanSensor.
-				const bool type5Read = (MB->UART == &huart4 && Model::Type_of_sensor == 5) ||
-					(diag && s_mbDiagIndex < SQ && Sensor_array[s_mbDiagIndex].TypeOfSensor == 5);
-				if (CheckAnswerCRC && (!type5Read ||
-					(MB->Rx_Buffer[2] == DATA * 2u && (SensAddress == 0xFF || MB->Rx_Buffer[0] == SensAddress))))
-				{
-					// если DATA == 1, то считываем один регистр
-					if (DATA == 1)
-					{
-						MB->Read_Data_1 = 0;
-						MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
-					}
-					else
-					// если DATA != 1, то считываем два регистра
-					{
-						MB->Read_Data_1 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[3]);
-						MB->Read_Data_2 = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[5]);
-					}
-				}
-				else
-					// если не прошли проверку, то возвращаем ошибку
-					result = MB_ERROR_UART_RECIEVE;
-				break;	}
-			case MB_CMD_WRITE_REG: {
-				// holding-регистры - это регистры для хранения данных (датчики TH/PT100, сканирование ВВ)
-				// проверяем с PR_CheckAnswerCRC: код функции в ответе совпадает с запрошенным CMD, CRC всего принятого кадра корректен,
-				if (PR_CheckAnswerCRC)
-				{
-					// если прошли проверку, то считываем значение из регистра
-					Sens_WR_value = SwapBytes( *(uint16_t*) &MB->Rx_Buffer[4]);
-				}
-				else
-					// если не прошли проверку, то возвращаем ошибку
-					result = MB_ERROR_UART_RECIEVE;
-				break;	}
-			case MB_CMD_WRITE_COIL:
-			case MB_CMD_WRITE_COILS:
-			case MB_CMD_WRITE_REGS: {
-				// Echo 8 байт — подтверждение записи без полезной нагрузки
-				if (!PR_CheckAnswerCRC ||
-					(MB->UART == &huart4 && Model::Type_of_sensor == 5 && memcmp(MB->Rx_Buffer, MB->Tx_Buffer, 6) != 0))
-					result = MB_ERROR_UART_RECIEVE;
-				break;	}
-			default:	{
-				result = MB_ERROR_UART_RECIEVE;
-				break;	}
-		}
-		if (diag && result != MB_ERROR_NO && s_mbDiagIndex < SQ)
-			s_mbDiagCat = (uint8_t)MB_DiagClassifyAnswer(MB, SensAddress, CMD, s_mbDiagRxLen);
-	}
+		// Все поля и границы проверены до обновления измерений.
+        uint16_t value;
+        switch (CMD) {
+        case MB_CMD_READ_COILS:
+        case MB_CMD_READ_INPUT:
+            if (expected < 7) { result = MB_ERROR_UART_RECIEVE; break; }
+            memcpy(&value,MB->Rx_Buffer+3,2);
+            if (CMD == MB_CMD_READ_COILS) MB->Read_Data_1 = value;
+            else MB->Read_Data_2 = value;
+            break;
+        case MB_CMD_READ_REGS:
+            if (!DATA) { result = MB_ERROR_UART_RECIEVE; break; }
+            memcpy(&value,MB->Rx_Buffer+3,2);
+            MB->Read_Data_1 = 0;
+            if (DATA > 1) {
+                MB->Read_Data_1 = SwapBytes(value);
+                memcpy(&value,MB->Rx_Buffer+5,2);
+            }
+            MB->Read_Data_2 = SwapBytes(value);
+            break;
+        case MB_CMD_WRITE_REG:
+            memcpy(&value,MB->Rx_Buffer+4,2);
+            Sens_WR_value = SwapBytes(value);
+            break;
+        case MB_CMD_WRITE_COIL:
+        case MB_CMD_WRITE_COILS:
+        case MB_CMD_WRITE_REGS:
+            break;
+        default:
+            result = MB_ERROR_UART_RECIEVE;
+        }
+    }
 	if (diag && s_mbDiagIndex < SQ)
-		MB_DiagRecord(MB, result);
+		MB_DiagRecord(MB, result, expected, detailReason, started);
 	return result;
 }
 
@@ -2083,7 +2094,7 @@ MB_Error_t Master_Request(MB_Active_t *MB, int N_Bytes)
 				MB_PrepareUartForMasterRx(MB->UART, MB->PORT, MB->PORT_PIN);
 				return MB_ERR;
 			}
-			if (diag)
+			if (MB->UART == &huart5)
 				s_mbDiagRxLen = (s_mbRxSize != 0u) ? s_mbRxSize : MB_DiagRxBytesNow(MB->UART);
 		}
 		else
