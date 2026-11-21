@@ -1,0 +1,113 @@
+SOURCE: D:\Users\Alsh1004\OneDrive\Projects\Documentation\Проект дефростер\Хранилище рабочих данных в EEPROM.docx
+
+[P1 | Title] Организация хранилища рабочих данных
+[P2 | Heading 1] Общие вопросы аварийного сброса питания
+[P3 | Subtitle] Возможна ситуация со сбросом питания дефростера. После восстановления питания нужно вернуть дефростер в тот режим, в котором он был до отключения. Для этого используется I2C EEPROM M24C16 (16 Kbit / 2048 байт). В EEPROM сохраняются режим работы дефростера при его изменении и установленные параметры алгоритма. При восстановлении питания загружаются сохранённые параметры и восстанавливается сохранённый режим.
+[P4 | Subtitle] Есть свободные выводы процессора для подключения I2C EEPROM?
+[P5 | Heading 1] Будем размещать внешнюю EEPROM. Сообщи, какие выводы на плате Disco соответствуют свободному I2C.
+[P6 | Subtitle] Проверю конфигурацию пинов в вашем проекте (.ioc/MSP), чтобы назвать конкретные выводы платы Disco под I2C и отметить, какие из них уже заняты внутренней периферией.
+[P7 | Subtitle] По текущей конфигурации вашего проекта:
+[P8 | Subtitle] I2C3_SCL = PA8
+[P9 | Subtitle] I2C3_SDA = PC9
+[P10 | Subtitle] Это видно в:
+[P11 | Subtitle] Core/Src/stm32f4xx_hal_msp.c (PA8 -> I2C3_SCL, PC9 -> I2C3_SDA)
+[P12 | Subtitle] STM32F429I-DISCO.ioc (PA8.Signal=I2C3_SCL, PC9.Signal=I2C3_SDA)
+[P13 | Subtitle] Важно: в вашем проекте этот I2C уже используется (обёртки I2C3_Read/Write, тач-контроллер/IOE), то есть отдельного “свободного” I2C сейчас не настроено.
+[P14 | Subtitle] Что это значит practically:
+[P15 | Subtitle] самый простой путь — повесить EEPROM на эту же шину I2C3 (если адрес не конфликтует);
+[P16 | Subtitle] из других типичных I2C-пинов, например PB8/PB9, у вас уже заняты под LTDC (LTDC_B6/B7) и не свободны.
+[P17 | Subtitle] Если хотите, могу следующим шагом помочь проверить конфликт адресов на I2C3 (тач/кодек vs M24C16, device select 0xA0..0xAE по блокам памяти) и подтвердить безопасный базовый адрес EEPROM.
+[P18 | Heading 1] Проверь конфликт адресов на I2C3 (тач/кодек vs M24C16) и подбери безопасный адрес для EEPROM.
+[P19 | Subtitle] Сейчас проверю все константы I2C-адресов в проекте (тач, аудио-кодек и прочие BSP-устройства на I2C3) и дам безопасный базовый адрес для EEPROM M24C16.
+[P20 | Subtitle] Проверил по вашему проекту конфликт адресов на I2C3.
+[P21 | Subtitle] Что уже есть на шине в коде:
+[P22 | Subtitle] Тач-контроллер STMPE811:
+[P23 | Subtitle] TS_I2C_ADDRESS = 0x82 (это формат HAL со сдвигом, т.е. 7-битный адрес 0x41)
+[P24 | Subtitle] источник: TouchGFX/target/STM32TouchController.cpp
+[P25 | Subtitle] Других активных адресов I2C-устройств в текущем коде не нашлось.
+[P27 | Subtitle] Для M24C16:
+[P28 | Subtitle] ёмкость 2048 байт; страница записи 16 байт; в device select кодируются биты A10..A8 памяти.
+[P29 | Subtitle] коды 0xA0..0xAE (HAL) / 0x50..0x57 (7-bit) выбирают блок памяти 256 байт, а не отдельные микросхемы.
+[P30 | Subtitle] Базовый адрес блока 0: 7-bit 0x50, HAL 0xA0. Пересечений с тачем 0x41 нет — M24C16 на I2C3 безопасна.
+[P31 | Subtitle] Рекомендация по адресу
+[P32 | Subtitle] Выбирайте базовый:
+[P33 | Subtitle] 7-bit 0x50 / HAL 0xA0 (блок 0; A10..A8=000)
+[P34 | Subtitle] Это стандартный и безопасный вариант для вашей конфигурации.
+[P35 | Subtitle] Пины свободного I2C в проекте
+[P36 | Subtitle] PA8 — I2C3_SCL
+[P37 | Subtitle] PC9 — I2C3_SDA
+[P38 | Subtitle] (подтверждено в STM32F429I-DISCO.ioc и Core/Src/stm32f4xx_hal_msp.c)
+[P39 | Heading 1] У M24C16 нет выводов E0..E2 для выбора адреса — как адресовать микросхему?
+[P40 | Subtitle] Базовый адрес тот же (0xA0), но схема адресации иная, чем у M24C02.
+[P41 | Subtitle] У M24C16 биты A10..A8 входят в device select (1010 A10 A9 A8 R/W). Для блока 0 (адреса 0..255) базовый адрес:
+[P42 | Subtitle] 7-bit: 0x50
+[P43 | Subtitle] 8-bit (HAL-стиль): 0xA0 (write), 0xA1 (read)
+[P44 | Subtitle] Это безопасный вариант для шины I2C3; при обращении к адресам выше 255 драйвер автоматически меняет биты A10..A8 в device select.
+[P45 | Subtitle] По HAL_I2C_MspInit() для I2C3 в Core/Src/stm32f4xx_hal_msp.c:
+[P46 | Subtitle] PA8 (I2C3_SCL): GPIO_MODE_AF_OD, GPIO_PULLUP
+[P47 | Subtitle] PC9 (I2C3_SDA): GPIO_MODE_AF_OD, GPIO_PULLUP
+[P48 | Subtitle] То есть на уровне GPIO у вас уже включён PULLUP на обеих линиях, дополнительная подтяжка резисторами к питанию не нужна.
+[P49 | Subtitle] Распайка выводов микросхемы M24C16:
+[P50 | Subtitle] выводы E0/E1/E2 отсутствуют (адресные биты A10..A8 задаются программно в I2C device select);
+[P51 | Subtitle] VSS → на GND;
+[P52 | Subtitle] WС → на GND (нужна запись);
+[P53 | Subtitle] PA8 (SCL) и PC9 (SDA) сконфигурированы с подтяжкой вверх;
+[P54 | Subtitle] VCC → +5V.
+[P56 | Heading 1] Посчитай требуемый объём памяти EEPROM, если мы будем сохранять в ней параметры алгоритма и признак работы в авторежиме.
+[P57 | Subtitle] Сейчас быстро посчитаю точный размер структуры параметров DefrostParams_t с учётом выравнивания в C/C++, и добавлю объём под флаг авторежима + служебные поля (CRC/версия).
+[P58 | Subtitle] Посчитал по вашей текущей структуре DefrostParams_t:
+[P59 | Subtitle] DEFROST_PHASE_COUNT = 3
+[P60 | Subtitle] DEFROST_MAX_SENSOR_COUNT = 6
+[P61 | Subtitle] Размер DefrostParams_t получается 124 байта (с обычным выравниванием ARM GCC, 4-байт для float).
+[P62 | Subtitle] Дальше:
+[P63 | Subtitle] признак авторежима (uint8_t) = 1 байт
+[P64 | Subtitle] итого «полезных данных» = 125 байт
+[P65 | Subtitle] Практически нужно хранить ещё служебные поля (минимум):
+[P66 | Subtitle] version (uint16_t) = 2 байта
+[P67 | Subtitle] crc16 (uint16_t) = 2 байта
+[P68 | Subtitle] Тогда одна запись:
+[P69 | Subtitle] 124 + 1 + 2 + 2 = 129 байт
+[P70 | Subtitle] с выравниванием обычно округляют до 132 байт
+[P71 | Heading 1] Вывод по объёму EEPROM M24C16 (2048 байт)
+[P72 | Subtitle] Одна копия (с CRC/версией/флагом) — помещается уверенно.
+[P73 | Subtitle] Две полноценные копии по 132 байта — помещаются без проблем (264 байта << 2048).
+[P74 | Subtitle] При необходимости в M24C16 можно разместить несколько копий A/B и служебные области без уплотнения формата.
+[P75 | Subtitle] Если нужно, могу предложить раскладку нескольких копий A/B в объёме 2048 байт для отказоустойчивости.
+[P76 | Body Text] Нет, будем сохранять только одну копию данных.
+[P77 | Heading 1] Что сделано
+[P78 | Body Text] Сделано: добавлен драйвер M24C16 и встроен сценарий работы EEPROM в DefrostControl по вашим правилам.
+[P79 | Body Text] Что реализовано:
+[P80 | Body Text] Добавлены файлы:
+[P81 | Body Text] STM32CubeIDE/ProjectCode/ EEPROM.hpp
+[P82 | Body Text] STM32CubeIDE/ProjectCode/ EEPROM.cpp
+[P83 | Body Text] В драйвере:
+[P84 | Body Text] EEPROM::Init() — проверка наличия EEPROM на I2C3;
+[P85 | Body Text] EEPROM::Read() — чтение из EEPROM;
+[P86 | Body Text] EEPROM::Write() — запись с разбиением по страницам 16 байт, учётом A10..A8 в device select и ожиданием готовности устройства.
+[P87 | Body Text] В DefrostControl:
+[P88 | Body Text] при старте (DefrostControl_LoadParams) проверяется EEPROM, устанавливается параметр g_defrostEepromAvailable в DefrostControl.cpp;
+[P89 | Body Text] если EEPROM нет — работа продолжается без неё;
+[P90 | Body Text] если EEPROM есть — читается сохранённая структура (версия + флаг авторежима + параметры + CRC);
+[P91 | Body Text] если в EEPROM сохранён авторежим — параметры загружаются из EEPROM в рабочие переменные;
+[P92 | Body Text] если авторежим не сохранён — текущие параметры из переменных записываются в EEPROM;
+[P93 | Body Text] при изменении параметров (DefrostControl_SaveParams) новые параметры сохраняются и в EEPROM;
+[P94 | Body Text] при смене режима через DefrostControl_SetEnabled сохраняется признак авторежима.
+[P95 | Body Text] В EEPROM признак авторежима хранится в поле:
+[P96 | Body Text] autoModeEnabled структуры DefrostEepromStorage_t (в DefrostControl.cpp).
+[P97 | Body Text] Связанный runtime-флаг в коде:
+[P98 | Body Text] g_defrostPersistedAutoMode — из него пишется autoModeEnabled, и из autoModeEnabled он читается при загрузке.
+[P99 | Body Text] Также добавлен static_assert — проверка на этапе компиляции, чтобы формат данных помещался в M24C16 (2048 байт). Типичный смысл проверки:
+[P100 | Body Text] sizeof(DefrostEepromStorage_t) <= EEPROM::kSizeBytes
+[P101 | Body Text] Если условие ложно, компилятор выдаёт сообщение вроде "Defrost EEPROM payload exceeds M24C16 capacity".
+[P102 | Body Text] То есть это “страховка от ошибок размера” ещё до прошивки контроллера.
+[P103 | Heading 1] Как избегается конфликт использования I2C3
+[P104 | Body Text] Сейчас — почти никак на уровне приложения.
+[P105 | Body Text] В текущем коде:
+[P106 | Body Text] Тач работает через IOE_Read/IOE_Write -> HAL_I2C_Mem_Read/Write(&hi2c3, ...) в Core/Src/main.c.
+[P107 | Body Text] EEPROM-драйвер в EEPROM.cpp тоже напрямую вызывает HAL_I2C_Mem_Read/Write(&hi2c3, ...).
+[P108 | Body Text] Общего osMutex/арбитра именно для I2C3 между этими путями нет.
+[P109 | Body Text] То есть конфликт частично ограничивается только внутренним Lock в HAL-драйвере I2C (он защищает handle от одновременного входа), но это не полноценная межзадачная политика доступа.
+[P110 | Body Text] Итог:
+[P111 | Body Text] при редких операциях EEPROM (инициализация, сохранение параметров) обычно работает;
+[P112 | Body Text] при наложении с активным опросом тача возможны HAL_BUSY/таймауты.
+[P113 | Body Text] Если хотите избежать конфликтов гарантированно, нужен единый I2C3 mutex/обёртка для всех обращений к hi2c3 (тач + EEPROM).

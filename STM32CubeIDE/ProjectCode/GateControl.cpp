@@ -12,6 +12,9 @@ uint8_t prevCmdUp = 0;
 uint8_t prevCmdDown = 0;
 uint8_t prevGateOpen = 0;
 uint8_t prevGateClose = 0;
+bool inputSampleValid = false;
+bool lastSampleOpen = false;
+bool openConfirmed = false;
 
 DFR_REGISTERS_t& GateRegisterByCurrentMode()
 {
@@ -133,6 +136,24 @@ uint8_t GateControl_IsOpenPosition(void)
 	return (Model::DI_DFR.Bits.Gate_Open != 0) ? 1 : 0;
 }
 
+void GateControl_RecordInputSample(bool valid)
+{
+	inputSampleValid = valid;
+	if (!valid)
+		return;
+
+	const bool upper = Model::DI_DFR.Bits.Gate_Open != 0u;
+	const bool lower = Model::DI_DFR.Bits.Gate_Close != 0u;
+	// Подтверждение берём из фронта реального входа, только при отпущенном нижнем концевике.
+	openConfirmed = upper && !lower && (openConfirmed || !lastSampleOpen);
+	lastSampleOpen = upper;
+}
+
+bool GateControl_IsOpenConfirmed(void)
+{
+	return inputSampleValid && openConfirmed;
+}
+
 uint8_t GateControl_IsClosedPosition(void)
 {
 	if (Model::Gate_Alarm != 0)
@@ -198,7 +219,7 @@ void GateControl_Update1s(void)
 				gateUpElapsedSec = 0;
 				// При debugDisableDeviceSwitchCheck=1 не формируем программную аварию ворот.
 				DetectGateAlarmFromMotionTimeout();
-				Model::Gate_PosTop = 1;
+				Model::Gate_PosTop = 0;
 				Model::Gate_PosBottom = 0;
 			}
 		}

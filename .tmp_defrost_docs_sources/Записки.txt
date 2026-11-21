@@ -1,0 +1,5 @@
+SOURCE: D:\Users\Alsh1004\OneDrive\Projects\Documentation\Проект дефростер\Записки.docx
+
+[P1 | Normal] SensPortNumber = -> Sensor::Read_Data_1
+[P2 | Normal] SensBaudRateIndex = -> Sensor::Read_Data_2
+[P3 | Normal] Sens_WR_value -> Sensor::Read_Data_1

@@ -672,6 +672,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
         uint8_t shutdownGateLiftPulse_s = 0; // длительность импульса открытия ворот в начале продувки (с)
        uint8_t shutdownGateFullOpenActive = 0; // при остановке: 1 пока идёт шаг FullGateOpen (ворота + закрытие заслонки)
        uint8_t shutdownGateOpenReleased = 0; // 1 — команда Open с ворот снята после завершения движения привода
+       uint8_t shutdownGateOpenFailed = 0; // команда снята без подтверждения верхнего концевика
        uint8_t shutdownGateOpenSawActive = 0; // 1 — в этом шаге уже была активна команда Open (защита от гонки с Arm)
        uint8_t shutdownGateOpenPhase_s = 0;   // секунды в шаге FullGateOpen (таймаут, если Open так и не стала активной)
        uint8_t shutdownStage = 0; // текущее состояние post-shutdown (см. ShutdownStage)
@@ -747,6 +748,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
        g.shutdownGateLiftPulse_s = 0;
        g.shutdownGateFullOpenActive = 0;
        g.shutdownGateOpenReleased = 0;
+       g.shutdownGateOpenFailed = 0;
        g.shutdownGateOpenSawActive = 0;
        g.shutdownGateOpenPhase_s = 0;
        g.shutdownStage = 0;
@@ -989,7 +991,8 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
     {
         const uint16_t gateBits = (uint16_t)((1u << 9) | (1u << 10));
         Model::Device_AlarmFlags = (uint16_t)(Model::Device_AlarmFlags & (uint16_t)~gateBits);
-        if (g_defrostParams.debugDisableDeviceSwitchCheck == 0u && Model::Gate_Alarm_Program != 0u)
+        if (g.shutdownGateOpenFailed != 0u ||
+            (g_defrostParams.debugDisableDeviceSwitchCheck == 0u && Model::Gate_Alarm_Program != 0u))
             Model::Device_AlarmFlags |= (uint16_t)(1u << 9);
         if (Model::Gate_Alarm_Hardware != 0u)
             Model::Device_AlarmFlags |= (uint16_t)(1u << 10);
@@ -1070,7 +1073,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
     }
 
     // Управление лампами индикации:
-    // зелёная _Wrk - только активный автоматический режим;
+    // Зелёная _Wrk сопровождает автоматический цикл до конца останова.
     // красная _Alr - только авария устройства, мигание 1/1 сек.
     static void ApplyModeLamps(LampModeState modeState)
     {
@@ -1086,18 +1089,20 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
             return;
         }
 
-        // В ручном режиме никакие лампы не горят.
+        const bool shuttingDown = g.shutdownActive != 0u;
+        const bool alarmLamp = Model::Device_Alarm != 0 && g.alarmBlinkPhase != 0;
+        // Сохраняем индикацию незавершённого останова и при ручном открытии ворот.
         if (Model::Flag_DFR_manual != 0)
         {
             Model::DFR._Wrk = 0;
             Model::DFR._Alr = 0;
-            Model::DFR_manual._Wrk = 0;
-            Model::DFR_manual._Alr = 0;
+            Model::DFR_manual._Wrk = shuttingDown ? 1 : 0;
+            Model::DFR_manual._Alr = (shuttingDown && alarmLamp) ? 1 : 0;
             return;
         }
 
-        Model::DFR._Wrk = (modeState == LampModeState::AutoActive) ? 1 : 0;
-        Model::DFR._Alr = (Model::Device_Alarm != 0 && g.alarmBlinkPhase != 0) ? 1 : 0;
+        Model::DFR._Wrk = (modeState == LampModeState::AutoActive || shuttingDown) ? 1 : 0;
+        Model::DFR._Alr = alarmLamp ? 1 : 0;
         Model::DFR_manual._Wrk = 0;
         Model::DFR_manual._Alr = 0;
     }
@@ -1802,9 +1807,6 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
 
 // Бит рассогласования DO/DI вентилятора вытяжки (Vent_Out); совпадает с битом 8 в kDeviceCheckMask (ModBus.cpp).
 static constexpr uint16_t kDeviceAlarmVentOutBit = (uint16_t)(1u << 8);
-// Если команда Open на ворота так и не стала «активной» в GateControl — снять её через N с (защита от зависания).
-static constexpr uint8_t kShutdownGateOpenStuckTimeout_s = 15u;
-
 // Переход в шаг полного открытия ворот + немедленная команда Open.
 // Почему сразу: при переходе из Ventilation в этом же вызове ProcessShutdownStage1s ветка «шаг 3» не выполняется;
 // если только выставить shutdownStage, до следующей секунды shutdownGateFullOpenActive остаётся 0 и
@@ -1817,7 +1819,10 @@ static void ShutdownEnterFullGateOpenArm()
     g.shutdownGateOpenPhase_s = 0u;
     g.shutdownFlapOpenWait_s = 0u;
     if (g.shutdownGateFullOpenActive == 0u) {
-        GateControl_SetCommand(GateControlCommand::Open, 1u);
+        if (!GateControl_IsOpenConfirmed())
+            GateControl_SetCommand(GateControlCommand::Open, 1u);
+        else
+            g.shutdownGateOpenReleased = 1u;
         g.shutdownGateFullOpenActive = 1u;
     }
 }
@@ -1881,6 +1886,7 @@ static uint8_t ShutdownVentilationNeeded(void)
     g.shutdownGateLiftPulse_s = 0u;
     g.shutdownGateFullOpenActive = 0;
     g.shutdownGateOpenReleased = 0;
+    g.shutdownGateOpenFailed = 0;
     g.shutdownGateOpenSawActive = 0;
     g.shutdownGateOpenPhase_s = 0;
     // Открываем заслонку заранее, только если влажность требует продувки.
@@ -2039,7 +2045,7 @@ static void ProcessShutdownStage1s()
     else
     {
         // Шаг 3: полное открытие ворот и параллельно ожидание закрытия заслонки (Water_Flap=0 с конца продувки).
-        // Завершение шага — когда привод ворот отработал команду Open (снята с шины) И заслонка закрыта по DI
+        // Завершение шага — после подтверждения верхнего концевика И закрытия заслонки по DI
         // либо истёк таймаут заслонки (flapAlarm / счётчик без DeviceSwitchCheck).
         Model::DFR.Water_Flap = 0u;
 
@@ -2086,22 +2092,34 @@ static void ProcessShutdownStage1s()
                 const uint8_t openIdle = (openCmdActive == 0u) ? 1u : 0u;
                 const uint8_t gateDriveFinished =   // команда Open на ворота выполнена до конца
                     ((g.shutdownGateOpenSawActive != 0u) && (openIdle != 0u)) ? 1u : 0u;
-                const uint8_t gateStuckFallback =   // команда Open на ворота выполнена по таймауту
-                    ((g.shutdownGateOpenSawActive == 0u) && (g.shutdownGateOpenPhase_s >= kShutdownGateOpenStuckTimeout_s))
-                        ? 1u
-                        : 0u;
-                
-                // Команда Open на ворота выполнена до конца или по таймауту
-                if ((gateDriveFinished != 0u) || (gateStuckFallback != 0u))   
+                const bool confirmed = GateControl_IsOpenConfirmed();
+                if (confirmed || gateDriveFinished != 0u ||
+                    g.shutdownGateOpenPhase_s >= kGateMotionTimeoutSec)
                 {
-                    GateControl_SetCommand(GateControlCommand::Open, 0u);   // снимаем команду Open на ворота
-                    g.shutdownGateOpenReleased = 1u;   // устанавливаем флаг выполнения команды Open на ворота
+                    GateControl_SetCommand(GateControlCommand::Open, 0u);
+                    Model::DFR.Gate_Up = 0u;
+                    if (Model::DFR.Gate_Down == 0u)
+                        Model::DFR.Gate_Dbl = 0u;
+                    g.shutdownGateOpenReleased = 1u;
                 }
+            }
+            if (g.shutdownGateOpenReleased != 0u && g.shutdownGateOpenFailed == 0u &&
+                !GateControl_IsOpenConfirmed() &&
+                (g.shutdownGateOpenSawActive != 0u || g.shutdownGateOpenPhase_s >= kGateMotionTimeoutSec))
+            {
+                g.shutdownGateOpenFailed = 1u;
+                g.startPendingAfterShutdown = 0u;
+                Model::Gate_Alarm_Program = 1u;
+                Model::Gate_Alarm = 1u;
+                Model::Device_AlarmFlags |= (uint16_t)(1u << 9);
+                if (Model::Device_Alarm == 0u)
+                    g.alarmBlinkPhase = 1u;
+                Model::Device_Alarm = 1u;
             }
         }
 
-        if ((g.shutdownGateOpenReleased != 0u) && (flapCloseWaitDone != 0u))   
-        // если команда Open на ворота выполнена до конца и заслонка закрыта
+        if (g.shutdownGateOpenReleased != 0u && flapCloseWaitDone != 0u &&
+            GateControl_IsOpenConfirmed() && GateControl_IsCommandActive(GateControlCommand::Close) == 0u)
         {
             g.shutdownGateFullOpenActive = 0u;   // сбрасываем флаг шага полного открытия ворот
         }
@@ -2120,6 +2138,7 @@ static void StartAutomaticSequence()
     g.shutdownGateOpening = 0;
     g.shutdownGateFullOpenActive = 0;
     g.shutdownGateOpenReleased = 0;
+    g.shutdownGateOpenFailed = 0;
     g.shutdownGateOpenSawActive = 0;
     g.shutdownGateOpenPhase_s = 0;
     g.shutdownStage = (uint8_t)ShutdownStage::StopActuatorsAndGatePulse;
@@ -2610,7 +2629,8 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
             if (g.shutdownActive != 0u || g.shutdownGateOpening != 0u || g.shutdownGateFullOpenActive != 0u ||
                 g.shutdownOutFanRemain_s != 0u || g.outFanOn != 0u || g.outDamperState != 0u)
             {
-                g.startPendingAfterShutdown = 1u;
+                if (g.shutdownGateOpenFailed == 0u)
+                    g.startPendingAfterShutdown = 1u;
                 g.enabled = 0u;
                 ApplyModeLamps(LampModeState::StoppedOrManual);
                 return;
@@ -2632,7 +2652,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
             g.runtimeSeconds = 0; // Время работы алгоритма обнуляется при остановке
             g.airOnlyActive = 0;
             g.airOnlyRemain_s = 0;
-            // Останов: зелёная лампа выключена, красная только по аварии.
+            // Зелёная лампа остаётся включена до конца последовательности останова.
             ApplyModeLamps(LampModeState::StoppedOrManual);
         }
         g_defrostPersistedAutoMode = 0u;
@@ -3138,7 +3158,6 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
          if (g.enabled == 0 || GateControl_GetManualMode() != 0u)    // алгоритм выключен или выбран ручной режим
          {
             // Алгоритм выключен, работает ручной режим или процесс завершения работы
-            // В режиме останова зелёная лампа выключена; красная только по аварии.
             ApplyModeLamps(LampModeState::StoppedOrManual);
 
             if (g.shutdownActive != 0)    // если процесс завершения работы активен
@@ -3149,6 +3168,7 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
                     g.shutdownGateFullOpenActive == 0u)    // если ворота полностью открыты
                  {
                     g.shutdownActive = 0;   // сбрасываем флаг завершения алгоритма (сигнал _Shd на сервере)
+                     g.shutdownGateOpenFailed = 0u;
                     g.shutdownStage = (uint8_t)ShutdownStage::StopActuatorsAndGatePulse;   // сброс машины post-shutdown
                     GateControl_SetCommand(GateControlCommand::Open, 0);   // закрываем ворота
                     GateControl_SetCommand(GateControlCommand::Close, 0);  // закрываем ворота
@@ -3162,7 +3182,6 @@ uint8_t DefrostControl_IsAirOnlyMode(void)
                     }
                  }
              }
-           // В ручном режиме обе лампы должны быть выключены.
            ApplyModeLamps(LampModeState::StoppedOrManual);
          }         
 

@@ -1,0 +1,68 @@
+﻿
+27.03.26 16:17:15 : ======================================================================
+27.03.26 16:17:15 : Application starting...
+27.03.26 16:17:15 : ======================================================================
+27.03.26 16:17:15 : Start listenin at port 3487
+27.03.26 16:17:18 : 
+27.03.26 16:17:18 : ================================================================================
+27.03.26 16:17:18 : Information: New thread was created, port 8867
+27.03.26 16:17:18 : Information: Получены новые данные
+27.03.26 16:17:18 : Information: The DataForm has been opened successfully!
+27.03.26 16:17:18 : Information: Reconnect: drop old socket 10.25.99.101
+27.03.26 16:17:18 : Information: Deferred startup scheduled for 10.25.99.101
+27.03.26 16:17:20 : Debug: Startup sequence: step 1/3 GET_VERSION started
+27.03.26 16:17:20 : Information: Команда GET_VERSION отправлена клиенту
+27.03.26 16:17:20 : [OK] Команда Type=0x03 (REQUEST), Code=0x02 (GET_VERSION) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Версия прошивки: 2.2.2
+27.03.26 16:17:20 : Information: Версия прошивки контроллера: 2.2.2
+27.03.26 16:17:20 : Debug: Startup sequence: step 1/3 GET_VERSION ok
+27.03.26 16:17:20 : Debug: Startup sequence: step 2/3 SET_INTERVAL(1) started
+27.03.26 16:17:20 : Information: Команда SET_INTERVAL отправлена клиенту
+27.03.26 16:17:20 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x02 (SET_INTERVAL) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+27.03.26 16:17:20 : [OK] Интервал измерений: 1 с
+27.03.26 16:17:20 : Debug: Startup sequence: step 2/3 SET_INTERVAL ok
+27.03.26 16:17:20 : Debug: Startup sequence: step 3/3 GET_DEFROST_GROUP(5,6) started
+27.03.26 16:17:20 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+27.03.26 16:17:20 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+27.03.26 16:17:20 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+27.03.26 16:17:20 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+27.03.26 16:17:20 : Information: Startup sequence completed (GET_VERSION -> SET_INTERVAL -> GET_DEFROST_GROUP[5,6])
+27.03.26 16:17:34 : Information: Команда START отправлена клиенту
+27.03.26 16:17:34 : [OK] Команда Type=0x01 (PROG_CONTROL), Code=0x01 (START) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+27.03.26 16:17:34 : Information: Команда START успешно выполнена контроллером
+27.03.26 16:19:54 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+27.03.26 16:19:55 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+27.03.26 16:20:14 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+27.03.26 16:20:14 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+27.03.26 18:54:23 : Information: Команда SET_DEFROST_GROUP отправлена клиенту
+27.03.26 18:54:23 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x05 (SET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+27.03.26 18:54:23 : Information: Команда SET_DEFROST_GROUP отправлена клиенту
+27.03.26 18:54:24 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x05 (SET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+27.03.26 18:54:24 : Information: Wrote defrost params by group: group5=OK, group6=OK
+27.03.26 18:54:30 : Information: Останов автоматического алгоритма дефростации. Время: 27.03.2026 18:54:30.
+Достигнутая мин. Т рыбы: 3.5 °C
+27.03.26 18:54:30 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+27.03.26 18:54:30 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+27.03.26 18:54:30 : Information: Excel export queued (emergency background)
+27.03.26 18:54:34 : Information: Файл Excel успешно сохранен: WorkData_Start_2026-03-27_16-17-21_End_2026-03-27_18-54-33_Port8867.xlsx
+Время записи: 3.70 секунд (9405 строк)
+27.03.26 18:54:34 : Information: delayed garbage collection started

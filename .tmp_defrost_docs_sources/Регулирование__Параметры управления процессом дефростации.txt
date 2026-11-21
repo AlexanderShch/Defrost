@@ -1,0 +1,50 @@
+SOURCE: D:\Users\Alsh1004\OneDrive\Projects\Documentation\Проект дефростер\Регулирование\Параметры управления процессом дефростации.xlsx
+
+[SHEET] Свод
+Сумма по полю Default
+Названия строк | Finish | Plateau | WarmUp
+HUMIDITY
+returnTargetRH_percent | 85 | 92 | 85
+TEMPERATURE
+fishHotMax_C | 20 | 20 | 20
+supplySet_C | 22 | 26 | 30
+supplyMax_C | 26 | 30 | 35
+fishDeltaMax_C | 4 | 5 | 6
+fishHotRateMax_Cps | 0.01 | 0.015 | 0.02
+
+[SHEET] Параметры
+Group | GroupId | ParamId | Phase | Parameter | Description | Type | Default | Unit
+SENSORS | 1 | 0 |  | Sensor0 use in defrost | Use sensor 0 in algorithm | U8 | 1 | 0/1
+SENSORS | 1 | 1 |  | Sensor1 use in defrost | Use sensor 1 in algorithm | U8 | 1 | 0/1
+SENSORS | 1 | 2 |  | Sensor2 use in defrost | Use sensor 2 in algorithm | U8 | 1 | 0/1
+SENSORS | 1 | 3 |  | Sensor3 use in defrost | Use sensor 3 in algorithm | U8 | 1 | 0/1
+SENSORS | 1 | 4 |  | Sensor4 use in defrost | Use sensor 4 in algorithm | U8 | 1 | 0/1
+SENSORS | 1 | 5 |  | Sensor5 use in defrost | Use sensor 5 in algorithm | U8 | 1 | 0/1
+SENSORS | 1 | 6 |  | Sensor6 use in defrost | Use sensor 6 in algorithm | U8 | 1 | 0/1
+TEMPERATURE | 2 | 0 | WarmUp | fishHotMax_C | Upper limit product temp phase 0 | F32 | 20 | C
+TEMPERATURE | 2 | 1 | Plateau | fishHotMax_C | Upper limit product temp phase 1 | F32 | 20 | C
+TEMPERATURE | 2 | 2 | Finish | fishHotMax_C | Upper limit product temp phase 2 | F32 | 20 | C
+TEMPERATURE | 2 | 3 | WarmUp | supplySet_C | Target supply air temp phase 0 | F32 | 30 | C
+TEMPERATURE | 2 | 4 | Plateau | supplySet_C | Target supply air temp phase 1 | F32 | 26 | C
+TEMPERATURE | 2 | 5 | Finish | supplySet_C | Target supply air temp phase 2 | F32 | 22 | C
+TEMPERATURE | 2 | 6 | WarmUp | supplyMax_C | Max supply air temp phase 0 | F32 | 35 | C
+TEMPERATURE | 2 | 7 | Plateau | supplyMax_C | Max supply air temp phase 1 | F32 | 30 | C
+TEMPERATURE | 2 | 8 | Finish | supplyMax_C | Max supply air temp phase 2 | F32 | 26 | C
+TEMPERATURE | 2 | 9 | WarmUp | fishDeltaMax_C | Max temp gradient in product phase 0 | F32 | 6 | C
+TEMPERATURE | 2 | 10 | Plateau | fishDeltaMax_C | Max temp gradient in product phase 1 | F32 | 5 | C
+TEMPERATURE | 2 | 11 | Finish | fishDeltaMax_C | Max temp gradient in product phase 2 | F32 | 4 | C
+TEMPERATURE | 2 | 12 | WarmUp | fishHotRateMax_Cps | Max product heating rate phase 0 | F32 | 0.02 | C/s
+TEMPERATURE | 2 | 13 | Plateau | fishHotRateMax_Cps | Max product heating rate phase 1 | F32 | 0.015 | C/s
+TEMPERATURE | 2 | 14 | Finish | fishHotRateMax_Cps | Max product heating rate phase 2 | F32 | 0.01 | C/s
+TEMPERATURE | 2 | 15 |  | leftRightTrimGain | Heater trim per degC difference | F32 | 0.08 | eq/C
+TEMPERATURE | 2 | 16 |  | leftRightTrimMaxEq | Max trim В± heater equivalent | F32 | 0.6 | eq
+TEMPERATURE | 2 | 17 |  | fishColdTarget_C | целевая мин. температура рыбы °C; при достижении — автоостанов | F32 | 6 | eq
+HUMIDITY | 3 | 0 | WarmUp | returnTargetRH_percent | Target humidity phase 0 | F32 | 85 | %
+HUMIDITY | 3 | 1 | Plateau | returnTargetRH_percent | Target humidity phase 1 | F32 | 92 | %
+HUMIDITY | 3 | 2 | Finish | returnTargetRH_percent | Target humidity phase 2 | F32 | 85 | %
+HUMIDITY | 3 | 3 |  | wDeadband_kgkg | Humidity deadband | F32 | 0.0008 | kg/kg
+HUMIDITY | 3 | 4 |  | outDamperTimer_s | Damper open time | U16 | 10 | s
+HUMIDITY | 3 | 5 |  | outFanDelay_s | Fan delay after damper open | U16 | 5 | s
+PWM | 4 | 0 |  | tenMinHold_s | Heater min hold between switches | U16 | 10 | s
+PWM | 4 | 1 |  | injMinHold_s | Injector min hold between switches | U16 | 5 | s
+PWM | 4 | 2 |  | outHold_s | Damper and exhaust fan min hold | U16 | 15 | s

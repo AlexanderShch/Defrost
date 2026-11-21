@@ -1,0 +1,473 @@
+26.03.26 12:46:23 : ======================================================================
+26.03.26 12:46:23 : Application starting...
+26.03.26 12:46:23 : ======================================================================
+26.03.26 12:46:23 : Start listenin at port 3487
+26.03.26 12:46:24 : 
+26.03.26 12:46:24 : ================================================================================
+26.03.26 12:46:24 : Information: New thread was created, port 8867
+26.03.26 12:46:24 : Information: �������� ����� ������
+26.03.26 12:46:25 : Information: The DataForm has been opened successfully!
+26.03.26 12:46:25 : Information: Reconnect: drop old socket 10.25.99.101
+26.03.26 12:46:26 : Information: ������� GET_VERSION ���������� �������
+26.03.26 12:46:26 : Error: No response received from controller
+26.03.26 12:46:26 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x02
+26.03.26 12:46:26 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:46:26 : Warning: Dropping framed packet due CRC mismatch. Type=0x00, Cmd=0x01, DataLen=89
+26.03.26 12:46:26 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x00 (TELEMETRY), Code=0x01 (DATA_OK)
+����� ����������: 45 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:46:26
+26.03.26 12:46:26 : Error: ������� GET_VERSION �� ���������. ������: 0x06 (TIMEOUT)
+26.03.26 12:46:26 : Information: ������� SET_INTERVAL ���������� �������
+26.03.26 12:46:26 : [OK] ������� Type=0x02 (CONFIGURATION), Code=0x02 (SET_INTERVAL) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+26.03.26 12:46:26 : [OK] �������� ���������: 1 �
+26.03.26 12:46:26 : Information: ������� GET_DEFROST_GROUP ���������� �������
+26.03.26 12:46:26 : [OK] ������� Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+26.03.26 12:46:26 : Information: ������� GET_DEFROST_GROUP ���������� �������
+26.03.26 12:46:26 : [OK] ������� Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+26.03.26 12:46:26 : Information: Read params from defroster: group5 transport=OK, group6 transport=OK, group5 loaded=yes, group6 loaded=yes
+26.03.26 12:47:06 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:47:06. ����������� ���. � ����: -3.5 �C
+26.03.26 12:47:06 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:47:06 : Error: No response received from controller
+26.03.26 12:47:06 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:47:06 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:47:06 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x04; Got Type=0x03, Code=0x09; Raw=03 09 00 04 7F 00 00 00 71 0A
+26.03.26 12:47:06 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS)
+����� ����������: 85 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:47:06
+26.03.26 12:47:06 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:47:06 : Information: Excel export queued (emergency background)
+26.03.26 12:47:08 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-47-07_Port8867.xlsx
+����� ������: 1.61 ������ (22 �����)
+26.03.26 12:47:08 : Information: delayed garbage collection started
+26.03.26 12:47:10 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:47:10. ����������� ���. � ����: -3.5 �C
+26.03.26 12:47:10 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:47:10 : Error: No response received from controller
+26.03.26 12:47:10 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:47:10 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:47:10 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x04; Got Type=0x03, Code=0x09; Raw=03 09 00 04 7F 00 00 00 71 0A
+26.03.26 12:47:10 : Error: No response received from controller
+26.03.26 12:47:10 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:47:10 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS)
+����� ����������: 89 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:47:10
+26.03.26 12:47:10 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:47:10 : Information: Excel export queued (emergency background)
+26.03.26 12:47:11 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-47-11_Port8867.xlsx
+����� ������: 1.34 ������ (23 �����)
+26.03.26 12:47:11 : Information: delayed garbage collection started
+26.03.26 12:47:20 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:47:20 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x09; Got Type=0x03, Code=0x04; Raw=03 04 00 06 03 09 59 00 01 00 1B F6
+26.03.26 12:47:20 : Information: Scheduling GET_CMD_INFO probe. Reason: discarded unrelated response while waiting Type=0x03, Code=0x09
+26.03.26 12:47:20 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:47:20 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x04; Got Type=0x03, Code=0x09; Raw=03 09 00 04 7F 01 00 00 20 CA
+26.03.26 12:47:20 : Error: No response received from controller
+26.03.26 12:47:20 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:47:21 : Error: No response received from controller
+26.03.26 12:47:21 : Warning: GET_CMD_INFO: no response, but telemetry is still arriving (firmware may not be ready to answer yet)
+26.03.26 12:47:21 : Error: No response received from controller
+26.03.26 12:47:22 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:47:22 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x09; Got Type=0x03, Code=0x04; Raw=03 04 00 06 03 09 64 00 01 00 16 5A
+26.03.26 12:47:22 : Information: Scheduling GET_CMD_INFO probe. Reason: discarded unrelated response while waiting Type=0x03, Code=0x09
+26.03.26 12:47:22 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:47:22 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS)
+����� ����������: 100 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:47:21
+26.03.26 12:47:22 : [OK] ������� Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ��������:
+  ����������: 0x017F
+  �������: 0x0000
+26.03.26 12:47:32 : Information: ������� RESET ���������� �������
+26.03.26 12:47:32 : Warning: Discarding unrelated response. Expected Type=0x01, Code=0x05; Got Type=0x03, Code=0x04; Raw=03 04 00 06 03 09 66 00 01 00 17 E2
+26.03.26 12:47:32 : Error: No response received from controller
+26.03.26 12:47:32 : Error: ������� RESET �� ���������. ������: 0x06 (TIMEOUT)
+26.03.26 12:47:33 : Information: ������� GET_VERSION ���������� �������
+26.03.26 12:47:33 : [OK] ������� Type=0x03 (REQUEST), Code=0x02 (GET_VERSION) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+������ ��������: 2.2.0
+26.03.26 12:47:33 : Information: ������ �������� �����������: 2.2.0
+26.03.26 12:47:33 : Information: ������� SET_INTERVAL ���������� �������
+26.03.26 12:47:33 : [OK] ������� Type=0x02 (CONFIGURATION), Code=0x02 (SET_INTERVAL) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+26.03.26 12:47:33 : [OK] �������� ���������: 1 �
+26.03.26 12:47:34 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:47:34 : [OK] ������� Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ��������:
+  ����������: 0x0000
+  �������: 0x0000
+26.03.26 12:47:36 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:47:36 : [OK] ������� Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ��������:
+  ����������: 0x0000
+  �������: 0x0000
+26.03.26 12:47:53 : Information: ������� SET_DEFROST_GROUP ���������� �������
+26.03.26 12:47:53 : [OK] ������� Type=0x02 (CONFIGURATION), Code=0x05 (SET_DEFROST_GROUP) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+26.03.26 12:47:53 : Information: ������� SET_DEFROST_GROUP ���������� �������
+26.03.26 12:47:53 : [OK] ������� Type=0x02 (CONFIGURATION), Code=0x05 (SET_DEFROST_GROUP) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+26.03.26 12:47:53 : Information: Wrote defrost params by group: group5=OK, group6=OK
+26.03.26 12:47:59 : Information: ������� START ���������� �������
+26.03.26 12:47:59 : [OK] ������� Type=0x01 (PROG_CONTROL), Code=0x01 (START) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+26.03.26 12:47:59 : Information: ������� START ������� ��������� ������������
+26.03.26 12:48:59 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:48:59. ����������� ���. � ����: -1.7 �C
+26.03.26 12:48:59 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:48:59 : Error: No response received from controller
+26.03.26 12:48:59 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:48:59 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:48:59 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x04; Got Type=0x03, Code=0x09; Raw=03 09 00 04 00 00 00 00 68 DE
+26.03.26 12:48:59 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS)
+����� ����������: 85 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:48:59
+26.03.26 12:48:59 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:48:59 : Information: Excel export queued (emergency background)
+26.03.26 12:49:00 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-49-00_Port8867.xlsx
+����� ������: 1.42 ������ (81 �����)
+26.03.26 12:49:00 : Information: delayed garbage collection started
+26.03.26 12:49:29 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:49:29. ����������� ���. � ����: -1.1 �C
+26.03.26 12:49:29 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:49:29 : Error: No response received from controller
+26.03.26 12:49:29 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:49:29 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:49:29 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x04; Got Type=0x03, Code=0x09; Raw=03 09 00 04 00 00 00 00 68 DE
+26.03.26 12:49:29 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS)
+����� ����������: 115 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:49:29
+26.03.26 12:49:29 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:49:29 : Information: Excel export queued (emergency background)
+26.03.26 12:49:30 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-49-30_Port8867.xlsx
+����� ������: 1.31 ������ (110 �����)
+26.03.26 12:49:30 : Information: delayed garbage collection started
+26.03.26 12:50:30 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:50:30. ����������� ���. � ����: -0.1 �C
+26.03.26 12:50:30 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:50:30 : Error: No response received from controller
+26.03.26 12:50:30 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:50:30 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:50:30 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x04; Got Type=0x03, Code=0x09; Raw=03 09 00 04 00 00 00 00 68 DE
+26.03.26 12:50:30 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS)
+����� ����������: 176 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:50:30
+26.03.26 12:50:30 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:50:30 : Information: Excel export queued (emergency background)
+26.03.26 12:50:31 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-50-31_Port8867.xlsx
+����� ������: 1.30 ������ (170 �����)
+26.03.26 12:50:31 : Information: delayed garbage collection started
+26.03.26 12:51:27 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:51:27. ����������� ���. � ����: 0.3 �C
+26.03.26 12:51:27 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:51:27 : Error: No response received from controller
+26.03.26 12:51:27 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:51:27 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:51:27 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x04; Got Type=0x03, Code=0x09; Raw=03 09 00 04 00 00 00 00 68 DE
+26.03.26 12:51:27 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS)
+����� ����������: 233 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:51:27
+26.03.26 12:51:27 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:51:27 : Information: Excel export queued (emergency background)
+26.03.26 12:51:28 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-51-28_Port8867.xlsx
+����� ������: 1.30 ������ (225 �����)
+26.03.26 12:51:28 : Information: delayed garbage collection started
+26.03.26 12:51:57 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:51:57. ����������� ���. � ����: 0.4 �C
+26.03.26 12:51:57 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:51:57 : Error: No response received from controller
+26.03.26 12:51:57 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:51:57 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:51:57 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x04; Got Type=0x03, Code=0x09; Raw=03 09 00 04 00 00 00 00 68 DE
+26.03.26 12:51:57 : Error: No response received from controller
+26.03.26 12:51:57 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:51:57 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS)
+����� ����������: 263 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:51:57
+26.03.26 12:51:57 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:51:57 : Information: Excel export queued (emergency background)
+26.03.26 12:51:58 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-51-58_Port8867.xlsx
+����� ������: 1.33 ������ (254 �����)
+26.03.26 12:51:58 : Information: delayed garbage collection started
+26.03.26 12:52:46 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:52:46. ����������� ���. � ����: 0.6 �C
+26.03.26 12:52:46 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:52:46 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x09; Got Type=0x03, Code=0x04; Raw=03 04 00 06 03 09 07 01 01 00 59 DE
+26.03.26 12:52:46 : Information: Scheduling GET_CMD_INFO probe. Reason: discarded unrelated response while waiting Type=0x03, Code=0x09
+26.03.26 12:52:46 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:52:46 : Error: No response received from controller
+26.03.26 12:52:46 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:52:46 : Error: No response received from controller
+26.03.26 12:52:46 : Warning: GET_CMD_INFO: no response, but telemetry is still arriving (firmware may not be ready to answer yet)
+26.03.26 12:52:46 : Error: No response received from controller
+26.03.26 12:52:46 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:52:46 : Information: Excel export queued (emergency background)
+26.03.26 12:52:47 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-52-47_Port8867.xlsx
+����� ������: 1.37 ������ (302 �����)
+26.03.26 12:52:47 : Information: delayed garbage collection started
+26.03.26 12:52:49 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:52:49. ����������� ���. � ����: 0.5 �C
+26.03.26 12:52:49 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:52:49 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x09; Got Type=0x03, Code=0x04; Raw=03 04 00 06 00 01 38 01 01 00 B4 38
+26.03.26 12:52:49 : Information: Scheduling GET_CMD_INFO probe. Reason: discarded unrelated response while waiting Type=0x03, Code=0x09
+26.03.26 12:52:49 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:52:49 : Error: No response received from controller
+26.03.26 12:52:49 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:52:49 : Error: No response received from controller
+26.03.26 12:52:49 : Warning: GET_CMD_INFO: no response, but telemetry is still arriving (firmware may not be ready to answer yet)
+26.03.26 12:52:49 : Error: No response received from controller
+26.03.26 12:52:49 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:52:49 : Information: Excel export queued (emergency background)
+26.03.26 12:52:50 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-52-50_Port8867.xlsx
+����� ������: 1.29 ������ (304 �����)
+26.03.26 12:52:50 : Information: delayed garbage collection started
+26.03.26 12:52:52 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:52:52. ����������� ���. � ����: 0.5 �C
+26.03.26 12:52:52 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:52:52 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x09; Got Type=0x03, Code=0x04; Raw=03 04 00 06 00 01 3B 01 01 00 B4 7C
+26.03.26 12:52:52 : Information: Scheduling GET_CMD_INFO probe. Reason: discarded unrelated response while waiting Type=0x03, Code=0x09
+26.03.26 12:52:52 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:52:52 : Error: No response received from controller
+26.03.26 12:52:52 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:52:52 : Error: No response received from controller
+26.03.26 12:52:52 : Warning: GET_CMD_INFO: no response, but telemetry is still arriving (firmware may not be ready to answer yet)
+26.03.26 12:52:52 : Error: No response received from controller
+26.03.26 12:52:52 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:52:52 : Information: Excel export queued (emergency background)
+26.03.26 12:52:53 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-52-53_Port8867.xlsx
+����� ������: 1.32 ������ (306 �����)
+26.03.26 12:52:53 : Information: delayed garbage collection started
+26.03.26 12:53:03 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:53:03. ����������� ���. � ����: 0.5 �C
+26.03.26 12:53:03 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:53:03 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x09; Got Type=0x03, Code=0x04; Raw=03 04 00 06 00 01 3E 01 01 00 B4 B0
+26.03.26 12:53:03 : Information: Scheduling GET_CMD_INFO probe. Reason: discarded unrelated response while waiting Type=0x03, Code=0x09
+26.03.26 12:53:03 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:53:03 : Error: No response received from controller
+26.03.26 12:53:03 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:53:03 : Error: No response received from controller
+26.03.26 12:53:03 : Warning: GET_CMD_INFO: no response, but telemetry is still arriving (firmware may not be ready to answer yet)
+26.03.26 12:53:03 : Error: No response received from controller
+26.03.26 12:53:03 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:53:03 : Information: Excel export queued (emergency background)
+26.03.26 12:53:04 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-53-04_Port8867.xlsx
+����� ������: 1.31 ������ (316 �����)
+26.03.26 12:53:04 : Information: delayed garbage collection started
+26.03.26 12:53:46 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:53:46. ����������� ���. � ����: 0.6 �C
+26.03.26 12:53:46 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:53:46 : Error: No response received from controller
+26.03.26 12:53:46 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:53:46 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:53:46 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x04; Got Type=0x03, Code=0x09; Raw=03 09 00 04 00 00 00 00 68 DE
+26.03.26 12:53:46 : Error: No response received from controller
+26.03.26 12:53:46 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:53:46 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS)
+����� ����������: 372 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:53:46
+26.03.26 12:53:46 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:53:46 : Information: Excel export queued (emergency background)
+26.03.26 12:53:47 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-53-47_Port8867.xlsx
+����� ������: 1.36 ������ (358 �����)
+26.03.26 12:53:47 : Information: delayed garbage collection started
+26.03.26 12:53:49 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:53:49. ����������� ���. � ����: 0.6 �C
+26.03.26 12:53:49 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:53:49 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x09; Got Type=0x03, Code=0x04; Raw=03 04 00 06 03 09 74 01 01 00 43 5A
+26.03.26 12:53:49 : Information: Scheduling GET_CMD_INFO probe. Reason: discarded unrelated response while waiting Type=0x03, Code=0x09
+26.03.26 12:53:49 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:53:49 : Error: No response received from controller
+26.03.26 12:53:49 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:53:49 : Error: No response received from controller
+26.03.26 12:53:49 : Warning: GET_CMD_INFO: no response, but telemetry is still arriving (firmware may not be ready to answer yet)
+26.03.26 12:53:49 : Error: No response received from controller
+26.03.26 12:53:49 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:53:49 : Information: Excel export queued (emergency background)
+26.03.26 12:53:50 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-53-50_Port8867.xlsx
+����� ������: 1.32 ������ (360 �����)
+26.03.26 12:53:50 : Information: delayed garbage collection started
+26.03.26 12:54:16 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:54:16. ����������� ���. � ����: 0.6 �C
+26.03.26 12:54:16 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:54:16 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x09; Got Type=0x03, Code=0x04; Raw=03 04 00 06 00 01 77 01 01 00 A2 EC
+26.03.26 12:54:16 : Information: Scheduling GET_CMD_INFO probe. Reason: discarded unrelated response while waiting Type=0x03, Code=0x09
+26.03.26 12:54:16 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:54:16 : Error: No response received from controller
+26.03.26 12:54:16 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:54:16 : Error: No response received from controller
+26.03.26 12:54:16 : Warning: GET_CMD_INFO: no response, but telemetry is still arriving (firmware may not be ready to answer yet)
+26.03.26 12:54:16 : Error: No response received from controller
+26.03.26 12:54:16 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:54:16 : Information: Excel export queued (emergency background)
+26.03.26 12:54:17 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-54-17_Port8867.xlsx
+����� ������: 1.31 ������ (386 �����)
+26.03.26 12:54:17 : Information: delayed garbage collection started
+26.03.26 12:54:19 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:54:19. ����������� ���. � ����: 0.6 �C
+26.03.26 12:54:19 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:54:19 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x09; Got Type=0x03, Code=0x04; Raw=03 04 00 06 00 01 92 01 01 00 95 E0
+26.03.26 12:54:19 : Information: Scheduling GET_CMD_INFO probe. Reason: discarded unrelated response while waiting Type=0x03, Code=0x09
+26.03.26 12:54:19 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:54:19 : Error: No response received from controller
+26.03.26 12:54:19 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:54:19 : Error: No response received from controller
+26.03.26 12:54:19 : Warning: GET_CMD_INFO: no response, but telemetry is still arriving (firmware may not be ready to answer yet)
+26.03.26 12:54:19 : Error: No response received from controller
+26.03.26 12:54:19 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:54:19 : Information: Excel export queued (emergency background)
+26.03.26 12:54:20 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-54-20_Port8867.xlsx
+����� ������: 1.35 ������ (388 �����)
+26.03.26 12:54:20 : Information: delayed garbage collection started
+26.03.26 12:54:35 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:54:35 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x00 (TELEMETRY), Code=0x01 (DATA_OK)
+����� ����������: 405 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:54:19
+26.03.26 12:54:43 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:54:43 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x03 (REQUEST), Code=0x08 (SEND_STATE)
+����� ����������: 421 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:54:35
+26.03.26 12:54:45 : Information: ������� SET_INTERVAL ���������� �������
+26.03.26 12:54:45 : Warning: Discarding unrelated response. Expected Type=0x02, Code=0x02; Got Type=0x03, Code=0x04; Raw=03 04 00 06 03 08 AD 01 01 00 45 C6
+26.03.26 12:54:45 : Information: Scheduling GET_CMD_INFO probe. Reason: discarded unrelated response while waiting Type=0x02, Code=0x02
+26.03.26 12:54:45 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:54:45 : Error: No response received from controller
+26.03.26 12:54:45 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:54:45 : Error: No response received from controller
+26.03.26 12:54:45 : Warning: GET_CMD_INFO: no response, but telemetry is still arriving (firmware may not be ready to answer yet)
+26.03.26 12:54:45 : Error: No response received from controller
+26.03.26 12:55:14 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:55:14. ����������� ���. � ����: 0.7 �C
+26.03.26 12:55:14 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:55:14 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x09; Got Type=0x03, Code=0x04; Raw=03 04 00 06 00 01 B0 01 01 00 9F 98
+26.03.26 12:55:14 : Information: Scheduling GET_CMD_INFO probe. Reason: discarded unrelated response while waiting Type=0x03, Code=0x09
+26.03.26 12:55:14 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:55:14 : Error: No response received from controller
+26.03.26 12:55:14 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:55:14 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x00 (TELEMETRY), Code=0x01 (DATA_OK)
+����� ����������: 461 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-25 18:42:59
+26.03.26 12:55:14 : Error: No response received from controller
+26.03.26 12:55:14 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:55:14 : Information: Excel export queued (emergency background)
+26.03.26 12:55:15 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-55-15_Port8867.xlsx
+����� ������: 1.41 ������ (442 �����)
+26.03.26 12:55:15 : Information: delayed garbage collection started
+26.03.26 12:55:17 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:55:17. ����������� ���. � ����: 0.7 �C
+26.03.26 12:55:17 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:55:17 : Error: No response received from controller
+26.03.26 12:55:17 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:55:17 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:55:17 : Warning: Discarding unrelated response. Expected Type=0x03, Code=0x04; Got Type=0x03, Code=0x09; Raw=03 09 00 04 00 00 00 00 68 DE
+26.03.26 12:55:17 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS)
+����� ����������: 464 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-25 18:43:02
+26.03.26 12:55:17 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:55:17 : Information: Excel export queued (emergency background)
+26.03.26 12:55:18 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-55-18_Port8867.xlsx
+����� ������: 1.32 ������ (444 �����)
+26.03.26 12:55:18 : Information: delayed garbage collection started
+26.03.26 12:56:08 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:56:08. ����������� ���. � ����: 0.6 �C
+26.03.26 12:56:08 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:56:08 : Error: No response received from controller
+26.03.26 12:56:08 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:56:08 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:56:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x00, Cmd=0x01, DataLen=89
+26.03.26 12:56:08 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x00 (TELEMETRY), Code=0x01 (DATA_OK)
+����� ����������: 515 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:56:08
+26.03.26 12:56:08 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:56:08 : Information: Excel export queued (emergency background)
+26.03.26 12:56:10 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-56-09_Port8867.xlsx
+����� ������: 1.40 ������ (493 �����)
+26.03.26 12:56:10 : Information: delayed garbage collection started
+26.03.26 12:56:11 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:56:11. ����������� ���. � ����: 0.6 �C
+26.03.26 12:56:11 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:56:11 : Error: No response received from controller
+26.03.26 12:56:11 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:56:11 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:56:11 : Warning: Dropping framed packet due CRC mismatch. Type=0x00, Cmd=0x01, DataLen=89
+26.03.26 12:56:11 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x00 (TELEMETRY), Code=0x01 (DATA_OK)
+����� ����������: 518 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:56:11
+26.03.26 12:56:11 : Warning: GET_ALARM_FLAGS failed before Excel export, using current alarm grid snapshot
+26.03.26 12:56:11 : Information: Excel export queued (emergency background)
+26.03.26 12:56:13 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-56-12_Port8867.xlsx
+����� ������: 1.37 ������ (495 �����)
+26.03.26 12:56:13 : Information: delayed garbage collection started
+26.03.26 12:56:20 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:56:20 : Error: No response received from controller
+26.03.26 12:56:20 : Information: Scheduling GET_CMD_INFO probe. Reason: timeout waiting response Type=0x03, Code=0x09
+26.03.26 12:56:20 : Information: ������� GET_CMD_INFO ���������� �������
+26.03.26 12:56:20 : Warning: Dropping framed packet due CRC mismatch. Type=0x00, Cmd=0x01, DataLen=89
+26.03.26 12:56:20 : [OK] ������� Type=0x03 (REQUEST), Code=0x04 (GET_CMD_INFO) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ������� (����������): Type=0x00 (TELEMETRY), Code=0x01 (DATA_OK)
+����� ����������: 527 ���
+ACK ���������: ��
+������ ���������: 0x00 (OK) - ������� ������� ���������
+��������� �������� ����� �����: 2026-03-26 12:56:20
+26.03.26 12:56:20 : Information: ������� ��������������� ��������� �����������. �����: 26.03.2026 12:56:20. ����������� ���. � ����: 0.6 �C
+26.03.26 12:56:20 : Information: ������� GET_ALARM_FLAGS ���������� �������
+26.03.26 12:56:20 : [OK] ������� Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) ������� ���������
+������: 0x00 (OK) - ������� ������� ���������
+��������� ��������:
+  ����������: 0x0000
+  �������: 0x0000
+26.03.26 12:56:20 : Information: Excel export queued (emergency background)
+26.03.26 12:56:22 : Information: ���� Excel ������� ��������: WorkData_Start_2026-03-26_12-46-26_End_2026-03-26_12-56-21_Port8867.xlsx
+����� ������: 1.35 ������ (503 �����)
+26.03.26 12:56:22 : Information: delayed garbage collection started

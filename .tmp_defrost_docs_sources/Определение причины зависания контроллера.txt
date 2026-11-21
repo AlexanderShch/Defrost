@@ -1,0 +1,127 @@
+SOURCE: D:\Users\Alsh1004\OneDrive\Projects\Documentation\Проект дефростер\Определение причины зависания контроллера.docx
+
+[P1 | Title] Маркер причины
+[P2 | Normal] Теперь прошивка не зависает «в белом экране» молча, а перезапускается с маркером причины.
+[P3 | Normal] Что изменено
+[P4 | Normal] В Defrost:
+[P5 | Normal] Core/Inc/main.h
+[P6 | Normal] добавлены коды причин:
+[P7 | Normal] BOOT_FAULT_MARKER_HARDFAULT
+[P8 | Normal] BOOT_FAULT_MARKER_MEMMANAGE
+[P9 | Normal] BOOT_FAULT_MARKER_BUSFAULT
+[P10 | Normal] BOOT_FAULT_MARKER_USAGEFAULT
+[P11 | Normal] BOOT_FAULT_MARKER_STACKOVERFLOW
+[P12 | Normal] добавлены extern-переменные диагностики:
+[P13 | Normal] g_bootFaultMarker
+[P14 | Normal] g_bootResetFlagsSnapshot
+[P15 | Normal] g_bootFaultCounter
+[P16 | Normal] добавлена функция BootDiag_CaptureResetFlags().
+[P17 | Normal] Core/Src/main.c
+[P18 | Normal] добавлены диагностические переменные (для GCC — в .noinit, чтобы переживали программный reset):
+[P19 | Normal] g_bootFaultMarker
+[P20 | Normal] g_bootFaultCounter
+[P21 | Normal] g_bootResetFlagsSnapshot
+[P22 | Normal] реализована BootDiag_CaptureResetFlags():
+[P23 | Normal] снимает флаги RCC reset (POR/PIN/SFT/IWDG/WWDG/LPWR/BOR)
+[P24 | Normal] сохраняет в g_bootResetFlagsSnapshot
+[P25 | Normal] очищает флаги через __HAL_RCC_CLEAR_RESET_FLAGS()
+[P26 | Normal] на «холодном» старте (POR/BOR) сбрасывает fault-маркеры.
+[P27 | Normal] вызов BootDiag_CaptureResetFlags() добавлен сразу после HAL_Init().
+[P28 | Normal] Core/Src/stm32f4xx_it.c
+[P29 | Normal] в HardFault_Handler, MemManage_Handler, BusFault_Handler, UsageFault_Handler:
+[P30 | Normal] ставится маркер причины,
+[P31 | Normal] увеличивается счётчик g_bootFaultCounter,
+[P32 | Normal] выполняется NVIC_SystemReset().
+[P33 | Normal] Core/Src/freertos.c
+[P34 | Normal] в vApplicationStackOverflowHook:
+[P35 | Normal] ставится BOOT_FAULT_MARKER_STACKOVERFLOW,
+[P36 | Normal] увеличивается счётчик,
+[P37 | Normal] выполняется NVIC_SystemReset().
+[P39 | Normal] Как понять причину (инструкция)
+[P40 | Normal] 1) Запустите отладку в STM32CubeIDE
+[P41 | Normal] После проблемного сценария (вход в отладку / конец автоалгоритма / белый экран) МК теперь перезагрузится.
+[P42 | Normal] 2) Откройте Expressions / Live Expressions
+[P43 | Normal] Добавьте переменные:
+[P44 | Normal] g_bootFaultMarker
+[P45 | Normal] g_bootFaultCounter
+[P46 | Normal] g_bootResetFlagsSnapshot
+[P47 | Normal] 3) Расшифровка g_bootFaultMarker
+[P48 | Normal] 0x48415244 (HARD) — HardFault
+[P49 | Normal] 0x4D454D4D (MEMM) — MemManage fault
+[P50 | Normal] 0x42555346 (BUSF) — BusFault
+[P51 | Normal] 0x55534147 (USAG) — UsageFault
+[P52 | Normal] 0x53544B4F (STKO) — переполнение стека задачи FreeRTOS
+[P53 | Normal] 0x00000000 — маркер не установлен (обычно холодный старт/нормальный запуск)
+[P54 | Normal] g_bootFaultCounter покажет, сколько раз такая аварийная перезагрузка случалась подряд.
+[P55 | Normal] 4) Расшифровка g_bootResetFlagsSnapshot (битовая маска)
+[P56 | Normal] bit0 (1<<0) — PORRST (power-on reset)
+[P57 | Normal] bit1 (1<<1) — PINRST (reset pin)
+[P58 | Normal] bit2 (1<<2) — SFTRST (software reset)
+[P59 | Normal] bit3 (1<<3) — IWDGRST (IWDG watchdog)
+[P60 | Normal] bit4 (1<<4) — WWDGRST (WWDG watchdog)
+[P61 | Normal] bit5 (1<<5) — LPWRRST (low-power reset)
+[P62 | Normal] bit6 (1<<6) — BORRST (brown-out reset)
+[P65 | Title] Диагностика HardFault
+[P66 | Subtitle] Что делать прямо сейчас (диагностика по шагам)
+[P67 | Subtitle] Поставьте breakpoint в HardFault_Handler (Core/Src/stm32f4xx_it.c).
+[P68 | Subtitle] Включите в Debug «break on HardFault» (если есть опция в CubeIDE).
+[P69 | Subtitle] Повторите сценарий (конец автоалгоритма).
+[P70 | Subtitle] При остановке в HardFault_Handler снимите регистры:
+[P71 | Subtitle] PC, LR, xPSR
+[P72 | Subtitle] SCB->CFSR
+[P73 | Subtitle] SCB->HFSR
+[P74 | Subtitle] SCB->BFAR
+[P75 | Subtitle] SCB->MMFAR
+[P76 | Subtitle] Эти 5 регистров дадут точную причину (bus fault, usage fault, invalid access, divide by zero и т.д.).
+[P78 | Subtitle] Почему g_bootResetFlagsSnapshot = 0
+[P79 | Subtitle] Нормально: вы в BootDiag_CaptureResetFlags() читаете и затем очищаете RCC флаги.
+Если reset не из RCC-флага (или флаг уже очищен), получите 0.
+В вашем случае уже есть более надёжный индикатор: g_bootFaultMarker = HARD.
+[P81 | Subtitle] Как посмотреть регистры?
+[P82 | Subtitle] Отлично, делаем прямо в STM32CubeIDE.
+[P83 | Subtitle] Как открыть регистры при HardFault
+[P84 | Subtitle] Запустите Debug.
+[P85 | Subtitle] Воспроизведите проблему.
+[P86 | Subtitle] Когда остановится (лучше в HardFault_Handler), откройте:
+[P87 | Subtitle] Window → Show View → Registers
+[P88 | Subtitle] Window → Show View → Expressions
+[P89 | Subtitle] (опционально) Window → Show View → SFRs
+[P90 | Subtitle] Что добавить в Expressions
+[P91 | Subtitle] Добавьте эти выражения:
+[P92 | Subtitle] SCB->CFSR
+[P93 | Subtitle] SCB->HFSR
+[P94 | Subtitle] SCB->BFAR
+[P95 | Subtitle] SCB->MMFAR
+[P96 | Subtitle] SCB->ICSR
+[P97 | Subtitle] SCB->SHCSR
+[P98 | Subtitle] Для контекста падения:
+[P99 | Subtitle] __get_PSP()
+[P100 | Subtitle] __get_MSP()
+[P101 | Subtitle] Если IDE ругается на __get_*, смотрите MSP/PSP в окне Registers.
+[P102 | Subtitle] Где взять PC/LR
+[P103 | Subtitle] В окне Registers (CPU registers):
+[P104 | Subtitle] R15 = PC
+[P105 | Subtitle] R14 = LR
+[P106 | Subtitle] xPSR
+[P107 | Subtitle] Как быстро интерпретировать
+[P108 | Subtitle] HFSR:
+[P109 | Subtitle] бит FORCED = 1 → fault эскалирован из CFSR.
+[P110 | Subtitle] CFSR состоит из:
+[P111 | Subtitle] MMFSR (биты 0..7)
+[P112 | Subtitle] BFSR (8..15)
+[P113 | Subtitle] UFSR (16..31)
+[P114 | Subtitle] Ключевые признаки:
+[P115 | Subtitle] BFSR.BFARVALID + BFAR валиден → ошибочный адрес шины.
+[P116 | Subtitle] MMFSR.MMARVALID + MMFAR валиден → ошибка доступа к памяти.
+[P117 | Subtitle] UFSR.UNDEFINSTR / INVSTATE / INVPC / DIVBYZERO → usage fault.
+[P118 | Subtitle] Полезно: breakpoint до reset
+[P119 | Subtitle] Так как у вас в fault handler сейчас NVIC_SystemReset(), чтобы успеть посмотреть регистры:
+[P120 | Subtitle] поставьте breakpoint на строку перед NVIC_SystemReset() в HardFault_Handler.
+[P121 | Subtitle] после попадания откройте регистры и снимите значения.
+[P123 | Title] Выявленная причина
+[P124 | Normal] Контроллер перестает отвечать серверу в случае завершения алгоритма с аварийными концевиками ворот и заслонки.
+
+[TABLE 1]
+Заслонка | Ворота | Последствия
+Не переключалась | Отработали по концевикам | Работа нормальная
+ |  | 

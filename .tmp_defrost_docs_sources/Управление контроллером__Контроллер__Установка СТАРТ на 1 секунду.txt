@@ -1,0 +1,81 @@
+SOURCE: D:\Users\Alsh1004\OneDrive\Projects\Documentation\Проект дефростер\Управление контроллером\Контроллер\Установка СТАРТ на 1 секунду.docx
+
+[P1 | Normal] Резюме: Установка бита _Wrk на 1 секунду при команде START
+[P2 | Normal] ✅ Что реализовано:
+[P3 | Normal] 1. Добавлена переменная-таймер (строка 27)
+[P4 | Normal] // Таймер для бита _Wrk (время в мс, когда нужно сбросить бит)
+[P5 | Normal] static volatile uint32_t WrkBitTimer = 0;
+[P6 | Normal] 2. Обработка команды START (строки 177-185)
+[P7 | Normal] case PROG_CTRL_CMD_START:
+[P8 | Normal] // Запуск программы
+[P9 | Normal] // Активируем автоматический режим работы
+[P10 | Normal] Model::Flag_DFR_manual = 0;  // Автоматический режим
+[P12 | Normal] // Устанавливаем бит _Wrk (зелёная лампа РАБОТА) на 1 секунду
+[P13 | Normal] Model::DFR._Wrk = 1;
+[P14 | Normal] WrkBitTimer = osKernelGetTickCount() + 1000;  // Сбросить через 1000 мс
+[P15 | Normal] break;
+[P16 | Normal] 3. Функция проверки и сброса таймера (строки 727-741)
+[P17 | Normal] static void CommandReceiver_ProcessWrkBitTimer(void)
+[P18 | Normal] {
+[P19 | Normal] // Проверяем, установлен ли таймер
+[P20 | Normal] if (WrkBitTimer > 0)
+[P21 | Normal] {
+[P22 | Normal] uint32_t currentTick = osKernelGetTickCount();
+[P24 | Normal] // Если время истекло, сбрасываем бит
+[P25 | Normal] if (currentTick >= WrkBitTimer)
+[P26 | Normal] {
+[P27 | Normal] Model::DFR._Wrk = 0;
+[P28 | Normal] WrkBitTimer = 0;  // Отключаем таймер
+[P29 | Normal] }
+[P30 | Normal] }
+[P31 | Normal] }
+[P32 | Normal] 4. Интеграция в основной цикл (строки 754-771)
+[P33 | Normal] while (1)
+[P34 | Normal] {
+[P35 | Normal] // Проверяем таймер бита _Wrk
+[P36 | Normal] CommandReceiver_ProcessWrkBitTimer();
+[P38 | Normal] // Ждем семафор (с таймаутом 100 мс для проверки таймера)
+[P39 | Normal] osStatus_t semStatus = osSemaphoreAcquire(PR_RX_Compl_SemHandle, 100);
+[P41 | Normal] if (semStatus == osOK && RX_ReceivedSize > 0)
+[P42 | Normal] {
+[P43 | Normal] // Обрабатываем команды...
+[P44 | Normal] }
+[P45 | Normal] }
+[P46 | Normal] Как это работает:
+[P47 | Normal] Временная диаграмма:
+[P48 | Normal] Время:   0 мс         100 мс      200 мс      ...     1000 мс     1100 мс
+[P49 | Normal] │             │           │                   │           │
+[P50 | Normal] Сервер → [START]       │           │                   │           │
+[P51 | Normal] ↓             │           │                   │           │
+[P52 | Normal] _Wrk:    1 ═══════════════════════════════════════════╪═══════════ 0
+[P53 | Normal] ↑           ↑                   ↑           ↑
+[P54 | Normal] Task:    [Проверка]─── [Проверка] [Проверка] ... [Проверка] [Сброс!]
+[P55 | Normal] таймер еще    таймер еще  таймер еще         истёк      _Wrk=0
+[P56 | Normal] не истёк      не истёк    не истёк
+[P57 | Normal] Детали реализации:
+[P58 | Normal] При получении команды START:
+[P59 | Normal] Устанавливается Model::DFR._Wrk = 1 (зелёная лампа включается)
+[P60 | Normal] Устанавливается WrkBitTimer = текущее_время + 1000 мс
+[P61 | Normal] В основном цикле (каждые 100 мс):
+[P62 | Normal] Вызывается CommandReceiver_ProcessWrkBitTimer()
+[P63 | Normal] Проверяется: текущее_время >= WrkBitTimer?
+[P64 | Normal] Если да → сбрасывается Model::DFR._Wrk = 0 (лампа гаснет)
+[P65 | Normal] Точность:
+[P66 | Normal] Проверка каждые 100 мс
+[P67 | Normal] Погрешность: ±100 мс
+[P68 | Normal] Реальное время: 1000-1100 мс
+[P69 | Normal] Преимущества решения:
+[P70 | Normal] ✅ Простота - не требуется отдельный таймер FreeRTOS✅ Эффективность - проверка только при активном таймере✅ Безопасность - сброс гарантирован даже при любых ошибках✅ Интеграция - использует существующий поток
+[P71 | Normal] Альтернативный подход (если нужна точность):
+[P72 | Normal] Если требуется точность ±1 мс, можно использовать программный таймер FreeRTOS:
+[P73 | Normal] // Создать таймер при инициализации
+[P74 | Normal] osTimerId_t wrkTimer = osTimerNew(WrkTimerCallback, osTimerOnce, NULL, NULL);
+[P75 | Normal] // При START
+[P76 | Normal] Model::DFR._Wrk = 1;
+[P77 | Normal] osTimerStart(wrkTimer, 1000);  // Точно 1000 мс
+[P78 | Normal] // Callback
+[P79 | Normal] void WrkTimerCallback(void *argument)
+[P80 | Normal] {
+[P81 | Normal] Model::DFR._Wrk = 0;
+[P82 | Normal] }
+[P83 | Normal] Но для включения лампы на 1 секунду текущее решение с проверкой каждые 100 мс более чем достаточно!

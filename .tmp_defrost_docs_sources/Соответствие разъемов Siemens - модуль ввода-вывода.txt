@@ -1,0 +1,37 @@
+SOURCE: D:\Users\Alsh1004\OneDrive\Projects\Documentation\Проект дефростер\Соответствие разъемов Siemens - модуль ввода-вывода.docx
+
+
+[TABLE 1]
+№ бита | № входа реле | Имя переменной в битовом регистре DFR (Model.hpp) | Наименование устройства рус/нем | Лист схемы | Выход Siemens | Колодка соед. | Контактор / реле | Контакт разъема
+IN4 | I4 | Ten1_Left | Левый ТЭН №1 Heizung 1 | 8/1 | А1.0 E125.0 | X11:22 | К10 | X1:1
+IN5 | I5 | Ten2_Left | Левый ТЭН №2 Heizung 2 | 8/2 | А1.0 E125.1 | X11:23 | К20 | X1:2
+IN6 | I6 | Ten1_Right | Правый ТЭН №1 Heizung 3 | 8/3 | А1.0 E125.2 | X11:24 | К30 | X1:3
+IN7 | I7 | Ten2_Right | Правый ТЭН №2 Heizung 4 | 8/4 | А1.0 E125.3 | X11:25 | К40 | X1:4
+IN12 | I14 | Gate_Close | Ворота открыты Endschalter Rolltor Auf (aufmachen) | 7/1 | A1.0 E124.0 | X12:2, X3:2 | M100 S5 | X4:1
+IN13 | I15 | Gate_Open | Ворота закрыты Endschalter Rolltor Zu (zumachen) | 7/2 | A1.0 E124.1 | X12:3, X3:4 | M100 S6 | X4:2
+IN9 | I11 | Air_Open | Воздушная заслонка открыта Endschalter wrasenklappe Auf | 7/5 | А1.0 E124.4 | X12:6 | М110 | X4:3
+IN10 | I12 | Air_Close | Воздушная заслонка закрыта Endschalter wrasenklappe Zu | 7/6 | А1.0 E124.5 | X12:7 | М110 | X4:4
+IN11 | I13 | Gate_Alarm | Авария ворот Notöffnung Rolltor | 7/7 | А1.0 E124.6 | X12:8 | S5 | X4:5
+IN8 | I10 | Vent_Out | Вытяжной вентилятор Wresenablufter Betrieb | 9/2 | А1.0 E126.1 | X12:13 | К90 | X4:6
+IN0 | I0 | Vent1_Left | Вентилятор1 левый Ventilator 1 | 9/3 | А1.0 E125.2 | X12:14 | К50 | X2:1
+IN1 | I1 | Vent1_Left | Вентилятор2 левый Ventilator 2 | 9/4 | А1.0 E125.3 | X12:15 | К60 | X2:2
+IN2 | I2 | Vent1_Right | Вентилятор1 правый Ventilator 3 | 9/5 | А1.0 E125.4 | X12:16 | К70 | X2:3
+IN3 | I3 | Vent1_Right | Вентилятор2 правый Ventilator 4 | 9/6 | А1.0 E125.5 | X12:17 | К80 | X2:4
+IN14 | I16 | But_Start | ПУСК auftauhen start | 9/7 | A1.0 E126.6 | X12:18 | S3 | X5:7
+IN15 | I17 | But_Stop | СТОП auftauhen stop | 9/8 | A1.0 E126.7 | X12:19 | S4 | X5:8
+OUT8 | Q10 | _Out | Вытяжной вентилятор включить | 10/1 | А1.0 А124.0 | X12:22 | К200 | X3:1
+OUT0 | Q0 | Vent1_Left | Вентилятор1 левый включить Ventilator 1 | 10/2 | А1.0 А124.1 | X12:23 | К201 | X3:2
+OUT1 | Q1 | Vent1_Left | Вентилятор2 левый включить Ventilator 2 | 10/3 | А1.0 А124.2 | X12:24 | К202 | X3:3
+OUT2 | Q2 | Vent1_Right | Вентилятор1 правый включить Ventilator 3 | 10/4 | А1.0 А124.3 | X12:25 | К203 | X3:4
+OUT3 | Q3 | Vent1_Right | Вентилятор2 правый включить Ventilator 4 | 10/5 | А1.0 А124.4 | X12:26 | К204 | X3:5
+OUT9 | Q11 | _Inj | Водный клапан включить Magnetventil spruh wasser | 10/6 | А1.0 А124.5 | X12:27 | К205 | X3:6
+OUT10 | Q12 | Water_Flap | Защитная заслонка, открыть | 10/8 | А1.0 А124.7 | X12:29 | К207 | X3:7
+OUT11 | Q13 | Gate_Up | Двигать ворота вверх Rolltor aufmachen | 11/2 | А1.0 А125.1 | X12:33 | К209 | X3:8
+OUT12 | Q14 | Gate_Dbl | Разблокировать управление воротами Rolltor stop | 11/3 | А1.0 А125.2 | X12:34 | К210 | X5:1
+OUT13 | Q15 | Gate_Down | Двигать ворота вниз Rolltor zumachen | 11/4 | А1.0 А125.3 | X12:35 | К211 | X5:2
+OUT4 | Q4 | Ten1_Left | Левый ТЭН №1 включить Heizung 1 | 11/6 | А1.0 А125.4 | X12:36 | К212 | X5:3
+OUT5 | Q5 | Ten2_Left | Левый ТЭН №2 включить Heizung 2 | 11/7 | А1.0 А125.5 | X12:37 | К213 | X5:4
+OUT6 | Q6 | Ten1_Right | Правый ТЭН №1 включить Heizung 3 | 11/8 | А1.0 А125.6 | X12:38 | К214 | X5:5
+OUT7 | Q7 | Ten2_Right | Правый ТЭН №2 включить Heizung 4 | 11/9 | А1.0 А125.7 | X12:39 | К215 | X5:6
+OUT14 | Q16 | _Wrk | Зелёная лампа работы в авт. Режиме | 13/2 | A0.1 | A1.1:5 |  | X6:1
+OUT15 | Q17 | _Alr | Красная лампа аварии | 13/3 | A0.2 | A1.1:7 |  | X6:2

@@ -59,6 +59,10 @@ MSGQUEUE_OBJ_t Data_CurrentTelemetry(void)
 			DataToServer.H[SensorIndex] = (int16_t)Sensor::GetData(tick, SensorIndex, 3);
 		}
 	}
+	// Сервер использует _Wrk как признак активного регулирования. Во время
+	// останова физическая лампа остаётся включённой, а сервер ориентируется на _Shd.
+	if (DefrostControl_UsesNewWrkAlrAlgorithm() != 0u && DefrostControl_IsEnabled() == 0u)
+		DataToServer.H[SQ - 1u] = (int16_t)((uint16_t)DataToServer.H[SQ - 1u] & ~(1u << 14));
     DataToServer.ShutdownActive = DefrostControl_IsShutdownActive();
 	return DataToServer;
 }
@@ -541,6 +545,8 @@ void ReadDataFunc() {
 			// Индексы 0..5 — Т/Н; последний индекс — чтение DO, пауза 5 мс, чтение DI.
 			{
 				result = Sensor_Read(SensorIndex);
+				if (SensorIndex == SQ - 1)
+					GateControl_RecordInputSample(result == MB_ERROR_NO && Sensor_array[SensorIndex].TypeOfSensor == 4u);
 				// Успешный ответ возвращает ранее отключённое устройство в активный опрос.
 				if (result == MB_ERROR_NO)
 					Sensor_array[SensorIndex].Active = 1u;

@@ -1,0 +1,51 @@
+SOURCE: D:\Users\Alsh1004\OneDrive\Projects\Documentation\Проект дефростер\Обмен с GUI.docx
+
+[P1 | Title] Обмен с GUI
+[P2 | Normal] Существует два способа взаимодействия с окружающей системой: либо путем выборки непосредственно из задачи GUI, либо путем выборки из вторичной задачи.
+[P3 | Subtitle] Я выбрал вариант создания вторичной задачи для обмена данными с задачей GUI. У нас создана задача ReadData, которая считывает данные с датчиков и заполняет массив хранения данных. Эта же задача будет обмениваться данными с задачей GUI.
+[P4 | Body Text] Обмен данными между задачами будет производиться с помощью системы обмена сообщениями между задачами, встроенной в RTOS. Функции RTOS для обмена сообщениями:
+[P5 | Body Text] osEventFlagsSet – установка сообщения для задачи
+[P6 | Body Text] osEventFlagsWait – ожидание сообщения от задачи
+[P7 | Body Text] Как только появится необходимость изменить значение показателя на экране, задача…
+[P8 | Heading 1] Класс Model
+[P9 | Normal (Web)] Класс Model не только выполняет функции интерфейса к нашей окружающей системе, но и отвечает за хранение данных о состоянии, поэтому могут существовать некоторые переменные состояния, которые также нуждаются в обновлении. К нашей системе подключены пять датчиков температуры, и текущая температура каждого должна отображаться в пользовательском интерфейсе. При подготовке мы расширим класс Model для поддержки этого в заголовочном файле Model.hpp добавляем пять защищённых переменных float:
+[P10 | Normal] #ifndef MODEL_HPP
+[P11 | Normal] #define MODEL_HPP
+[P13 | Normal] class ModelListener;
+[P15 | Normal] class Model
+[P16 | Normal] {
+[P17 | Normal] public:
+[P18 | Normal] Model();
+[P20 | Normal] void bind(ModelListener* listener)
+[P21 | Normal] {
+[P22 | Normal] modelListener = listener;
+[P23 | Normal] }
+[P25 | Normal] void tick();
+[P26 | Normal] protected:
+[P27 | Normal] ModelListener* modelListener;
+[P28 | Normal] float currentTemperatureLeft;
+[P29 | Normal] float currentTemperatureRight;
+[P30 | Normal] float currentTemperatureCenter;
+[P31 | Normal] float ProductTemperatureLeft;
+[P32 | Normal] float ProductTemperatureRight;
+[P33 | Normal] };
+[P35 | Normal] #endif // MODEL_HPP
+[P38 | Normal (Web)] Благодаря вышесказанному наш Presenters (ведущий) может запрашивать модель о текущей температуре, позволяя ведущему устанавливать это значение в пользовательском интерфейсе (View) при переключении на экран, отображающий температуру. Что нам нужно сделать сейчас, так это иметь возможность снова обновить пользовательский интерфейс при получении новой информации о температуре. Для этого мы используем тот факт, что Модель имеет указатель на наш текущий активный презентатор. Тип этого указателя — это интерфейс (ModelListener), который мы можем изменить, чтобы отразить соответствующие события, относящиеся к конкретному приложению. Сообщать презентеру об изменении температуры будет функция notifyTemperatureLeftChanged:
+[P39 | Normal] #ifndef MODELLISTENER_HPP
+[P40 | Normal] #define MODELLISTENER_HPP
+[P42 | Normal] #include <gui/model/Model.hpp>
+[P44 | Normal] class ModelListener
+[P45 | Normal] {
+[P46 | Normal] public:
+[P47 | Normal] ModelListener() : model(0) {}
+[P49 | Normal] virtual ~ModelListener() {}
+[P51 | Normal] void bind(Model* m)
+[P52 | Normal] {
+[P53 | Normal] model = m;
+[P54 | Normal] }
+[P55 | Normal] virtual void notifyTemperatureLeftChanged(float currentTemperatureLeft) {}
+[P56 | Normal] protected:
+[P57 | Normal] Model* model;
+[P58 | Normal] };
+[P60 | Normal] #endif // MODELLISTENER_HPP
+[P62 | Normal (Web)] Поскольку notifyTemperatureChanged функция имеет пустую реализацию по умолчанию, это уведомление просто игнорируется презентерами других экранов. С другой стороны, температуры отображаются на экране Visualization, и я могу в этом презентаторе переопределить notifyTemperatureChanged функцию и сообщить представлению, что оно должно отображать обновленную температуру:

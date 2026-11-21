@@ -1,0 +1,959 @@
+﻿
+18.11.26 16:52:06 : ================================================================================
+18.11.26 16:52:06 : Information: New thread was created, port 8866
+18.11.26 16:52:06 : Information: DataGridView привязан к DataTable
+18.11.26 16:52:06 : Information: Автозапуск установлен на 19:00
+18.11.26 16:52:06 : Information: The DataForm has been opened successfully!
+18.11.26 16:52:06 : Information: Deferred startup scheduled for 10.25.99.112
+18.11.26 16:52:06 : Information: Стартовая последовательность будет запланирована после создания окна DataForm (HandleCreated).
+18.11.26 16:52:08 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION начат
+18.11.26 16:52:08 : Information: Команда GET_VERSION отправлена клиенту
+18.11.26 16:52:08 : [OK] Команда Type=0x03 (REQUEST), Code=0x02 (GET_VERSION) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Версия прошивки: 3.3.0
+18.11.26 16:52:08 : Information: Версия прошивки контроллера: 3.3.0
+18.11.26 16:52:08 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION выполнен
+18.11.26 16:52:08 : Отладка: Последовательность запуска: шаг 4/4 GET_DEFROST_GROUP(5,6) начат
+18.11.26 16:52:08 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 16:52:08 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 16:52:08 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 16:52:08 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 16:52:08 : Отладка: STM32: группы 5/6 считаны из контроллера до записи; SET_INTERVAL(5) начат
+18.11.26 16:52:08 : Information: Команда SET_INTERVAL отправлена клиенту
+18.11.26 16:52:08 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x02 (SET_INTERVAL) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 16:52:08 : [OK] Интервал измерений: 5 с
+18.11.26 16:52:08 : Информация: STM32: запуск выполнен (GET_VERSION -> GET_DEFROST_GROUP[5,6] -> SET_INTERVAL; серверные уставки не записаны)
+18.11.26 16:52:13 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+18.11.26 16:52:13 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+18.11.26 16:52:31 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 16:52:31 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:05:40 : Information: Команда SET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:05:40 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x05 (SET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:05:40 : Information: Команда SET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:05:40 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x05 (SET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:05:40 : Information: Wrote defrost params by group: group5=OK, group6=OK
+18.11.26 17:06:04 : Information: Команда SET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:06:04 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x05 (SET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:06:04 : Information: Команда SET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:06:04 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x05 (SET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:06:04 : Information: Wrote defrost params by group: group5=OK, group6=OK
+18.11.26 17:06:18 : Information: Команда RESET отправлена клиенту
+18.11.26 17:06:18 : [OK] Команда Type=0x01 (PROG_CONTROL), Code=0x05 (RESET) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:06:18 : Information: Команда RESET успешно выполнена контроллером
+18.11.26 17:06:19 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION начат
+18.11.26 17:06:19 : Information: Команда GET_VERSION отправлена клиенту
+18.11.26 17:06:19 : [OK] Команда Type=0x03 (REQUEST), Code=0x02 (GET_VERSION) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Версия прошивки: 3.3.0
+18.11.26 17:06:19 : Information: Версия прошивки контроллера: 3.3.0
+18.11.26 17:06:19 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION выполнен
+18.11.26 17:06:19 : Отладка: Последовательность запуска: шаг 4/4 GET_DEFROST_GROUP(5,6) начат
+18.11.26 17:06:19 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:06:19 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:06:19 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:06:19 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:06:19 : Отладка: STM32: группы 5/6 считаны из контроллера до записи; SET_INTERVAL(5) начат
+18.11.26 17:06:19 : Information: Команда SET_INTERVAL отправлена клиенту
+18.11.26 17:06:19 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x02 (SET_INTERVAL) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:06:19 : [OK] Интервал измерений: 5 с
+18.11.26 17:06:19 : Информация: STM32: запуск выполнен (GET_VERSION -> GET_DEFROST_GROUP[5,6] -> SET_INTERVAL; серверные уставки не записаны)
+18.11.26 17:06:24 : Информация: перезапуск контроллера (откат поля Time телеметрии). Сброс авторежима; запись в таблицу без новой команды ПУСК отключена.
+18.11.26 17:06:26 : Information: Команда GET_VERSION отправлена клиенту
+18.11.26 17:06:26 : [OK] Команда Type=0x03 (REQUEST), Code=0x02 (GET_VERSION) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Версия прошивки: 3.3.0
+18.11.26 17:06:26 : Information: Версия прошивки контроллера: 3.3.0
+18.11.26 17:06:27 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:06:27 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:06:27 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:06:27 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:06:27 : Information: Read params from defroster: group5 transport=OK, group6 transport=OK, group5 loaded=yes, group6 loaded=yes
+18.11.26 17:06:39 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:06:39 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:06:44 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+18.11.26 17:06:44 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+18.11.26 17:11:42 : Error: Ошибка отправки команды GET_BUTTON_EVENTS: 10093
+18.11.26 17:11:42 : Information: Форма удалена из карты в FormClosed
+18.11.26 17:11:42 : Attention: Recv failed: 10004
+18.11.26 17:11:42 : Information: Waiting for Excel export jobs to complete before shutdown...
+18.11.26 17:11:42 : Information: Excel export jobs completed.
+18.11.26 17:11:42 : ======================================================================
+18.11.26 17:11:42 : Application closing normally...
+18.11.26 17:11:42 : ======================================================================
+18.11.26 17:12:18 : ======================================================================
+18.11.26 17:12:18 : Application starting...
+18.11.26 17:12:18 : ======================================================================
+18.11.26 17:12:18 : Start listenin at port 3487
+18.11.26 17:12:19 : 
+18.11.26 17:12:19 : ================================================================================
+18.11.26 17:12:19 : Information: New thread was created, port 8866
+18.11.26 17:12:19 : Information: DataGridView привязан к DataTable
+18.11.26 17:12:19 : Information: Автозапуск установлен на 21:00
+18.11.26 17:12:19 : Information: The DataForm has been opened successfully!
+18.11.26 17:12:19 : Information: Deferred startup scheduled for 10.25.99.112
+18.11.26 17:12:22 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION начат
+18.11.26 17:12:22 : Information: Команда GET_VERSION отправлена клиенту
+18.11.26 17:12:22 : [OK] Команда Type=0x03 (REQUEST), Code=0x02 (GET_VERSION) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Версия прошивки: 3.3.0
+18.11.26 17:12:22 : Information: Версия прошивки контроллера: 3.3.0
+18.11.26 17:12:22 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION выполнен
+18.11.26 17:12:22 : Отладка: Последовательность запуска: шаг 4/4 GET_DEFROST_GROUP(5,6) начат
+18.11.26 17:12:22 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:12:22 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:12:22 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:12:22 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:12:22 : Отладка: STM32: группы 5/6 считаны из контроллера до записи; SET_INTERVAL(5) начат
+18.11.26 17:12:22 : Information: Команда SET_INTERVAL отправлена клиенту
+18.11.26 17:12:22 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x02 (SET_INTERVAL) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:12:22 : [OK] Интервал измерений: 5 с
+18.11.26 17:12:22 : Информация: STM32: запуск выполнен (GET_VERSION -> GET_DEFROST_GROUP[5,6] -> SET_INTERVAL; серверные уставки не записаны)
+18.11.26 17:12:28 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+18.11.26 17:12:28 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+18.11.26 17:48:50 : Information: Форма удалена из карты в FormClosed
+18.11.26 17:48:50 : Attention: Recv failed: 10004
+18.11.26 17:48:50 : Information: Waiting for Excel export jobs to complete before shutdown...
+18.11.26 17:48:50 : Information: Excel export jobs completed.
+18.11.26 17:48:50 : ======================================================================
+18.11.26 17:48:50 : Application closing normally...
+18.11.26 17:48:50 : ======================================================================
+18.11.26 17:49:04 : ======================================================================
+18.11.26 17:49:04 : Application starting...
+18.11.26 17:49:04 : ======================================================================
+18.11.26 17:49:04 : Start listenin at port 3487
+18.11.26 17:49:05 : 
+18.11.26 17:49:05 : ================================================================================
+18.11.26 17:49:05 : Information: New thread was created, port 8866
+18.11.26 17:49:06 : Information: DataGridView привязан к DataTable
+18.11.26 17:49:06 : Information: Автозапуск установлен на 21:00
+18.11.26 17:49:06 : Information: The DataForm has been opened successfully!
+18.11.26 17:49:06 : Information: Deferred startup scheduled for 10.25.99.112
+18.11.26 17:49:09 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION начат
+18.11.26 17:49:09 : Information: Команда GET_VERSION отправлена клиенту
+18.11.26 17:49:09 : [OK] Команда Type=0x03 (REQUEST), Code=0x02 (GET_VERSION) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Версия прошивки: 3.3.0
+18.11.26 17:49:09 : Information: Версия прошивки контроллера: 3.3.0
+18.11.26 17:49:09 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION выполнен
+18.11.26 17:49:09 : Отладка: Последовательность запуска: шаг 4/4 GET_DEFROST_GROUP(5,6) начат
+18.11.26 17:49:09 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:49:09 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:49:09 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+18.11.26 17:49:09 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:49:09 : Параметры ПИД: группа 7 считана.
+18.11.26 17:49:09 : Отладка: STM32: группы 5/6 считаны из контроллера до записи; SET_INTERVAL(5) начат
+18.11.26 17:49:09 : Information: Команда SET_INTERVAL отправлена клиенту
+18.11.26 17:49:09 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x02 (SET_INTERVAL) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 17:49:09 : [OK] Интервал измерений: 5 с
+18.11.26 17:49:09 : Информация: STM32: запуск выполнен (GET_VERSION -> GET_DEFROST_GROUP[5,6] -> чтение группы 7 -> SET_INTERVAL; серверные уставки не записаны)
+18.11.26 17:49:14 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+18.11.26 17:49:14 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+18.11.26 17:49:24 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+18.11.26 17:49:24 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+18.11.26 20:15:19 : Диагностика приёма датчиков за 60 с:
+  T0: ok 60, макс. задержка 28 мс; сбои: чужой адрес/код 1
+  T1: ok 60, макс. задержка 13 мс
+  T2: ok 60, макс. задержка 23 мс
+  T3: ok 60, макс. задержка 13 мс
+  T4: ok 60, макс. задержка 11 мс
+  T5: ok 60, макс. задержка 13 мс
+  IO: ok 180, макс. задержка 8 мс
+  Последний сбой: T0, чужой адрес/код, принято 8 байт, UART ErrorCode 0x00, задержка 7 мс, кадр: 65 20 D0 AB 00 30 AE 45
+18.11.26 21:00:06 : Information: Автозапуск сработал в 21:00:06 (целевое: 21:00)
+18.11.26 21:00:06 : [Ожидание] Выполняется команда остановки...
+18.11.26 21:00:06 : Information: Команда START отправлена клиенту
+18.11.26 21:00:06 : [OK] Команда Type=0x01 (PROG_CONTROL), Code=0x01 (START) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+18.11.26 21:59:59 : Диагностика приёма датчиков за 65 с:
+  T0: ok 65, макс. задержка 8 мс
+  T1: ok 65, макс. задержка 14 мс; сбои: CRC 1
+  T2: ok 65, макс. задержка 23 мс
+  T3: ok 65, макс. задержка 14 мс
+  T4: ok 65, макс. задержка 14 мс
+  T5: ok 65, макс. задержка 13 мс
+  IO: ok 195, макс. задержка 8 мс
+  Последний сбой: T1, CRC, принято 9 байт, UART ErrorCode 0x00, задержка 7 мс, кадр: 66 03 04 02 C7 00 D7 1C
+18.11.26 23:07:10 : Диагностика приёма датчиков за 65 с:
+  T0: ok 65, макс. задержка 8 мс
+  T1: ok 65, макс. задержка 29 мс; сбои: CRC 1
+  T2: ok 65, макс. задержка 27 мс
+  T3: ok 65, макс. задержка 12 мс
+  T4: ok 65, макс. задержка 12 мс
+  T5: ok 65, макс. задержка 11 мс
+  IO: ok 195, макс. задержка 8 мс
+  Последний сбой: T1, CRC, принято 9 байт, UART ErrorCode 0x00, задержка 7 мс, кадр: 66 03 04 02 AE 00 ED 48
+18.11.26 23:44:00 : Диагностика приёма датчиков за 65 с:
+  T0: ok 65, макс. задержка 21 мс
+  T1: ok 65, макс. задержка 11 мс
+  T2: ok 65, макс. задержка 22 мс; сбои: чужой адрес/код 1
+  T3: ok 65, макс. задержка 12 мс
+  T4: ok 65, макс. задержка 14 мс
+  T5: ok 65, макс. задержка 11 мс
+  IO: ok 195, макс. задержка 8 мс
+  Последний сбой: T2, чужой адрес/код, принято 9 байт, UART ErrorCode 0x00, задержка 7 мс, кадр: 67 01 04 02 98 00 F6 FC
+19.11.26 00:02:18 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+19.11.26 00:02:18 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+19.11.26 00:05:40 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+19.11.26 00:05:40 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+19.11.26 00:35:55 : Диагностика приёма датчиков за 65 с:
+  T0: ok 65, макс. задержка 11 мс
+  T1: ok 65, макс. задержка 9 мс
+  T2: ok 65, макс. задержка 11 мс; сбои: CRC 1
+  T3: ok 65, макс. задержка 11 мс
+  T4: ok 65, макс. задержка 14 мс
+  T5: ok 65, макс. задержка 11 мс
+  IO: ok 195, макс. задержка 8 мс
+  Последний сбой: T2, CRC, принято 9 байт, UART ErrorCode 0x00, задержка 8 мс, кадр: 67 03 04 02 87 00 F4 4D
+19.11.26 01:49:35 : Диагностика приёма датчиков за 65 с:
+  T0: ok 65, макс. задержка 27 мс
+  T1: ok 65, макс. задержка 19 мс
+  T2: ok 65, макс. задержка 29 мс; сбои: CRC 1
+  T3: ok 65, макс. задержка 13 мс
+  T4: ok 65, макс. задержка 11 мс
+  T5: ok 65, макс. задержка 7 мс
+  IO: ok 195, макс. задержка 8 мс
+  Последний сбой: T2, CRC, принято 9 байт, UART ErrorCode 0x00, задержка 7 мс, кадр: 67 03 04 03 15 00 F9 2D
+19.11.26 02:05:50 : Диагностика приёма датчиков за 65 с:
+  T0: ok 65, макс. задержка 29 мс
+  T1: ok 65, макс. задержка 12 мс
+  T2: ok 65, макс. задержка 11 мс; сбои: короткий кадр 1
+  T3: ok 65, макс. задержка 11 мс
+  T4: ok 65, макс. задержка 12 мс
+  T5: ok 65, макс. задержка 13 мс
+  IO: ok 195, макс. задержка 8 мс
+  Последний сбой: T2, короткий кадр, принято 8 байт, UART ErrorCode 0x00, задержка 7 мс, кадр: 67 03 D0 17 00 F8 4D F7
+19.11.26 03:05:25 : Диагностика приёма датчиков за 65 с:
+  T0: ok 65, макс. задержка 8 мс
+  T1: ok 65, макс. задержка 19 мс
+  T2: ok 65, макс. задержка 10 мс
+  T3: ok 65, макс. задержка 11 мс
+  T4: ok 65, макс. задержка 11 мс; сбои: CRC 1
+  T5: ok 65, макс. задержка 12 мс
+  IO: ok 195, макс. задержка 8 мс
+  Последний сбой: T4, CRC, принято 7 байт, UART ErrorCode 0x00, задержка 7 мс, кадр: 69 03 02 EF FC 98 3C
+19.11.26 03:11:55 : Диагностика приёма датчиков за 65 с:
+  T0: ok 65, макс. задержка 8 мс
+  T1: ok 65, макс. задержка 22 мс
+  T2: ok 65, макс. задержка 20 мс; сбои: CRC 1
+  T3: ok 65, макс. задержка 11 мс
+  T4: ok 65, макс. задержка 11 мс
+  T5: ok 65, макс. задержка 12 мс
+  IO: ok 195, макс. задержка 8 мс
+  Последний сбой: T2, CRC, принято 9 байт, UART ErrorCode 0x00, задержка 7 мс, кадр: 67 03 04 03 2B 00 E0 0D
+19.11.26 03:36:50 : Диагностика приёма датчиков за 66 с:
+  T0: ok 65, макс. задержка 19 мс
+  T1: ok 65, макс. задержка 8 мс
+  T2: ok 65, макс. задержка 20 мс
+  T3: ok 65, макс. задержка 12 мс
+  T4: ok 65, макс. задержка 12 мс
+  T5: ok 65, макс. задержка 12 мс
+  IO: ok 195, макс. задержка 8 мс; сбои: короткий кадр 1
+  Последний сбой: IO, короткий кадр, принято 1 байт, UART ErrorCode 0x00, задержка 2 мс, кадр: FF
+19.11.26 06:05:43 : Информация: контроллер 10.25.99.112 обработал нажатие физической кнопки СТОП; время контроллера: 46763 с; событие №1 [ButtonEvent:2e3cd4fc98a74293a3774a7554e9da71:1]
+19.11.26 06:06:05 : Information: Останов автоматического алгоритма дефростации. Время: 19.11.2026 06:06:05.
+Достигнутая мин. Т рыбы (fishCold_C): 3.2 °C
+19.11.26 06:09:00 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+19.11.26 06:09:00 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+19.11.26 06:13:10 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+19.11.26 06:13:10 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+19.11.26 06:13:10 : Информация: экспорт данных в Excel поставлен в очередь (аварийное фоновое задание)
+19.11.26 06:13:42 : Information: Файл Excel успешно сохранен: WorkData_Start_2026-11-18_21-00-06_End_2026-11-19_06-13-10_Port8866.xlsx
+Время записи: 31.77 секунд (6609 строк)
+19.11.26 06:13:42 : Information: delayed garbage collection started
+19.11.26 06:17:28 : Information: Начат сбор EndData на 2 часа после завершения цикла
+19.11.26 08:13:10 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+19.11.26 08:13:10 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+19.11.26 08:13:10 : Информация: экспорт данных в Excel поставлен в очередь (аварийное фоновое задание)
+19.11.26 08:13:21 : Information: Файл Excel успешно сохранен: EndData_Start_2026-11-19_06-13-10_End_2026-11-19_08-13-10_Port8866.xlsx
+Время записи: 10.31 секунд (1390 строк)
+19.11.26 08:13:21 : Information: delayed garbage collection started
+19.11.26 08:26:20 : Диагностика приёма датчиков за 60 с:
+  T0: ok 60, макс. задержка 8 мс
+  T1: ok 60, макс. задержка 14 мс
+  T2: ok 60, макс. задержка 15 мс
+  T3: ok 60, макс. задержка 9 мс
+  T4: ok 60, макс. задержка 12 мс
+  T5: ok 60, макс. задержка 11 мс
+  IO: ok 180, макс. задержка 8 мс; сбои: короткий кадр 1
+  Последний сбой: IO, короткий кадр, принято 1 байт, UART ErrorCode 0x00, задержка 3 мс, кадр: FF
+19.11.26 11:18:35 : Информация: перезапуск контроллера (откат поля Time телеметрии). Сброс авторежима; запись в таблицу без новой команды ПУСК отключена.
+19.11.26 11:18:37 : Information: Команда GET_VERSION отправлена клиенту
+19.11.26 11:18:37 : [OK] Команда Type=0x03 (REQUEST), Code=0x02 (GET_VERSION) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Версия прошивки: 3.3.0
+19.11.26 11:18:37 : Information: Версия прошивки контроллера: 3.3.0
+19.11.26 15:49:42 : ======================================================================
+19.11.26 15:49:42 : Application starting...
+19.11.26 15:49:42 : ======================================================================
+19.11.26 15:49:46 : Start listenin at port 3487
+19.11.26 16:01:13 : 
+19.11.26 16:01:13 : ================================================================================
+19.11.26 16:01:13 : Information: New thread was created, port 8866
+19.11.26 16:01:14 : Information: DataGridView привязан к DataTable
+19.11.26 16:01:14 : Information: Автозапуск установлен на 21:00
+19.11.26 16:01:14 : Information: The DataForm has been opened successfully!
+19.11.26 16:01:14 : Information: Deferred startup scheduled for 10.25.99.112
+19.11.26 16:01:17 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION начат
+19.11.26 16:01:17 : Information: Команда GET_VERSION отправлена клиенту
+19.11.26 16:01:17 : [OK] Команда Type=0x03 (REQUEST), Code=0x02 (GET_VERSION) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Версия прошивки: 3.3.0
+19.11.26 16:01:17 : Information: Версия прошивки контроллера: 3.3.0
+19.11.26 16:01:17 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION выполнен
+19.11.26 16:01:17 : Отладка: Последовательность запуска: шаг 4/4 GET_DEFROST_GROUP(5,6) начат
+19.11.26 16:01:17 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+19.11.26 16:01:17 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+19.11.26 16:01:17 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+19.11.26 16:01:17 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+19.11.26 16:01:17 : Параметры ПИД: группа 7 считана.
+19.11.26 16:01:17 : Отладка: STM32: группы 5/6 считаны из контроллера до записи; SET_INTERVAL(5) начат
+19.11.26 16:01:17 : Information: Команда SET_INTERVAL отправлена клиенту
+19.11.26 16:01:17 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x02 (SET_INTERVAL) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+19.11.26 16:01:17 : [OK] Интервал измерений: 5 с
+19.11.26 16:01:17 : Информация: STM32: запуск выполнен (GET_VERSION -> GET_DEFROST_GROUP[5,6] -> чтение группы 7 -> SET_INTERVAL; серверные уставки не записаны)
+19.11.26 16:01:22 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+19.11.26 16:01:22 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x6000
+  Датчики: 0x0000
+19.11.26 17:51:29 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x08, DataLen=255
+19.11.26 18:31:31 : Information: Форма удалена из карты в FormClosed
+19.11.26 18:31:31 : Attention: Recv failed: 10053
+19.11.26 18:33:22 : ======================================================================
+19.11.26 18:33:22 : Application starting...
+19.11.26 18:33:22 : ======================================================================
+19.11.26 18:33:23 : Start listenin at port 3487
+19.11.26 18:33:24 : 
+19.11.26 18:33:24 : ================================================================================
+19.11.26 18:33:24 : Information: New thread was created, port 8866
+19.11.26 18:33:24 : Information: DataGridView привязан к DataTable
+19.11.26 18:33:24 : Information: Автозапуск установлен на 21:00
+19.11.26 18:33:24 : Information: The DataForm has been opened successfully!
+19.11.26 18:33:24 : Information: Deferred startup scheduled for 10.25.99.112
+19.11.26 18:33:27 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION начат
+19.11.26 18:33:27 : Information: Команда GET_VERSION отправлена клиенту
+19.11.26 18:33:27 : [OK] Команда Type=0x03 (REQUEST), Code=0x02 (GET_VERSION) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Версия прошивки: 3.3.0
+19.11.26 18:33:27 : Information: Версия прошивки контроллера: 3.3.0
+19.11.26 18:33:27 : Отладка: Последовательность запуска: шаг 1/4 GET_VERSION выполнен
+19.11.26 18:33:27 : Отладка: Последовательность запуска: шаг 4/4 GET_DEFROST_GROUP(5,6) начат
+19.11.26 18:33:27 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+19.11.26 18:33:27 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+19.11.26 18:33:27 : Information: Команда GET_DEFROST_GROUP отправлена клиенту
+19.11.26 18:33:27 : [OK] Команда Type=0x03 (REQUEST), Code=0x07 (GET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+19.11.26 18:33:27 : Параметры ПИД: группа 7 считана.
+19.11.26 18:33:28 : Отладка: STM32: группы 5/6 считаны из контроллера до записи; SET_INTERVAL(5) начат
+19.11.26 18:33:28 : Information: Команда SET_INTERVAL отправлена клиенту
+19.11.26 18:33:28 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x02 (SET_INTERVAL) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+19.11.26 18:33:28 : [OK] Интервал измерений: 5 с
+19.11.26 18:33:28 : Информация: STM32: запуск выполнен (GET_VERSION -> GET_DEFROST_GROUP[5,6] -> чтение группы 7 -> SET_INTERVAL; серверные уставки не записаны)
+19.11.26 18:33:33 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+19.11.26 18:33:33 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+19.11.26 19:11:57 : Диагностика приёма датчиков за 60 с:
+  T0: ok 60, макс. задержка 15 мс
+  T1: ok 60, макс. задержка 24 мс
+  T2: ok 60, макс. задержка 13 мс; сбои: короткий кадр 1
+  T3: ok 60, макс. задержка 14 мс
+  T4: ok 60, макс. задержка 14 мс
+  T5: ok 60, макс. задержка 13 мс
+  IO: ok 180, макс. задержка 8 мс
+  Последний сбой: T2, короткий кадр, принято 1 байт, UART ErrorCode 0x00, задержка 2 мс, кадр: FF
+19.11.26 19:43:27 : Диагностика приёма датчиков за 60 с:
+  T0: ok 60, макс. задержка 21 мс
+  T1: ok 60, макс. задержка 8 мс
+  T2: ok 60, макс. задержка 33 мс
+  T3: ok 60, макс. задержка 14 мс
+  T4: ok 60, макс. задержка 12 мс
+  T5: ok 59, макс. задержка 12 мс; сбои: нет ответа 1
+  IO: ok 180, макс. задержка 8 мс
+  Последний сбой: T5, нет ответа, принято 0 байт, UART ErrorCode 0x00, задержка 0 мс, кадр: -
+19.11.26 21:00:23 : Information: Автозапуск сработал в 21:00:23 (целевое: 21:00)
+19.11.26 21:00:23 : [Ожидание] Выполняется команда остановки...
+19.11.26 21:00:23 : Information: Команда START отправлена клиенту
+19.11.26 21:00:23 : [OK] Команда Type=0x01 (PROG_CONTROL), Code=0x01 (START) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+19.11.26 22:55:00 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=254
+19.11.26 22:56:00 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+19.11.26 22:56:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 22:56:20 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0xFF, DataLen=161
+19.11.26 22:56:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 22:56:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 22:56:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 22:57:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 22:57:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 22:57:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 22:57:31 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 22:57:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 22:59:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:08:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:08:50 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=245
+19.11.26 23:09:30 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:09:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:10:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:10:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:10:31 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:10:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:11:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:11:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:11:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:11:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:11:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:11:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:12:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:12:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:12:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:12:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:12:40 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:12:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:13:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:13:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:13:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:13:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:13:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:13:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:14:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:14:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:14:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:14:51 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:15:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:15:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:15:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:15:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:15:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:15:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:16:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:16:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:16:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:16:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:16:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:16:50 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=253
+19.11.26 23:17:01 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:17:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:17:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+19.11.26 23:17:50 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0xFB, DataLen=104
+19.11.26 23:19:20 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=253
+20.11.26 00:14:25 : Диагностика приёма датчиков за 65 с:
+  T0: ok 65, макс. задержка 11 мс
+  T1: ok 65, макс. задержка 28 мс
+  T2: ok 65, макс. задержка 12 мс; сбои: CRC 1
+  T3: ok 65, макс. задержка 15 мс
+  T4: ok 65, макс. задержка 14 мс
+  T5: ok 65, макс. задержка 12 мс
+  IO: ok 195, макс. задержка 8 мс
+  Последний сбой: T2, CRC, принято 9 байт, UART ErrorCode 0x00, задержка 8 мс, кадр: 67 03 04 02 98 00 EC 7D
+20.11.26 00:20:56 : Диагностика приёма датчиков за 66 с:
+  T0: ok 66, макс. задержка 24 мс
+  T1: ok 65, макс. задержка 29 мс
+  T2: ok 65, макс. задержка 26 мс; сбои: CRC 1
+  T3: ok 65, макс. задержка 15 мс
+  T4: ok 65, макс. задержка 14 мс
+  T5: ok 65, макс. задержка 11 мс
+  IO: ok 196, макс. задержка 8 мс
+  Последний сбой: T2, CRC, принято 9 байт, UART ErrorCode 0x00, задержка 7 мс, кадр: 67 03 04 02 A2 00 EA 1C
+20.11.26 02:14:15 : Диагностика приёма датчиков за 64 с:
+  T0: ok 65, макс. задержка 8 мс
+  T1: ok 65, макс. задержка 27 мс
+  T2: ok 65, макс. задержка 25 мс
+  T3: ok 65, макс. задержка 10 мс
+  T4: ok 64, макс. задержка 12 мс; сбои: нет ответа 1
+  T5: ok 65, макс. задержка 12 мс
+  IO: ok 194, макс. задержка 8 мс
+  Последний сбой: T4, нет ответа, принято 0 байт, UART ErrorCode 0x00, задержка 0 мс, кадр: -
+20.11.26 02:56:31 : Диагностика приёма датчиков за 65 с:
+  T0: ok 66, макс. задержка 26 мс
+  T1: ok 66, макс. задержка 28 мс
+  T2: ok 65, макс. задержка 18 мс
+  T3: ok 65, макс. задержка 11 мс
+  T4: ok 65, макс. задержка 11 мс
+  T5: ok 64, макс. задержка 13 мс; сбои: нет ответа 1
+  IO: ok 196, макс. задержка 8 мс
+  Последний сбой: T5, нет ответа, принято 0 байт, UART ErrorCode 0x00, задержка 0 мс, кадр: -
+20.11.26 03:05:10 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:05:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:06:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:06:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:06:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:06:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:07:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:07:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:07:21 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:07:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:07:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:08:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:08:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:08:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:08:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:08:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:08:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:09:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:09:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:09:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:09:31 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:09:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:09:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:10:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:10:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:10:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:10:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:10:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:10:50 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=245
+20.11.26 03:11:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:11:10 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+20.11.26 03:11:20 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+20.11.26 03:11:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:11:41 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0xFF, DataLen=83
+20.11.26 03:11:41 : Диагностика приёма датчиков за 65 с:
+  T0: ok 66, макс. задержка 8 мс
+  T1: ok 66, макс. задержка 15 мс; сбои: CRC 1
+  T2: ok 66, макс. задержка 10 мс
+  T3: ok 66, макс. задержка 10 мс
+  T4: ok 66, макс. задержка 11 мс
+  T5: ok 66, макс. задержка 12 мс
+  IO: ok 197, макс. задержка 8 мс
+  Последний сбой: T1, CRC, принято 9 байт, UART ErrorCode 0x00, задержка 7 мс, кадр: 66 03 04 02 B9 00 CB 7C
+20.11.26 03:11:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:12:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:12:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:12:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:12:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:13:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:13:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=42
+20.11.26 03:13:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:13:40 : Warning: Dropping framed packet with invalid length. Type=0x83, Cmd=0x09, DataLen=212
+20.11.26 03:13:50 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=253
+20.11.26 03:14:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:14:15 : Warning: Dropping framed packet due CRC mismatch. Type=0xFF, Cmd=0xFE, DataLen=66
+20.11.26 03:14:20 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+20.11.26 03:14:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:44:11 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:44:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:46:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 03:46:50 : Warning: Dropping framed packet due CRC mismatch. Type=0xFF, Cmd=0xFF, DataLen=104
+20.11.26 05:24:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:24:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:25:20 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:25:40 : Information: Останов автоматического алгоритма дефростации. Время: 20.11.2026 05:25:40.
+Достигнутая мин. Т рыбы (fishCold_C): 8.0 °C
+20.11.26 05:25:42 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:25:52 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:26:12 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:26:22 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:26:32 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:26:42 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:26:52 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:27:12 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:27:22 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:27:32 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:27:42 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:27:52 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:28:02 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:28:12 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:28:32 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:28:42 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:28:54 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:29:04 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:29:14 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:29:24 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:29:34 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:29:44 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:30:04 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:30:14 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:30:22 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=42
+20.11.26 05:30:34 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:30:42 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:30:52 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:31:02 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:31:12 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:31:22 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:31:32 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:31:42 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:31:52 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:32:02 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:32:12 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:32:21 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x8B, DataLen=154
+20.11.26 05:32:32 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:32:41 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+20.11.26 05:32:51 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+20.11.26 05:32:51 : Предупреждение: Отброшен ответ, не подходящий текущей команде (ожидалось Type=0x03, Code=0x09; получено Type=0x02, Code=0x88; Raw=02 88 01 00 80 26)
+20.11.26 05:32:51 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+20.11.26 05:32:51 : Информация: экспорт данных в Excel поставлен в очередь (аварийное фоновое задание)
+20.11.26 05:33:02 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 05:33:19 : Information: Файл Excel успешно сохранен: WorkData_Start_2026-11-19_21-00-23_End_2026-11-20_05-32-50_Port8866.xlsx
+Время записи: 27.63 секунд (6114 строк)
+20.11.26 05:33:19 : Information: delayed garbage collection started
+20.11.26 05:36:27 : Information: Начат сбор EndData на 2 часа после завершения цикла
+20.11.26 06:10:26 : Диагностика приёма датчиков за 65 с:
+  T0: ok 65, макс. задержка 12 мс
+  T1: ok 65, макс. задержка 26 мс
+  T2: ok 65, макс. задержка 31 мс; сбои: CRC 1
+  T3: ok 65, макс. задержка 11 мс
+  T4: ok 65, макс. задержка 13 мс
+  T5: ok 65, макс. задержка 12 мс
+  IO: ok 194, макс. задержка 8 мс
+  Последний сбой: T2, CRC, принято 9 байт, UART ErrorCode 0x00, задержка 8 мс, кадр: 67 03 04 02 D6 00 B5 5D
+20.11.26 07:32:51 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+20.11.26 07:32:51 : Предупреждение: Отброшен ответ, не подходящий текущей команде (ожидалось Type=0x03, Code=0x09; получено Type=0x10, Code=0xD1; Raw=10 D1 01 00 55 4D)
+20.11.26 07:32:52 : Ошибка: Не получен ответ от контроллера (Type=0x03, Code=0x09, timeoutMs=1000)
+20.11.26 07:32:52 : Предупреждение: GET_ALARM_FLAGS перед экспортом в Excel не выполнен, используется текущий снимок таблицы аварий
+20.11.26 07:32:52 : Информация: экспорт данных в Excel поставлен в очередь (аварийное фоновое задание)
+20.11.26 07:33:02 : Information: Файл Excel успешно сохранен: EndData_Start_2026-11-20_05-32-50_End_2026-11-20_07-32-50_Port8866.xlsx
+Время записи: 10.14 секунд (1396 строк)
+20.11.26 07:33:02 : Information: delayed garbage collection started
+20.11.26 07:37:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:37:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:38:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:39:21 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:39:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:40:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:40:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:40:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:40:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:40:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:40:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:41:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:41:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:41:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:41:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:41:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:41:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:42:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:42:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:42:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:42:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:42:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:42:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:43:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:43:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:43:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:43:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:43:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:44:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:44:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:44:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:44:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:44:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:44:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:45:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:45:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:45:21 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=254
+20.11.26 07:45:31 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+20.11.26 07:45:41 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+20.11.26 07:45:57 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0xEB, DataLen=104
+20.11.26 07:46:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 07:46:11 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+20.11.26 07:46:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=42
+20.11.26 07:46:57 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0xFD, DataLen=83
+20.11.26 07:48:47 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x8B, DataLen=77
+20.11.26 08:33:27 : Information: Команда GET_ALARM_FLAGS отправлена клиенту
+20.11.26 08:33:27 : [OK] Команда Type=0x03 (REQUEST), Code=0x09 (GET_ALARM_FLAGS) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Аварийные регистры:
+  Устройства: 0x0000
+  Датчики: 0x0000
+20.11.26 09:27:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:30:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:30:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:32:11 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:32:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:32:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:33:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:33:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:33:31 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:33:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:33:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:34:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:34:15 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:34:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:34:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:34:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:35:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:35:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:35:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:35:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:35:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:36:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:36:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:36:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:36:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:36:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:37:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:37:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:37:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:37:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:37:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:38:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:38:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:38:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:38:31 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+20.11.26 09:38:41 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=254
+20.11.26 09:38:59 : Warning: Dropping framed packet due CRC mismatch. Type=0xFB, Cmd=0xFE, DataLen=104
+20.11.26 09:39:01 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=254
+20.11.26 09:39:29 : Warning: Dropping framed packet due CRC mismatch. Type=0xFE, Cmd=0xC8, DataLen=83
+20.11.26 09:39:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:40:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:42:21 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=254
+20.11.26 09:42:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:44:11 : Warning: Dropping framed packet with invalid length. Type=0xC3, Cmd=0xFF, DataLen=251
+20.11.26 09:45:39 : Warning: Dropping framed packet due CRC mismatch. Type=0xE3, Cmd=0xFF, DataLen=104
+20.11.26 09:45:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:48:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:51:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x08, DataLen=63
+20.11.26 09:51:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 09:54:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 10:00:36 : Информация: перезапуск контроллера (откат поля Time телеметрии). Сброс авторежима; запись в таблицу без новой команды ПУСК отключена.
+20.11.26 10:00:37 : Information: Команда GET_VERSION отправлена клиенту
+20.11.26 10:00:37 : [OK] Команда Type=0x03 (REQUEST), Code=0x02 (GET_VERSION) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+Версия прошивки: 3.3.0
+20.11.26 10:00:37 : Information: Версия прошивки контроллера: 3.3.0
+20.11.26 10:57:35 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 10:57:45 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 10:57:55 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 10:58:05 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 10:58:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 10:58:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 10:58:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 11:09:11 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+20.11.26 11:09:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 11:09:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 11:12:01 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x08, DataLen=252
+20.11.26 11:14:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 11:16:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 11:17:53 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 11:18:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 11:21:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 11:31:14 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:14:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:14:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:14:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:14:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:14:43 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:15:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:15:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:32:51 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0xFF, DataLen=255
+20.11.26 12:33:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:33:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:33:23 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:33:33 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:43:03 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:45:13 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 12:50:25 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:02:55 : Information: Команда SET_DEFROST_GROUP отправлена клиенту
+20.11.26 13:02:55 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x05 (SET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+20.11.26 13:02:55 : Information: Команда SET_DEFROST_GROUP отправлена клиенту
+20.11.26 13:02:55 : [OK] Команда Type=0x02 (CONFIGURATION), Code=0x05 (SET_DEFROST_GROUP) успешно выполнена
+Статус: 0x00 (OK) - Команда успешно выполнена
+20.11.26 13:02:55 : Information: Wrote defrost params by group: group5=OK, group6=OK
+20.11.26 13:04:16 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0xEC, DataLen=252
+20.11.26 13:04:26 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0xB8, DataLen=127
+20.11.26 13:06:46 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0xEC, DataLen=254
+20.11.26 13:11:56 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x08, DataLen=255
+20.11.26 13:27:28 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:27:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:28:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:28:18 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:28:38 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:28:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:28:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:29:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:47:10 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:47:38 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:47:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:48:18 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 13:49:06 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:00:16 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x08, DataLen=248
+20.11.26 14:01:28 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:01:38 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:01:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:02:30 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:07:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:08:00 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:08:06 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:09:46 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x88, DataLen=255
+20.11.26 14:11:30 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:20:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:29:44 : Warning: Dropping framed packet due CRC mismatch. Type=0xFF, Cmd=0x21, DataLen=83
+20.11.26 14:29:46 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=253
+20.11.26 14:29:56 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+20.11.26 14:30:18 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:30:38 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:30:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:30:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:31:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:31:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:34:30 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:39:56 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x08, DataLen=235
+20.11.26 14:40:26 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x08, DataLen=252
+20.11.26 14:50:18 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:50:28 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:50:38 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:50:50 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:50:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 14:51:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:10:54 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0xFB, DataLen=104
+20.11.26 15:11:00 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:11:12 : Warning: Dropping framed packet due CRC mismatch. Type=0xFF, Cmd=0xFE, DataLen=66
+20.11.26 15:11:20 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:11:28 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:11:40 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:11:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:15:31 : Диагностика приёма датчиков за 60 с:
+  T0: ok 60, макс. задержка 8 мс
+  T1: ok 60, макс. задержка 25 мс
+  T2: ok 60, макс. задержка 20 мс
+  T3: ok 60, макс. задержка 11 мс
+  T4: ok 60, макс. задержка 11 мс
+  T5: ok 59, макс. задержка 12 мс; сбои: нет ответа 1
+  IO: ok 180, макс. задержка 8 мс
+  Последний сбой: T5, нет ответа, принято 0 байт, UART ErrorCode 0x00, задержка 0 мс, кадр: -
+20.11.26 15:29:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:29:20 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:29:28 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:29:40 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:34:16 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x08, DataLen=252
+20.11.26 15:36:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:36:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:39:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:40:38 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:41:40 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:42:20 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:42:56 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:43:06 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:43:20 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:43:30 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:43:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:43:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:44:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:44:20 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:44:28 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:44:38 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:44:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:44:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:45:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:45:18 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:45:30 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:45:38 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:45:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:45:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:46:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:46:20 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:46:30 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:46:38 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:46:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:47:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:47:18 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:47:38 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:47:48 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:47:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:48:10 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:48:20 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:48:40 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:48:50 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:48:58 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:49:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:49:21 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=83
+20.11.26 15:49:38 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:49:46 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0xCB, DataLen=154
+20.11.26 15:50:04 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0xFE, DataLen=83
+20.11.26 15:50:08 : Warning: Dropping framed packet due CRC mismatch. Type=0x03, Cmd=0x0B, DataLen=21
+20.11.26 15:50:26 : Warning: Dropping framed packet with invalid length. Type=0x83, Cmd=0x09, DataLen=212
+20.11.26 15:50:56 : Warning: Dropping framed packet with invalid length. Type=0x03, Cmd=0x0B, DataLen=255
+20.11.26 15:51:20 : Attention: Recv failed: 10054
+20.11.26 16:21:05 : Information: Нет телеметрии 30.1 мин. Закрытие формы DataForm.
+20.11.26 16:21:05 : Information: Форма удалена из карты в FormClosed
+20.11.26 18:55:18 : Information: Waiting for Excel export jobs to complete before shutdown...
+20.11.26 18:55:18 : Information: Excel export jobs completed.
+20.11.26 18:55:18 : ======================================================================
+20.11.26 18:55:18 : Application closing normally...
+20.11.26 18:55:18 : ======================================================================
+20.11.26 18:55:25 : ======================================================================
+20.11.26 18:55:25 : Application starting...
+20.11.26 18:55:25 : ======================================================================
+20.11.26 18:55:26 : Start listenin at port 3487
+20.11.26 18:55:33 : Information: Waiting for Excel export jobs to complete before shutdown...
+20.11.26 18:55:33 : Information: Excel export jobs completed.
+20.11.26 18:55:33 : ======================================================================
+20.11.26 18:55:33 : Application closing normally...
+20.11.26 18:55:33 : ======================================================================
+20.11.26 18:56:56 : ======================================================================
+20.11.26 18:56:56 : Application starting...
+20.11.26 18:56:56 : ======================================================================
+20.11.26 18:56:56 : Start listenin at port 3487

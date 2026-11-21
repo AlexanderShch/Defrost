@@ -1,0 +1,8 @@
+SOURCE: D:\Users\Alsh1004\OneDrive\Projects\Documentation\Проект дефростер\Регулирование\Отладка.xlsx
+
+[SHEET] Лист1
+ | Type | 0 | payload[0]
+ | payloadLenByte | 2D | payload[1]
+ | payloadNoCrcLen | 2F | // Type + Len + Payload
+ | payloadWithCrcLen | 31 | // + CRC16
+ | totalFrameLen | 33 | // + AA 55

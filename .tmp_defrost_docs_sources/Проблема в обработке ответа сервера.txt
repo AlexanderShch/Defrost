@@ -1,0 +1,173 @@
+SOURCE: D:\Users\Alsh1004\OneDrive\Projects\Documentation\Проект дефростер\Проблема в обработке ответа сервера.docx
+
+[P1 | Title] Проблема в обработке ответа сервера
+[P2 | Normal] Посмотри рисунок.
+[P3 | Normal] Верхняя строка - это данные, которые отправляет контроллер серверу. Пакет длительностью примерно 25 мс - это данные телеметрии. Вторая строка - это сигнал переключения направления приём/передача. Нижняя строка - это ответ от сервера. Проблема вот в чём: если ответ от сервера стоит на расстоянии более 100 мс от посылки телеметрии, то ответ сервера воспринимается контроллером как ответ "Данные телеметрии ОК" (00 01 00 70 50),
+[P4 | Normal] если же, как во втором случае, ответ приходит менее чем 100 мс (в данном случае 39 мс), то контроллер воспринимает ответ сервера как команду и отвечает на неё (00 00 01 00 01 B4).
+[P5 | Normal] В чём причина?
+[P6 | Normal] ⚠️ Конфликт возникает из-за использования ОДНОГО семафора PR_RX_Compl_SemHandle:
+[P7 | Normal] Сценарий 1: Ответ приходит БЫСТРО (<100 мс, например 39 мс)
+[P8 | Normal] Контроллер отправляет телеметрию через функцию Master_Request
+[P9 | Normal] Master_Request ждёт ответ (таймаут 100 мс)
+[P10 | Normal] Сервер отвечает через 39 мс
+[P11 | Normal] ✅ Семафор освобождается, Master_Request получает ответ
+[P12 | Normal] В строке 1077 вызывается CommandReceiver_RestartReception()
+[P13 | Normal] НО! Ответ уже получен в MB->Rx_Buffer (не в RX_CMD_Buffer)
+[P14 | Normal] Данные не обрабатываются как подтверждение телеметрии
+[P15 | Normal] При этом, если в момент прихода ответа CommandReceiver уже слушал линию, может возникнуть дублирование данных или частичный приём
+[P16 | Normal] Сценарий 2: Ответ приходит МЕДЛЕННО (>100 мс)
+[P17 | Normal] Контроллер отправляет телеметрию
+[P18 | Normal] Master_Request ждёт ответ 100 мс
+[P19 | Normal] ⏱️ Таймаут! - Master_Request выходит по таймауту (строка 867: HAL_UART_AbortReceive_IT)
+[P20 | Normal] В строке 1077 вызывается CommandReceiver_RestartReception() - перезапускается прием
+[P21 | Normal] Сервер отвечает через 110 мс (уже ПОСЛЕ перезапуска приёма)
+[P22 | Normal] ✅ Данные приходят в RX_CMD_Buffer через CommandReceiver
+[P23 | Normal] Обрабатываются корректно как подтверждение телеметрии (TELEMETRY_DATA_OK)
+[P25 | Normal] 💡 Решение
+[P26 | Normal] Проблема в том, что Master_Request не должен ждать ответ при отправке телеметрии. Телеметрия — это асинхронная отправка, ответ должен обрабатываться только через CommandReceiver. Нужно добавить параметр в Master_Request или создать отдельную функцию для отправки без ожидания ответа.
+[P27 | Normal] Создам отдельную функцию для отправки телеметрии без ожидания ответа. Это решит проблему конфликта приёма данных.
+[P28 | Normal] Понятно, что CommandReceiver обрабатывает нули очищенного буфера как команду и формирует ответ CRC не верен. Но CommandReceiver должен был как-то запустить обработку команды. Это семафор? Но этот семафор уже использовал Master_Request и других посылок от сервера на шине нет!
+[P29 | Normal] Отличный вопрос! Вы абсолютно правы - **семафор уже использован** Master_Request! Откуда берётся **второй семафор** для CommandReceiver?
+[P31 | Normal] ## 🔍 Ключ к разгадке: Двойное прерывание IDLE!
+[P33 | Normal] Давайте проследим **точную последовательность**:
+[P35 | Normal] ```
+[P36 | Normal] ┌─────────────────────────────────────────────────────────────────────┐
+[P37 | Normal] │  КРИТИЧЕСКАЯ ПОСЛЕДОВАТЕЛЬНОСТЬ СОБЫТИЙ                              │
+[P38 | Normal] ├─────────────────────────────────────────────────────────────────────┤
+[P39 | Normal] │                                                                      │
+[P40 | Normal] │  1. (0 мс) CommandReceiver слушает линию:                           │
+[P41 | Normal] │     HAL_UARTEx_ReceiveToIdle_DMA(&huart4, RX_CMD_Buffer, ...)      │
+[P42 | Normal] │     Ожидает данных или IDLE                                         │
+[P43 | Normal] │     ↓                                                                │
+[P44 | Normal] │  2. (0 мс) Контроллер отправляет телеметрию                         │
+[P45 | Normal] │     Master_Request → CheckAndWaitForActiveReception()               │
+[P46 | Normal] │     ↓                                                                │
+[P47 | Normal] │  3. (0 мс) ОТМЕНА приёма CommandReceiver:                           │
+[P48 | Normal] │     HAL_UART_AbortReceive(&huart4)  ← ВАЖНО!                        │
+[P49 | Normal] │     ↓                                                                │
+[P50 | Normal] │  4. (0 мс) Master_Request запускает СВОЙ приём:                     │
+[P51 | Normal] │     HAL_UARTEx_ReceiveToIdle_DMA(&huart4, MB.Rx_Buffer, ...)       │
+[P52 | Normal] │     Ждёт семафор PR_RX_Compl_SemHandle                              │
+[P53 | Normal] │     ↓                                                                │
+[P54 | Normal] │  5. (25 мс) Передача телеметрии завершена                           │
+[P55 | Normal] │     ↓                                                                │
+[P56 | Normal] │  6. (39 мс) ◄─── ОТВЕТ СЕРВЕРА [00 01 00 70 50]                    │
+[P57 | Normal] │     ↓                                                                │
+[P58 | Normal] │  7. (39 мс) ПЕРВОЕ ПРЕРЫВАНИЕ:                                      │
+[P59 | Normal] │     HAL_UARTEx_RxEventCallback(huart4, Size=5)                      │
+[P60 | Normal] │     ├─► CommandReceiver_OnDataReceived(5)                           │
+[P61 | Normal] │     │   └─► osSemaphoreRelease(PR_RX_Compl_SemHandle)  ◄─ ПЕРВЫЙ!  │
+[P62 | Normal] │     │   └─► CommandReceiver_RestartReception()                      │
+[P63 | Normal] │     │       └─► HAL_UARTEx_ReceiveToIdle_DMA(..., RX_CMD_Buffer, ..)│
+[P64 | Normal] │     ↓                                                                │
+[P65 | Normal] │  8. (39 мс) Master_Request ПРОСЫПАЕТСЯ от семафора:                 │
+[P66 | Normal] │     Получает данные из MB.Rx_Buffer → [00 01 00 70 50]             │
+[P67 | Normal] │     Возвращается (завершается)                                      │
+[P68 | Normal] │     ↓                                                                │
+[P69 | Normal] │  9. (39 мс) WriteToServer() продолжается:                           │
+[P70 | Normal] │     CommandReceiver_RestartReception()  ◄─ ВТОРОЙ РАЗ!              │
+[P71 | Normal] │     ↓                                                                │
+[P72 | Normal] │ 10. (39 мс) Теперь на UART4:                                        │
+[P73 | Normal] │     • Линия СВОБОДНА (сервер уже отправил данные)                  │
+[P74 | Normal] │     • HAL_UARTEx_ReceiveToIdle_DMA запущен ДВАЖДЫ!                 │
+[P75 | Normal] │     • Буфер RX_CMD_Buffer ОЧИЩЕН (строка 714)                      │
+[P76 | Normal] │     ↓                                                                │
+[P77 | Normal] │ 11. (39+ мс) UART детектирует IDLE на линии                         │
+[P78 | Normal] │     (линия свободна, нет передачи)                                  │
+[P79 | Normal] │     ↓                                                                │
+[P80 | Normal] │ 12. (40 мс) ВТОРОЕ ПРЕРЫВАНИЕ IDLE!  ◄─── ВОТ ОНО!                 │
+[P81 | Normal] │     HAL_UARTEx_RxEventCallback(huart4, Size=0 или малое)           │
+[P82 | Normal] │     ├─► CommandReceiver_OnDataReceived(Size)                        │
+[P83 | Normal] │     │   └─► osSemaphoreRelease(PR_RX_Compl_SemHandle)  ◄─ ВТОРОЙ!  │
+[P84 | Normal] │     ↓                                                                │
+[P85 | Normal] │ 13. (40 мс) CommandReceiver_Task ПРОСЫПАЕТСЯ:                       │
+[P86 | Normal] │     Получает семафор PR_RX_Compl_SemHandle                          │
+[P87 | Normal] │     ↓                                                                │
+[P88 | Normal] │ 14. (40 мс) Обработка "данных":                                     │
+[P89 | Normal] │     localBuffer = [00 00 00 ...] (очищенный буфер!)                │
+[P90 | Normal] │     receivedSize = 0 или малое значение                             │
+[P91 | Normal] │     ↓                                                                │
+[P92 | Normal] │     Если receivedSize > 0:                                          │
+[P93 | Normal] │       Парсинг: commandType=0x00, commandCode=0x00                   │
+[P94 | Normal] │       CRC неверная → Ответ [00 00 01 00 01 B4]                     │
+[P95 | Normal] │                                                                      │
+[P96 | Normal] └─────────────────────────────────────────────────────────────────────┘
+[P97 | Normal] ```
+[P99 | Normal] ## 🎯 Ключевой момент: IDLE на пустой линии!
+[P101 | Normal] Функция `HAL_UARTEx_ReceiveToIdle_DMA` **ждёт события**:
+[P102 | Normal] 1. **Приём данных** до заполнения буфера
+[P103 | Normal] 2. **IDLE на линии** (нет активности определённое время)
+[P105 | Normal] Когда приём перезапускается **на уже свободной линии**:
+[P106 | Normal] - **Данных нет** (сервер уже отправил)
+[P107 | Normal] - **Линия в состоянии IDLE**
+[P108 | Normal] - UART **сразу детектирует IDLE**
+[P109 | Normal] - **Срабатывает прерывание** `HAL_UARTEx_RxEventCallback`
+[P110 | Normal] - **Освобождается семафор** (второй раз!)
+[P112 | Normal] ## 📊 Диаграмма прерываний
+[P114 | Normal] ```
+[P115 | Normal] Время →
+[P116 | Normal] ═══════════════════════════════════════════════════════════════════
+[P118 | Normal] 0 мс:   Master_Request запускает приём в MB.Rx_Buffer
+[P119 | Normal] ↓
+[P121 | Normal] 39 мс:  Сервер: [00 01 00 70 50] ──────►║
+[P122 | Normal] ║
+[P123 | Normal] IDLE на линии ────────────────────►ПРЕРЫВАНИЕ #1
+[P124 | Normal] ║
+[P125 | Normal] HAL_UARTEx_RxEventCallback        ║
+[P126 | Normal] ├─► Size = 5                    ║
+[P127 | Normal] ├─► osSemaphoreRelease()  ◄─────┘ СЕМАФОР #1
+[P128 | Normal] │   (счётчик: 0 → 1)
+[P129 | Normal] └─► CommandReceiver_RestartReception()
+[P130 | Normal] └─► HAL_UARTEx_ReceiveToIdle_DMA(RX_CMD_Buffer)
+[P131 | Normal] (начинает ждать IDLE или данные)
+[P133 | Normal] Master_Request получает семафор #1
+[P134 | Normal] (счётчик: 1 → 0)
+[P135 | Normal] Забирает данные из MB.Rx_Buffer
+[P136 | Normal] Возвращается
+[P138 | Normal] WriteToServer() вызывает:
+[P139 | Normal] CommandReceiver_RestartReception() ◄─── ДУБЛЬ!
+[P140 | Normal] └─► HAL_UARTEx_ReceiveToIdle_DMA(RX_CMD_Buffer)
+[P141 | Normal] (перезапуск приёма)
+[P143 | Normal] 40 мс:  Линия СВОБОДНА, IDLE состояние ────►ПРЕРЫВАНИЕ #2
+[P144 | Normal] ║
+[P145 | Normal] HAL_UARTEx_RxEventCallback        ║
+[P146 | Normal] ├─► Size = 0 (или малое)        ║
+[P147 | Normal] └─► osSemaphoreRelease()  ◄─────┘ СЕМАФОР #2
+[P148 | Normal] (счётчик: 0 → 1)
+[P150 | Normal] CommandReceiver_Task получает семафор #2
+[P151 | Normal] (счётчик: 1 → 0)
+[P153 | Normal] Обрабатывает "данные" (нули):
+[P154 | Normal] [00 00 00 ...] → CRC Error
+[P156 | Normal] Отправляет: [00 00 01 00 01 B4]
+[P157 | Normal] ```
+[P159 | Normal] ## 💡 Почему это происходит ВСЕГДА при быстром ответе?
+[P161 | Normal] При **быстром ответе** (<100 мс):
+[P162 | Normal] 1. Master_Request **ещё активен** → получает первый семафор
+[P163 | Normal] 2. CommandReceiver_RestartReception вызывается **ДВАЖДЫ**:
+[P164 | Normal] - Из `CommandReceiver_OnDataReceived` (строка 845)
+[P165 | Normal] - Из `WriteToServer` (строка 1178)
+[P166 | Normal] 3. На **свободной линии** IDLE детектируется **почти мгновенно**
+[P167 | Normal] 4. **Второе прерывание** освобождает семафор для CommandReceiver
+[P168 | Normal] 5. CommandReceiver обрабатывает **пустой буфер** → ответ об ошибке CRC
+[P170 | Normal] При **медленном ответе** (>100 мс):
+[P171 | Normal] 1. Master_Request **вышел по таймауту** (не получил семафор)
+[P172 | Normal] 2. CommandReceiver_RestartReception **чистый перезапуск**
+[P173 | Normal] 3. Когда приходит ответ → CommandReceiver получает **реальные данные**
+[P174 | Normal] 4. Обработка корректная, **нет ложного прерывания**
+[P176 | Normal] ## ✅ Подтверждение гипотезы
+[P178 | Normal] Проверьте в логическом анализаторе:
+[P179 | Normal] - Есть ли **два IDLE события** подряд при быстром ответе?
+[P180 | Normal] - Какой **receivedSize** приходит во второе прерывание? (должен быть 0 или малое значение)
+[P182 | Normal] ## 🎯 Решение (уже реализовано)
+[P184 | Normal] `Master_SendTelemetry`:
+[P185 | Normal] - **НЕ отменяет** приём CommandReceiver
+[P186 | Normal] - **НЕ запускает** свой приём
+[P187 | Normal] - **НЕ ждёт** семафора
+[P188 | Normal] - → **Нет дублирования** `CommandReceiver_RestartReception()`
+[P189 | Normal] - → **Нет ложного IDLE** на пустой линии
+[P190 | Normal] - → **Нет фантомного пакета** `[00 00 00...]`
+[P191 | Normal] Актуальный порядок обмена
+[P192 | Normal] Осциллограммы относятся к исследованной версии. Ниже приведён текущий формат обмена.
+[P193 | Normal] В рабочем режиме сервер инициирует обмен. Команда сервера имеет формат [Type][Code][DataLen][Data][CRC16], ответ контроллера — [AA 55][Type][Code][Status][DataLen][Data][CRC16]. CRC Modbus вычисляется без AA 55 и передаётся младшим байтом вперёд. Длина поля DataLen относится только к Data.
+[P194 | Normal] При запуске STM32 сервер запрашивает версию и группы параметров 5, 6 и 7, затем устанавливает интервал. Запрос группы 7 ограничен общим бюджетом 950 мс. После запуска сервер периодически отправляет SEND_STATE (03/08) с байтом 01. Ответ 03/08 содержит 60 байт базовой телеметрии и байт флагов. Бит 0 (смещение 60 в Data) означает, что есть события. Старый запрос без параметров получает 60 байт. Для получения флага отдельной команды нет.
+[P195 | Normal] Сервер отвечает на телеметрию DATA_OK или DATA_FALSE (00/01 или 00/02). В авторежиме после DATA_OK контроллер отправляет лог регулирования 00/01 с 113 байтами данных. Сервер также читает прежние варианты лога с 89, 105 и 109 байтами. Повтор неизменившейся телеметрии с ошибочной CRC сервер подтверждает DATA_OK и отбрасывает.

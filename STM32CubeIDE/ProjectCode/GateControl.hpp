@@ -22,6 +22,8 @@ uint8_t GateControl_GetManualMode(void);
 void GateControl_SetCommand(GateControlCommand command, uint8_t enabled);
 uint8_t GateControl_IsCommandActive(GateControlCommand command);
 uint8_t GateControl_IsOpenPosition(void);
+void GateControl_RecordInputSample(bool valid);
+bool GateControl_IsOpenConfirmed(void);
 uint8_t GateControl_IsClosedPosition(void);
 uint8_t GateControl_IsAlarm(void);
 

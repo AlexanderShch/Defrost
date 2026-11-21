@@ -1,0 +1,540 @@
+# Руководство по интеграции модуля CommandReceiver
+
+## Актуальный порядок работы
+
+В рабочем режиме сервер инициирует обмен. Команда сервера имеет формат [Type][Code][DataLen][Data][CRC16], ответ контроллера — [AA 55][Type][Code][Status][DataLen][Data][CRC16]. CRC Modbus вычисляется без AA 55 и передаётся младшим байтом вперёд. Длина поля DataLen относится только к Data.
+
+При запуске STM32 сервер запрашивает версию и группы параметров 5, 6 и 7, затем устанавливает интервал. Запрос группы 7 ограничен общим бюджетом 950 мс. После запуска сервер периодически отправляет SEND_STATE (03/08) с байтом 01. Ответ 03/08 содержит 60 байт базовой телеметрии и байт флагов. Бит 0 (смещение 60 в Data) означает, что есть события. Старый запрос без параметров получает 60 байт. Для получения флага отдельной команды нет.
+
+Сервер отвечает на телеметрию DATA_OK или DATA_FALSE (00/01 или 00/02). В авторежиме после DATA_OK контроллер отправляет лог регулирования 00/01 с 113 байтами данных. Сервер также читает прежние варианты лога с 89, 105 и 109 байтами. Повтор неизменившейся телеметрии с ошибочной CRC сервер подтверждает DATA_OK и отбрасывает.
+
+В RAM контроллера 16 мест общей очереди. Диагностика занимает до 12 мест, четыре места доступны кнопкам даже при заполнении диагностикой. Записываются обработанные физические СТАРТ и СТОП, первый отказ активного датчика в серии и восстановление. Переполнения считаются раздельно для кнопок и диагностики. Перезагрузка очищает очередь.
+
+По флагу сервер читает головную запись командой GET_EVENT (03/0D) и записывает её в log.txt. После принудительной записи файла сервер отправляет ACK_EVENT (03/0E), и контроллер удаляет выданную запись. Повтор не создаёт дубликата строки благодаря идентификатору загрузки и номеру события. При наличии следующих событий сервер продолжает чтение. Флаг служебный и в WorkData не экспортируется.
+
+
+## Описание
+Модуль CommandReceiver обеспечивает прием и обработку команд от сервера через COM-порт (UART4) в отдельном потоке FreeRTOS.
+
+## Шаги интеграции
+
+### 1. Добавление файлов в проект
+
+Убедитесь, что следующие файлы добавлены в проект:
+- `CommandReceiver.hpp` - заголовочный файл
+- `CommandReceiver.cpp` - файл реализации
+- Обновленные `C2CPP.hpp` и `C2CPP.cpp`
+
+### 2. Изменения в main.c
+
+#### 2.1. Добавить включение заголовочного файла
+
+В секции `/* USER CODE BEGIN Includes */` добавить:
+```c
+#include "C2CPP.hpp"
+```
+
+#### 2.2. Объявить поток CommandReceiver
+
+В секции `/* USER CODE BEGIN PTD */` или где объявлены другие потоки, добавить:
+```c
+/* Definitions for RX_From_Server */
+osThreadId_t RX_From_ServerHandle;
+const osThreadAttr_t RX_From_Server_attributes = {
+  .name = "RX_From_Server",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+```
+
+#### 2.3. Создать поток в функции MX_FREERTOS_Init()
+
+В секции `/* USER CODE BEGIN RTOS_THREADS */` добавить:
+```c
+/* creation of RX_From_Server */
+RX_From_ServerHandle = osThreadNew(CommandReceiver_Task_C, NULL, &RX_From_Server_attributes);
+```
+
+### 3. Пример добавления в main.c (полный код секций)
+
+```c
+/* USER CODE BEGIN Includes */
+#include "Components/ili9341/ili9341.h"
+#include "C2CPP.hpp"
+/* USER CODE END Includes */
+
+/* ... */
+
+/* USER CODE BEGIN PTD */
+/* Definitions for TX_To_Server */
+osThreadId_t TX_To_ServerHandle;
+const osThreadAttr_t TX_To_Server_attributes = {
+  .name = "TX_To_Server",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+
+/* Definitions for RX_From_Server */
+osThreadId_t RX_From_ServerHandle;
+const osThreadAttr_t RX_From_Server_attributes = {
+  .name = "RX_From_Server",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* USER CODE END PTD */
+
+/* ... */
+
+/* USER CODE BEGIN RTOS_THREADS */
+/* creation of TX_To_Server */
+TX_To_ServerHandle = osThreadNew(TransferToServer, NULL, &TX_To_Server_attributes);
+
+/* creation of RX_From_Server */
+RX_From_ServerHandle = osThreadNew(CommandReceiver_Task_C, NULL, &RX_From_Server_attributes);
+/* USER CODE END RTOS_THREADS */
+```
+
+## Структура команд
+
+### Формат команды
+```
++----------------+----------------+----------------+-----------+----------+
+| Command Type   | Command Code   | Data Length    | Data      | CRC16    |
+| (1 byte)       | (1 byte)       | (1 byte)       | (0-59 b)  | (2 bytes)|
++----------------+----------------+----------------+-----------+----------+
+```
+
+### Типы команд (Command Type)
+
+| Значение | Название        | Описание                    |
+|----------|----------------|-----------------------------|
+| 0x01     | CONTROL        | Команды управления          |
+| 0x02     | CONFIGURATION  | Команды конфигурации        |
+| 0x03     | REQUEST        | Команды запроса данных      |
+| 0x04     | RESPONSE       | Ответы от устройства        |
+
+### Коды команд управления (Control Commands)
+
+| Код  | Название | Описание                          |
+|------|----------|-----------------------------------|
+| 0x01 | START    | Запуск работы устройства          |
+| 0x02 | STOP     | Остановка работы устройства       |
+| 0x03 | PAUSE    | Приостановка работы               |
+| 0x04 | RESUME   | Возобновление после паузы         |
+| 0x05 | RESET    | Сброс устройства                  |
+
+### Коды команд конфигурации (Configuration Commands)
+
+| Код  | Название           | Описание                            | Формат данных     |
+|------|--------------------|-------------------------------------|-------------------|
+| 0x01 | SET_TEMPERATURE    | Установить целевую температуру      | float (4 bytes)   |
+| 0x02 | SET_INTERVAL       | Установить интервал измерений       | uint16 (2 bytes)  |
+| 0x03 | SET_MODE           | Установить режим работы             | uint8 (1 byte)    |
+
+### Коды команд запроса (Request Commands)
+
+| Код  | Название      | Описание                            |
+|------|---------------|-------------------------------------|
+| 0x01 | GET_STATUS    | Запросить текущий статус устройства |
+| 0x02 | GET_VERSION   | Запросить версию прошивки           |
+| 0x03 | GET_CONFIG    | Запросить текущую конфигурацию      |
+
+## Примеры команд
+
+### Пример 1: Команда START (запуск устройства)
+
+**Описание:** Команда без параметров для запуска работы устройства.
+
+**Байты:**
+```
+01 01 00 C1 80
+```
+
+**Разбор:**
+- `01` - Command Type (CONTROL)
+- `01` - Command Code (START)
+- `00` - Data Length (0 байт данных)
+- `C1 80` - CRC16 (вычисляется автоматически)
+
+**Hexadecimal строка для отправки:**
+```
+010100C180
+```
+
+### Пример 2: Команда STOP (остановка устройства)
+
+**Байты:**
+```
+01 02 00 81 81
+```
+
+**Разбор:**
+- `01` - Command Type (CONTROL)
+- `02` - Command Code (STOP)
+- `00` - Data Length (0 байт данных)
+- `81 81` - CRC16
+
+**Hexadecimal строка для отправки:**
+```
+0102008181
+```
+
+### Пример 3: Установка температуры 25.5°C
+
+**Описание:** Команда конфигурации для установки целевой температуры.
+
+**Байты:**
+```
+02 01 04 00 00 CC 41 XX XX
+```
+
+**Разбор:**
+- `02` - Command Type (CONFIGURATION)
+- `01` - Command Code (SET_TEMPERATURE)
+- `04` - Data Length (4 байта для float)
+- `00 00 CC 41` - Float значение 25.5 в формате IEEE 754 Little Endian
+- `XX XX` - CRC16 (рассчитывается для первых 7 байт)
+
+**Python код для формирования:**
+```python
+import struct
+
+def calculate_crc16(data):
+    crc = 0xFFFF
+    for byte in data:
+        crc ^= byte
+        for _ in range(8):
+            if crc & 0x0001:
+                crc = (crc >> 1) ^ 0xA001
+            else:
+                crc >>= 1
+    return crc
+
+# Формируем команду установки температуры
+cmd_type = 0x02  # CONFIGURATION
+cmd_code = 0x01  # SET_TEMPERATURE
+temp_value = 25.5
+
+# Преобразуем температуру в float (4 байта, Little Endian)
+temp_bytes = struct.pack('<f', temp_value)
+
+# Формируем команду
+command = bytes([cmd_type, cmd_code, 0x04]) + temp_bytes
+
+# Вычисляем CRC
+crc = calculate_crc16(command)
+crc_bytes = struct.pack('<H', crc)
+
+# Полная команда
+full_command = command + crc_bytes
+
+print("Команда (hex):", full_command.hex())
+# Вывод: 020104000000cc4133e3
+```
+
+**Hexadecimal строка для отправки:**
+```
+0201040000CC4133E3
+```
+
+### Пример 4: Установка режима работы (ручной режим)
+
+**Описание:** Переключение в ручной режим управления.
+
+**Байты:**
+```
+02 03 01 01 XX XX
+```
+
+**Разбор:**
+- `02` - Command Type (CONFIGURATION)
+- `03` - Command Code (SET_MODE)
+- `01` - Data Length (1 байт данных)
+- `01` - Mode value (1 = ручной режим)
+- `XX XX` - CRC16
+
+**Python код:**
+```python
+command = bytes([0x02, 0x03, 0x01, 0x01])
+crc = calculate_crc16(command)
+full_command = command + struct.pack('<H', crc)
+print("Команда (hex):", full_command.hex())
+# Вывод: 020301013151
+```
+
+**Hexadecimal строка для отправки:**
+```
+020301013151
+```
+
+### Пример 5: Запрос статуса устройства
+
+**Описание:** Команда запроса текущего состояния устройства.
+
+**Байты:**
+```
+03 01 00 XX XX
+```
+
+**Разбор:**
+- `03` - Command Type (REQUEST)
+- `01` - Command Code (GET_STATUS)
+- `00` - Data Length (0 байт данных)
+- `XX XX` - CRC16
+
+**Python код:**
+```python
+command = bytes([0x03, 0x01, 0x00])
+crc = calculate_crc16(command)
+full_command = command + struct.pack('<H', crc)
+print("Команда (hex):", full_command.hex())
+# Вывод: 03010020f1
+```
+
+**Hexadecimal строка для отправки:**
+```
+03010020F1
+```
+
+**Ожидаемый ответ:**
+```
+04 01 00 02 XX XX YY YY
+```
+- `04` - Response Type
+- `01` - Original Command Code (GET_STATUS)
+- `00` - Status (0x00 = OK)
+- `02` - Data Length (2 байта)
+- `XX XX` - Current status (uint16_t)
+- `YY YY` - CRC16
+
+### Пример 6: Запрос версии прошивки
+
+**Байты:**
+```
+03 02 00 XX XX
+```
+
+**Python код:**
+```python
+command = bytes([0x03, 0x02, 0x00])
+crc = calculate_crc16(command)
+full_command = command + struct.pack('<H', crc)
+print("Команда (hex):", full_command.hex())
+# Вывод: 030200e0f0
+```
+
+**Hexadecimal строка для отправки:**
+```
+030200E0F0
+```
+
+**Ожидаемый ответ:**
+```
+04 02 00 06 76 31 2E 30 2E 30 YY YY
+```
+- `04` - Response Type
+- `02` - Original Command Code (GET_VERSION)
+- `00` - Status (OK)
+- `06` - Data Length (6 байт для "v1.0.0")
+- `76 31 2E 30 2E 30` - ASCII строка "v1.0.0"
+- `YY YY` - CRC16
+
+## Тестирование через терминал
+
+### Использование Python скрипта для отправки команд
+
+Создайте файл `test_commands.py`:
+
+```python
+import serial
+import struct
+import time
+
+def calculate_crc16(data):
+    """Вычисление CRC16 ModBus"""
+    crc = 0xFFFF
+    for byte in data:
+        crc ^= byte
+        for _ in range(8):
+            if crc & 0x0001:
+                crc = (crc >> 1) ^ 0xA001
+            else:
+                crc >>= 1
+    return crc
+
+def send_command(ser, cmd_type, cmd_code, data=b''):
+    """Отправка команды через serial порт"""
+    data_length = len(data)
+    command = bytes([cmd_type, cmd_code, data_length]) + data
+    crc = calculate_crc16(command)
+    full_command = command + struct.pack('<H', crc)
+    
+    print(f"Отправка команды: {full_command.hex()}")
+    ser.write(full_command)
+    time.sleep(0.1)
+    
+    # Попытка прочитать ответ
+    if ser.in_waiting > 0:
+        response = ser.read(ser.in_waiting)
+        print(f"Получен ответ: {response.hex()}")
+        return response
+    else:
+        print("Ответ не получен")
+        return None
+
+# Настройка COM-порта (измените на свой порт)
+PORT = 'COM3'  # Для Windows
+# PORT = '/dev/ttyUSB0'  # Для Linux
+BAUDRATE = 19200
+
+try:
+    # Открываем serial порт
+    ser = serial.Serial(PORT, BAUDRATE, timeout=1)
+    print(f"Подключено к {PORT} на скорости {BAUDRATE}")
+    
+    time.sleep(2)  # Ждем инициализации
+    
+    # Тест 1: Команда START
+    print("\n--- Тест 1: START ---")
+    send_command(ser, 0x01, 0x01)
+    
+    time.sleep(1)
+    
+    # Тест 2: Установка температуры 25.5°C
+    print("\n--- Тест 2: SET_TEMPERATURE ---")
+    temp_data = struct.pack('<f', 25.5)
+    send_command(ser, 0x02, 0x01, temp_data)
+    
+    time.sleep(1)
+    
+    # Тест 3: Запрос статуса
+    print("\n--- Тест 3: GET_STATUS ---")
+    send_command(ser, 0x03, 0x01)
+    
+    time.sleep(1)
+    
+    # Тест 4: Запрос версии
+    print("\n--- Тест 4: GET_VERSION ---")
+    send_command(ser, 0x03, 0x02)
+    
+    time.sleep(1)
+    
+    # Тест 5: Команда STOP
+    print("\n--- Тест 5: STOP ---")
+    send_command(ser, 0x01, 0x02)
+    
+    ser.close()
+    print("\nТестирование завершено")
+    
+except serial.SerialException as e:
+    print(f"Ошибка COM-порта: {e}")
+except Exception as e:
+    print(f"Ошибка: {e}")
+```
+
+### Использование терминала (например, RealTerm, Hercules, или CoolTerm)
+
+1. Откройте терминал и подключитесь к COM-порту
+2. Настройте параметры:
+   - Baud Rate: 19200 (или как настроен ваш UART4)
+   - Data Bits: 8
+   - Stop Bits: 1
+   - Parity: None
+3. Отправляйте команды в HEX формате
+
+**Пример в RealTerm:**
+- Вкладка "Send"
+- Выберите "Hex"
+- Введите команду, например: `010100C180`
+- Нажмите "Send Numbers"
+
+## Расширение функционала
+
+### Добавление новых команд
+
+#### Шаг 1: Добавить код команды в `CommandReceiver.hpp`
+
+```cpp
+// Коды команд конфигурации
+typedef enum {
+    CFG_CMD_SET_TEMPERATURE = 0x01,
+    CFG_CMD_SET_INTERVAL    = 0x02,
+    CFG_CMD_SET_MODE        = 0x03,
+    CFG_CMD_NEW_COMMAND     = 0x04  // Новая команда
+} ConfigCommand_t;
+```
+
+#### Шаг 2: Добавить обработчик в `CommandReceiver.cpp`
+
+В функции `CommandReceiver_HandleConfiguration()`:
+
+```cpp
+case CFG_CMD_NEW_COMMAND:
+{
+    // Обработка новой команды
+    if (cmd->dataLength == /* ожидаемая длина */)
+    {
+        // Извлечение данных
+        // Выполнение действия
+    }
+    else
+    {
+        status = CMD_STATUS_INVALID_LENGTH;
+    }
+    break;
+}
+```
+
+## Отладка
+
+### Добавление логирования
+
+Для отладки можно добавить вывод через UART или сохранять логи в память:
+
+```cpp
+// В CommandReceiver.cpp
+void CommandReceiver_LogCommand(Command_t *cmd)
+{
+    // Логирование через printf (если настроен)
+    printf("Received: Type=0x%02X, Code=0x%02X, Len=%d\n", 
+           cmd->commandType, cmd->commandCode, cmd->dataLength);
+}
+```
+
+### Просмотр статистики
+
+Добавьте функцию для получения статистики:
+
+```cpp
+// В CommandReceiver.hpp
+CommandStats_t* CommandReceiver_GetStats(void);
+
+// В CommandReceiver.cpp
+CommandStats_t* CommandReceiver_GetStats(void)
+{
+    return &commandStats;
+}
+```
+
+## Безопасность
+
+1. **Проверка CRC**: Всегда проверяется для каждой команды
+2. **Валидация длины**: Длина данных не может превышать CMD_MAX_DATA_LENGTH (59 байт)
+3. **Таймауты**: Установлены таймауты на прием данных (5 секунд)
+4. **Статусы выполнения**: Каждая команда возвращает статус выполнения
+
+## Примечания
+
+1. Модуль использует UART4 для связи с сервером
+2. Тот же UART4 используется для передачи данных на сервер (TX_ToServer)
+3. Для избежания конфликтов используются семафоры PR_RX_Compl_SemHandle и PR_TX_Compl_SemHandle
+4. Поток работает с нормальным приоритетом (osPriorityNormal)
+5. Размер стека потока: 512 * 4 = 2048 байт (может быть увеличен при необходимости)
+
+## Дополнительные ресурсы
+
+- Документация FreeRTOS: https://www.freertos.org/
+- STM32 HAL UART: STM32F4xx HAL Driver documentation
+- Modbus CRC16: https://en.wikipedia.org/wiki/Modbus
+
+
