@@ -668,6 +668,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
 
         uint8_t startupGateClosing = 0; // при старте: 1 если нужно закрыть ворота через API GateControl
         uint8_t shutdownActive = 0;     // при остановке: 1 пока выполняется последовательность остановки
+        bool shutdownWorkLampOn = false;
        uint8_t shutdownGateOpening = 0; // при остановке: 1 если выполняется стартовый импульс открытия ворот
         uint8_t shutdownGateLiftPulse_s = 0; // длительность импульса открытия ворот в начале продувки (с)
        uint8_t shutdownGateFullOpenActive = 0; // при остановке: 1 пока идёт шаг FullGateOpen (ворота + закрытие заслонки)
@@ -1073,7 +1074,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
     }
 
     // Управление лампами индикации:
-    // Зелёная _Wrk сопровождает автоматический цикл до конца останова.
+    // Зелёная _Wrk горит при регулировании и мигает при штатном завершении.
     // красная _Alr - только авария устройства, мигание 1/1 сек.
     static void ApplyModeLamps(LampModeState modeState)
     {
@@ -1090,18 +1091,19 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
         }
 
         const bool shuttingDown = g.shutdownActive != 0u;
+        const bool shutdownWorkLamp = shuttingDown && g.shutdownWorkLampOn;
         const bool alarmLamp = Model::Device_Alarm != 0 && g.alarmBlinkPhase != 0;
         // Сохраняем индикацию незавершённого останова и при ручном открытии ворот.
         if (Model::Flag_DFR_manual != 0)
         {
             Model::DFR._Wrk = 0;
             Model::DFR._Alr = 0;
-            Model::DFR_manual._Wrk = shuttingDown ? 1 : 0;
+            Model::DFR_manual._Wrk = shutdownWorkLamp ? 1 : 0;
             Model::DFR_manual._Alr = (shuttingDown && alarmLamp) ? 1 : 0;
             return;
         }
 
-        Model::DFR._Wrk = (modeState == LampModeState::AutoActive || shuttingDown) ? 1 : 0;
+        Model::DFR._Wrk = (shuttingDown ? shutdownWorkLamp : modeState == LampModeState::AutoActive) ? 1 : 0;
         Model::DFR._Alr = alarmLamp ? 1 : 0;
         Model::DFR_manual._Wrk = 0;
         Model::DFR_manual._Alr = 0;
@@ -1898,6 +1900,7 @@ static uint8_t ShutdownVentilationNeeded(void)
     g.outOn = 0;
     Model::DFR._Out = 0;
     g.shutdownOutFanRemain_s = 0u;   // таймер продувки стартует в Ventilation после проверки Vent_Out
+    g.shutdownWorkLampOn = true;   // первый секундный снимок переключит горящую лампу в выкл.
     g.shutdownActive = 1;   // флаг завершения алгоритма (сигнал _Shd на сервере)
 
     // Запускаем последовательное выключение ТЭНов/вентиляторов через ApplyOutputs().
@@ -2652,7 +2655,7 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
             g.runtimeSeconds = 0; // Время работы алгоритма обнуляется при остановке
             g.airOnlyActive = 0;
             g.airOnlyRemain_s = 0;
-            // Зелёная лампа остаётся включена до конца последовательности останова.
+            // Зелёная лампа переключается на мигание до конца последовательности останова.
             ApplyModeLamps(LampModeState::StoppedOrManual);
         }
         g_defrostPersistedAutoMode = 0u;
@@ -2693,6 +2696,8 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
         {
             g.legacyWrkPulseActive = 0u;
             g.legacyAlrPulseActive = 0u;
+            // Меняем фазу ровно один раз за секундный цикл записи выходов.
+            g.shutdownWorkLampOn = g.shutdownActive != 0u && !g.shutdownWorkLampOn;
         }
         ApplyModeLamps((g.enabled != 0u) ? LampModeState::AutoActive : LampModeState::StoppedOrManual);
     }
