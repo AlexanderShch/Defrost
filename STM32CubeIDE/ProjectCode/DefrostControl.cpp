@@ -1075,7 +1075,7 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
 
     // Управление лампами индикации:
     // Зелёная _Wrk горит при регулировании и мигает при штатном завершении.
-    // красная _Alr - только авария устройства, мигание 1/1 сек.
+    // Красная _Alr горит при остановленном алгоритме; при аварии мигает 1/1 сек.
     static void ApplyModeLamps(LampModeState modeState)
     {
         if (g_defrostParams.useNewWrkAlrAlgorithm == 0u)
@@ -1092,14 +1092,16 @@ static_assert(sizeof(DefrostEepromStorage_t) <= EEPROM::kSensorConfigAddress, "D
 
         const bool shuttingDown = g.shutdownActive != 0u;
         const bool shutdownWorkLamp = shuttingDown && g.shutdownWorkLampOn;
-        const bool alarmLamp = Model::Device_Alarm != 0 && g.alarmBlinkPhase != 0;
+        const bool alarmLamp = Model::Device_Alarm != 0
+            ? g.alarmBlinkPhase != 0
+            : modeState == LampModeState::StoppedOrManual;
         // Сохраняем индикацию незавершённого останова и при ручном открытии ворот.
         if (Model::Flag_DFR_manual != 0)
         {
             Model::DFR._Wrk = 0;
             Model::DFR._Alr = 0;
             Model::DFR_manual._Wrk = shutdownWorkLamp ? 1 : 0;
-            Model::DFR_manual._Alr = (shuttingDown && alarmLamp) ? 1 : 0;
+            Model::DFR_manual._Alr = alarmLamp ? 1 : 0;
             return;
         }
 

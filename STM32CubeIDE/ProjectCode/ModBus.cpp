@@ -6,6 +6,7 @@
 #include "CommandReceiver.hpp"
 #include "DefrostControl.h"
 #include "ButtonEvents.hpp"
+#include "ButtonPressFilter.hpp"
 
 ButtonEventQueue g_buttonEvents;
 #include "stdio.h"
@@ -492,8 +493,8 @@ int Parametr_CORR;
 static const uint16_t kDeviceCheckMask = (1u << 0) | (1u << 1) | (1u << 2) | (1u << 3) |
                                          (1u << 4) | (1u << 5) | (1u << 6) | (1u << 7) |
                                          (1u << 8);
-// Защита от многократного автозапуска при удержании кнопки ПУСК.
-static uint8_t g_prevButStart = 0u;
+static ButtonPressFilter g_startButtonFilter;
+static ButtonPressFilter g_stopButtonFilter;
 
 // Регистрация аварии при рассогласовании входа и выхода.
 static void RecordDeviceAlarmBits(uint16_t mismatchMask)
@@ -731,6 +732,9 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 				Model::DI_DFR.Raw = SW.Read_Data_2;		// Сохраняем считанные с входов модуля ввода/вывода сигналы от устройств
 				const uint8_t butStartNow = (Model::DI_DFR.Bits.But_Start != 0u) ? 1u : 0u;
 				const uint8_t butStopNow = (Model::DI_DFR.Bits.But_Stop != 0u) ? 1u : 0u;
+				const uint32_t buttonNowMs = HAL_GetTick();
+				const bool startPressed = g_startButtonFilter.Update(butStartNow != 0u, buttonNowMs);
+				const bool stopPressed = g_stopButtonFilter.Update(butStopNow == 0u, buttonNowMs);
 				/*********************************************************************************************/
 				if (DefrostControl_UsesNewWrkAlrAlgorithm() != 0u)
 				{
@@ -741,7 +745,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 					// Авария имеет приоритет над кнопками в этом же опросе.
 					HandleGateAlarmAfterIoRead();
 				}
-				else if (butStopNow == 0u && DefrostControl_IsEnabled() != 0u)
+				else if (stopPressed && DefrostControl_IsEnabled() != 0u)
 				{
 					// В норме But_Stop=1. Событие создаём именно при обработке
                     // физического СТОП, а не по редкому снимку входов на сервере.
@@ -751,7 +755,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 					DefrostControl_SetEnabled(0);
 				}
 
-                else if (butStopNow == 0u && DefrostControl_InterruptPurgeByStopButton() != 0u)
+                else if (stopPressed && DefrostControl_InterruptPurgeByStopButton() != 0u)
                 {
                     // Сохраняем только выполненный переход. Сервер получит событие даже
                     // при отпускании кнопки до следующего запроса телеметрии.
@@ -759,7 +763,7 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
                     g_buttonEvents.Push(ButtonEventQueue::PurgeInterrupted, TimeFromStart);
                     osKernelUnlock();
                 }
-				else if (butStartNow != 0u && g_prevButStart == 0u && DefrostControl_IsEnabled() == 0u)
+				else if (startPressed && butStopNow != 0u && DefrostControl_IsEnabled() == 0u)
 				{
 					// Вход But_Start запускает по фронту. Сохраняем событие до
                     // смены режима; удержание и команды сервера его не дублируют.
@@ -768,7 +772,6 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
                     osKernelUnlock();
 					DefrostControl_SetEnabled(1);
 				}
-				g_prevButStart = butStartNow;
 				/*********************************************************************************************/
 				// Контроль подтверждений — только после чтения актуальной пары DO/DI.
 				if (DefrostControl_UsesNewWrkAlrAlgorithm() != 0u &&
