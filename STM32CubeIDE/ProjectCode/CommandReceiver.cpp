@@ -27,6 +27,15 @@ extern SENSOR_typedef_t Sensor_array[SQ];  // массив датчиков
 // TimeFromStart объявлен в Data.hpp (C++), определение в Data.cpp.
 
 // Буферы для приема команд
+// One SEND_STATE owns one optional log snapshot until DATA_OK or timeout.
+static bool s_requestTagged = false;
+static uint64_t s_requestId = 0;
+static bool s_stateTagged = false;
+static uint64_t s_stateRequestId = 0;
+static bool s_stateAwaitingAck = false;
+static bool s_stateNeedsLog = false;
+static uint32_t s_stateRequestedAt = 0;
+static ControlLogPayload_t s_stateLog = {};
 static uint8_t RX_CMD_Buffer[CMD_MAX_LENGTH];
 static uint8_t TX_Response_Buffer[CMD_MAX_LENGTH];
 static volatile uint16_t RX_ReceivedSize = 0;  // Размер полученных данных
@@ -155,7 +164,7 @@ void CommandReceiver_Init(void)
  */
 void CommandReceiver_SendResponse(CommandResponse_t *response)
 {
-    if (response == nullptr || response->dataLength > CMD_MAX_DATA_LENGTH) return;
+    if (response == nullptr || response->dataLength + (s_requestTagged ? 8u : 0u) > CMD_MAX_DATA_LENGTH) return;
     uint16_t txLength = 0;
     
     // КРИТИЧНО: Очищаем буфер перед формированием нового ответа
@@ -166,18 +175,19 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
     // [Type][Code][Status][DataLen][Data...][CRC16]
     // Где:
     // - CRC16 считается по блоку [Type][Code][Status][DataLen][Data...]
-    TX_Response_Buffer[0] = response->commandType;   // тип
+    TX_Response_Buffer[0] = response->commandType | (s_requestTagged ? 0x80u : 0u);   // тип
     TX_Response_Buffer[1] = response->commandCode;   // код
     TX_Response_Buffer[2] = response->status;        // статус
-    TX_Response_Buffer[3] = response->dataLength;    // длина данных
+    TX_Response_Buffer[3] = response->dataLength + (s_requestTagged ? 8u : 0u);
+    if (s_requestTagged) memcpy(&TX_Response_Buffer[4], &s_requestId, 8);    // длина данных
     
     // Копируем данные
     if (response->dataLength > 0 && response->dataLength <= CMD_MAX_DATA_LENGTH)
     {
-        memcpy(&TX_Response_Buffer[4], response->data, response->dataLength);
+        memcpy(&TX_Response_Buffer[4 + (s_requestTagged ? 8u : 0u)], response->data, response->dataLength);
     }
     
-    txLength = 4 + response->dataLength;
+    txLength = 4 + response->dataLength + (s_requestTagged ? 8u : 0u);
     
     // Вычисляем CRC (единый метод из ModBus)
     response->crc = MB_GetCRC((volatile uint8_t*)TX_Response_Buffer, txLength);
@@ -210,6 +220,13 @@ void CommandReceiver_SendResponse(CommandResponse_t *response)
  */
 CommandStatus_t CommandReceiver_HandleTelemetry(Command_t *cmd)
 {
+    // A stale ACK must not cancel the newer outstanding telemetry request.
+    if (s_requestTagged != s_stateTagged || (s_requestTagged && s_requestId != s_stateRequestId)) return CMD_STATUS_OK;
+    if (!s_stateAwaitingAck ||
+        (uint32_t)(osKernelGetTickCount() - s_stateRequestedAt) >= (osKernelGetTickFreq() * 3u / 2u)) {
+        s_stateAwaitingAck = false;
+        return CMD_STATUS_OK; // Unsolicited/late ACK must not generate a new log.
+    }
     CommandStatus_t status = CMD_STATUS_OK;
     CommandResponse_t response;
     
@@ -227,6 +244,7 @@ CommandStatus_t CommandReceiver_HandleTelemetry(Command_t *cmd)
     {
         case TELEMETRY_DATA_OK:
         {
+            s_stateAwaitingAck = false;
             // Сервер подтвердил приём телеметрии
             // ✅ Успешная передача телеметрии
             // Сигнал TX_ToServer: можно продолжать (дать окно для приёма ответа перед следующим пакетом)
@@ -235,15 +253,7 @@ CommandStatus_t CommandReceiver_HandleTelemetry(Command_t *cmd)
                 osSemaphoreRelease(ServerResponseReceived_SemHandle);
             }
 
-            // Лог параметров отправляем только в автоматическом режиме (_Wrk==1).
-            if (DefrostControl_IsEnabled() != 0u)
-            {
-                ControlLogPayload_t logPayload = DefrostControl_GetControlLogPayload();
-                response.dataLength = (uint8_t)sizeof(logPayload);
-                memcpy(response.data, &logPayload, response.dataLength);
-                CommandReceiver_SendResponse(&response);
-            }
-
+            // DATA_OK only confirms telemetry; GET_PROCESS_LOG requests the snapshot.
             break;
         }
         case TELEMETRY_DATA_FALSE:
@@ -739,14 +749,35 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
             /* Ответом на команду являются кадры телеметрии и лога (не CommandResponse). */
         	MSGQUEUE_OBJ_t DataTelemetry = {};
         	DataTelemetry = Data_CurrentTelemetry();
+            s_stateNeedsLog = DefrostControl_IsEnabled() != 0u;
+            s_stateTagged = s_requestTagged;
+            s_stateRequestId = s_requestId;
+            s_stateLog = DefrostControl_GetControlLogPayload();
+            s_stateRequestedAt = osKernelGetTickCount();
+            s_stateAwaitingAck = true;
         	response.dataLength = (uint8_t)sizeof(DataTelemetry);
         	memcpy(response.data, &DataTelemetry, response.dataLength);
             if (cmd->dataLength == 1 && cmd->data[0] == 1) {
                 osKernelLock();
-                response.data[response.dataLength++] = g_buttonEvents.Pending() ? 1 : 0;
+                response.data[response.dataLength++] = (g_buttonEvents.Pending() ? 1u : 0u) |
+                    ((s_requestTagged && s_stateNeedsLog) ? 2u : 0u);
                 osKernelUnlock();
             }
 
+            CommandReceiver_SendResponse(&response);
+            break;
+        }
+        case REQ_CMD_GET_PROCESS_LOG:
+        {
+            uint64_t parentId = 0;
+            if (cmd->dataLength == 8) memcpy(&parentId, cmd->data, 8);
+            if (!s_requestTagged || cmd->dataLength != 8 || !s_stateTagged ||
+                parentId != s_stateRequestId || !s_stateNeedsLog) {
+                response.status = CMD_STATUS_EXECUTION_ERROR;
+            } else {
+                response.dataLength = sizeof(s_stateLog);
+                memcpy(response.data, &s_stateLog, sizeof(s_stateLog));
+            }
             CommandReceiver_SendResponse(&response);
             break;
         }
@@ -823,6 +854,7 @@ CommandStatus_t CommandReceiver_ProcessCommand(Command_t *cmd)
 {
     CommandStatus_t status = CMD_STATUS_OK;
     
+    if (cmd->commandType != CMD_TYPE_TELEMETRY) s_stateAwaitingAck = false;
     commandStats.totalCommandsReceived++;
     
     // Обработка команды по типу
@@ -977,6 +1009,9 @@ CommandStatus_t CommandReceiver_ReceiveCommand(Command_t *cmd)
  */
 void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
 {
+    s_requestTagged = false;
+    s_requestId = 0;
+    if (receivedSize > CMD_MAX_LENGTH) return;
     Command_t receivedCommand;      // структура для хранения команды
     CommandStatus_t cmdStatus;      // статус обработки команды
     static uint8_t localBuffer[CMD_MAX_LENGTH];  // static для экономии стека
@@ -1054,16 +1089,6 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
     receivedCommand.crc = localBuffer[CMD_HEADER_SIZE + receivedCommand.dataLength] | 
                           (localBuffer[CMD_HEADER_SIZE + receivedCommand.dataLength + 1] << 8);
                     
-    // Сохраняем данные для аудита последней команды
-    if (g_currentCmdSkipAudit == 0)
-    {
-        g_lastCmdType = receivedCommand.commandType;
-        g_lastCmdCode = receivedCommand.commandCode;
-        g_lastCmdDeviceTimeSec = (uint16_t)TimeFromStart;
-        g_lastCmdAckSent = 0;
-        g_lastCmdStatus = CMD_STATUS_OK;
-    }
-
     // Проверяем CRC
     uint16_t totalLength = CMD_HEADER_SIZE + receivedCommand.dataLength;
     if (MB_GetCRC((volatile uint8_t*)localBuffer, totalLength) != receivedCommand.crc)
@@ -1083,6 +1108,29 @@ void CommandReceiver_ProcessReceivedData(uint16_t receivedSize)
         return;
     }
     
+    // Validate the wire CRC before trusting or extracting the request identifier.
+    if (receivedCommand.commandType & 0x80u) {
+        if (receivedCommand.dataLength < 8u) { g_commandReceiverHandling = 0; return; }
+        memcpy(&s_requestId, receivedCommand.data, 8);
+        if (!s_requestId) { g_commandReceiverHandling = 0; return; }
+        s_requestTagged = true;
+        receivedCommand.commandType &= 0x7fu;
+        receivedCommand.dataLength -= 8u;
+        memmove(receivedCommand.data, receivedCommand.data + 8, receivedCommand.dataLength);
+        g_currentCmdType = receivedCommand.commandType;
+    }
+
+    g_currentCmdSkipAudit = (receivedCommand.commandType == CMD_TYPE_REQUEST && receivedCommand.commandCode == REQ_CMD_GET_CMD_INFO) ? 1 : 0;
+    // Сохраняем данные для аудита последней команды
+    if (g_currentCmdSkipAudit == 0)
+    {
+        g_lastCmdType = receivedCommand.commandType;
+        g_lastCmdCode = receivedCommand.commandCode;
+        g_lastCmdDeviceTimeSec = (uint16_t)TimeFromStart;
+        g_lastCmdAckSent = 0;
+        g_lastCmdStatus = CMD_STATUS_OK;
+    }
+
     // КРИТИЧНО: Сохраняем тип и код команды ДО обработки
     // так как обработчики могут модифицировать структуру receivedCommand
     uint8_t originalCommandType = receivedCommand.commandType;

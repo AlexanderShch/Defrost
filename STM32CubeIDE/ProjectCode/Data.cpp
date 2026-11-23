@@ -663,7 +663,7 @@ void InitData()
 // ХРАНЕНИЕ ПОСЛЕДНЕГО ОТПРАВЛЕННОГО ПАКЕТА ТЕЛЕМЕТРИИ (для повтора при DATA_FALSE)
 // Формат пакета: [Type][Code][Status][DataLen][Data...][CRC16]
 // ═══════════════════════════════════════════════════════════════════════════
-#define TELEMETRY_PACKET_MAX  (4u + 113u + 2u)
+#define TELEMETRY_PACKET_MAX  (4u + 121u + 2u)
 static uint8_t s_lastSentTelemetryPacket[TELEMETRY_PACKET_MAX];
 static uint16_t s_lastSentTelemetryPacketLen = 0u;
 
@@ -692,7 +692,7 @@ volatile uint32_t g_serverTxRejected = 0u;
 static bool IsTelemetryFrame(const uint8_t *data, uint16_t length)
 {
     // Request/SEND_STATE response, distinct from telemetry ACK/control-log and sensor diagnostics.
-    return length >= 6u && data[0] == CMD_TYPE_REQUEST && data[1] == REQ_CMD_SEND_STATE;
+    return length >= 6u && (data[0] & 0x7fu) == CMD_TYPE_REQUEST && data[1] == REQ_CMD_SEND_STATE;
 }
 
 void ResendLastTelemetry(void)

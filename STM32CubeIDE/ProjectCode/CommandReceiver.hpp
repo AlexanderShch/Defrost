@@ -18,7 +18,7 @@
 // GET_DEFROST_GROUP(5) возвращает DefrostLogPhasePayload_t (72 байта) + 2 (groupId, page) = 74 байта данных
 #define CMD_HEADER_SIZE 3
 #define CMD_CRC_SIZE 2
-#define CMD_MAX_DATA_LENGTH 113  // вмещает лог регулирования и группы конфигурации
+#define CMD_MAX_DATA_LENGTH 121  // вмещает лог регулирования и группы конфигурации
 #define CMD_RESPONSE_HEADER_SIZE 4
 #define CMD_MAX_LENGTH (CMD_RESPONSE_HEADER_SIZE + CMD_MAX_DATA_LENGTH + CMD_CRC_SIZE)
 
@@ -74,6 +74,7 @@ typedef enum {
     REQ_CMD_SEND_STATE       = 0x08, // Отправить состояние: телеметрия
     REQ_CMD_GET_ALARM_FLAGS  = 0x09, // Запрос регистров аварий: устройства и датчики
     REQ_CMD_GET_BUTTON_EVENTS = 0x0B, // Прочитать очередь, не удаляя события
+    REQ_CMD_GET_PROCESS_LOG = 0x0F,
     REQ_CMD_GET_EVENT = 0x0D,
     REQ_CMD_ACK_EVENT = 0x0E,
     REQ_CMD_ACK_BUTTON_EVENTS = 0x0C, // Подтвердить записанный сервером префикс
