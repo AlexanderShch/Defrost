@@ -35,12 +35,15 @@ class ButtonEventQueue {
         memcpy(dest + 4, &e.seconds, 4);
         dest[8] = e.kind;
     }
+    // СТОП при продувке занимает место кнопки и не влияет на счётчик диагностики.
+    static bool IsButton(uint8_t kind) { return kind <= 2 || kind == PurgeInterrupted; }
     void Remove(unsigned i) {
-        if (events[i].kind > 2) --diagnostics;
+        if (!IsButton(events[i].kind)) --diagnostics;
         --count;
         memmove(events+i, events+i+1, (count-i)*sizeof(Event));
     }
 public:
+    static constexpr uint8_t PurgeInterrupted = 5; // СТОП прервал продувку.
     bool Pending() const { return count != 0; }
 
     void Push(uint8_t kind, uint32_t seconds) {
@@ -63,8 +66,11 @@ public:
         memcpy(out+16, &lostButtons, 4);
         uint8_t n = 0;
         for (unsigned i=0; i<count && n<10; ++i) {
-            if (events[i].kind > 2) continue;
-            Encode(events[i], out+21+9*n++);
+            if (!IsButton(events[i].kind)) continue;
+            uint8_t* dest = out+21+9*n++;
+            Encode(events[i], dest);
+            // Старый формат передаёт это событие как обычное нажатие СТОП.
+            if (dest[8] == PurgeInterrupted) dest[8] = 2;
             legacyOffered = events[i].sequence;
         }
         out[20] = n;
@@ -73,14 +79,14 @@ public:
     bool Ack(const uint8_t* id, uint32_t seq) {
         if (!bound || memcmp(session,id,16) || seq>legacyOffered) return false;
         for (unsigned i=0; i<count && events[i].sequence<=seq;) {
-            if (events[i].kind<=2) Remove(i);
+            if (IsButton(events[i].kind)) Remove(i);
             else ++i;
         }
         return true;
     }
     // Заголовок: сессия, потери кнопок и диагностики, число ожидающих.
     // Одна запись за чтение; максимум 25+9+27 байт полезной нагрузки.
-    uint8_t ReadEvent(const uint8_t* proposed, uint8_t* out) {
+    uint8_t ReadEvent(const uint8_t* proposed, uint8_t* out, bool extendedButtons = false) {
         Bind(proposed);
         memcpy(out, session, 16);
         memcpy(out+16, &lostButtons, 4);
@@ -90,7 +96,12 @@ public:
         const Event& e = events[0];
         Encode(e,out+25);
         offered = e.sequence;
-        if (e.kind <= 2) return 34;
+        if (IsButton(e.kind)) {
+            // Сервер 4.0.0 знает только обычный СТОП. Сохраняем длину и номер события,
+            // чтобы он смог его подтвердить и продолжить чтение очереди.
+            if (e.kind == PurgeInterrupted && !extendedButtons) out[33] = 2;
+            return 34;
+        }
         memcpy(out+34, &e.detail, sizeof(e.detail));
         return 34+sizeof(e.detail);
     }

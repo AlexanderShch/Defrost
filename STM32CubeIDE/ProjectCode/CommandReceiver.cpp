@@ -760,7 +760,8 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
             if (cmd->dataLength == 1 && cmd->data[0] == 1) {
                 osKernelLock();
                 response.data[response.dataLength++] = (g_buttonEvents.Pending() ? 1u : 0u) |
-                    ((s_requestTagged && s_stateNeedsLog) ? 2u : 0u);
+                    ((s_requestTagged && s_stateNeedsLog) ? 2u : 0u) |
+                    4u; // Сервер может запросить расширенные коды кнопок в GET_EVENT.
                 osKernelUnlock();
             }
 
@@ -805,13 +806,17 @@ CommandStatus_t CommandReceiver_HandleRequest(Command_t *cmd)
             static_assert(CMD_MAX_DATA_LENGTH >= 34 + sizeof(SensorEventDetail), "event response too large");
             const bool unified = cmd->commandCode == REQ_CMD_GET_EVENT || cmd->commandCode == REQ_CMD_ACK_EVENT;
             const bool read = cmd->commandCode == REQ_CMD_GET_BUTTON_EVENTS || cmd->commandCode == REQ_CMD_GET_EVENT;
-            if (cmd->dataLength != (read ? 16u : 20u))
+            // Байт после GUID включает расширенные события только для GET_EVENT.
+            // Старые клиенты отправляют 16 байт и получают обычный код СТОП.
+            const bool extendedButtons = cmd->commandCode == REQ_CMD_GET_EVENT &&
+                cmd->dataLength == 17u && cmd->data[16] == 1u;
+            if (!extendedButtons && cmd->dataLength != (read ? 16u : 20u))
                 response.status = CMD_STATUS_INVALID_LENGTH;
             else {
                 // Копирование/удаление ограничены размером RAM-очереди; UART
                 // отправляется после освобождения блокировки планировщика.
                 osKernelLock();
-                if (read) response.dataLength = unified ? g_buttonEvents.ReadEvent(cmd->data, response.data) : g_buttonEvents.Read(cmd->data, response.data);
+                if (read) response.dataLength = unified ? g_buttonEvents.ReadEvent(cmd->data, response.data, extendedButtons) : g_buttonEvents.Read(cmd->data, response.data);
                 else {
                     uint32_t sequence; memcpy(&sequence,cmd->data+16,4);
                     if (!(unified ? g_buttonEvents.AckEvent(cmd->data,sequence) : g_buttonEvents.Ack(cmd->data,sequence))) response.status=CMD_STATUS_EXECUTION_ERROR;

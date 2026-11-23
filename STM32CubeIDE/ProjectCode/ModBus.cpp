@@ -751,6 +751,14 @@ MB_Error_t Sensor_Read(uint8_t SensIndex)
 					DefrostControl_SetEnabled(0);
 				}
 
+                else if (butStopNow == 0u && DefrostControl_InterruptPurgeByStopButton() != 0u)
+                {
+                    // Сохраняем только выполненный переход. Сервер получит событие даже
+                    // при отпускании кнопки до следующего запроса телеметрии.
+                    osKernelLock();
+                    g_buttonEvents.Push(ButtonEventQueue::PurgeInterrupted, TimeFromStart);
+                    osKernelUnlock();
+                }
 				else if (butStartNow != 0u && g_prevButStart == 0u && DefrostControl_IsEnabled() == 0u)
 				{
 					// Вход But_Start запускает по фронту. Сохраняем событие до

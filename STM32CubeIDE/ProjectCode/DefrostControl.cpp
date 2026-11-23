@@ -2662,6 +2662,20 @@ static uint8_t SerializeParamEntry(uint8_t paramId, const DefrostParamValue_t *v
         PersistParamsToEepromIfAvailable(); // сохранение параметров в EEPROM, если EEPROM доступна
     }
 
+    uint8_t DefrostControl_InterruptPurgeByStopButton(void)
+    {
+        // Команду принимаем только на шаге продувки, включая ожидание открытия заслонки.
+        // После смены шага удерживаемая кнопка повторно событие не создаёт.
+        if (g.shutdownActive == 0u || g.shutdownStage != (uint8_t)ShutdownStage::Ventilation)
+            return 0u;
+
+        // Явный СТОП отменяет отложенный СТАРТ и завершает продувку штатным переходом:
+        // снимаем команды с вытяжки и заслонки и запускаем полное открытие ворот.
+        g.startPendingAfterShutdown = 0u;
+        ShutdownGoToFullGateOpen_VentCleanup();
+        return 1u;
+    }
+
     void DefrostControl_NotifyServerStartStop(uint8_t startCommand)
     {
         if (g_defrostParams.useNewWrkAlrAlgorithm != 0u)

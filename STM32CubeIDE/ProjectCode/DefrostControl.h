@@ -80,6 +80,8 @@ extern "C" {
 
 void DefrostControl_Init(void);
 void DefrostControl_SetEnabled(uint8_t enabled);
+/** Обработать физический СТОП во время продувки. Возвращает 1 при переходе к открытию ворот. */
+uint8_t DefrostControl_InterruptPurgeByStopButton(void);
 /** Сформировать старый односекундный импульс _Wrk/_Alr для команды, принятой именно от сервера. */
 void DefrostControl_NotifyServerStartStop(uint8_t startCommand);
 /** Подготовить старые импульсы непосредственно перед секундным снимком выходного регистра. */
